@@ -1261,7 +1261,7 @@
   @media (max-width: 480px) {
     .support-widget {
       right: 8px;
-      bottom: 8px;
+      bottom: 20px;
     }
     .support-widget-panel {
       width: calc(100vw - 16px);
@@ -3848,13 +3848,10 @@
     .nav-tabs {
       order: 3;
       width: 100%;
-      justify-content: flex-start;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      padding-bottom: 2px;
+      justify-content: center;
+      flex-wrap: wrap;
+      row-gap: 4px;
     }
-    .nav-tabs::-webkit-scrollbar { display: none; }
     .nav-tab, .nav-tab-home {
       padding: 8px 12px;
       font-size: 12.5px;
@@ -3905,6 +3902,57 @@
        100% ширины на этом брейкпоинте (см. правила выше), здесь только
        выравниваем внутренние отступы карточек. */
     .home-streamer-item { padding: 8px 10px; }
+
+    /* На телефоне убираем "Модераторы" и "Респект+" — оставляем только
+       "Стримеры", и переносим этот блок в самый низ страницы, под ленту
+       "Новое на канале". .home-top-row переводим в display:contents,
+       чтобы его дети (сайдбары + основная сетка) стали прямыми флекс-
+       элементами .home-page-layout наравне с .home-channel-reel — тогда
+       порядок между ними можно задать через order. */
+    .home-top-row { display: contents; }
+    .home-moderators-sidebar { display: none; }
+    .home-layout { order: 1; }
+    .home-channel-reel { order: 2; }
+    .home-streamers-sidebar {
+      order: 3;
+      position: static;
+      width: 100%;
+    }
+    #homeRespectHeader,
+    #homeRespectPlusPanel { display: none; }
+
+    /* "Новое на канале" — на десктопе горизонтальная карусель со свайпом,
+       на телефоне превращаем в обычный вертикальный список, чтобы всё
+       управление страницей было только скроллом вверх/вниз. */
+    .reel-track {
+      flex-direction: column;
+      overflow-x: visible;
+      padding: 8px 0 0;
+    }
+    .reel-item { flex: 0 0 auto; width: 100%; }
+    .reel-arrow { display: none; }
+
+    /* Крестик закрытия фото/поста — на десктопе прилипает к верхнему
+       краю модалки и уезжает вместе со скроллом контента. На телефоне
+       делаем его прибитым к экрану, всегда виден в углу сверху. */
+    .lightbox-overlay .close-x {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 210;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(20,18,26,0.88);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    /* Кнопка техподдержки — приподнимаем над самым краем экрана. */
+    .support-widget { bottom: 32px; }
   }
 
   @media (max-width: 480px) {
@@ -4025,7 +4073,7 @@
     <div class="home-streamers-panel" id="homeStreamersPanel">
       <p class="home-empty">Загрузка...</p>
     </div>
-    <div class="home-col-header">
+    <div class="home-col-header" id="homeRespectHeader">
       <h3>Респект+</h3>
     </div>
     <div class="home-streamers-panel" id="homeRespectPlusPanel">
