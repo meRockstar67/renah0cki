@@ -82,7 +82,7 @@
   }
 
   .header-username {
-    font-size: 36px;
+    font-size: 44px;
   }
 
   .nav-tabs {
@@ -1478,11 +1478,13 @@
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
+    cursor: pointer;
   }
   .post-author-name {
     font-size: 14px;
     font-weight: 600;
     color: var(--text);
+    cursor: pointer;
   }
   .post-author-label {
     font-size: 12px;
@@ -2175,6 +2177,7 @@
     font-weight: 700;
     color: var(--text);
     margin-left: -5px;
+    cursor: pointer;
   }
 
   .comment-time {
@@ -2913,7 +2916,7 @@
     border-radius: 10px;
     padding: 6px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-    min-width: 190px;
+    min-width: 140px;
   }
 
   .header-user-dropdown.open { display: block; }
@@ -2925,9 +2928,9 @@
     background: none;
     color: var(--text);
     border: none;
-    border-radius: 7px;
-    padding: 9px 12px;
-    font-size: 16px;
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 12px;
     cursor: pointer;
   }
 
@@ -3478,6 +3481,32 @@
     .home-layout { grid-template-columns: 1fr; }
   }
 
+  /* Зеркальный левый сайдбар "Модераторы" — те же правила, что и у
+     правого .home-streamers-sidebar, но приколот к левому краю. */
+  .home-moderators-sidebar {
+    position: fixed;
+    top: 96px;
+    left: 24px;
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+  @media (max-width: 1650px) {
+    .home-moderators-sidebar {
+      position: static;
+      width: 260px;
+      flex-shrink: 0;
+      max-height: none;
+      overflow-y: visible;
+    }
+  }
+  @media (max-width: 1200px) {
+    .home-moderators-sidebar { width: 100%; }
+  }
+
   .home-col { display: flex; flex-direction: column; gap: 16px; }
 
   .home-col-header {
@@ -3670,6 +3699,20 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .home-moderator-role-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #ff5a5a;
+    background: rgba(255,90,90,0.14);
+    border: 1px solid rgba(255,90,90,0.4);
+    border-radius: 6px;
+    padding: 2px 7px;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .home-empty { color: var(--muted); font-size: 13px; padding: 6px 0; grid-column: 1 / -1; }
@@ -3773,6 +3816,112 @@
     .reel-arrow { display: none; }
   }
   /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ─── Мобильная версия ────────────────────────────────────────────────
+     Общий брейкпоинт 760px — перестройка шапки, отступов и сеток под
+     touch-экраны. Внутри — доп. брейкпоинт 480px для совсем узких
+     телефонов. Опираемся на уже существующие адаптивные grid'ы
+     (auto-fill/minmax) там, где они и так работают, и точечно правим
+     то, что на десктопе завязано на фиксированные ширины/раскладки
+     (шапка, сайдбары главной, карточка профиля). */
+  @media (max-width: 760px) {
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 12px 14px;
+      row-gap: 10px;
+      column-gap: 10px;
+    }
+    header h1 {
+      order: 1;
+      font-size: 17px;
+      gap: 6px;
+    }
+    header h1 .site-logo-icon { height: 26px; }
+    .header-right {
+      order: 2;
+      margin-left: auto;
+      gap: 8px;
+    }
+    .mod-btn { font-size: 12px; padding: 7px 10px; }
+    .nav-tabs {
+      order: 3;
+      width: 100%;
+      justify-content: flex-start;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; }
+    .nav-tab, .nav-tab-home {
+      padding: 8px 12px;
+      font-size: 12.5px;
+      flex-shrink: 0;
+    }
+
+    /* Ник рядом с аватаркой в шапке — на десктопе 44px, на телефоне
+       это ломает высоту шапки, уменьшаем. */
+    .header-username { font-size: 20px; }
+    .header-user-hint { display: none; }
+
+    main { padding: 20px 14px; }
+    #profilePage { padding: 20px 14px; }
+
+    .toolbar { flex-wrap: wrap; row-gap: 10px; }
+
+    .feed-filters { flex-wrap: wrap; row-gap: 8px; }
+
+    #feed, .profile-feed {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    /* Карточка профиля: на десктопе всё в один ряд (аватар/инфо/кнопки),
+       на телефоне переносим кнопки под инфо, чтобы не сжимать ник. */
+    .profile-header-box {
+      flex-wrap: wrap;
+      padding: 18px;
+      gap: 14px;
+    }
+    .profile-header-avatar { width: 64px; height: 64px; }
+    .profile-header-name { font-size: 19px; }
+    .profile-header-actions {
+      align-items: flex-start;
+      flex-direction: row;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .modal { padding: 20px; border-radius: 14px; }
+    .overlay { padding: 12px; }
+
+    /* Главная: карточки арт/видео внутри колонок — 2 в ряд десктопных
+       размеров тесноваты на маленьких экранах, чуть сжимаем гэп. */
+    .home-card-grid { gap: 10px; }
+
+    /* Левый/правый сайдбары главной уже уходят в статичный поток и на
+       100% ширины на этом брейкпоинте (см. правила выше), здесь только
+       выравниваем внутренние отступы карточек. */
+    .home-streamer-item { padding: 8px 10px; }
+  }
+
+  @media (max-width: 480px) {
+    header h1 { font-size: 15px; }
+    header h1 .site-logo-icon { height: 22px; }
+    .nav-tab, .nav-tab-home { padding: 7px 10px; font-size: 11.5px; }
+    .header-username { font-size: 16px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    #feed, .profile-feed { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    .home-card-grid { grid-template-columns: 1fr; }
+
+    .profile-header-avatar { width: 56px; height: 56px; }
+    .profile-header-name { font-size: 17px; }
+
+    .modal { padding: 16px; }
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
 </style>
 </head>
 <body>
@@ -3830,6 +3979,14 @@
 
   <div class="home-page-layout" id="homePageLayout" style="display:none;">
   <div class="home-top-row" id="homeTopRow">
+  <div class="home-moderators-sidebar" id="homeColModerators">
+    <div class="home-col-header">
+      <h3>Модераторы</h3>
+    </div>
+    <div class="home-streamers-panel" id="homeModeratorsPanel">
+      <p class="home-empty">Загрузка...</p>
+    </div>
+  </div>
   <div class="home-layout" id="homeLayout">
     <div class="home-col" id="homeColArt">
       <div class="home-col-header" data-home-goto="art">
@@ -5701,7 +5858,7 @@
           <div class="comment-bubble">
             <div class="comment-meta-line">
               ${icon ? `<span class="role-icon role-icon-comment" title="${iconTitle}">${icon}</span>` : ''}
-              <span class="comment-author${nameAttrs.cls}"${nameAttrs.style} data-open-profile="${node.author_id}" style="cursor:pointer;">${escapeHtml(name)}</span>
+              <span class="comment-author${nameAttrs.cls}"${nameAttrs.style} data-open-profile="${node.author_id}">${escapeHtml(name)}</span>
               <span class="comment-time">${timeAgo(node.created_at)}</span>
             </div>
             ${node.voice_url ? renderVoiceMessageHtml(node.voice_url) : `<p class="comment-text">${renderMessageBody(node.body)}</p>`}
@@ -6206,13 +6363,17 @@
   document.getElementById('postPageBackBtn').addEventListener('click', closePostPage);
 
   document.getElementById('siteLogo').addEventListener('click', () => {
-    // Возвращает на главную ленту из любой страницы (поста, сборника
-    // или профиля), и сбрасывает URL обратно на корень сайта.
+    // Возвращает на главную вкладку из любого места: со страницы поста,
+    // сборника, профиля, а также с любой другой вкладки (Фото/Видео/
+    // Фанфики/Сборник) — и сбрасывает URL обратно на корень сайта.
     const isOnSubPage = postPageEl.style.display !== 'none' || profilePageEl.style.display !== 'none';
     if (isOnSubPage) {
       showMainFeed();
-      history.pushState({}, '', location.pathname);
     }
+    if (currentFeedFilter !== 'home') {
+      switchNavTabTo('home');
+    }
+    history.pushState({}, '', location.pathname);
   });
 
 
@@ -7640,7 +7801,13 @@
     const authorEl = e.target.closest('[data-open-profile]');
     if (!authorEl) return;
     const uid = authorEl.dataset.openProfile;
-    if (uid) openUserProfile(uid);
+    if (!uid) return;
+    // Если открыт лайтбокс и/или страница поста — закрываем их, иначе
+    // страница профиля откроется "под" ними и будет казаться, что клик
+    // ничего не делает.
+    if (lightboxOverlay.classList.contains('open')) closeLightbox();
+    if (postPageEl.style.display !== 'none') closePostPage();
+    openUserProfile(uid);
   });
 
   // Обработка popstate для страницы профиля
@@ -7830,7 +7997,7 @@
     el.innerHTML = `
       <img class="post-author-avatar" src="${avatar}" alt="" data-open-profile="${profile.id}" style="cursor:pointer;">
       <span class="post-author-label">Автор:</span>
-      <span class="post-author-name${nameAttrs.cls}"${nameAttrs.style} data-open-profile="${profile.id}" style="cursor:pointer;">${escapeHtml(name)}</span>
+      <span class="post-author-name${nameAttrs.cls}"${nameAttrs.style} data-open-profile="${profile.id}">${escapeHtml(name)}</span>
     `;
   }
 
@@ -9281,21 +9448,24 @@
     const tagsPanelEl = document.getElementById('homeTagsPanel');
     const streamersPanelEl = document.getElementById('homeStreamersPanel');
     const respectPlusPanelEl = document.getElementById('homeRespectPlusPanel');
+    const moderatorsPanelEl = document.getElementById('homeModeratorsPanel');
 
     renderHomeTags(tagsPanelEl);
     artGridEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     videoGridEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     streamersPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     respectPlusPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    moderatorsPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
 
     const reelTrackEl = document.getElementById('reelTrack');
     if (reelTrackEl) reelTrackEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
 
-    const [artData, videoData, streamersData, respectPlusData, reelVideos] = await Promise.all([
+    const [artData, videoData, streamersData, respectPlusData, moderatorsData, reelVideos] = await Promise.all([
       fetchHomeContent('art', 4),
       fetchHomeContent('video', 4),
       fetchStreamers(),
       fetchRespectPlus(),
+      fetchModerators(),
       getChannelReelVideos()
     ]);
 
@@ -9303,6 +9473,7 @@
     renderHomeCardGrid(videoGridEl, videoData, 'video');
     renderHomeStreamers(streamersPanelEl, streamersData);
     renderHomeStreamers(respectPlusPanelEl, respectPlusData);
+    renderHomeModerators(moderatorsPanelEl, moderatorsData);
     renderChannelReel(reelVideos);
     // ждём кадр отрисовки, чтобы карточки/кнопки уже имели финальную
     // высоту (aspect-ratio у превью считается сразу, но на всякий
@@ -9360,6 +9531,38 @@
 
   function fetchRespectPlus() {
     return fetchProfilesByRole('respect_plus');
+  }
+
+  // Модераторы: сначала Главный модератор (роль gl_moder), затем обычные
+  // модераторы (роль moderator) — порядок задаётся порядком fetch'а,
+  // а не сортировкой на сервере, поэтому просто конкатенируем оба списка.
+  // fetchProfilesByRole не запрашивает поле role, поэтому помечаем каждую
+  // запись вручную по тому, из какого запроса она пришла.
+  async function fetchModerators() {
+    const [glModer, moder] = await Promise.all([
+      fetchProfilesByRole('gl_moder'),
+      fetchProfilesByRole('moderator')
+    ]);
+    glModer.forEach(p => { p._moderatorRole = 'gl_moder'; });
+    moder.forEach(p => { p._moderatorRole = 'moderator'; });
+    return [...glModer, ...moder];
+  }
+
+  function renderHomeModerators(el, data) {
+    if (!data || !data.length) {
+      el.innerHTML = `<p class="home-empty">Пока никого нет</p>`;
+      return;
+    }
+    el.innerHTML = data.map(profile => {
+      const avatar = profile.avatar_url || presetToDataUrl('p0');
+      const nameAttrs = nameColorAttrs(profile.name_color);
+      return `
+        <div class="home-streamer-item" data-open-profile="${profile.id}">
+          <img class="home-streamer-avatar" src="${avatar}" alt="">
+          <span class="home-streamer-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(profile.username || 'без имени')}</span>
+        </div>
+      `;
+    }).join('');
   }
 
   function renderHomeStreamers(el, data) {
