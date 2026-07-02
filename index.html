@@ -3959,7 +3959,7 @@
   @media (max-width: 480px) {
     header h1 { font-size: 15px; }
     header h1 .site-logo-icon { height: 22px; }
-    .nav-tab, .nav-tab-home { padding: 7px 10px; font-size: 11.5px; }
+    .nav-tab, .nav-tab-home { padding: 10px 14px; font-size: 13px; }
     .header-username { font-size: 16px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     #feed, .profile-feed { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
@@ -3971,12 +3971,151 @@
     .modal { padding: 16px; }
   }
   /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ─── Мобильная адаптация (Mobile-First доп. правки, ширина 320–768px) ──
+     Дополняет существующие брейкпоинты выше (760/480px) под чек-лист ТЗ:
+     единый брейкпоинт 768px, бургер-меню вместо перечня вкладок,
+     минимальный размер тач-целей 44x44px, читаемая типографика
+     (16px / line-height 1.5) для текстовых блоков, отсутствие
+     горизонтального скролла и корректное поведение изображений. */
+
+  html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Бургер-кнопка — скрыта на десктопе, появляется только на мобильном
+     брейкпоинте (см. правило ниже). */
+  .mobile-menu-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    order: 2;
+  }
+  .mobile-menu-toggle span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--text);
+    border-radius: 2px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  .mobile-menu-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .mobile-menu-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+  .mobile-menu-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  @media (max-width: 768px) {
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 10px 15px;
+    }
+    header h1 { order: 1; margin-right: auto; }
+    .mobile-menu-toggle { display: flex; }
+    .header-right { order: 3; }
+
+    /* Меню превращается в выпадающий вертикальный список ("бургер-меню"),
+       раскрывающийся под шапкой на всю ширину экрана. */
+    .nav-tabs {
+      order: 4;
+      flex-basis: 100%;
+      width: 100%;
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      margin-top: 8px;
+    }
+    .nav-tabs.open { display: flex; }
+    .nav-tab, .nav-tab-home {
+      width: 100%;
+      justify-content: flex-start;
+      min-height: 44px;
+      font-size: 15px;
+      padding: 10px 14px;
+    }
+    .nav-tab::after { display: none; }
+
+    /* Контент занимает всю ширину экрана с небольшими внутренними полями. */
+    main, #profilePage { padding: 16px 15px; }
+
+    /* Тач-цели: кнопки, поля ввода и ссылки-кнопки не меньше 44x44px. */
+    button:not(.mobile-menu-toggle),
+    input[type="submit"],
+    input[type="button"],
+    .modal-actions button,
+    .support-send-btn,
+    .close-x,
+    .comments-sort-btn,
+    .tag-filter-btn {
+      min-height: 44px;
+    }
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="file"],
+    select,
+    textarea {
+      min-height: 44px;
+      font-size: 16px; /* не даёт iOS Safari автоматически зумить при фокусе */
+    }
+
+    /* Читаемая типографика для длинных текстовых блоков (описания постов,
+       комментарии, тексты фанфиков) — крупный кегль и увеличенный интервал. */
+    .lightbox-desc,
+    .post-page-box .lightbox-desc,
+    .comment-text,
+    .fanfic-summary,
+    .profile-header-bio {
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    /* Модалки и оверлеи занимают всю доступную ширину без лишних отступов. */
+    .overlay { padding: 0; }
+    .modal, .modal-wide {
+      width: 100%;
+      max-width: 100%;
+      border-radius: 0;
+      min-height: 100vh;
+    }
+
+    /* Изображения-обложки не должны вылезать за пределы экрана. */
+    .card-img, .card-video, .home-card img, .home-streamer-avatar,
+    .profile-header-avatar, .avatar-circle {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
 </style>
 </head>
 <body>
 
 <header>
   <h1 id="siteLogo" style="cursor:pointer;"><img class="site-logo-icon" src="data:image/png;base64,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" alt="">renah0cki</h1>
+  <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Открыть меню" aria-expanded="false" aria-controls="navTabs">
+    <span></span><span></span><span></span>
+  </button>
   <nav class="nav-tabs" id="navTabs">
     <button class="nav-tab" data-filter="art"><span class="nav-tab-icon nav-tab-icon-art"></span>Фото</button>
     <button class="nav-tab" data-filter="video"><span class="nav-tab-icon nav-tab-icon-video"></span>Видео</button>
@@ -7588,7 +7727,7 @@
         } else if (ytId) {
           const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
           mediaHtml = `<a class="card-video-thumb" href="https://www.youtube.com/watch?v=${ytId}" target="_blank" rel="noopener noreferrer">
-            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" style="object-fit:cover;pointer-events:none;">
+            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
             <div class="card-video-play">▶</div>
           </a>`;
         }
@@ -8870,7 +9009,7 @@
     return `
       <div class="card pinned-video-card">
         <a class="card-video-thumb" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
-          <img class="card-video" src="${video.thumb}" alt="${escapeHtml(video.title)}" style="object-fit:cover;pointer-events:none;">
+          <img class="card-video" src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
           <div class="card-video-play">▶</div>
         </a>
         <div class="meta">📌 НОВОЕ НА КАНАЛЕ</div>
@@ -9121,7 +9260,36 @@
     const tab = e.target.closest('.nav-tab');
     if (!tab) return;
     switchNavTabTo(tab.dataset.filter);
+    closeMobileMenu();
   });
+
+  // ─── Бургер-меню (мобильная навигация) ────────────────────────────────
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const navTabsEl = document.getElementById('navTabs');
+  function closeMobileMenu() {
+    navTabsEl.classList.remove('open');
+    mobileMenuToggle.setAttribute('aria-expanded', 'false');
+  }
+  function toggleMobileMenu() {
+    const isOpen = navTabsEl.classList.toggle('open');
+    mobileMenuToggle.setAttribute('aria-expanded', String(isOpen));
+  }
+  mobileMenuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMobileMenu();
+  });
+  document.addEventListener('click', (e) => {
+    if (!navTabsEl.classList.contains('open')) return;
+    if (e.target.closest('#navTabs') || e.target.closest('#mobileMenuToggle')) return;
+    closeMobileMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMobileMenu();
+  });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) closeMobileMenu();
+  });
+  // ──────────────────────────────────────────────────────────────────────
 
   // ─── Блоки главной страницы ("Новое"/"Видео" — переход на нужную вкладку,
   // клик по тегу — переход на вкладку "Фото" с применённым фильтром тега) ──
@@ -9445,7 +9613,7 @@
           const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
           const watchUrl = `https://www.youtube.com/watch?v=${ytId}`;
           mediaHtml = `<a class="card-video-thumb" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">
-            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" style="object-fit:cover;pointer-events:none;">
+            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
             <div class="card-video-play">▶</div>
           </a>`;
         }
