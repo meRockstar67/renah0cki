@@ -2913,10 +2913,10 @@
     z-index: 60;
     background: var(--panel-2);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 6px;
+    border-radius: 12px;
+    padding: 8px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-    min-width: 140px;
+    min-width: 170px;
   }
 
   .header-user-dropdown.open { display: block; }
@@ -2928,9 +2928,9 @@
     background: none;
     color: var(--text);
     border: none;
-    border-radius: 6px;
-    padding: 5px 9px;
-    font-size: 12px;
+    border-radius: 7px;
+    padding: 9px 12px;
+    font-size: 14px;
     cursor: pointer;
   }
 
@@ -3092,6 +3092,7 @@
     margin-bottom: 8px;
   }
 
+  .role-badge-user      { background: rgba(155,147,173,0.15); color: var(--muted);   border: 1px solid rgba(155,147,173,0.4); }
   .role-badge-moderator  { background: rgba(122,207,58,0.15);  color: #7acf3a;        border: 1px solid rgba(122,207,58,0.4); }
   .role-badge-sponsor    { background: rgba(233,218,65,0.15);  color: #e9da41;        border: 1px solid rgba(233,218,65,0.4); }
   .role-badge-respect_plus { background: rgba(204,122,207,0.15); color: #cc7acf;      border: 1px solid rgba(204,122,207,0.4); }
@@ -6490,6 +6491,7 @@
 
       document.getElementById('headerSignOutBtn').addEventListener('click', () => {
         document.getElementById('headerUserDropdown').classList.remove('open');
+        if (!confirm('Точно выйти из аккаунта?')) return;
         signOutUser();
       });
     } else {
@@ -7469,6 +7471,7 @@
 
   function roleLabel(role) {
     const labels = {
+      user: 'Нормис',
       moderator: 'Модератор',
       sponsor: 'Спонсор',
       respect_plus: 'Respect+',
@@ -7548,12 +7551,13 @@
     const displayName = profile.username || 'без имени';
     const avatar = profile.avatar_url || presetToDataUrl('p0');
     const nameAttrs = nameColorAttrs(profile.name_color);
-    const label = roleLabel(profile.role);
-    const icon = roleIcon(profile.role);
+    const effectiveRole = profile.role || 'user';
+    const label = roleLabel(effectiveRole);
+    const icon = roleIcon(effectiveRole);
     const privileged = isPrivileged(profile.role);
 
     const badgeHtml = label
-      ? `<span class="profile-role-badge ${roleBadgeClass(profile.role)}">${icon} ${label}</span><br>`
+      ? `<span class="profile-role-badge ${roleBadgeClass(effectiveRole)}">${icon} ${label}</span><br>`
       : `<span class="role-icon" title="Пользователь">${icon}</span><br>`;
 
     const totalCount = userContent.length + userCollections.length;
