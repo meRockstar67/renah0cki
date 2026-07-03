@@ -9644,7 +9644,13 @@
       const xhr = new XMLHttpRequest();
       xhr.open('POST', B2_WORKER_URL + '/upload');
       xhr.setRequestHeader('Content-Type', file.type);
-      xhr.setRequestHeader('X-File-Name', file.name);
+      // HTTP-заголовки обязаны быть ISO-8859-1 — а имя файла с диска
+      // пользователя может быть на кириллице, с эмодзи и т.п. (например
+      // "Хрю.png"). setRequestHeader() с таким именем как есть кидает
+      // "String contains non ISO-8859-1 code point" и загрузка падает ещё
+      // до отправки. encodeURIComponent превращает имя в ASCII-safe строку,
+      // которую уже можно класть в заголовок.
+      xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
       xhr.setRequestHeader('X-User-Id', userId);
       if (onProgress) {
         xhr.upload.addEventListener('progress', e => {
