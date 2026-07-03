@@ -5308,6 +5308,21 @@
   let currentOpenContentId = null;
   let currentOpenIsCollection = false; // true, если сейчас открыт сборник, а не одиночный пост
 
+  // ─── Короткие ссылки (?post=uuid → renah0cki.xyz/AbC123) ──────────────────
+  // Ссылка, которую копирует кнопка "🔗 Скопировать ссылку" — обновляется
+  // при открытии поста/сборника/профиля и сбрасывается при закрытии.
+  // Если у записи ещё нет short_code (например, колонку только что добавили,
+  // а фоновая доливка kода до неё не дошла) — откатываемся на старый длинный
+  // формат ?post=/?collection=/?user=, он всегда работает.
+  let currentShareLink = null;
+  function setShareLink(kind, id, shortCode) {
+    if (!id) { currentShareLink = null; return; }
+    currentShareLink = shortCode
+      ? `${location.origin}/${shortCode}`
+      : `${location.origin}${location.pathname}?${kind}=${id}`;
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   // Автор ТЕКУЩЕГО открытого поста/сборника (лайтбокс или страница поста) —
   // { id, username, avatar_url, name_color, role } | null. Используется для
   // строки "Автор: ..." над заголовком и для авторских лайков комментариев.
@@ -5729,6 +5744,7 @@
 
     currentOpenContentId = collectionId;
     currentOpenIsCollection = true;
+    setShareLink('collection', collectionId, collectionItem && collectionItem.short_code);
     const newUrl = `${location.pathname}?collection=${collectionId}`;
     history.replaceState(null, '', newUrl);
     commentsSection.style.display = 'block';
@@ -5799,12 +5815,14 @@
     currentOpenContentId = contentId;
     currentOpenIsCollection = false;
     if (contentId) {
+      setShareLink('post', contentId, feedItem && feedItem.short_code);
       const newUrl = `${location.pathname}?post=${contentId}`;
       history.replaceState(null, '', newUrl);
       commentsSection.style.display = 'block';
       setCommentsContext(LIGHTBOX_COMMENTS_CTX);
       loadComments(contentId, false);
     } else {
+      currentShareLink = null;
       commentsSection.style.display = 'none';
     }
 
@@ -5823,6 +5841,7 @@
     if (frame) frame.remove();
     currentOpenContentId = null;
     currentOpenIsCollection = false;
+    currentShareLink = null;
     currentPostAuthor = null;
     renderPostAuthorLine(document.getElementById('lightboxAuthorLine'), null);
     const lightboxViewsEl0 = document.getElementById('lightboxViews');
@@ -7128,10 +7147,9 @@
   });
 
   document.body.addEventListener('click', async (e) => {
-    const btn = e.target.closest('#copyLinkBtn, #postPageCopyLinkBtn');
-    if (!btn || !currentOpenContentId) return;
-    const param = currentOpenIsCollection ? 'collection' : 'post';
-    const link = `${location.origin}${location.pathname}?${param}=${currentOpenContentId}`;
+    const btn = e.target.closest('#copyLinkBtn, #postPageCopyLinkBtn, #profileCopyLinkBtn');
+    if (!btn || !currentShareLink) return;
+    const link = currentShareLink;
     try {
       await navigator.clipboard.writeText(link);
       const old = btn.textContent;
@@ -7164,6 +7182,52 @@
   function sanitizeIdParam(value) {
     return value && /^[a-zA-Z0-9_-]+$/.test(value) ? value : null;
   }
+
+  // ─── Разрешение коротких ссылок (renah0cki.xyz/AbC123) ────────────────────
+  // Короткая ссылка — это просто путь без ?post=/?collection=/?user=. Мы не
+  // переводим на неё всю маршрутизацию сайта (это осталось на query-парамах),
+  // а один раз при загрузке страницы превращаем короткий код в обычный
+  // ?post=<uuid>/?collection=<uuid>/?user=<uuid> и дальше используем уже
+  // существующие openPostFromUrl()/openProfileFromUrl().
+  //
+  // Хостинг может не уметь отдавать index.html на произвольный путь — тогда
+  // используется 404.html-заглушка (см. инструкцию), которая кладёт путь в
+  // ?redirect= и уже её мы тоже понимаем здесь.
+  const SHORT_CODE_RE = /^[a-zA-Z0-9]{4,12}$/;
+  async function resolveShortLinkFromPath() {
+    let path = location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+    if (!path) {
+      const redirectParam = new URLSearchParams(location.search).get('redirect');
+      if (redirectParam) path = redirectParam;
+    }
+    if (!path || !SHORT_CODE_RE.test(path)) return;
+
+    try {
+      const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` };
+      const [contentRes, collRes, profRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/content?short_code=eq.${path}&select=id`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/collections?short_code=eq.${path}&select=id`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/profiles?short_code=eq.${path}&select=id`, { headers })
+      ]);
+      const [contentRows, collRows, profRows] = await Promise.all([
+        contentRes.json().catch(() => []),
+        collRes.json().catch(() => []),
+        profRes.json().catch(() => [])
+      ]);
+      let newSearch = '';
+      if (contentRows && contentRows[0]) newSearch = `?post=${contentRows[0].id}`;
+      else if (collRows && collRows[0]) newSearch = `?collection=${collRows[0].id}`;
+      else if (profRows && profRows[0]) newSearch = `?user=${profRows[0].id}`;
+      // В любом случае убираем короткий путь из адресной строки: либо
+      // подставляем найденный ?post=/?collection=/?user=, либо (если код не
+      // нашёлся — ссылка старая/битая) просто возвращаемся на корень.
+      history.replaceState(null, '', `/${newSearch}`);
+    } catch (e) {
+      console.error('Не удалось разрешить короткую ссылку:', e);
+      history.replaceState(null, '', '/');
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   async function openPostFromUrl() {
     const params = new URLSearchParams(location.search);
@@ -7233,6 +7297,7 @@
 
       currentOpenContentId = item.id;
       currentOpenIsCollection = false;
+      setShareLink('post', item.id, item.short_code);
       setCommentsContext(POSTPAGE_COMMENTS_CTX);
       loadComments(item.id, false);
 
@@ -7281,6 +7346,7 @@
 
       currentOpenContentId = item.id;
       currentOpenIsCollection = true;
+      setShareLink('collection', item.id, item.short_code);
       setCommentsContext(POSTPAGE_COMMENTS_CTX);
       loadComments(item.id, true);
 
@@ -7304,6 +7370,7 @@
     document.getElementById('postPageImg').src = '';
     currentOpenContentId = null;
     currentOpenIsCollection = false;
+    currentShareLink = null;
     currentPostAuthor = null;
     renderPostAuthorLine(document.getElementById('postPageAuthorLine'), null);
     const postPageViewsEl0 = document.getElementById('postPageViews');
@@ -8735,7 +8802,7 @@
     // Грузим профиль
     let profile = null;
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,avatar_url,role,name_color,stream_twitch_url,stream_donate_url,stream_social_url`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,avatar_url,role,name_color,stream_twitch_url,stream_donate_url,stream_social_url,short_code`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` }
       });
       const rows = await res.json();
@@ -8954,6 +9021,7 @@
           <div class="profile-stats">
             <span><b>${totalCount}</b> публикаций</span>
           </div>
+          <button class="copy-link-btn" id="profileCopyLinkBtn" type="button" style="margin-top:10px;">🔗 Скопировать ссылку</button>
         </div>
         <div class="profile-header-actions">
           ${editProfileBtnHtml}
@@ -9052,12 +9120,14 @@
     document.getElementById('postPage').style.display = 'none';
     rulesPageEl.style.display = 'none';
     profilePageEl.style.display = 'block';
+    setShareLink('user', userId, profile.short_code);
     history.pushState(null, '', `${location.pathname}?user=${userId}`);
     window.scrollTo(0, 0);
   }
 
   function closeProfilePage() {
     profilePageEl.style.display = 'none';
+    currentShareLink = null;
     document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage)').style.display = '';
     history.pushState(null, '', location.pathname);
   }
@@ -11436,12 +11506,16 @@
       loadProfileIntoCurrentUser().then(() => {
         renderAuthArea();
         loadFeed();
+        resolveShortLinkFromPath().then(() => {
+          openPostFromUrl();
+          openProfileFromUrl();
+        });
+      });
+    } else {
+      resolveShortLinkFromPath().then(() => {
         openPostFromUrl();
         openProfileFromUrl();
       });
-    } else {
-      openPostFromUrl();
-      openProfileFromUrl();
     }
   } catch (e) {
     console.error('Ошибка восстановления сессии:', e);

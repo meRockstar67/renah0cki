@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>renah0cki</title>
+</head>
+<body>
+<script>
+  // SPA-фоллбэк для коротких ссылок вида renah0cki.xyz/AbC123.
+  //
+  // Большинство статических хостингов (GitHub Pages, Netlify, Vercel,
+  // Cloudflare Pages и т.д.) при заходе на несуществующий путь автоматически
+  // отдают этот файл (404.html), если он лежит рядом с index.html в корне
+  // сайта — специально настраивать ничего не нужно, достаточно загрузить
+  // файл на хостинг.
+  //
+  // Дальше просто перекладываем путь в query-параметр ?redirect= и уходим
+  // на главную страницу — там index.html сам разберёт короткий код через
+  // resolveShortLinkFromPath() и откроет нужный пост/сборник/профиль.
+  var path = location.pathname.replace(/^\//, '');
+  location.replace('/?redirect=' + encodeURIComponent(path) + location.search + location.hash);
+</script>
+</body>
+</html>
