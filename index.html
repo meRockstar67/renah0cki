@@ -4269,8 +4269,13 @@
     /* Изображения-обложки не должны вылезать за пределы экрана.
        .card-img сюда намеренно не входит — у него width: calc(100% + 36px)
        с отрицательными margin (эффект "выезда" на всю ширину карточки),
-       и max-width:100% сломал бы этот приём. */
-    .home-card img, .home-streamer-avatar,
+       и max-width:100% сломал бы этот приём.
+       .home-card img тоже исключена: превью в карточках "Фото"/"Видео" на
+       главной (.home-card-thumb-wrap img) должно растягиваться на всю
+       aspect-ratio рамку (width:100%; height:100%; object-fit:cover) —
+       height:auto из этого правила ломало высоту, и под фото оставалась
+       пустая полоса до заголовка карточки. */
+    .home-streamer-avatar,
     .profile-header-avatar, .avatar-circle {
       max-width: 100%;
       height: auto;
