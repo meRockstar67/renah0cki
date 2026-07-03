@@ -5315,11 +5315,18 @@
   // а фоновая доливка kода до неё не дошла) — откатываемся на старый длинный
   // формат ?post=/?collection=/?user=, он всегда работает.
   let currentShareLink = null;
-  function setShareLink(kind, id, shortCode) {
+  // Профили используют renah0cki.xyz/@ник (а не случайный код, как посты) —
+  // так короче и понятнее сходу видно, чей это профиль. У этого есть
+  // обратная сторона: если пользователь сменит ник, старые ссылки на его
+  // профиль перестанут открываться (редиректа на новый ник нет — можно
+  // добавить позже, если понадобится).
+  function buildSharePath(kind, id, code) {
+    if (kind === 'user') return code ? `/@${encodeURIComponent(code)}` : `/?user=${id}`;
+    return code ? `/${code}` : `/?${kind}=${id}`;
+  }
+  function setShareLink(kind, id, code) {
     if (!id) { currentShareLink = null; return; }
-    currentShareLink = shortCode
-      ? `${location.origin}/${shortCode}`
-      : `${location.origin}/?${kind}=${id}`;
+    currentShareLink = `${location.origin}${buildSharePath(kind, id, code)}`;
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -5744,9 +5751,9 @@
 
     currentOpenContentId = collectionId;
     currentOpenIsCollection = true;
-    setShareLink('collection', collectionId, collectionItem && collectionItem.short_code);
-    const newUrl = `/?collection=${collectionId}`;
-    history.replaceState(null, '', newUrl);
+    const collectionShortCode = collectionItem && collectionItem.short_code;
+    setShareLink('collection', collectionId, collectionShortCode);
+    history.replaceState(null, '', buildSharePath('collection', collectionId, collectionShortCode));
     commentsSection.style.display = 'block';
     setCommentsContext(LIGHTBOX_COMMENTS_CTX);
     loadComments(collectionId, true);
@@ -5815,9 +5822,9 @@
     currentOpenContentId = contentId;
     currentOpenIsCollection = false;
     if (contentId) {
-      setShareLink('post', contentId, feedItem && feedItem.short_code);
-      const newUrl = `/?post=${contentId}`;
-      history.replaceState(null, '', newUrl);
+      const postShortCode = feedItem && feedItem.short_code;
+      setShareLink('post', contentId, postShortCode);
+      history.replaceState(null, '', buildSharePath('post', contentId, postShortCode));
       commentsSection.style.display = 'block';
       setCommentsContext(LIGHTBOX_COMMENTS_CTX);
       loadComments(contentId, false);
@@ -7203,47 +7210,63 @@
       const redirectParam = new URLSearchParams(location.search).get('redirect');
       if (redirectParam) path = redirectParam;
     }
-    if (!path || !SHORT_CODE_RE.test(path)) return null;
+    if (!path) return;
+
+    const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` };
+
+    // Ссылка на профиль: /@ник
+    if (path.startsWith('@')) {
+      const usernameRaw = decodeURIComponent(path.slice(1));
+      if (!usernameRaw) { history.replaceState(null, '', '/'); return; }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?username=eq.${encodeURIComponent(usernameRaw)}&select=id`, { headers });
+        const rows = await res.json().catch(() => []);
+        const found = rows && rows[0];
+        // Временно подставляем ?user=, чтобы этим воспользовался
+        // openProfileFromUrl() (он читает именно location.search) — сам он
+        // потом заменит адрес на окончательный /@ник, взяв ник заново из
+        // свежезагруженного профиля (openUserProfile делает это сам).
+        history.replaceState(null, '', found ? `/?user=${found.id}` : '/');
+      } catch (e) {
+        console.error('Не удалось разрешить ссылку на профиль:', e);
+        history.replaceState(null, '', '/');
+      }
+      return;
+    }
+
+    if (!SHORT_CODE_RE.test(path)) return;
 
     try {
-      const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` };
-      const [contentRes, collRes, profRes] = await Promise.all([
+      const [contentRes, collRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/content?short_code=eq.${path}&select=id`, { headers }),
-        fetch(`${SUPABASE_URL}/rest/v1/collections?short_code=eq.${path}&select=id`, { headers }),
-        fetch(`${SUPABASE_URL}/rest/v1/profiles?short_code=eq.${path}&select=id`, { headers })
+        fetch(`${SUPABASE_URL}/rest/v1/collections?short_code=eq.${path}&select=id`, { headers })
       ]);
-      const [contentRows, collRows, profRows] = await Promise.all([
+      const [contentRows, collRows] = await Promise.all([
         contentRes.json().catch(() => []),
-        collRes.json().catch(() => []),
-        profRes.json().catch(() => [])
+        collRes.json().catch(() => [])
       ]);
       let newSearch = '';
       if (contentRows && contentRows[0]) newSearch = `?post=${contentRows[0].id}`;
       else if (collRows && collRows[0]) newSearch = `?collection=${collRows[0].id}`;
-      else if (profRows && profRows[0]) newSearch = `?user=${profRows[0].id}`;
-      // Временно подставляем ?post=/?collection=/?user=, чтобы этим уже
-      // воспользовались openPostFromUrl()/openProfileFromUrl() (они читают
-      // именно location.search) — если код не нашёлся (ссылка старая/битая),
-      // просто возвращаемся на корень.
-      history.replaceState(null, '', `/${newSearch}`);
-      return newSearch ? path : null;
+      // Временно подставляем ?post=/?collection=, чтобы этим воспользовался
+      // openPostFromUrl() — он читает именно location.search. Сам он потом
+      // заменит адрес на окончательный короткий вид через buildSharePath(),
+      // так что тут достаточно просто довести дело до открытия поста; если
+      // код не нашёлся (ссылка старая/битая) — просто уходим на корень.
+      history.replaceState(null, '', newSearch ? `/${newSearch}` : '/');
     } catch (e) {
       console.error('Не удалось разрешить короткую ссылку:', e);
       history.replaceState(null, '', '/');
-      return null;
     }
   }
 
-  // Разрешает короткую ссылку (если она есть), открывает найденный
-  // пост/сборник/профиль через уже существующие функции, а когда всё
-  // отрисовано — возвращает в адресную строку красивый короткий вид,
-  // а не тот ?post=<uuid>, которым мы пользовались "под капотом" для
-  // самого открытия.
+  // Разрешает короткую ссылку/ссылку на профиль (если она есть) и открывает
+  // найденный пост/сборник/профиль через уже существующие функции — они
+  // сами приводят адресную строку к окончательному короткому виду.
   async function resolveAndOpenFromUrl() {
-    const shortCode = await resolveShortLinkFromPath();
+    await resolveShortLinkFromPath();
     await openPostFromUrl();
     await openProfileFromUrl();
-    if (shortCode) history.replaceState(null, '', `/${shortCode}`);
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -7316,6 +7339,10 @@
       currentOpenContentId = item.id;
       currentOpenIsCollection = false;
       setShareLink('post', item.id, item.short_code);
+      // Приводим адресную строку к короткому виду сразу, а не только когда
+      // сюда пришли по короткой ссылке — так же, как в лайтбоксе: если
+      // зашли по прямой длинной ?post=, она заменяется на короткую.
+      history.replaceState(null, '', buildSharePath('post', item.id, item.short_code));
       setCommentsContext(POSTPAGE_COMMENTS_CTX);
       loadComments(item.id, false);
 
@@ -7365,6 +7392,7 @@
       currentOpenContentId = item.id;
       currentOpenIsCollection = true;
       setShareLink('collection', item.id, item.short_code);
+      history.replaceState(null, '', buildSharePath('collection', item.id, item.short_code));
       setCommentsContext(POSTPAGE_COMMENTS_CTX);
       loadComments(item.id, true);
 
@@ -9142,8 +9170,8 @@
     document.getElementById('postPage').style.display = 'none';
     rulesPageEl.style.display = 'none';
     profilePageEl.style.display = 'block';
-    setShareLink('user', userId, profile.short_code);
-    history.pushState(null, '', `/?user=${userId}`);
+    setShareLink('user', userId, profile.username);
+    history.pushState(null, '', buildSharePath('user', userId, profile.username));
     window.scrollTo(0, 0);
   }
 
