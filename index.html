@@ -3984,10 +3984,9 @@
   .reel-arrow-left { left: -18px; }
   .reel-arrow-right { right: -18px; }
   .reel-arrow[disabled] { opacity: 0.35; cursor: default; pointer-events: none; }
-  @media (max-width: 640px) {
-    .reel-item { flex-basis: 160px; }
-    .reel-arrow { display: none; }
-  }
+  /* Мобильные размеры карточек ленты и скрытие стрелок (≤768px) заданы
+     ниже, в общем блоке мобильной адаптации, вместе с scroll-snap —
+     см. "Мобильная адаптация" ближе к концу файла. */
   /* ──────────────────────────────────────────────────────────────────── */
 
   /* ─── Мобильная версия ────────────────────────────────────────────────
@@ -4077,32 +4076,38 @@
     .home-streamer-item { padding: 8px 10px; }
 
     /* На телефоне убираем "Модераторы" и "Респект+" — оставляем только
-       "Стримеры", и переносим этот блок в самый низ страницы, под ленту
-       "Новое на канале". .home-top-row переводим в display:contents,
-       чтобы его дети (сайдбары + основная сетка) стали прямыми флекс-
-       элементами .home-page-layout наравне с .home-channel-reel — тогда
-       порядок между ними можно задать через order. */
+       "Стримеры", и переносим этот блок выше ленты "Новое на канале"
+       (между колонками Фото/Теги/Видео и лентой). .home-top-row
+       переводим в display:contents, чтобы его дети (сайдбары + основная
+       сетка) стали прямыми флекс-элементами .home-page-layout наравне
+       с .home-channel-reel — тогда порядок между ними можно задать
+       через order. */
     .home-top-row { display: contents; }
     .home-moderators-sidebar { display: none; }
     .home-layout { order: 1; }
-    .home-channel-reel { order: 2; }
     .home-streamers-sidebar {
-      order: 3;
+      order: 2;
       position: static;
       width: 100%;
     }
+    .home-channel-reel { order: 3; }
     #homeRespectHeader,
     #homeRespectPlusPanel { display: none; }
 
-    /* "Новое на канале" — на десктопе горизонтальная карусель со свайпом,
-       на телефоне превращаем в обычный вертикальный список, чтобы всё
-       управление страницей было только скроллом вверх/вниз. */
+    /* "Новое на канале" — на десктопе горизонтальная карусель со свайпом
+       и стрелками. На телефоне стрелки не нужны (свайп пальцем удобнее
+       и привычнее), но саму карусель оставляем горизонтальной — просто
+       уменьшаем карточки и добавляем scroll-snap, чтобы свайп всегда
+       останавливался ровно на карточке, как в нативных мобильных лентах. */
     .reel-track {
-      flex-direction: column;
-      overflow-x: visible;
-      padding: 8px 0 0;
+      scroll-snap-type: x proximity;
+      padding: 8px 14px 14px 2px;
     }
-    .reel-item { flex: 0 0 auto; width: 100%; }
+    .reel-item {
+      flex: 0 0 68vw;
+      max-width: 260px;
+      scroll-snap-align: start;
+    }
     .reel-arrow { display: none; }
 
     /* Крестик закрытия фото/поста — на десктопе прилипает к верхнему
