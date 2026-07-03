@@ -1905,7 +1905,7 @@
     border-bottom: 1px solid var(--border);
     border-radius: 0;
     color: var(--text);
-    padding: 6px 0;
+    padding: 6px 62px 6px 0;
     font-family: inherit;
     font-size: 14px;
     resize: none;
@@ -1913,6 +1913,7 @@
     max-height: 140px;
     margin-bottom: 0;
     transition: border-color 0.15s;
+    box-sizing: border-box;
   }
 
   .comment-input-wrap textarea:focus {
@@ -2492,13 +2493,14 @@
     border-bottom: 1px solid var(--border);
     border-radius: 0;
     color: var(--text);
-    padding: 4px 0;
+    padding: 4px 58px 4px 0;
     font-family: inherit;
     font-size: 13px;
     resize: none;
     min-height: 28px;
     max-height: 100px;
     margin-bottom: 0;
+    box-sizing: border-box;
   }
 
   .reply-form-inner textarea:focus {
@@ -5675,6 +5677,52 @@
     });
   }
 
+  // Формы комментариев/ответов лежат внутри .comment-body-wrap, у которого
+  // намеренно стоит overflow:hidden (чтобы длинные "слова" без пробелов не
+  // распирали ленту вширь — см. фикс переполнения текста). Побочный эффект:
+  // абсолютно спозиционированное окошко смайликов обрезалось этой же
+  // границей, особенно заметно в ответах на комментарии (мало места справа
+  // из-за отступа вложенности). Решение — при открытии переключаем окошко
+  // в position:fixed и считаем координаты от кнопки-триггера в системе
+  // координат окна, вписывая его в границы экрана. Так оно всегда рисуется
+  // поверх всего, а не обрезается родителем.
+  function positionEmojiPicker(toggleBtn, picker) {
+    const scopedWrap = toggleBtn.closest('.comment-input-wrap, .reply-form-inner');
+    if (!scopedWrap) return; // другие панели смайликов (например, в саппорт-чате) не трогаем
+
+    const margin = 8;
+    const btnRect = toggleBtn.getBoundingClientRect();
+
+    picker.style.position = 'fixed';
+    picker.style.right = 'auto';
+    picker.style.bottom = 'auto';
+    picker.style.left = `${margin}px`;
+    picker.style.top = `${margin}px`;
+
+    const pickerRect = picker.getBoundingClientRect();
+
+    let left = btnRect.right - pickerRect.width;
+    left = Math.min(left, window.innerWidth - pickerRect.width - margin);
+    left = Math.max(margin, left);
+
+    let top = btnRect.bottom + 6;
+    if (top + pickerRect.height > window.innerHeight - margin) {
+      top = btnRect.top - pickerRect.height - 6;
+    }
+    top = Math.max(margin, top);
+
+    picker.style.left = `${left}px`;
+    picker.style.top = `${top}px`;
+  }
+
+  // Пока окошко смайликов зафиксировано через position:fixed, оно не едет
+  // вместе со скроллом своего контейнера (лента комментариев, лайтбокс и
+  // т.п.) — чтобы оно не "зависало" оторванным от кнопки, просто закрываем
+  // его при любом скролле. capture:true нужен, т.к. scroll не всплывает.
+  document.addEventListener('scroll', () => {
+    closeAllEmojiPickers();
+  }, true);
+
   // Делегирование кликов по кнопке смайликов и по самим смайликам (работает
   // и для основной формы комментария, и для форм ответов)
   document.addEventListener('click', (e) => {
@@ -5685,6 +5733,7 @@
         const willOpen = !picker.classList.contains('open');
         closeAllEmojiPickers();
         picker.classList.toggle('open', willOpen);
+        if (willOpen) positionEmojiPicker(toggleBtn, picker);
       }
       return;
     }
