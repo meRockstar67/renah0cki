@@ -2,7 +2,12 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14121a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="renah0cki">
 <title>renah0cki</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4105,6 +4110,67 @@
     }
   }
   /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ─── Мобильный полиш (доп. слой поверх существующей адаптации) ────────
+     Три вещи, которых не хватало для ощущения "нативного" приложения на
+     iPhone/Android: 1) учёт чёлки/home-indicator (safe-area-inset),
+     2) прилипающая шапка, чтобы не скроллить наверх за навигацией,
+     3) тактильный отклик на тап (кнопки/карточки "приседают"),
+     4) кнопка "Добавить" переезжает в FAB в зоне досягаемости пальца. */
+
+  @media (max-width: 768px) {
+    /* Учитываем чёлку сверху и полосу жестов снизу на iPhone. Работает
+       только вместе с viewport-fit=cover в <meta name="viewport">. */
+    header {
+      padding-top: calc(12px + env(safe-area-inset-top));
+      position: sticky;
+      top: 0;
+      z-index: 120;
+      background: var(--bg);
+    }
+
+    body { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+
+    .support-widget { bottom: calc(32px + env(safe-area-inset-bottom)); }
+
+    /* Убираем некрасивую синюю вспышку при тапе и добавляем свой,
+       более "нативный" отклик — лёгкое сжатие кнопки/карточки. */
+    button, .card, .nav-tab, .nav-tab-home, a {
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active:not(.mobile-menu-toggle),
+    .nav-tab:active, .nav-tab-home:active {
+      transform: scale(0.96);
+      transition: transform 0.1s ease;
+    }
+    .card:active { filter: brightness(0.92); }
+
+    /* Инерционный скролл для горизонтальных лент/модалок на iOS,
+       модалки не "пробивают" скролл фона под собой. */
+    .reel-track, .existing-picker-grid { -webkit-overflow-scrolling: touch; }
+    .overlay, .modal, .modal-wide { overscroll-behavior: contain; }
+
+    /* "Добавить контент" — на десктопе маленькая иконка в тулбаре ленты,
+       на телефоне её легко потерять и неудобно тянуться к верху экрана
+       одной рукой. Превращаем в плавающую круглую кнопку (FAB) в правом
+       нижнем углу — стандартный паттерн мобильных приложений. */
+    #addContentBtn {
+      position: fixed;
+      right: 16px;
+      bottom: calc(84px + env(safe-area-inset-bottom));
+      width: 56px;
+      height: 56px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+      z-index: 110;
+    }
+    #addContentBtn:active { transform: scale(0.94); }
+    .add-content-icon { width: 26px; height: 26px; filter: brightness(0) invert(1); }
+    /* Заголовок ленты больше не делит строку с кнопкой — она улетела в угол. */
+    .toolbar { justify-content: flex-start; }
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
 </style>
 </head>
 <body>
@@ -6813,10 +6879,10 @@
         linkHtml = `<a class="mod-link" href="https://www.youtube.com/watch?v=${ytId}" target="_blank" rel="noopener noreferrer">▶ Открыть на YouTube</a>`;
       } else if (mediaUrl) {
         // прочая внешняя ссылка на видео — хотя бы текстовая ссылка
-        linkHtml = `<a class="mod-link" href="${mediaUrl}" target="_blank" rel="noopener noreferrer">🔗 ${escapeHtml(mediaUrl)}</a>`;
+        linkHtml = `<a class="mod-link" href="${safeUrl(mediaUrl)}" target="_blank" rel="noopener noreferrer">🔗 ${escapeHtml(mediaUrl)}</a>`;
       }
     } else if (item.content_type === 'fanfic' && item.source_url) {
-      linkHtml = `<a class="mod-link" href="${item.source_url}" target="_blank" rel="noopener noreferrer">🔗 Читать оригинал</a>`;
+      linkHtml = `<a class="mod-link" href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer">🔗 Читать оригинал</a>`;
     }
 
     return { mediaHtml, linkHtml };
@@ -7749,7 +7815,7 @@
         <div class="card-footer">
           <div class="card-footer-left">
             ${renderCardLikeButton(item, false)}
-            ${isExternalLink ? `<a class="go" href="${item.source_url}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
+            ${isExternalLink ? `<a class="go" href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
           </div>
           ${menuHtml}
         </div>
@@ -7817,7 +7883,7 @@
     ].filter(l => l.url);
     const streamerBtnsHtml = (profile.role === 'streamer' && streamerLinks.length)
       ? `<div class="profile-streamer-btns">
-          ${streamerLinks.map(l => `<a class="profile-streamer-btn ${l.cls}" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(l.label)}">${l.icon}</a>`).join('')}
+          ${streamerLinks.map(l => `<a class="profile-streamer-btn ${l.cls}" href="${safeUrl(l.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(l.label)}">${l.icon}</a>`).join('')}
         </div>`
       : '';
 
@@ -9650,7 +9716,7 @@
         <div class="card-footer">
           <div class="card-footer-left">
             ${renderCardLikeButton(item, false)}
-            ${isExternalLink ? `<a class="go" href="${item.source_url}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
+            ${isExternalLink ? `<a class="go" href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
           </div>
           ${menuHtml}
         </div>
@@ -9943,7 +10009,20 @@
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Разрешает вставлять в href/src только безопасные схемы (http/https или
+  // относительные пути) — защита от javascript:/data: URI XSS в полях,
+  // которые заполняет сам пользователь (ссылка на фанфик, соцсети стримера
+  // и т.п.). Всё остальное превращается в '#', ссылка становится нерабочей,
+  // но не выполняет код.
+  function safeUrl(url) {
+    if (!url) return '#';
+    const trimmed = String(url).trim();
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (/^\/(?!\/)/.test(trimmed)) return trimmed; // относительный путь на своём же домене
+    return '#';
   }
 
   // ─── Просмотры постов/сборников ────────────────────────────────────────────
