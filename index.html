@@ -5641,6 +5641,19 @@
   function refreshAllEmojiPickers() {
     document.querySelectorAll('.emoji-picker').forEach(el => {
       el.innerHTML = renderEmojiPickerGrid();
+      // Если панель уже открыта, её позиция (top/left) была рассчитана в
+      // positionEmojiPicker() ПО СТАРОМУ размеру — там, где ещё стояла
+      // маленькая заглушка "Загрузка эмоутов…". После вставки полной сетки
+      // высота окошка резко вырастает, а старые координаты остаются, из-за
+      // чего окошко визуально "обрезается" нижней/боковой границей экрана —
+      // особенно заметно в форме ответа, которая обычно открыта ближе к низу
+      // страницы. Пересчитываем позицию под уже открытую панель.
+      if (el.classList.contains('open')) {
+        const toggleBtn = el.previousElementSibling;
+        if (toggleBtn && toggleBtn.classList.contains('emoji-toggle-btn')) {
+          positionEmojiPicker(toggleBtn, el);
+        }
+      }
     });
   }
 
@@ -5669,6 +5682,23 @@
     const newPos = start + text.length;
     textarea.focus();
     textarea.setSelectionRange(newPos, newPos);
+    autoResizeCommentTextarea(textarea);
+  }
+
+  // Поля комментария/ответа растут по высоте вместе с текстом (как в
+  // мессенджерах), вместо того чтобы оставаться в одну строку и молча
+  // скроллить лишние строки внутри себя. Без этого при переносе текста на
+  // вторую строку видимая (последняя) строка оказывалась под кнопками
+  // микрофона/смайлика — визуально казалось, что иконки "залезают на
+  // текст". Максимальная высота ограничена так же, как раньше (CSS
+  // max-height), после чего появляется собственный скролл textarea.
+  function autoResizeCommentTextarea(ta) {
+    if (!ta) return;
+    const maxH = ta.closest('.reply-form-inner') ? 100 : 140;
+    ta.style.height = 'auto';
+    const nextH = Math.min(ta.scrollHeight, maxH);
+    ta.style.height = `${nextH}px`;
+    ta.style.overflowY = ta.scrollHeight > maxH ? 'auto' : 'hidden';
   }
 
   function closeAllEmojiPickers(except) {
@@ -6519,7 +6549,9 @@
     const cancelBtn = e.target.closest('.comment-input-actions .cancel-btn');
     if (cancelBtn) {
       const wrap = cancelBtn.closest('.comment-input-wrap');
-      wrap.querySelector('textarea').value = '';
+      const cancelTa = wrap.querySelector('textarea');
+      cancelTa.value = '';
+      autoResizeCommentTextarea(cancelTa);
       wrap.querySelector('.comment-input-actions').classList.remove('visible');
       return;
     }
@@ -6706,6 +6738,14 @@
       const actions = ta.closest('.comment-input-wrap').querySelector('.comment-input-actions');
       if (actions) actions.classList.add('visible');
     }
+  });
+
+  // Авто-рост высоты полей комментария/ответа по мере ввода текста (см.
+  // autoResizeCommentTextarea выше) — работает и для основной формы, и для
+  // форм ответов, которые создаются динамически.
+  document.addEventListener('input', (e) => {
+    const ta = e.target.closest('.comment-input-wrap textarea, .reply-form-inner textarea');
+    if (ta) autoResizeCommentTextarea(ta);
   });
 
   // Сортировка комментариев
