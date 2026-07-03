@@ -2,7 +2,13 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#161119">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="renah0cki">
+<link rel="manifest" href="manifest.json">
 <title>renah0cki</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4105,6 +4111,182 @@
     }
   }
   /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ─── Скелетоны загрузки (вместо текста "Загрузка...") ──────────────────
+     Серые пульсирующие блоки-заглушки повторяют форму будущего контента
+     (карточка/строка/аватар), убирают визуальный "прыжок" при догрузке. */
+  @keyframes skeletonPulse {
+    0%   { background-position: 0% 0; }
+    100% { background-position: -135% 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #2a2433 25%, #352e40 37%, #2a2433 63%);
+    background-size: 400% 100%;
+    animation: skeletonPulse 1.4s ease-in-out infinite;
+    border-radius: 8px;
+  }
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+    width: 100%;
+  }
+  .skeleton-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    background: var(--panel);
+  }
+  .skeleton-card .skeleton-thumb {
+    width: 100%;
+    height: 140px;
+    margin-bottom: 12px;
+  }
+  .skeleton-card .skeleton-line { height: 12px; margin-bottom: 8px; }
+  .skeleton-card .skeleton-line.w60 { width: 60%; }
+  .skeleton-card .skeleton-line.w40 { width: 40%; margin-bottom: 0; }
+  .skeleton-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+  }
+  .skeleton-avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; }
+  .skeleton-row .skeleton-line { flex: 1; height: 11px; margin-bottom: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ─── Плавность тач-интерфейса: убираем 300мс задержку клика на всех
+     интерактивных элементах (по ТЗ). ────────────────────────────────── */
+  button, a, .nav-tab, .tag-filter-btn, .tag-filter-option,
+  .card, .card-img, .card-video-thumb, .upload-zone, .upload-zone-multi,
+  .bottom-nav-item, input[type="checkbox"], input[type="radio"] {
+    touch-action: manipulation;
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ─── Нижняя sticky-панель навигации (мобильная версия) ─────────────────
+     4 иконки: Лента / Теги / Загрузка(+) / Профиль. Скрыта на десктопе,
+     появляется вместо шапочных вкладок на брейкпоинте 768px, чтобы
+     основное управление было доступно одной рукой снизу экрана. */
+  .bottom-nav {
+    display: none;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    z-index: 120;
+    background: rgba(22, 17, 25, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bottom-nav-inner {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+  }
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px 7px;
+    min-height: 54px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .bottom-nav-item svg { width: 22px; height: 22px; }
+  .bottom-nav-item.active { color: var(--accent); }
+  .bottom-nav-icon-upload {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #1b1224;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1px;
+  }
+  .bottom-nav-icon-upload svg { width: 18px; height: 18px; }
+  .bottom-nav-item.bottom-nav-upload { color: var(--text); }
+
+  @media (max-width: 768px) {
+    .bottom-nav { display: block; }
+    /* Освобождаем место снизу под sticky-панель, чтобы контент и
+       "плавающая" кнопка техподдержки не перекрывались ею. */
+    body { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
+    .support-widget { bottom: calc(58px + 14px + env(safe-area-inset-bottom, 0px)); }
+    /* На мобильном нижняя панель берёт на себя действие "Добавить контент" —
+       дублирующая кнопка "+" в тулбаре прячется, чтобы не занимать место.
+       Кнопку "Теги" оставляем в тулбаре (просто на неё указывает нижняя
+       навигация тапом) — там уже есть выпадающий список с чекбоксами. */
+    #addContentBtn { display: none; }
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ─── Мобильные чипы сортировки/периода вместо <select> ─────────────────
+     На десктопе остаются обычные выпадающие списки — по ним привычнее
+     работать мышью. На телефоне заменяем их горизонтально-прокручиваемым
+     рядом кнопок-чипов над лентой: тап вместо открытия системного select. */
+  .filter-chips-row {
+    display: none;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    margin-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .filter-chips-row::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 9px 16px;
+    min-height: 38px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .filter-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1b1224;
+  }
+  @media (max-width: 768px) {
+    .filter-chips-row { display: flex; }
+    #feedSortFilter, #feedTimeFilter { display: none; }
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ─── Зона Drag-and-Drop крупнее на мобильном (150–200px), с явной
+     реакцией на нажатие пальцем (не только на hover, которого у тач-
+     экранов нет). ─────────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .upload-zone, .upload-zone-multi {
+      min-height: 170px;
+      justify-content: center;
+      padding: 32px 20px;
+    }
+    .upload-zone:active, .upload-zone-multi:active {
+      border-color: var(--accent);
+      background: rgba(180, 140, 255, 0.1);
+    }
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
 </style>
 </head>
 <body>
@@ -4130,10 +4312,51 @@
   </div>
 </header>
 
+<!-- Нижняя sticky-навигация — видна только на мобильном (≤768px), см. CSS.
+     Дублирует ключевые действия шапки в зоне, доступной большому пальцу. -->
+<nav class="bottom-nav" id="bottomNav" aria-label="Основная навигация">
+  <div class="bottom-nav-inner">
+    <button type="button" class="bottom-nav-item active" id="bottomNavFeed" data-bottom="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+      Лента
+    </button>
+    <button type="button" class="bottom-nav-item" id="bottomNavTags" data-bottom="tags">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      Поиск
+    </button>
+    <button type="button" class="bottom-nav-item bottom-nav-upload" id="bottomNavUpload" data-bottom="upload">
+      <span class="bottom-nav-icon-upload">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      </span>
+      Добавить
+    </button>
+    <button type="button" class="bottom-nav-item" id="bottomNavProfile" data-bottom="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+      Профиль
+    </button>
+  </div>
+</nav>
+
 <main>
   <div class="toolbar">
     <h2 id="feedTitle">Лента сообщества</h2>
     <button id="addContentBtn" title="Добавить контент" aria-label="Добавить контент"><img class="add-content-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAK0AAACyCAMAAAAH8b8/AAAAY1BMVEVMaXG1oM21oM21oM21oM21oM21oM21oM21oM21oM21oM21oM21oM21oM21oM21oM3///+1oM3a0Oj7+fzHuNvDstfs6PTQxOK5ptD28/nj3O6+rNTVyeXe1evMvt7o4vHx7ffL8L21AAAAEHRSTlMAIDDQ8GAQQIDAcKBQ4LCQ67nHrAAAAAlwSFlzAAAsSgAALEoBd3p0TQAAAwVJREFUeJzt3emWmkAQhmFQVMBlQNpxN7n/q8zBGke0AStJlVQn3/s/5DmcZnGA7qij2aCNulh+ozRLyqFbrvL4NTVOl4NLb43zab91bsN5K0l7vKkNY7Mk7xqvYzvIRlnr+J0Mf2i1l8x8bG4R+tXkGfthgtXVE3diU/ndoomdGUF1ljSublOrB9i98f3Eu7Ji6ukjmHFw7TYW7NwZ9JWFcT64RReJzAbmZfPr7YFx5L2p+atYs/qKZvPOq61VFE3tqbpKQjnZUiOLvxc6WwR0kJVlGszZtoRWNWj1glYvaPWCVi9o9YK2LDfOuY3CdhW0u3NV1O3XO+lNy2svZL16nfC2xbXbotlWduPSWveALSrZ0Sut3T9qi0/RrQtrt8VzokNXWPvD0x4kNy+srTyt6FAQ1nrYopDcPLTQUtBCS0ELLQUttBS00FLQQktBCy0FLbQUtNBS0EJL/bPa3WX9shbt63/E/2M/W3s8tEiEqg7M54Bc7db/G72ol7d/mVr/WY10FzntRh1bVEcx7ae+lvWoiqV1jP/s72PsXJb2/BbtSUj7joHAGgqGtIynltD+YVIjIayj7A0XB8EzWFhXh3Kje09TV3Fuw6zc1fBeF+LeMV509+6e924T+258t9bzst/K+53fZe6k8kvnxH9nDL95oaWghZaCFloKWmgpaKGloIWWghZaClpoKWihpaCFloI2GG1YX3H6X8ieJTev/vWx6Kfd//WX3c8PWVlvy/DTnZFA+BN/hdkeXGO2B+nZNDRm0ljT4P0pPNWD2iwlR+ec+KQfmAFGNWj1glYvaPWCVi9o9YJWrzSoeZvD0s6CmsE7Dmx29LBmnje9kM5j9az+sSVQX8k0uNUoooUBCaev1avC2LnzoFao+V4YzNiKcK2l95WV7K+oM24uC2fA01vysECc9RWAnhaQtM31FoczzE08bBQtzK4S2LqOaGzzKrHqWuAyt7d7l4sOa33iTW15e1cOrb25nbvzrOXo8sfvZD68OJtP+nfrY4OuJtwqiqLoF5srtIW4L81KAAAAAElFTkSuQmCC" alt="Добавить контент"></button>
+  </div>
+
+  <!-- Мобильные чипы — таповый аналог <select id="feedSortFilter/feedTimeFilter">
+       выше. Только для экранов ≤768px (см. CSS .filter-chips-row), значения
+       синхронизируются в оба select'а через JS (initFilterChips). -->
+  <div class="filter-chips-row" id="sortChipsRow">
+    <button type="button" class="filter-chip active" data-sort-chip="new">Новое</button>
+    <button type="button" class="filter-chip" data-sort-chip="likes">По лайкам</button>
+    <button type="button" class="filter-chip" data-sort-chip="views">По просмотрам</button>
+    <button type="button" class="filter-chip" data-sort-chip="comments">По комментариям</button>
+  </div>
+  <div class="filter-chips-row" id="timeChipsRow">
+    <button type="button" class="filter-chip active" data-time-chip="all">За всё время</button>
+    <button type="button" class="filter-chip" data-time-chip="day">За 24 часа</button>
+    <button type="button" class="filter-chip" data-time-chip="week">За неделю</button>
+    <button type="button" class="filter-chip" data-time-chip="month">За месяц</button>
   </div>
 
   <div class="feed-filters" id="feedFiltersBar">
@@ -6813,10 +7036,10 @@
         linkHtml = `<a class="mod-link" href="https://www.youtube.com/watch?v=${ytId}" target="_blank" rel="noopener noreferrer">▶ Открыть на YouTube</a>`;
       } else if (mediaUrl) {
         // прочая внешняя ссылка на видео — хотя бы текстовая ссылка
-        linkHtml = `<a class="mod-link" href="${mediaUrl}" target="_blank" rel="noopener noreferrer">🔗 ${escapeHtml(mediaUrl)}</a>`;
+        linkHtml = `<a class="mod-link" href="${safeUrl(mediaUrl)}" target="_blank" rel="noopener noreferrer">🔗 ${escapeHtml(mediaUrl)}</a>`;
       }
     } else if (item.content_type === 'fanfic' && item.source_url) {
-      linkHtml = `<a class="mod-link" href="${item.source_url}" target="_blank" rel="noopener noreferrer">🔗 Читать оригинал</a>`;
+      linkHtml = `<a class="mod-link" href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer">🔗 Читать оригинал</a>`;
     }
 
     return { mediaHtml, linkHtml };
@@ -7749,7 +7972,7 @@
         <div class="card-footer">
           <div class="card-footer-left">
             ${renderCardLikeButton(item, false)}
-            ${isExternalLink ? `<a class="go" href="${item.source_url}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
+            ${isExternalLink ? `<a class="go" href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
           </div>
           ${menuHtml}
         </div>
@@ -7817,7 +8040,7 @@
     ].filter(l => l.url);
     const streamerBtnsHtml = (profile.role === 'streamer' && streamerLinks.length)
       ? `<div class="profile-streamer-btns">
-          ${streamerLinks.map(l => `<a class="profile-streamer-btn ${l.cls}" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(l.label)}">${l.icon}</a>`).join('')}
+          ${streamerLinks.map(l => `<a class="profile-streamer-btn ${l.cls}" href="${safeUrl(l.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(l.label)}">${l.icon}</a>`).join('')}
         </div>`
       : '';
 
@@ -9210,6 +9433,37 @@
     renderFilteredFeed();
   });
 
+  // ─── Мобильные чипы сортировки/периода — таповый аналог select'ов выше.
+  // Просто проксируют значение в существующий <select> и дёргают тот же
+  // обработчик change, чтобы вся логика фильтрации не дублировалась. ────────
+  document.getElementById('sortChipsRow').addEventListener('click', (e) => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    document.querySelectorAll('#sortChipsRow .filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    const sel = document.getElementById('feedSortFilter');
+    sel.value = chip.dataset.sortChip;
+    sel.dispatchEvent(new Event('change'));
+  });
+
+  document.getElementById('timeChipsRow').addEventListener('click', (e) => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    document.querySelectorAll('#timeChipsRow .filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    const sel = document.getElementById('feedTimeFilter');
+    sel.value = chip.dataset.timeChip;
+    sel.dispatchEvent(new Event('change'));
+  });
+
+  // Сброс чипов в исходное состояние при смене вкладки (переиспользует уже
+  // существующий switchNavTabTo, который и так обнуляет time/tag фильтры).
+  function resetFilterChips() {
+    document.querySelectorAll('#sortChipsRow .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.sortChip === 'new'));
+    document.querySelectorAll('#timeChipsRow .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.timeChip === 'all'));
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   document.getElementById('tagFilterBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('tagFilterDropdown').classList.toggle('open');
@@ -9251,6 +9505,7 @@
     feedTagFilterSet.clear();
     feedTimeFilterValue = 'all';
     document.getElementById('feedTimeFilter').value = 'all';
+    resetFilterChips();
     await loadFeed();
   }
 
@@ -9438,8 +9693,12 @@
     // умолчанию в разметке) — именно её нужно показывать/прятать, а не
     // только вложенный #homeLayout, иначе весь блок (включая сайдбар
     // "Стримеры") никогда не появится.
+    const sortChipsRowEl = document.getElementById('sortChipsRow');
+    const timeChipsRowEl = document.getElementById('timeChipsRow');
     if (currentFeedFilter === 'home') {
       if (filtersBarEl) filtersBarEl.style.display = 'none';
+      if (sortChipsRowEl) sortChipsRowEl.style.display = 'none';
+      if (timeChipsRowEl) timeChipsRowEl.style.display = 'none';
       if (toolbarEl) toolbarEl.style.display = 'none';
       if (feedLayoutWrapEl) feedLayoutWrapEl.style.display = 'none';
       if (homePageLayoutEl) homePageLayoutEl.style.display = '';
@@ -9455,12 +9714,15 @@
     if (homeLayoutEl) homeLayoutEl.style.display = 'none';
     if (feedLayoutWrapEl) feedLayoutWrapEl.style.display = '';
     if (filtersBarEl) filtersBarEl.style.display = '';
+    if (sortChipsRowEl) sortChipsRowEl.style.display = '';
     if (currentFeedFilter === 'collection') {
       if (contentOnlyFiltersEl) contentOnlyFiltersEl.style.display = 'none';
+      if (timeChipsRowEl) timeChipsRowEl.style.display = 'none';
       await loadCollectionsFeed();
       return;
     }
     if (contentOnlyFiltersEl) contentOnlyFiltersEl.style.display = 'contents';
+    if (timeChipsRowEl) timeChipsRowEl.style.display = '';
 
     let data;
     try {
@@ -9650,7 +9912,7 @@
         <div class="card-footer">
           <div class="card-footer-left">
             ${renderCardLikeButton(item, false)}
-            ${isExternalLink ? `<a class="go" href="${item.source_url}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
+            ${isExternalLink ? `<a class="go" href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
           </div>
           ${menuHtml}
         </div>
@@ -9943,7 +10205,20 @@
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Разрешает вставлять в href/src только безопасные схемы (http/https или
+  // относительные пути) — защита от javascript:/data: URI XSS в полях,
+  // которые заполняет сам пользователь (ссылка на фанфик, соцсети стримера
+  // и т.п.). Всё остальное превращается в '#', ссылка становится нерабочей,
+  // но не выполняет код.
+  function safeUrl(url) {
+    if (!url) return '#';
+    const trimmed = String(url).trim();
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (/^\/(?!\/)/.test(trimmed)) return trimmed; // относительный путь на своём же домене
+    return '#';
   }
 
   // ─── Просмотры постов/сборников ────────────────────────────────────────────
