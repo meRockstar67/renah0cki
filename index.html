@@ -2288,7 +2288,10 @@
     height: 100%;
     width: 0%;
     background: var(--accent);
-    transition: width 0.1s linear;
+    /* Без transition: полоска двигается через requestAnimationFrame
+       (см. voiceMsgProgressLoop), т.е. уже обновляется каждый кадр —
+       CSS-переход поверх этого только добавлял задержку/подёргивание,
+       потому что анимировал "довесок" к уже устаревшему значению. */
   }
 
   .voice-msg-time {
@@ -3680,6 +3683,67 @@
     .home-moderators-sidebar { width: 100%; }
   }
 
+  /* На ноутбучных ширинах (плашка "MacBook Pro" 1440x900 и похожие,
+     1201–1650px) сайдбары "Модераторы"/"Стримеры"/"Респект+" уже
+     статичные (не прижаты к краю экрана), но остаются той же ширины
+     и с тем же кеглем, что и на широком десктопе — а свободного места
+     под них здесь заметно меньше, из-за чего блок выглядит непропорц-
+     ионально большим рядом со сжавшимися колонками Фото/Теги/Видео.
+     Уменьшаем сайдбар и всё его содержимое (аватарки/текст/отступы)
+     примерно в 1.25 раза. */
+  @media (min-width: 1201px) and (max-width: 1650px) {
+    .home-moderators-sidebar,
+    .home-streamers-sidebar {
+      width: 208px;
+      gap: 8px;
+    }
+    .home-moderators-sidebar .home-col-header h3,
+    .home-streamers-sidebar .home-col-header h3 {
+      font-size: 12px;
+    }
+    .home-moderators-sidebar .home-streamers-panel,
+    .home-streamers-sidebar .home-streamers-panel {
+      padding: 10px;
+      gap: 3px;
+    }
+    .home-moderators-sidebar .home-streamer-item,
+    .home-streamers-sidebar .home-streamer-item {
+      gap: 9px;
+      padding: 6px;
+    }
+    .home-moderators-sidebar .home-streamer-avatar,
+    .home-streamers-sidebar .home-streamer-avatar {
+      width: 32px;
+      height: 32px;
+    }
+    .home-moderators-sidebar .home-streamer-name,
+    .home-streamers-sidebar .home-streamer-name {
+      font-size: 14px;
+    }
+  }
+
+  /* Планшеты (768–1200px, например iPad в альбомной ориентации — портретный
+     768px уже попадает под телефонный брейкпоин ниже) — та же логика, что
+     и на телефоне: убираем "Модераторы" и "Респект+", оставляем только
+     "Стримеры" и переносим его выше ленты "Новое на канале". Здесь же
+     .home-top-row переводим в display:contents, чтобы задать порядок
+     через order — правило дублирует то, что ниже задано для телефонов
+     (там уже действует этот же max-width, но у него своя ветка с
+     дополнительными мобильными правками типа бургер-меню). */
+  @media (max-width: 1200px) {
+    .home-top-row { display: contents; }
+    .home-moderators-sidebar { display: none; }
+    .home-layout { order: 1; }
+    .home-streamers-sidebar {
+      order: 2;
+      position: static;
+      width: 100%;
+    }
+    .home-channel-reel { order: 3; }
+    #homeRespectHeader,
+    #homeRespectPlusPanel { display: none; }
+  }
+
   .home-col { display: flex; flex-direction: column; gap: 16px; }
 
   .home-col-header {
@@ -4075,24 +4139,10 @@
        выравниваем внутренние отступы карточек. */
     .home-streamer-item { padding: 8px 10px; }
 
-    /* На телефоне убираем "Модераторы" и "Респект+" — оставляем только
-       "Стримеры", и переносим этот блок выше ленты "Новое на канале"
-       (между колонками Фото/Теги/Видео и лентой). .home-top-row
-       переводим в display:contents, чтобы его дети (сайдбары + основная
-       сетка) стали прямыми флекс-элементами .home-page-layout наравне
-       с .home-channel-reel — тогда порядок между ними можно задать
-       через order. */
-    .home-top-row { display: contents; }
-    .home-moderators-sidebar { display: none; }
-    .home-layout { order: 1; }
-    .home-streamers-sidebar {
-      order: 2;
-      position: static;
-      width: 100%;
-    }
-    .home-channel-reel { order: 3; }
-    #homeRespectHeader,
-    #homeRespectPlusPanel { display: none; }
+    /* Скрытие "Модераторы"/"Респект+" и порядок блоков (Стримеры выше
+       ленты) заданы теперь общим правилом для планшетов и телефонов —
+       см. @media (max-width: 1200px) выше, рядом с остальной адаптацией
+       сайдбаров. Здесь остаются только чисто телефонные правки. */
 
     /* "Новое на канале" — на десктопе горизонтальная карусель со свайпом
        и стрелками. На телефоне стрелки не нужны (свайп пальцем удобнее
@@ -4140,7 +4190,25 @@
     .header-username { font-size: 16px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     #feed, .profile-feed { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-    .home-card-grid { grid-template-columns: 1fr; }
+
+    /* Карточки "Фото"/"Видео" на главной: раньше на самом узком брейкпоинте
+       схлопывались в 1 колонку на всю ширину (огромное фото + пустая
+       карточка ниже). Оставляем 2 колонки, как на ПК, просто уменьшаем
+       карточки и внутренние отступы под маленький экран. */
+    .home-card-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .home-card-body { padding: 8px 9px 9px; gap: 3px; }
+    .home-card-title { font-size: 12.5px; }
+    .home-card-author { font-size: 11px; }
+    .home-card-stats { font-size: 11px; gap: 8px; }
+    .home-card-badge { font-size: 10px; padding: 3px 8px; top: 6px; left: 6px; }
+
+    /* Панель "Теги": список тегов раньше растягивался почти на весь экран
+       (max-height подгонялась под высоту колонки "Фото" только на широких
+       экранах, а на телефоне падала на дефолтные 400px из общего правила).
+       Сжимаем до ~3.5 видимых тегов — остальные доступны прокруткой внутри
+       той же панели (overflow-y: auto уже задан в .home-tags-panel). */
+    .home-tags-panel { max-height: 225px; padding: 12px; gap: 8px; }
+    .home-tag-pill { padding: 11px 14px; font-size: 14px; }
 
     .profile-header-avatar { width: 56px; height: 56px; }
     .profile-header-name { font-size: 17px; }
@@ -4230,8 +4298,12 @@
     /* Контент занимает всю ширину экрана с небольшими внутренними полями. */
     main, #profilePage { padding: 16px 15px; }
 
-    /* Тач-цели: кнопки, поля ввода и ссылки-кнопки не меньше 44x44px. */
-    button:not(.mobile-menu-toggle),
+    /* Тач-цели: кнопки, поля ввода и ссылки-кнопки не меньше 44x44px.
+       .voice-play-btn сюда намеренно не входит — у неё уже задан
+       фиксированный width/height (круглая кнопка плей на голосовом
+       сообщении), а min-height без соответствующего min-width её
+       вытягивал в овал. Собственный увеличенный размер для неё — ниже. */
+    button:not(.mobile-menu-toggle):not(.voice-play-btn),
     input[type="submit"],
     input[type="button"],
     .modal-actions button,
@@ -4240,6 +4312,11 @@
     .comments-sort-btn,
     .tag-filter-btn {
       min-height: 44px;
+    }
+    .voice-play-btn {
+      width: 38px;
+      height: 38px;
+      font-size: 14px;
     }
     input[type="text"],
     input[type="email"],
@@ -6259,6 +6336,7 @@
   // автоматически останавливалось (как в мессенджерах).
   const voiceMsgAudioEl = new Audio();
   let activeVoiceMsgBtn = null;
+  let voiceMsgProgressRaf = null;
 
   function resetVoiceMsgButton(btn) {
     if (!btn) return;
@@ -6273,19 +6351,42 @@
     }
   }
 
-  voiceMsgAudioEl.addEventListener('timeupdate', () => {
-    if (!activeVoiceMsgBtn) return;
+  // Полоска прогресса раньше обновлялась по событию `timeupdate`, а оно
+  // у audio-элемента в браузерах стреляет нестабильно и редко (примерно
+  // 4 раза в секунду), из-за чего заполнение дёргалось скачками вместо
+  // плавного движения. Гоним обновление через requestAnimationFrame —
+  // это честные ~60 кадров/сек, пока идёт воспроизведение.
+  function stepVoiceMsgProgress() {
+    if (!activeVoiceMsgBtn || voiceMsgAudioEl.paused) {
+      voiceMsgProgressRaf = null;
+      return;
+    }
     const player = activeVoiceMsgBtn.closest('.voice-message-player');
-    if (!player) return;
-    const dur = voiceMsgAudioEl.duration || 0;
-    const cur = voiceMsgAudioEl.currentTime || 0;
-    const fill = player.querySelector('.voice-progress-fill');
-    const time = player.querySelector('.voice-msg-time');
-    if (fill) fill.style.width = (dur ? (cur / dur * 100) : 0) + '%';
-    if (time) time.textContent = formatVoiceTime(cur);
-  });
+    if (player) {
+      const dur = voiceMsgAudioEl.duration || 0;
+      const cur = voiceMsgAudioEl.currentTime || 0;
+      const fill = player.querySelector('.voice-progress-fill');
+      const time = player.querySelector('.voice-msg-time');
+      if (fill) fill.style.width = (dur ? (cur / dur * 100) : 0) + '%';
+      if (time) time.textContent = formatVoiceTime(cur);
+    }
+    voiceMsgProgressRaf = requestAnimationFrame(stepVoiceMsgProgress);
+  }
+
+  function startVoiceMsgProgressLoop() {
+    if (voiceMsgProgressRaf) cancelAnimationFrame(voiceMsgProgressRaf);
+    voiceMsgProgressRaf = requestAnimationFrame(stepVoiceMsgProgress);
+  }
+
+  function stopVoiceMsgProgressLoop() {
+    if (voiceMsgProgressRaf) {
+      cancelAnimationFrame(voiceMsgProgressRaf);
+      voiceMsgProgressRaf = null;
+    }
+  }
 
   voiceMsgAudioEl.addEventListener('ended', () => {
+    stopVoiceMsgProgressLoop();
     resetVoiceMsgButton(activeVoiceMsgBtn);
     activeVoiceMsgBtn = null;
   });
@@ -6296,6 +6397,7 @@
   // Без этого обработчика попытка воспроизведения просто тихо проваливается
   // и кнопка виснет в состоянии "играет", хотя по факту тишина.
   voiceMsgAudioEl.addEventListener('error', () => {
+    stopVoiceMsgProgressLoop();
     if (activeVoiceMsgBtn) {
       resetVoiceMsgButton(activeVoiceMsgBtn);
       activeVoiceMsgBtn = null;
@@ -6312,10 +6414,12 @@
         voiceMsgAudioEl.play().catch(() => resetVoiceMsgButton(playBtn));
         playBtn.classList.add('playing');
         playBtn.textContent = '⏸';
+        startVoiceMsgProgressLoop();
       } else {
         voiceMsgAudioEl.pause();
         playBtn.classList.remove('playing');
         playBtn.textContent = '▶';
+        stopVoiceMsgProgressLoop();
       }
       return;
     }
@@ -6326,6 +6430,7 @@
     activeVoiceMsgBtn = playBtn;
     playBtn.classList.add('playing');
     playBtn.textContent = '⏸';
+    startVoiceMsgProgressLoop();
   });
 
   function renderVoiceMessageHtml(url) {
