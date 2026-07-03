@@ -6092,7 +6092,13 @@
   // вместе со скроллом своего контейнера (лента комментариев, лайтбокс и
   // т.п.) — чтобы оно не "зависало" оторванным от кнопки, просто закрываем
   // его при любом скролле. capture:true нужен, т.к. scroll не всплывает.
-  document.addEventListener('scroll', () => {
+  document.addEventListener('scroll', (e) => {
+    // Скролл самого окошка смайликов (например, пролистывание списка эмоутов
+    // внутри него — оно само скроллится через overflow-y:auto) не должен
+    // его закрывать, иначе панель схлопывается при первой же попытке
+    // пролистать список. Закрываем только когда скроллится что-то снаружи.
+    const target = e.target;
+    if (target && target.nodeType === 1 && target.closest('.emoji-picker')) return;
     closeAllEmojiPickers();
   }, true);
 
@@ -9059,8 +9065,9 @@
     }
 
     // Скрываем ленту, показываем профиль
-    document.querySelector('main:not(#postPage):not(#profilePage)').style.display = 'none';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage)').style.display = 'none';
     document.getElementById('postPage').style.display = 'none';
+    rulesPageEl.style.display = 'none';
     profilePageEl.style.display = 'block';
     history.pushState(null, '', `${location.pathname}?user=${userId}`);
     window.scrollTo(0, 0);
@@ -9068,7 +9075,7 @@
 
   function closeProfilePage() {
     profilePageEl.style.display = 'none';
-    document.querySelector('main:not(#postPage):not(#profilePage)').style.display = '';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage)').style.display = '';
     history.pushState(null, '', location.pathname);
   }
 
