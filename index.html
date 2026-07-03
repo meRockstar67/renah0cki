@@ -4391,12 +4391,16 @@
     </div>
 
     <div class="name-color-section" id="streamerLinksSection" style="display:none;">
-      <label for="p-twitch-url">Ссылка на Twitch</label>
-      <input type="text" id="p-twitch-url" placeholder="https://twitch.tv/твойник">
+      <div id="twitchLinkGroup">
+        <label for="p-twitch-url">Ссылка на Twitch</label>
+        <input type="text" id="p-twitch-url" placeholder="https://twitch.tv/твойник">
+      </div>
       <label for="p-social-url" style="margin-top:10px;">Ссылка на Telegram</label>
       <input type="text" id="p-social-url" placeholder="https://t.me/твойканал">
-      <label for="p-donate-url" style="margin-top:10px;">Ссылка на Приватку</label>
-      <input type="text" id="p-donate-url" placeholder="https://web.tribute.tg/l/xX">
+      <div id="donateLinkGroup">
+        <label for="p-donate-url" style="margin-top:10px;">Ссылка на Приватку</label>
+        <input type="text" id="p-donate-url" placeholder="https://web.tribute.tg/l/xX">
+      </div>
     </div>
 
     <label>Аватар</label>
@@ -4690,6 +4694,56 @@
   function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
 
   // ─── Обновление JWT-токена через refresh_token ────────────────────────────
+  let tokenRefreshTimer = null;
+
+  // Декодирует payload JWT и возвращает время истечения (в мс), либо null
+  function decodeJwtExpiry(token) {
+    try {
+      const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
+      return payload.exp ? payload.exp * 1000 : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Заранее (проактивно) продлевает сессию до истечения токена, чтобы
+  // пользователю не приходилось перезаходить в аккаунт из-за истёкшей сессии.
+  function scheduleTokenRefresh() {
+    if (tokenRefreshTimer) {
+      clearTimeout(tokenRefreshTimer);
+      tokenRefreshTimer = null;
+    }
+    if (!currentUserToken || !currentRefreshToken) return;
+
+    const expiresAt = decodeJwtExpiry(currentUserToken);
+    // Обновляем за минуту до истечения; если срок не удалось определить —
+    // подстраховываемся и обновляем каждые 4 минуты.
+    let delay = expiresAt ? (expiresAt - Date.now() - 60000) : (4 * 60 * 1000);
+    if (delay < 5000) delay = 5000;
+
+    tokenRefreshTimer = setTimeout(async () => {
+      const refreshed = await refreshTokenIfNeeded();
+      if (refreshed) {
+        scheduleTokenRefresh();
+      } else {
+        // Не удалось обновить (например, нет сети) — попробуем ещё раз позже
+        tokenRefreshTimer = setTimeout(scheduleTokenRefresh, 60000);
+      }
+    }, delay);
+  }
+
+  // Если пользователь вернулся на вкладку (например, после сна ноутбука или
+  // долгого простоя), сразу проверяем и при необходимости обновляем токен —
+  // это подстраховка на случай, если фоновый таймер был приостановлен браузером.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !currentUserToken || !currentRefreshToken) return;
+    const expiresAt = decodeJwtExpiry(currentUserToken);
+    if (!expiresAt || expiresAt - Date.now() < 60000) {
+      refreshTokenIfNeeded().then(() => scheduleTokenRefresh());
+    }
+  });
+
   async function refreshTokenIfNeeded() {
     if (!currentRefreshToken) return false;
     try {
@@ -6739,6 +6793,7 @@
       currentUser = twitchUser;
       currentUserToken = accessToken;
       currentRefreshToken = refreshToken;
+      scheduleTokenRefresh();
 
       await ensureProfileFromTwitch(twitchUser);
       await loadProfileIntoCurrentUser();
@@ -7655,6 +7710,19 @@
     return role === 'streamer';
   }
 
+  // Модератор и главный модератор могут, как и стример, указать ссылку на
+  // свой Telegram-канал в профиле, но БЕЗ полей Twitch и приватного доната —
+  // им доступно только поле Telegram.
+  function canEditTelegramOnly(role) {
+    return isModeratorOrHigher(role) && !isStreamer(role);
+  }
+
+  // Любая роль, которой доступно редактирование ссылки на Telegram
+  // (полный набор ссылок у стримера, только Telegram у модераторов).
+  function canEditStreamerLinks(role) {
+    return isStreamer(role) || canEditTelegramOnly(role);
+  }
+
   // Краска/цвет ника доступны модераторам (и выше) и стримерам.
   function canUseNameColor(role) {
     return isModeratorOrHigher(role) || isStreamer(role);
@@ -7876,12 +7944,18 @@
       tg: '<svg viewBox="0 0 24 24"><path d="M21.5 4.5 2.7 11.9c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5L18.8 7c.5-.3 1-.1.6.2L10 14.5l-.3 4.6c.5 0 .7-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14c.3-1.3-.5-1.9-1.5-1.6z"/></svg>',
       donate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5v11M15 9.2c0-1.2-1.3-2.2-3-2.2s-3 .9-3 2.1c0 1.3 1.3 1.8 3 2.1 1.9.4 3 1 3 2.3 0 1.2-1.3 2.1-3 2.1s-3-1-3-2.2"/></svg>'
     };
-    const streamerLinks = [
-      { url: profile.stream_twitch_url, label: 'Twitch', cls: 'streamer-btn-twitch', icon: STREAMER_ICONS.twitch },
-      { url: profile.stream_social_url, label: 'Telegram', cls: 'streamer-btn-tg', icon: STREAMER_ICONS.tg },
-      { url: profile.stream_donate_url, label: 'Закрытый Telegram (донат)', cls: 'streamer-btn-donate', icon: STREAMER_ICONS.donate }
-    ].filter(l => l.url);
-    const streamerBtnsHtml = (profile.role === 'streamer' && streamerLinks.length)
+    // У стримера — полный набор ссылок (Twitch/Telegram/донат).
+    // У модератора и главного модератора — только ссылка на Telegram-канал.
+    const streamerLinks = profile.role === 'streamer'
+      ? [
+          { url: profile.stream_twitch_url, label: 'Twitch', cls: 'streamer-btn-twitch', icon: STREAMER_ICONS.twitch },
+          { url: profile.stream_social_url, label: 'Telegram', cls: 'streamer-btn-tg', icon: STREAMER_ICONS.tg },
+          { url: profile.stream_donate_url, label: 'Закрытый Telegram (донат)', cls: 'streamer-btn-donate', icon: STREAMER_ICONS.donate }
+        ].filter(l => l.url)
+      : (isModeratorOrHigher(profile.role)
+          ? [{ url: profile.stream_social_url, label: 'Telegram', cls: 'streamer-btn-tg', icon: STREAMER_ICONS.tg }].filter(l => l.url)
+          : []);
+    const streamerBtnsHtml = streamerLinks.length
       ? `<div class="profile-streamer-btns">
           ${streamerLinks.map(l => `<a class="profile-streamer-btn ${l.cls}" href="${safeUrl(l.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(l.label)}">${l.icon}</a>`).join('')}
         </div>`
@@ -8322,13 +8396,25 @@
       colorSection.style.display = 'none';
     }
 
-    // Ссылки (Twitch/донат/соцсети) — только у роли "Стример"
+    // Ссылки (Twitch/донат/соцсети) — у роли "Стример" полный набор,
+    // у модератора и главного модератора — только ссылка на Telegram.
     const streamerSection = document.getElementById('streamerLinksSection');
-    if (isStreamer(currentUser.role)) {
+    const twitchGroup = document.getElementById('twitchLinkGroup');
+    const donateGroup = document.getElementById('donateLinkGroup');
+    if (canEditStreamerLinks(currentUser.role)) {
       streamerSection.style.display = 'block';
-      document.getElementById('p-twitch-url').value = currentUser.stream_twitch_url || '';
-      document.getElementById('p-donate-url').value = currentUser.stream_donate_url || '';
       document.getElementById('p-social-url').value = currentUser.stream_social_url || '';
+      if (isStreamer(currentUser.role)) {
+        twitchGroup.style.display = 'block';
+        donateGroup.style.display = 'block';
+        document.getElementById('p-twitch-url').value = currentUser.stream_twitch_url || '';
+        document.getElementById('p-donate-url').value = currentUser.stream_donate_url || '';
+      } else {
+        twitchGroup.style.display = 'none';
+        donateGroup.style.display = 'none';
+        document.getElementById('p-twitch-url').value = '';
+        document.getElementById('p-donate-url').value = '';
+      }
     } else {
       streamerSection.style.display = 'none';
     }
@@ -8374,7 +8460,9 @@
         stream_twitch_url: document.getElementById('p-twitch-url').value.trim() || null,
         stream_donate_url: document.getElementById('p-donate-url').value.trim() || null,
         stream_social_url: document.getElementById('p-social-url').value.trim() || null
-      } : null;
+      } : (canEditTelegramOnly(currentUser.role) ? {
+        stream_social_url: document.getElementById('p-social-url').value.trim() || null
+      } : null);
 
       await saveProfile(username, avatarUrl, streamerLinks);
 
@@ -9310,6 +9398,18 @@
   });
 
   async function switchNavTabTo(filterName) {
+    // Клик по вкладке шапки (Фото/Видео/Главная/Фанфики/Сборник) должен
+    // вести на эту вкладку, даже если сейчас открыта страница профиля
+    // или страница отдельного поста — раньше в этом случае лента
+    // обновлялась "под капотом", а на экране так и оставался профиль/пост,
+    // и клик выглядел так, будто ничего не происходит. Та же логика,
+    // что уже используется в обработчике клика по логотипу.
+    const isOnSubPage = postPageEl.style.display !== 'none' || profilePageEl.style.display !== 'none';
+    if (isOnSubPage) {
+      showMainFeed();
+      history.pushState(null, '', location.pathname);
+    }
+
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     const tabBtn = document.querySelector(`.nav-tab[data-filter="${filterName}"]`);
     if (tabBtn) tabBtn.classList.add('active');
@@ -10339,6 +10439,7 @@
       currentUser = parsed.user;
       currentUserToken = parsed.token;
       currentRefreshToken = parsed.refreshToken || null;
+      scheduleTokenRefresh();
       loadProfileIntoCurrentUser().then(() => {
         renderAuthArea();
         loadFeed();
