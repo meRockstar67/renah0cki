@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Vollkorn:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="icon" type="image/png" href="data:image/png;base64,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">
 
 
@@ -218,6 +219,166 @@
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;
+  }
+
+  /* ─── Уведомления (лайки/комментарии) ──────────────────────────────── */
+  .notif-wrap {
+    position: relative;
+  }
+
+  .notif-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    cursor: pointer;
+    position: relative;
+  }
+
+  .notif-btn:hover { background: var(--panel-2); }
+
+  .notif-btn svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .notif-btn.has-unread svg { color: var(--accent); }
+
+  .notif-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #1a1424;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 17px;
+    text-align: center;
+  }
+
+  .notif-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 60;
+    width: 340px;
+    max-width: 88vw;
+    max-height: 420px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    overflow: hidden;
+    flex-direction: column;
+  }
+
+  .notif-dropdown.open { display: flex; }
+
+  .notif-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .notif-dropdown-header button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 6px;
+    cursor: pointer;
+  }
+
+  .notif-dropdown-header button:hover { color: var(--accent); }
+
+  .notif-list {
+    overflow-y: auto;
+  }
+
+  .notif-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: var(--panel); }
+  .notif-item.unread { background: rgba(180, 140, 255, 0.07); }
+
+  .notif-item-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .notif-item-body { min-width: 0; flex: 1; }
+
+  .notif-item-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .notif-item-text b { font-weight: 700; }
+
+  .notif-item-snippet {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .notif-item-time {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 3px;
+  }
+
+  .notif-item-icon {
+    width: 13px;
+    height: 13px;
+    vertical-align: -2px;
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+
+  .notif-item-icon.like-icon { color: var(--danger); }
+  .notif-item-icon.comment-icon { color: var(--accent); }
+
+  .notif-list .empty {
+    padding: 24px 14px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
   }
 
   .auth-area {
@@ -4194,6 +4355,21 @@
   <div class="header-right">
     <button id="moderationBtn" class="mod-btn" style="display:none;">На проверке</button>
     <button id="addCollectionBtn" class="mod-btn" style="display:none;">+ Сборник</button>
+    <div class="notif-wrap" id="notifWrap" style="display:none;">
+      <button type="button" id="notifBtn" class="notif-btn" title="Уведомления" aria-label="Уведомления">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+      </button>
+      <div class="notif-dropdown" id="notifDropdown">
+        <div class="notif-dropdown-header">
+          <span>Уведомления</span>
+          <button type="button" id="notifRefreshBtn">Обновить</button>
+        </div>
+        <div class="notif-list" id="notifList">
+          <p class="empty">Загрузка...</p>
+        </div>
+      </div>
+    </div>
     <div class="auth-area" id="authArea">
       <!-- заполняется через JS: либо кнопки входа, либо email + выйти -->
     </div>
@@ -6763,7 +6939,223 @@
         openOverlay('authOverlay');
       });
     }
+    renderNotifWrap();
   }
+
+  // ─── Уведомления: лайки и комментарии к моим постам/сборникам ─────────────
+  // Отдельной таблицы notifications в базе нет, поэтому уведомления
+  // собираются на лету: сначала находим все id постов/сборников текущего
+  // пользователя, затем смотрим, кто их лайкнул/прокомментировал (кроме
+  // самого автора). "Прочитано/непрочитано" считаем локально по времени
+  // последнего открытия панели (хранится в localStorage на юзера).
+  let notifCache = [];
+  let notifLoading = false;
+
+  function notifSeenKey() {
+    return currentUser ? `fh_notif_seen_${currentUser.id}` : null;
+  }
+
+  function getNotifSeenTime() {
+    const key = notifSeenKey();
+    if (!key) return 0;
+    try { return parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch (e) { return 0; }
+  }
+
+  function setNotifSeenTime(ts) {
+    const key = notifSeenKey();
+    if (!key) return;
+    try { localStorage.setItem(key, String(ts)); } catch (e) {}
+  }
+
+  function renderNotifWrap() {
+    const wrap = document.getElementById('notifWrap');
+    if (!wrap) return;
+    if (currentUser) {
+      wrap.style.display = 'inline-flex';
+      loadNotifications();
+    } else {
+      wrap.style.display = 'none';
+      notifCache = [];
+    }
+  }
+
+  async function loadNotifications() {
+    if (!currentUser || !currentUserToken || notifLoading) return;
+    notifLoading = true;
+    try {
+      const authHeaders = { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` };
+
+      const [myContentRes, myCollectionsRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/content?submitted_by=eq.${currentUser.id}&select=id,title`, { headers: authHeaders }),
+        fetch(`${SUPABASE_URL}/rest/v1/collections?submitted_by=eq.${currentUser.id}&select=id,title`, { headers: authHeaders })
+      ]);
+      const myContent = myContentRes.ok ? await myContentRes.json() : [];
+      const myCollections = myCollectionsRes.ok ? await myCollectionsRes.json() : [];
+
+      const contentTitleById = {};
+      myContent.forEach(c => { contentTitleById[c.id] = c.title; });
+      const collectionTitleById = {};
+      myCollections.forEach(c => { collectionTitleById[c.id] = c.title; });
+
+      const contentIds = myContent.map(c => c.id);
+      const collectionIds = myCollections.map(c => c.id);
+
+      const fetches = [];
+
+      if (contentIds.length) {
+        fetches.push(
+          fetch(`${SUPABASE_URL}/rest/v1/content_likes?content_id=in.(${contentIds.join(',')})&user_id=neq.${currentUser.id}&select=content_id,user_id,created_at,profiles(username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+            .then(r => r.ok ? r.json() : [])
+            .then(rows => rows.map(row => ({
+              type: 'like', kind: 'content', targetId: row.content_id,
+              title: contentTitleById[row.content_id] || '',
+              actor: row.profiles, actorId: row.user_id, createdAt: row.created_at
+            })))
+            .catch(() => [])
+        );
+        fetches.push(
+          fetch(`${SUPABASE_URL}/rest/v1/comments?content_id=in.(${contentIds.join(',')})&is_deleted=eq.false&author_id=neq.${currentUser.id}&select=id,content_id,author_id,body,created_at,profiles(username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+            .then(r => r.ok ? r.json() : [])
+            .then(rows => rows.map(row => ({
+              type: 'comment', kind: 'content', targetId: row.content_id,
+              title: contentTitleById[row.content_id] || '', body: row.body,
+              actor: row.profiles, actorId: row.author_id, createdAt: row.created_at
+            })))
+            .catch(() => [])
+        );
+      }
+
+      if (collectionIds.length) {
+        fetches.push(
+          fetch(`${SUPABASE_URL}/rest/v1/collection_likes?collection_id=in.(${collectionIds.join(',')})&user_id=neq.${currentUser.id}&select=collection_id,user_id,created_at,profiles(username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+            .then(r => r.ok ? r.json() : [])
+            .then(rows => rows.map(row => ({
+              type: 'like', kind: 'collection', targetId: row.collection_id,
+              title: collectionTitleById[row.collection_id] || '',
+              actor: row.profiles, actorId: row.user_id, createdAt: row.created_at
+            })))
+            .catch(() => [])
+        );
+        fetches.push(
+          fetch(`${SUPABASE_URL}/rest/v1/comments?collection_id=in.(${collectionIds.join(',')})&is_deleted=eq.false&author_id=neq.${currentUser.id}&select=id,collection_id,author_id,body,created_at,profiles(username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+            .then(r => r.ok ? r.json() : [])
+            .then(rows => rows.map(row => ({
+              type: 'comment', kind: 'collection', targetId: row.collection_id,
+              title: collectionTitleById[row.collection_id] || '', body: row.body,
+              actor: row.profiles, actorId: row.author_id, createdAt: row.created_at
+            })))
+            .catch(() => [])
+        );
+      }
+
+      const results = fetches.length ? await Promise.all(fetches) : [];
+      notifCache = results.flat()
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 30);
+
+      renderNotifBadge();
+      renderNotifList();
+    } catch (e) {
+      console.error('Не удалось загрузить уведомления:', e);
+    } finally {
+      notifLoading = false;
+    }
+  }
+
+  function renderNotifBadge() {
+    const btn = document.getElementById('notifBtn');
+    const badge = document.getElementById('notifBadge');
+    if (!btn || !badge) return;
+    const seen = getNotifSeenTime();
+    const unreadCount = notifCache.filter(n => new Date(n.createdAt).getTime() > seen).length;
+    if (unreadCount > 0) {
+      badge.style.display = 'block';
+      badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+      btn.classList.add('has-unread');
+    } else {
+      badge.style.display = 'none';
+      btn.classList.remove('has-unread');
+    }
+  }
+
+  function renderNotifList() {
+    const listEl = document.getElementById('notifList');
+    if (!listEl) return;
+    if (!notifCache.length) {
+      listEl.innerHTML = '<p class="empty">Пока нет уведомлений</p>';
+      return;
+    }
+    const seen = getNotifSeenTime();
+    listEl.innerHTML = notifCache.map(n => {
+      const isUnread = new Date(n.createdAt).getTime() > seen;
+      const name = (n.actor && n.actor.username) || 'без имени';
+      const avatar = (n.actor && n.actor.avatar_url) || presetToDataUrl('p0');
+      const isLike = n.type === 'like';
+      const isCollectionTarget = n.kind === 'collection';
+      const icon = isLike
+        ? '<svg class="notif-item-icon like-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg>'
+        : '<svg class="notif-item-icon comment-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+      const actionWord = isLike
+        ? (isCollectionTarget ? 'оценил(а) ваш сборник' : 'оценил(а) ваш пост')
+        : (isCollectionTarget ? 'написал(а) комментарий к сборнику' : 'написал(а) комментарий к посту');
+      const titlePart = n.title ? ` «${escapeHtml(n.title)}»` : '';
+      const snippet = (!isLike && n.body) ? `<div class="notif-item-snippet">${escapeHtml(n.body)}</div>` : '';
+      return `
+        <div class="notif-item${isUnread ? ' unread' : ''}" data-target-id="${n.targetId}" data-target-kind="${n.kind}">
+          <img class="notif-item-avatar" src="${avatar}" alt="" data-open-profile="${n.actorId}" title="${escapeHtml(name)}">
+          <div class="notif-item-body">
+            <div class="notif-item-text">${icon}<b>${escapeHtml(name)}</b> ${actionWord}${titlePart}</div>
+            ${snippet}
+            <div class="notif-item-time">${timeAgo(n.createdAt)}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('notifBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dropdown = document.getElementById('notifDropdown');
+    document.querySelectorAll('.header-user-dropdown.open, .emoji-picker.open, .card-menu-dropdown.open').forEach(el => el.classList.remove('open'));
+    const willOpen = !dropdown.classList.contains('open');
+    dropdown.classList.toggle('open', willOpen);
+    if (willOpen) {
+      // Отмечаем как прочитанное сразу при открытии — бейдж исчезает,
+      // но сам список остаётся видимым (не пропадает у пользователя из-под курсора)
+      setNotifSeenTime(Date.now());
+      renderNotifBadge();
+      renderNotifList();
+    }
+  });
+
+  document.getElementById('notifRefreshBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    loadNotifications();
+  });
+
+  document.getElementById('notifList').addEventListener('click', (e) => {
+    if (e.target.closest('[data-open-profile]')) return; // клик по автору — своя обработка ниже по документу
+    const item = e.target.closest('.notif-item');
+    if (!item) return;
+    const targetId = item.dataset.targetId;
+    const isCollection = item.dataset.targetKind === 'collection';
+    document.getElementById('notifDropdown').classList.remove('open');
+    showMainFeed();
+    if (lightboxOverlay.classList.contains('open')) closeLightbox();
+    const param = isCollection ? 'collection' : 'post';
+    history.pushState(null, '', `${location.pathname}?${param}=${targetId}`);
+    openPostFromUrl();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#notifWrap')) return;
+    document.getElementById('notifDropdown').classList.remove('open');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('notifDropdown').classList.remove('open');
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
 
   // ─── Вход через Twitch (Supabase OAuth) ───────────────────────────────────
   function signInWithTwitch() {
@@ -6901,6 +7293,38 @@
       console.error('Не удалось получить счётчик модерации:', e);
     }
   }
+
+  // ─── Живое обновление счётчика "На проверке" ──────────────────────────────
+  // Раньше цифра над кнопкой обновлялась только при заходе/перезагрузке
+  // страницы. Теперь: (1) подписываемся на Supabase Realtime — как только
+  // кто-то создаёт/меняет/удаляет пост или сборник, счётчик и (если панель
+  // модерации открыта) сам список обновляются мгновенно, без reload;
+  // (2) на случай, если Realtime выключен в настройках проекта Supabase —
+  // подстраховка в виде обычного опроса раз в 20 секунд.
+  function moderationLiveRefresh() {
+    if (!currentUser || !isModeratorOrHigher(currentUser.role)) return;
+    refreshModerationCount();
+    if (document.getElementById('moderationOverlay').classList.contains('open')) {
+      loadModerationQueue();
+    }
+  }
+
+  const sbRealtimeClient = (typeof window.supabase !== 'undefined' && window.supabase.createClient)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    : null;
+
+  if (sbRealtimeClient) {
+    sbRealtimeClient
+      .channel('moderation-queue-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'content' }, moderationLiveRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'collections' }, moderationLiveRefresh)
+      .subscribe();
+  } else {
+    console.warn('Supabase Realtime недоступен — счётчик модерации будет обновляться только по таймеру.');
+  }
+
+  setInterval(moderationLiveRefresh, 20000);
+  // ──────────────────────────────────────────────────────────────────────────
 
   // Достаём YouTube video ID из ссылки — общая функция, нужна и ленте,
   // и панели модерации (чтобы видеть превью ссылки на проверке)
