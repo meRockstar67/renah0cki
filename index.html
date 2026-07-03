@@ -5319,7 +5319,7 @@
     if (!id) { currentShareLink = null; return; }
     currentShareLink = shortCode
       ? `${location.origin}/${shortCode}`
-      : `${location.origin}${location.pathname}?${kind}=${id}`;
+      : `${location.origin}/?${kind}=${id}`;
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -5745,7 +5745,7 @@
     currentOpenContentId = collectionId;
     currentOpenIsCollection = true;
     setShareLink('collection', collectionId, collectionItem && collectionItem.short_code);
-    const newUrl = `${location.pathname}?collection=${collectionId}`;
+    const newUrl = `/?collection=${collectionId}`;
     history.replaceState(null, '', newUrl);
     commentsSection.style.display = 'block';
     setCommentsContext(LIGHTBOX_COMMENTS_CTX);
@@ -5816,7 +5816,7 @@
     currentOpenIsCollection = false;
     if (contentId) {
       setShareLink('post', contentId, feedItem && feedItem.short_code);
-      const newUrl = `${location.pathname}?post=${contentId}`;
+      const newUrl = `/?post=${contentId}`;
       history.replaceState(null, '', newUrl);
       commentsSection.style.display = 'block';
       setCommentsContext(LIGHTBOX_COMMENTS_CTX);
@@ -5849,8 +5849,8 @@
     setupPostLikeButton(document.getElementById('lightboxLikeBtn'), null, false);
     currentGalleryItems = [];
     currentGalleryMode = null;
-    if (location.search.includes('post=') || location.search.includes('collection=')) {
-      history.replaceState(null, '', location.pathname);
+    if (location.search.includes('post=') || location.search.includes('collection=') || location.pathname !== '/') {
+      history.replaceState(null, '', '/');
     }
   }
 
@@ -7194,13 +7194,16 @@
   // используется 404.html-заглушка (см. инструкцию), которая кладёт путь в
   // ?redirect= и уже её мы тоже понимаем здесь.
   const SHORT_CODE_RE = /^[a-zA-Z0-9]{4,12}$/;
+  // Возвращает короткий код, если по нему реально что-то нашлось (тогда
+  // вызывающий код после открытия поста/сборника/профиля вернёт его обратно
+  // в адресную строку — см. использование ниже), иначе null.
   async function resolveShortLinkFromPath() {
     let path = location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
     if (!path) {
       const redirectParam = new URLSearchParams(location.search).get('redirect');
       if (redirectParam) path = redirectParam;
     }
-    if (!path || !SHORT_CODE_RE.test(path)) return;
+    if (!path || !SHORT_CODE_RE.test(path)) return null;
 
     try {
       const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` };
@@ -7218,14 +7221,29 @@
       if (contentRows && contentRows[0]) newSearch = `?post=${contentRows[0].id}`;
       else if (collRows && collRows[0]) newSearch = `?collection=${collRows[0].id}`;
       else if (profRows && profRows[0]) newSearch = `?user=${profRows[0].id}`;
-      // В любом случае убираем короткий путь из адресной строки: либо
-      // подставляем найденный ?post=/?collection=/?user=, либо (если код не
-      // нашёлся — ссылка старая/битая) просто возвращаемся на корень.
+      // Временно подставляем ?post=/?collection=/?user=, чтобы этим уже
+      // воспользовались openPostFromUrl()/openProfileFromUrl() (они читают
+      // именно location.search) — если код не нашёлся (ссылка старая/битая),
+      // просто возвращаемся на корень.
       history.replaceState(null, '', `/${newSearch}`);
+      return newSearch ? path : null;
     } catch (e) {
       console.error('Не удалось разрешить короткую ссылку:', e);
       history.replaceState(null, '', '/');
+      return null;
     }
+  }
+
+  // Разрешает короткую ссылку (если она есть), открывает найденный
+  // пост/сборник/профиль через уже существующие функции, а когда всё
+  // отрисовано — возвращает в адресную строку красивый короткий вид,
+  // а не тот ?post=<uuid>, которым мы пользовались "под капотом" для
+  // самого открытия.
+  async function resolveAndOpenFromUrl() {
+    const shortCode = await resolveShortLinkFromPath();
+    await openPostFromUrl();
+    await openProfileFromUrl();
+    if (shortCode) history.replaceState(null, '', `/${shortCode}`);
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -7378,7 +7396,7 @@
     setupPostLikeButton(document.getElementById('postPageLikeBtn'), null, false);
     currentGalleryItems = [];
     currentGalleryMode = null;
-    history.pushState(null, '', location.pathname);
+    history.pushState(null, '', '/');
   }
 
   document.getElementById('postPageBackBtn').addEventListener('click', closePostPage);
@@ -7394,7 +7412,7 @@
     if (currentFeedFilter !== 'home') {
       switchNavTabTo('home');
     }
-    history.pushState({}, '', location.pathname);
+    history.pushState({}, '', '/');
   });
 
 
@@ -7694,7 +7712,7 @@
     showMainFeed();
     if (lightboxOverlay.classList.contains('open')) closeLightbox();
     const param = isCollection ? 'collection' : 'post';
-    history.pushState(null, '', `${location.pathname}?${param}=${targetId}`);
+    history.pushState(null, '', `/?${param}=${targetId}`);
     openPostFromUrl();
   });
 
@@ -7711,7 +7729,11 @@
 
   // ─── Вход через Twitch (Supabase OAuth) ───────────────────────────────────
   function signInWithTwitch() {
-    const redirectTo = window.location.origin + window.location.pathname;
+    // Всегда возвращаемся на корень сайта, а не на текущий путь: если вход
+    // нажат с короткой ссылки (renah0cki.xyz/AbC123), Supabase должен
+    // редиректнуть туда же, куда разрешено в настройках OAuth-приложения —
+    // а там прописан корень сайта, а не произвольные короткие пути.
+    const redirectTo = window.location.origin + '/';
     const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=twitch&redirect_to=${encodeURIComponent(redirectTo)}`;
     window.location.href = authUrl;
   }
@@ -8770,14 +8792,14 @@
     document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage)').style.display = 'none';
     profilePageEl.style.display = 'none';
     rulesPageEl.style.display = 'block';
-    history.pushState(null, '', `${location.pathname}?rules=1`);
+    history.pushState(null, '', `/?rules=1`);
     window.scrollTo(0, 0);
   }
 
   function closeRulesPage() {
     rulesPageEl.style.display = 'none';
     document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage)').style.display = '';
-    history.pushState(null, '', location.pathname);
+    history.pushState(null, '', '/');
   }
 
   document.getElementById('rulesBtn').addEventListener('click', openRulesPage);
@@ -9121,7 +9143,7 @@
     rulesPageEl.style.display = 'none';
     profilePageEl.style.display = 'block';
     setShareLink('user', userId, profile.short_code);
-    history.pushState(null, '', `${location.pathname}?user=${userId}`);
+    history.pushState(null, '', `/?user=${userId}`);
     window.scrollTo(0, 0);
   }
 
@@ -9129,7 +9151,7 @@
     profilePageEl.style.display = 'none';
     currentShareLink = null;
     document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage)').style.display = '';
-    history.pushState(null, '', location.pathname);
+    history.pushState(null, '', '/');
   }
 
   // Закрытие меню управления ролью по клику снаружи — повешено один раз
@@ -10456,7 +10478,7 @@
     const isOnSubPage = postPageEl.style.display !== 'none' || profilePageEl.style.display !== 'none' || rulesPageEl.style.display !== 'none';
     if (isOnSubPage) {
       showMainFeed();
-      history.pushState(null, '', location.pathname);
+      history.pushState(null, '', '/');
     }
 
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -11506,16 +11528,10 @@
       loadProfileIntoCurrentUser().then(() => {
         renderAuthArea();
         loadFeed();
-        resolveShortLinkFromPath().then(() => {
-          openPostFromUrl();
-          openProfileFromUrl();
-        });
+        resolveAndOpenFromUrl();
       });
     } else {
-      resolveShortLinkFromPath().then(() => {
-        openPostFromUrl();
-        openProfileFromUrl();
-      });
+      resolveAndOpenFromUrl();
     }
   } catch (e) {
     console.error('Ошибка восстановления сессии:', e);
