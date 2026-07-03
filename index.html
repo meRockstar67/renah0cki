@@ -980,6 +980,17 @@
     font-size: 14px;
   }
 
+  .mod-card .mod-author {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0 0 10px;
+  }
+
+  .mod-card .mod-author b {
+    color: var(--text);
+    font-weight: 600;
+  }
+
   .mod-actions {
     display: flex;
     gap: 8px;
@@ -7995,6 +8006,16 @@
         return;
       }
 
+      // Ники авторов — одним запросом на все id сразу (и посты, и сборники),
+      // чтобы модератор видел, кто именно прислал работу, не открывая её.
+      const authorIds = [...data, ...collectionsData].map(item => item.submitted_by);
+      const authorProfilesById = await fetchProfilesByIds(authorIds);
+      const authorLineHtml = (authorId) => {
+        const author = authorProfilesById[authorId];
+        const name = author && author.username ? author.username : 'без имени';
+        return `<div class="mod-author">👤 <b>${escapeHtml(name)}</b></div>`;
+      };
+
       const contentCardsHtml = data.map(item => {
         const { mediaHtml, linkHtml } = buildModPreview(item);
         return `
@@ -8002,6 +8023,7 @@
           ${mediaHtml}
           <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}</div>
           <h4>${escapeHtml(item.title)}</h4>
+          ${authorLineHtml(item.submitted_by)}
           ${linkHtml}
           <div class="mod-actions">
             <button class="mod-approve" title="Одобрить">✅</button>
@@ -8024,6 +8046,7 @@
           </div>
           <div class="meta">сборник · ${item.item_count || 0} файлов</div>
           <h4>${escapeHtml(item.title)}</h4>
+          ${authorLineHtml(item.submitted_by)}
           <div class="mod-actions">
             <button class="mod-approve" title="Одобрить">✅</button>
             <button class="mod-reject" title="Отклонить">❌</button>
