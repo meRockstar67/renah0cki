@@ -2623,11 +2623,20 @@
      (звук общий на все голосовые сообщения сразу, см. voiceMsgAudioEl —
      один <audio> на все плееры, поэтому громкость тоже одна общая
      настройка, сохраняется в localStorage и применяется сразу при
-     открытии страницы). */
+     открытии страницы). Иконка — маленький встроенный SVG (см.
+     voiceVolumeIcon), а не emoji: у emoji-шрифтов (особенно на Windows)
+     видимый рисунок занимает только часть габарита символа, а справа
+     остаётся прозрачное поле — из-за этого между иконкой и ползунком
+     был заметный "лишний" промежуток, который не убирался через gap.
+     SVG-иконка занимает ровно 16×16 без скрытых полей, поэтому маленький
+     gap ниже теперь и выглядит как маленький отступ. */
   .voice-volume-icon {
     flex-shrink: 0;
-    font-size: 13px;
-    line-height: 1;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: var(--muted);
   }
 
@@ -7264,10 +7273,24 @@
   let voiceMsgVolume = loadVoiceMsgVolume();
   voiceMsgAudioEl.volume = voiceMsgVolume;
 
+  // Раньше иконка громкости была emoji (🔇/🔉/🔊) — но у emoji-шрифтов
+  // разных ОС (особенно Windows Segoe UI Emoji) сама "картинка" внутри
+  // символа занимает только часть его габаритного прямоугольника, а
+  // остальное — прозрачное поле СПРАВА от рисунка. Из-за этого между
+  // иконкой и ползунком появлялся заметный "пустой" промежуток, который
+  // никак не убирался уменьшением CSS gap — сам символ был "шире", чем
+  // казалось на глаз. Заменяем на маленькую SVG-иконку фиксированного
+  // размера (16×16, без внутренних отступов) — теперь габарит иконки
+  // всегда точно совпадает с её видимым рисунком на любой ОС/браузере.
   function voiceVolumeIcon(vol) {
-    if (vol <= 0) return '🔇';
-    if (vol < 0.5) return '🔉';
-    return '🔊';
+    const speaker = '<polygon points="2 9 2 15 7 15 12 20 12 4 7 9 2 9" fill="currentColor"/>';
+    if (vol <= 0) {
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${speaker}<line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>`;
+    }
+    if (vol < 0.5) {
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${speaker}<path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>`;
+    }
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${speaker}<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
   }
 
   // Применяет новое значение громкости везде: к самому <audio>, сохраняет
@@ -7283,7 +7306,7 @@
       const slider = row.querySelector('.voice-volume-slider');
       const icon = row.querySelector('.voice-volume-icon');
       if (slider) slider.value = pct;
-      if (icon) icon.textContent = voiceVolumeIcon(voiceMsgVolume);
+      if (icon) icon.innerHTML = voiceVolumeIcon(voiceMsgVolume);
     });
   }
 
