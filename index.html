@@ -830,6 +830,18 @@
     background: rgba(255, 122, 122, 0.1);
   }
 
+  /* "Редактировать" — не деструктивное действие, в отличие от "Удалить
+     пост", поэтому обычный цвет текста вместо красного (var(--danger)),
+     и подсветка при наведении нейтральная, а не красная. */
+  .card-menu-dropdown button.card-edit-btn,
+  .card-menu-dropdown button.card-edit-collection-btn {
+    color: var(--text);
+  }
+  .card-menu-dropdown button.card-edit-btn:hover,
+  .card-menu-dropdown button.card-edit-collection-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
   .card-img {
     width: calc(100% + 36px);
     aspect-ratio: 4 / 3;
@@ -842,9 +854,12 @@
   }
 
   /* ─── Спойлер-блюр для арта (переключатель "Заблюрить" при загрузке) ────
-     Клик по превью снимает размытие на месте (без открытия поста) — при
-     повторном клике пост открывается как обычно. Сам пост при открытии
-     всегда показывается чётким, блюр — только у превью в ленте/карточках. */
+     На карточках (лента/профиль/главная) превью просто размыто — клик по
+     карточке ведёт себя как обычно (открывает пост). Снять размытие можно
+     только УЖЕ ВНУТРИ открытого поста — клик по самому фото в лайтбоксе
+     или на странице поста (см. applyLightboxSpoilerState/
+     applyPostPageSpoilerState и обработчики клика по #lightboxZoomWrap /
+     #postPageImg). */
   .spoiler-blurred { filter: blur(24px); cursor: pointer; }
   .spoiler-blurred.spoiler-revealed { filter: none; cursor: inherit; }
   .spoiler-hint {
@@ -872,6 +887,10 @@
   /* .home-card-thumb-wrap — уже нормальный контейнер с overflow:hidden,
      подсказке достаточно просто заполнить его целиком. */
   .home-card-thumb-wrap .spoiler-hint { inset: 0; }
+  /* Подсказка поверх самого фото в открытом лайтбоксе/странице поста —
+     контейнеры (.lightbox-zoom-wrap, .gallery-stage) уже position:relative. */
+  .lightbox-zoom-wrap .spoiler-hint,
+  .gallery-stage .spoiler-hint { inset: 0; }
 
   .card-video {
     width: 100%;
@@ -5031,6 +5050,7 @@
     <div class="gallery-stage" id="postPageGalleryStage">
       <button class="gallery-arrow gallery-arrow-prev" id="postPagePrevBtn" type="button" style="display:none;">‹</button>
       <img id="postPageImg" src="" alt="" style="display:none">
+      <div class="spoiler-hint" id="postPageSpoilerHint" style="display:none;">👁 Нажми, чтобы посмотреть</div>
       <video id="postPageVideo" controls style="display:none"></video>
       <button class="gallery-arrow gallery-arrow-next" id="postPageNextBtn" type="button" style="display:none;">›</button>
       <span class="gallery-counter" id="postPageCounter" style="display:none;"></span>
@@ -5253,8 +5273,10 @@
     <p class="hint">Доступно модераторам — можно изменить название и теги любого поста.</p>
     <label for="editPostTitleInput">Название</label>
     <input type="text" id="editPostTitleInput" maxlength="200" placeholder="Название поста">
-    <label style="margin-top:10px;display:block;">Теги</label>
-    <div class="tag-picker" id="editPostTagPicker" data-tag-picker></div>
+    <div id="editPostTagsSection">
+      <label style="margin-top:10px;display:block;">Теги</label>
+      <div class="tag-picker" id="editPostTagPicker" data-tag-picker></div>
+    </div>
     <div class="modal-actions" style="margin-top:14px;">
       <button id="editPostSaveBtn">Сохранить</button>
     </div>
@@ -5323,6 +5345,7 @@
       <button class="gallery-arrow gallery-arrow-prev" id="lightboxPrevBtn" type="button" style="display:none;">‹</button>
       <div class="lightbox-zoom-wrap" id="lightboxZoomWrap" style="display:none;">
         <img id="lightboxImg" src="" alt="">
+        <div class="spoiler-hint" id="lightboxSpoilerHint" style="display:none;">👁 Нажми, чтобы посмотреть</div>
         <div class="zoom-controls">
           <button class="zoom-btn" id="zoomOutBtn" title="Уменьшить">−</button>
           <button class="zoom-btn" id="zoomResetBtn" title="Сбросить">⊙</button>
@@ -5525,14 +5548,46 @@
   }
 
   // ─── Спойлер-блюр у арта (см. переключатель "Заблюрить" в форме загрузки,
-  // artBlurCheckbox) — превью в ленте/на карточках размыто, пока по нему не
-  // кликнут (см. обработчик клика по [data-lightbox] ниже); сам пост при
-  // открытии всегда показывается чётким, блюр только у превью. ───────────
+  // artBlurCheckbox) — превью в ленте/на карточках всегда просто размыто,
+  // клик по карточке ведёт себя как обычно (открывает пост). Снять
+  // размытие можно только внутри уже открытого поста — см.
+  // applyLightboxSpoilerState/applyPostPageSpoilerState ниже, которые
+  // вызываются при каждом открытии лайтбокса/страницы поста. ─────────────
   function spoilerBlurClass(item) {
     return item.is_blurred ? ' spoiler-blurred' : '';
   }
   function spoilerHintHtml(item, extraClass) {
     return item.is_blurred ? `<div class="spoiler-hint${extraClass ? ' ' + extraClass : ''}">👁 Нажми, чтобы посмотреть</div>` : '';
+  }
+
+  // Включает/выключает спойлер-блюр у фото ВНУТРИ открытого лайтбокса.
+  // Вызывается при каждом открытии поста — если isBlurred=false (пост без
+  // блюра, видео, или галерея/сборник), просто сбрасывает состояние.
+  function applyLightboxSpoilerState(isBlurred) {
+    const hint = document.getElementById('lightboxSpoilerHint');
+    lightboxImg.classList.remove('spoiler-revealed');
+    if (isBlurred) {
+      lightboxImg.classList.add('spoiler-blurred');
+      if (hint) hint.style.display = 'flex';
+    } else {
+      lightboxImg.classList.remove('spoiler-blurred');
+      if (hint) hint.style.display = 'none';
+    }
+  }
+
+  // То же самое для отдельной страницы поста (?post=id / ?collection=id).
+  function applyPostPageSpoilerState(isBlurred) {
+    const imgEl = document.getElementById('postPageImg');
+    const hint = document.getElementById('postPageSpoilerHint');
+    if (!imgEl) return;
+    imgEl.classList.remove('spoiler-revealed');
+    if (isBlurred) {
+      imgEl.classList.add('spoiler-blurred');
+      if (hint) hint.style.display = 'flex';
+    } else {
+      imgEl.classList.remove('spoiler-blurred');
+      if (hint) hint.style.display = 'none';
+    }
   }
   const SUPABASE_KEY = 'sb_publishable_Ck4H1pEih3U_kSZXerlSBw_W8L-6znn';
   const YOUTUBE_API_KEY = 'AIzaSyDc4J-Y8jO5FrvKZD8QuLd0x33LIKtvV_E';
@@ -5857,6 +5912,17 @@
   document.getElementById('lightboxZoomWrap').addEventListener('click', (e) => {
     if (e.target.closest('.zoom-btn')) return;
     if (zoomDragging) return; // не открывать если был drag
+
+    // Спойлер-блюр: первый клик по фото в уже открытом посте только
+    // убирает размытие (спойлер раскрыт), не открывая полноэкранный
+    // просмотр — повторный клик уже открывает его как обычно.
+    if (lightboxImg.classList.contains('spoiler-blurred') && !lightboxImg.classList.contains('spoiler-revealed')) {
+      lightboxImg.classList.add('spoiler-revealed');
+      const hint = document.getElementById('lightboxSpoilerHint');
+      if (hint) hint.style.display = 'none';
+      return;
+    }
+
     if (zoomScale > 1.05) { resetZoom(); return; }
     if (lightboxImg.src) openPhotoFullscreen(lightboxImg.src);
   });
@@ -6066,6 +6132,14 @@
   if (postPageImgEl) {
     postPageImgEl.style.cursor = 'zoom-in';
     postPageImgEl.addEventListener('click', () => {
+      // Спойлер-блюр: первый клик по фото на странице поста только снимает
+      // размытие, повторный клик уже открывает полноэкранный просмотр.
+      if (postPageImgEl.classList.contains('spoiler-blurred') && !postPageImgEl.classList.contains('spoiler-revealed')) {
+        postPageImgEl.classList.add('spoiler-revealed');
+        const hint = document.getElementById('postPageSpoilerHint');
+        if (hint) hint.style.display = 'none';
+        return;
+      }
       if (postPageImgEl.src) openPhotoFullscreen(postPageImgEl.src);
     });
   }
@@ -6103,6 +6177,7 @@
     }
     currentGalleryIndex = 0;
     currentGalleryMode = 'lightbox';
+    applyLightboxSpoilerState(false); // у сборников блюра-спойлера нет
     renderGalleryFrame('lightbox');
 
     const collectionItem = collectionsById[collectionId];
@@ -6130,18 +6205,6 @@
   document.body.addEventListener('click', (e) => {
     const el = e.target.closest('[data-lightbox]');
     if (!el) return;
-
-    // Спойлер-блюр: первый клик по ещё размытому превью только снимает
-    // блюр на месте (карточка остаётся в ленте, пост не открывается),
-    // и лишь следующий клик уже открывает пост как обычно.
-    if (el.dataset.blurred === '1' && !el.classList.contains('spoiler-revealed')) {
-      el.classList.add('spoiler-revealed');
-      const hint = el.nextElementSibling;
-      if (hint && hint.classList.contains('spoiler-hint')) hint.style.display = 'none';
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
 
     const url = el.dataset.lightbox;
     const type = el.dataset.type || 'image';
@@ -6171,6 +6234,11 @@
       lightboxVideo.pause();
       lightboxVideo.src = '';
     }
+    // Спойлер-блюр: если у поста включён блюр, само фото в открытом лайтбоксе
+    // тоже показывается размытым — кликнуть по нему (см. обработчик клика по
+    // #lightboxZoomWrap ниже) нужно уже здесь, внутри лайтбокса, а не на
+    // карточке в ленте (там клик теперь всегда просто открывает пост).
+    applyLightboxSpoilerState(type !== 'video' && el.dataset.blurred === '1');
     renderGalleryFrame('lightbox');
 
     const desc = el.dataset.desc || '';
@@ -7771,10 +7839,12 @@
         videoEl.src = mediaUrl;
         videoEl.style.display = 'block';
         imgEl.style.display = 'none';
+        applyPostPageSpoilerState(false);
       } else {
         imgEl.src = mediaUrl;
         imgEl.style.display = 'block';
         videoEl.style.display = 'none';
+        applyPostPageSpoilerState(!!item.is_blurred);
       }
       renderGalleryFrame('postpage');
       // просмотры не растут для видео по внешней ссылке (YouTube и др.) —
@@ -7837,6 +7907,7 @@
       currentGalleryItems = await fetchCollectionItems(collectionId);
       currentGalleryIndex = 0;
       currentGalleryMode = 'postpage';
+      applyPostPageSpoilerState(false); // у сборников блюра-спойлера нет
       renderGalleryFrame('postpage');
       incrementViews(item.id, true, item.views, document.getElementById('postPageViews'));
       checkLikedByMe(item.id, true).then(liked => {
@@ -7869,6 +7940,7 @@
     videoEl.pause();
     videoEl.src = '';
     document.getElementById('postPageImg').src = '';
+    applyPostPageSpoilerState(false);
     currentOpenContentId = null;
     currentOpenIsCollection = false;
     updateEditPostBtnVisibility(document.getElementById('postPageEditBtn'), null, false);
@@ -9671,6 +9743,9 @@
     // Может ли текущий пользователь удалять посты/сборники этого профиля:
     // модератор — отовсюду, обычный юзер — только из своего профиля
     const canManageThisProfile = currentUser && (isModeratorOrHigher(currentUser.role) || isOwn);
+    // А редактировать название/теги — только модератор/гл. модератор, даже
+    // на своём собственном профиле (обычным пользователям это не давали).
+    const canEditPosts = currentUser && isModeratorOrHigher(currentUser.role);
 
     // ─── Подписка на автора: счётчик подписчиков + подписан ли я сам ────────
     // Счётчик — через Prefer: count=exact (тот же приём, что и в счётчике
@@ -9737,6 +9812,7 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
+            ${canEditPosts ? `<button type="button" class="card-edit-btn" data-id="${item.id}">✏️ Редактировать</button>` : ''}
             <button type="button" class="card-delete-btn" data-id="${item.id}">Удалить пост</button>
           </div>
         </div>` : '';
@@ -9765,6 +9841,7 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
+            ${canEditPosts ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">✏️ Редактировать</button>` : ''}
             <button type="button" class="card-delete-collection-btn" data-id="${item.id}">Удалить пост</button>
           </div>
         </div>` : '';
@@ -10693,49 +10770,59 @@
   const editPostTagPicker = initTagPicker('editPostTagPicker');
   // ──────────────────────────────────────────────────────────────────────────
 
-  // ─── Редактирование поста модератором/гл. модератором (название + теги) ───
-  // Кнопка "✏️ Редактировать" показывается в лайтбоксе/на странице поста
-  // только модераторам (см. updateEditPostBtnVisibility, вызывается при
-  // каждом открытии поста) — можно поправить название и теги ЛЮБОГО поста,
-  // не только своего. См. add_content_update_moderator.sql — без неё PATCH
-  // упадёт с 403 (RLS).
+  // ─── Редактирование поста/сборника модератором/гл. модератором (название
+  // + теги у постов) ───────────────────────────────────────────────────────
+  // Кнопка "✏️ Редактировать" показывается модераторам в лайтбоксе/на
+  // странице поста (см. updateEditPostBtnVisibility, вызывается при каждом
+  // открытии) и в тех же выпадающих меню "⋮", где сейчас есть только
+  // "Удалить пост" (профиль, лента постов, лента сборников) — можно
+  // поправить название и теги ЛЮБОГО поста, не только своего. У сборников
+  // тегов нет — правится только название (см. editingIsCollection).
+  // См. add_content_update_moderator.sql / add_collections_update_moderator.sql —
+  // без них PATCH упадёт с 403 (RLS).
   let editingPostId = null;
+  let editingIsCollection = false;
 
   function updateEditPostBtnVisibility(btnEl, contentId, isCollection) {
     if (!btnEl) return;
-    const canEdit = !isCollection && !!contentId && currentUser && isModeratorOrHigher(currentUser.role);
+    const canEdit = !!contentId && currentUser && isModeratorOrHigher(currentUser.role);
     btnEl.style.display = canEdit ? '' : 'none';
   }
 
-  async function openEditPostModal(contentId) {
-    if (!contentId) return;
-    editingPostId = contentId;
+  async function openEditPostModal(id, isCollection) {
+    if (!id) return;
+    editingPostId = id;
+    editingIsCollection = !!isCollection;
     const statusEl = document.getElementById('editPostStatus');
     statusEl.textContent = ''; statusEl.className = '';
     document.getElementById('editPostTitleInput').value = '';
     editPostTagPicker.reset();
+    const tagsSectionEl = document.getElementById('editPostTagsSection');
+    if (tagsSectionEl) tagsSectionEl.style.display = editingIsCollection ? 'none' : '';
     openOverlay('editPostOverlay');
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/content?id=eq.${contentId}&select=title,tags`, {
+      const table = editingIsCollection ? 'collections' : 'content';
+      const selectFields = editingIsCollection ? 'title' : 'title,tags';
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}&select=${selectFields}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
       if (!res.ok) throw new Error(await res.text());
       const rows = await res.json();
       const item = rows && rows[0];
-      if (!item) throw new Error('Пост не найден');
+      if (!item) throw new Error(editingIsCollection ? 'Сборник не найден' : 'Пост не найден');
       document.getElementById('editPostTitleInput').value = item.title || '';
-      editPostTagPicker.setTags(item.tags || []);
+      if (!editingIsCollection) editPostTagPicker.setTags(item.tags || []);
     } catch (e) {
-      console.error('Не удалось загрузить данные поста для редактирования:', e);
-      statusEl.textContent = 'Не удалось загрузить данные поста';
+      console.error('Не удалось загрузить данные для редактирования:', e);
+      statusEl.textContent = 'Не удалось загрузить данные';
       statusEl.className = 'err';
     }
   }
 
   const lightboxEditBtnEl = document.getElementById('lightboxEditBtn');
-  if (lightboxEditBtnEl) lightboxEditBtnEl.addEventListener('click', () => openEditPostModal(currentOpenContentId));
+  if (lightboxEditBtnEl) lightboxEditBtnEl.addEventListener('click', () => openEditPostModal(currentOpenContentId, currentOpenIsCollection));
   const postPageEditBtnEl = document.getElementById('postPageEditBtn');
-  if (postPageEditBtnEl) postPageEditBtnEl.addEventListener('click', () => openEditPostModal(currentOpenContentId));
+  if (postPageEditBtnEl) postPageEditBtnEl.addEventListener('click', () => openEditPostModal(currentOpenContentId, currentOpenIsCollection));
 
   document.getElementById('editPostSaveBtn').addEventListener('click', async () => {
     if (!editingPostId) return;
@@ -10743,30 +10830,48 @@
     const titleInput = document.getElementById('editPostTitleInput');
     const newTitle = titleInput.value.trim();
     if (!newTitle) { statusEl.textContent = 'Название не может быть пустым'; statusEl.className = 'err'; return; }
-    const newTags = editPostTagPicker.getTags();
+    const newTags = editingIsCollection ? null : editPostTagPicker.getTags();
     const btn = document.getElementById('editPostSaveBtn');
     btn.disabled = true; btn.textContent = 'Сохраняем...';
     statusEl.textContent = ''; statusEl.className = '';
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/content?id=eq.${editingPostId}`, {
+      const table = editingIsCollection ? 'collections' : 'content';
+      const body = editingIsCollection ? { title: newTitle } : { title: newTitle, tags: newTags };
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${editingPostId}`, {
         method: 'PATCH',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ title: newTitle, tags: newTags })
+        body: JSON.stringify(body)
       });
       if (!res.ok) { const t = await res.text(); throw new Error(friendlySupabaseError(t)); }
 
       // Обновляем то, что уже отрисовано на странице, без перезагрузки —
-      // локальный кэш ленты (feedItemsById/currentFeedRawData), заголовок в
-      // открытом сейчас лайтбоксе/странице поста.
-      if (feedItemsById[editingPostId]) {
-        feedItemsById[editingPostId].title = newTitle;
-        feedItemsById[editingPostId].tags = newTags;
+      // локальный кэш (feedItemsById/currentFeedRawData/collectionsById),
+      // сами карточки в DOM (где бы они сейчас ни были показаны — лента
+      // или профиль), заголовок в открытом сейчас лайтбоксе/странице поста.
+      if (editingIsCollection) {
+        if (collectionsById[editingPostId]) collectionsById[editingPostId].title = newTitle;
+        document.querySelectorAll(`[data-open-collection="${editingPostId}"]`).forEach(el => {
+          el.dataset.title = newTitle;
+        });
+      } else {
+        if (feedItemsById[editingPostId]) {
+          feedItemsById[editingPostId].title = newTitle;
+          feedItemsById[editingPostId].tags = newTags;
+        }
+        const rawItem = currentFeedRawData.find(it => it.id === editingPostId);
+        if (rawItem) { rawItem.title = newTitle; rawItem.tags = newTags; }
+        document.querySelectorAll(`[data-content-id="${editingPostId}"]`).forEach(el => {
+          if ('title' in el.dataset) el.dataset.title = newTitle;
+        });
       }
-      const rawItem = currentFeedRawData.find(it => it.id === editingPostId);
-      if (rawItem) { rawItem.title = newTitle; rawItem.tags = newTags; }
-      if (feedItemsById[editingPostId] && ['art', 'video', 'fanfic'].includes(currentFeedFilter)) {
-        renderFilteredFeed();
-      }
+      // Заголовок карточки (<h3>) — ищем через кнопку меню в этой же
+      // карточке, у неё data-id одинаково называется что для постов, что
+      // для сборников.
+      document.querySelectorAll(`.card-delete-btn[data-id="${editingPostId}"], .card-delete-collection-btn[data-id="${editingPostId}"]`).forEach(delBtn => {
+        const card = delBtn.closest('.card');
+        const h3 = card && card.querySelector('h3');
+        if (h3) h3.textContent = newTitle;
+      });
       if (currentOpenContentId === editingPostId) {
         lightboxTitle.textContent = newTitle;
         const ppTitleEl = document.getElementById('postPageTitle');
@@ -10776,13 +10881,17 @@
       statusEl.textContent = 'Сохранено!'; statusEl.className = 'ok';
       setTimeout(() => closeOverlay('editPostOverlay'), 700);
     } catch (e) {
-      console.error('Ошибка сохранения поста:', e);
+      console.error('Ошибка сохранения:', e);
       statusEl.textContent = e.message || 'Ошибка сохранения';
       statusEl.className = 'err';
     } finally {
       btn.disabled = false; btn.textContent = 'Сохранить';
     }
   });
+
+  // Кнопка "Редактировать" в тех же выпадающих меню "⋮", что и "Удалить
+  // пост" — делегированный обработчик добавлен в общий клик-хендлер карточек
+  // ниже (см. cardEditBtn/cardEditCollectionBtn).
   // ──────────────────────────────────────────────────────────────────────────
 
   // Сабмит арта
@@ -11706,15 +11815,10 @@
     }
     const cardEl = e.target.closest('[data-home-open]');
     if (cardEl) {
-      // Спойлер-блюр на карточке главной: первый клик по размытому превью
-      // просто снимает блюр на месте, не переключая вкладку.
-      const blurredImg = e.target.closest('img[data-blurred="1"]:not(.spoiler-revealed)');
-      if (blurredImg) {
-        blurredImg.classList.add('spoiler-revealed');
-        const hint = blurredImg.nextElementSibling;
-        if (hint && hint.classList.contains('spoiler-hint')) hint.style.display = 'none';
-        return;
-      }
+      // Спойлер-блюр на карточке главной — раньше клик по размытому превью
+      // снимал блюр на месте, теперь это происходит только внутри открытого
+      // лайтбокса/страницы поста (см. применение спойлера ниже), поэтому
+      // здесь клик всегда просто ведёт себя как обычно.
       switchNavTabTo(cardEl.dataset.homeOpen);
       return;
     }
@@ -12056,6 +12160,7 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
+            ${isModerator ? `<button type="button" class="card-edit-btn" data-id="${item.id}">✏️ Редактировать</button>` : ''}
             <button type="button" class="card-delete-btn" data-id="${item.id}">Удалить пост</button>
           </div>
         </div>` : '';
@@ -12351,6 +12456,7 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
+            ${isModerator ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">✏️ Редактировать</button>` : ''}
             <button type="button" class="card-delete-collection-btn" data-id="${item.id}">Удалить пост</button>
           </div>
         </div>` : '';
@@ -12628,6 +12734,8 @@
     const menuBtn = e.target.closest('.card-menu-btn');
     const deleteBtn = e.target.closest('.card-delete-btn');
     const deleteCollectionBtn = e.target.closest('.card-delete-collection-btn');
+    const editBtn = e.target.closest('.card-edit-btn');
+    const editCollectionBtn = e.target.closest('.card-edit-collection-btn');
 
     if (menuBtn) {
       const dropdown = menuBtn.nextElementSibling;
@@ -12635,6 +12743,14 @@
       document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
       if (!wasOpen) dropdown.classList.add('open');
       e.stopPropagation();
+      return;
+    }
+
+    if (editBtn || editCollectionBtn) {
+      e.stopPropagation();
+      document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+      const id = (editBtn || editCollectionBtn).dataset.id;
+      openEditPostModal(id, !!editCollectionBtn);
       return;
     }
 
