@@ -5449,6 +5449,19 @@
 <script>
   const SUPABASE_URL = 'https://ymzyypatzoxzzsutmzok.supabase.co';
   const B2_WORKER_URL = 'https://cdn.renah0cki.xyz';
+
+  // Файлы, загруженные на сайт, раздаются либо напрямую с Backblaze B2
+  // (старые ссылки, ещё до переезда на прокси через свой домен), либо
+  // через сам cdn.renah0cki.xyz (текущий способ, см. B2_WORKER_URL выше) —
+  // оба варианта означают "это наш файл", в отличие от YouTube или другой
+  // внешней ссылки. Раньше по всему файлу проверялось только
+  // "backblazeb2.com", из-за чего все файлы, загруженные уже ПОСЛЕ переезда
+  // на cdn.renah0cki.xyz, ошибочно считались "внешней ссылкой" — видео без
+  // превью-плеера, просто текстовая ссылка в модерации, неправильный счётчик
+  // просмотров и т.п.
+  function isOwnUploadedMediaUrl(url) {
+    return !!url && (url.includes('backblazeb2.com') || url.includes('cdn.renah0cki.xyz'));
+  }
   const SUPABASE_KEY = 'sb_publishable_Ck4H1pEih3U_kSZXerlSBw_W8L-6znn';
   const YOUTUBE_API_KEY = 'AIzaSyDc4J-Y8jO5FrvKZD8QuLd0x33LIKtvV_E';
   const YOUTUBE_CHANNEL_ID = 'UC6GD4ghNAQzekY4sQwkzufQ'; // @rockstarnarezchik
@@ -7666,7 +7679,7 @@
       currentGalleryIndex = 0;
       currentGalleryMode = 'postpage';
 
-      if (item.content_type === 'video' && mediaUrl.includes('backblazeb2.com')) {
+      if (item.content_type === 'video' && isOwnUploadedMediaUrl(mediaUrl)) {
         videoEl.src = mediaUrl;
         videoEl.style.display = 'block';
         imgEl.style.display = 'none';
@@ -7679,7 +7692,7 @@
       // просмотры не растут для видео по внешней ссылке (YouTube и др.) —
       // счётчик для таких постов не увеличиваем и не показываем
       const postPageViewsEl = document.getElementById('postPageViews');
-      if (item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com')) {
+      if (item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl)) {
         if (postPageViewsEl) postPageViewsEl.textContent = '';
       } else {
         incrementViews(item.id, false, item.views, postPageViewsEl);
@@ -8582,7 +8595,7 @@
       mediaHtml = `<img src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}">`;
     } else if (item.content_type === 'video') {
       const ytId = getYoutubeId(mediaUrl);
-      if (mediaUrl.includes('backblazeb2.com')) {
+      if (isOwnUploadedMediaUrl(mediaUrl)) {
         // загруженный в B2 файл — превью прямо из видео, кликабельно (лайтбокс)
         mediaHtml = `<video src="${mediaUrl}" preload="metadata" muted data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}"></video>`;
       } else if (ytId) {
@@ -9609,7 +9622,7 @@
         mediaHtml = `<img class="card-img" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">`;
       } else if (item.content_type === 'video') {
         const ytId = getYoutubeId(mediaUrl);
-        if (mediaUrl.includes('backblazeb2.com')) {
+        if (isOwnUploadedMediaUrl(mediaUrl)) {
           mediaHtml = `<div class="card-video-thumb" data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
             <video class="card-video" src="${mediaUrl}" preload="metadata" tabindex="-1"></video>
             <div class="card-video-play">▶</div>
@@ -9624,11 +9637,11 @@
       } else if (item.content_type === 'fanfic' && item.cover_image_url) {
         mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
       }
-      const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com') && !getYoutubeId(mediaUrl));
+      const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl) && !getYoutubeId(mediaUrl));
       // см. комментарий в renderFeedCards — счётчик просмотров не растёт для
       // видео по внешней ссылке (не хранится у нас) и для фанфиков (честно
       // посчитать их вообще нечем), поэтому для них его не показываем
-      const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com'));
+      const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl));
       const menuHtml = canManageThisProfile ? `
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
@@ -10834,7 +10847,7 @@
     }
     grid.innerHTML = items.map(item => {
       const mediaUrl = item.cover_image_url || item.source_url || '';
-      const isVideoFile = item.content_type === 'video' && mediaUrl.includes('backblazeb2.com');
+      const isVideoFile = item.content_type === 'video' && isOwnUploadedMediaUrl(mediaUrl);
       const isYoutube = item.content_type === 'video' && getYoutubeId(mediaUrl);
       // Сборник умеет хранить только прямые файлы (фото/видео из B2) —
       // внешние ссылки (YouTube, сторонние сайты) сюда не утащить, у них
@@ -11796,7 +11809,7 @@
         mediaHtml = `<img class="card-img" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">`;
       } else if (item.content_type === 'video') {
         const ytId = getYoutubeId(mediaUrl);
-        if (mediaUrl.includes('backblazeb2.com')) {
+        if (isOwnUploadedMediaUrl(mediaUrl)) {
           // Загруженный файл — показываем превью с плеером
           mediaHtml = `<div class="card-video-thumb" data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
             <video class="card-video" src="${mediaUrl}" preload="metadata" tabindex="-1"></video>
@@ -11819,14 +11832,14 @@
         mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
       }
 
-      const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com') && !getYoutubeId(mediaUrl));
+      const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl) && !getYoutubeId(mediaUrl));
       // Просмотры считаются только для файлов, реально хранящихся у нас (B2) —
       // для видео по внешней ссылке (YouTube и др.) счётчик никогда не растёт
       // (клик уводит сразу на сторонний сайт, наш лайтбокс не открывается),
       // поэтому для них счётчик просмотров не показываем вовсе. У фанфиков —
       // та же история (клик по "Читать оригинал" сразу уводит на внешний
       // сайт), плюс честно посчитать их сложно, поэтому счётчик убран совсем.
-      const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com'));
+      const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl));
       // Никнейм автора — пока только у фанфиков (у них нет превью с автором
       // нигде ещё, в отличие от арта/видео на главной странице).
       const authorName = item.content_type === 'fanfic' ? ((item.profiles && item.profiles.username) || 'аноним') : null;
@@ -12041,7 +12054,7 @@
         if (ytId) {
           const thumbSrc = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
           thumbHtml = `<img src="${thumbSrc}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`;
-        } else if (mediaUrl.includes('backblazeb2.com')) {
+        } else if (isOwnUploadedMediaUrl(mediaUrl)) {
           // Загруженный файл (не YouTube) — своей картинки-превью у него нет,
           // раньше сюда просто совали ссылку на сам .mp4/.webm в <img src>,
           // браузер не может отрисовать видео как картинку, и превью было
@@ -12062,7 +12075,7 @@
       const authorName = (item.profiles && item.profiles.username) || 'аноним';
       // см. комментарий в renderFeedCards — просмотры не растут для видео
       // по внешней ссылке (не хранится у нас), поэтому не показываем счётчик
-      const canTrackViews = !(type === 'video' && !mediaUrl.includes('backblazeb2.com'));
+      const canTrackViews = !(type === 'video' && !isOwnUploadedMediaUrl(mediaUrl));
       return `
         <div class="home-card" data-home-open="${type}" data-content-id="${item.id}">
           <div class="home-card-thumb-wrap">
