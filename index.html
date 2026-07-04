@@ -841,6 +841,38 @@
     cursor: pointer;
   }
 
+  /* ─── Спойлер-блюр для арта (переключатель "Заблюрить" при загрузке) ────
+     Клик по превью снимает размытие на месте (без открытия поста) — при
+     повторном клике пост открывается как обычно. Сам пост при открытии
+     всегда показывается чётким, блюр — только у превью в ленте/карточках. */
+  .spoiler-blurred { filter: blur(24px); cursor: pointer; }
+  .spoiler-blurred.spoiler-revealed { filter: none; cursor: inherit; }
+  .spoiler-hint {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(20, 18, 26, 0.4);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    padding: 8px;
+    pointer-events: none;
+    z-index: 2;
+  }
+  /* .card-img "выбегает" за padding карточки через отрицательные margin —
+     подсказку позиционируем теми же отступами, чтобы легла ровно поверх. */
+  .card-spoiler-hint {
+    top: -18px; left: -18px; right: -18px;
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+  }
+  /* .home-card-thumb-wrap — уже нормальный контейнер с overflow:hidden,
+     подсказке достаточно просто заполнить его целиком. */
+  .home-card-thumb-wrap .spoiler-hint { inset: 0; }
+
   .card-video {
     width: 100%;
     height: 100%;
@@ -5013,6 +5045,7 @@
     </div>
     <div class="lightbox-meta-row">
       <h2 id="postPageTitle" style="margin:0;"></h2>
+      <button class="copy-link-btn" id="postPageEditBtn" type="button" style="display:none;">✏️ Редактировать</button>
       <button class="copy-link-btn" id="postPageCopyLinkBtn" type="button">🔗 Скопировать ссылку</button>
     </div>
     <p class="lightbox-desc" id="postPageDesc" style="display:none;"></p>
@@ -5210,6 +5243,25 @@
   </div>
 </div>
 
+<!-- Редактирование поста модератором/гл. модератором — название и теги
+     (см. isModeratorOrHigher, кнопка появляется в лайтбоксе/на странице
+     поста только у модераторов; сам пост может принадлежать кому угодно). -->
+<div class="overlay" id="editPostOverlay">
+  <div class="modal">
+    <button class="close-x" data-close="editPostOverlay">×</button>
+    <h2>Редактировать пост</h2>
+    <p class="hint">Доступно модераторам — можно изменить название и теги любого поста.</p>
+    <label for="editPostTitleInput">Название</label>
+    <input type="text" id="editPostTitleInput" maxlength="200" placeholder="Название поста">
+    <label style="margin-top:10px;display:block;">Теги</label>
+    <div class="tag-picker" id="editPostTagPicker" data-tag-picker></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="editPostSaveBtn">Сохранить</button>
+    </div>
+    <div id="editPostStatus"></div>
+  </div>
+</div>
+
 <div class="support-widget" id="supportOverlay">
   <div class="support-widget-panel">
     <div class="support-widget-header">
@@ -5291,6 +5343,7 @@
     </div>
     <div class="lightbox-meta-row">
       <h2 id="lightboxTitle" style="margin:0;"></h2>
+      <button class="copy-link-btn" id="lightboxEditBtn" type="button" style="display:none;">✏️ Редактировать</button>
       <button class="copy-link-btn" id="copyLinkBtn" type="button">🔗 Скопировать ссылку</button>
     </div>
     <p class="lightbox-desc" id="lightboxDesc" style="display:none;"></p>
@@ -5347,6 +5400,14 @@
       </div>
       <label>Теги</label>
       <div class="tag-picker" id="artTagPicker" data-tag-picker></div>
+      <div class="settings-toggle-row" style="margin-top:10px;">
+        <span>Заблюрить превью (спойлер)</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="artBlurCheckbox">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="hint" style="margin-top:2px;">Картинка в ленте будет размытой, пока по ней не кликнут — сам пост при открытии всегда показывается чётким.</p>
       <div class="modal-actions" style="margin-top:16px;">
         <button id="artSubmitBtn">Отправить на проверку</button>
       </div>
@@ -5461,6 +5522,17 @@
   // просмотров и т.п.
   function isOwnUploadedMediaUrl(url) {
     return !!url && (url.includes('backblazeb2.com') || url.includes('cdn.renah0cki.xyz'));
+  }
+
+  // ─── Спойлер-блюр у арта (см. переключатель "Заблюрить" в форме загрузки,
+  // artBlurCheckbox) — превью в ленте/на карточках размыто, пока по нему не
+  // кликнут (см. обработчик клика по [data-lightbox] ниже); сам пост при
+  // открытии всегда показывается чётким, блюр только у превью. ───────────
+  function spoilerBlurClass(item) {
+    return item.is_blurred ? ' spoiler-blurred' : '';
+  }
+  function spoilerHintHtml(item, extraClass) {
+    return item.is_blurred ? `<div class="spoiler-hint${extraClass ? ' ' + extraClass : ''}">👁 Нажми, чтобы посмотреть</div>` : '';
   }
   const SUPABASE_KEY = 'sb_publishable_Ck4H1pEih3U_kSZXerlSBw_W8L-6znn';
   const YOUTUBE_API_KEY = 'AIzaSyDc4J-Y8jO5FrvKZD8QuLd0x33LIKtvV_E';
@@ -6044,6 +6116,7 @@
 
     currentOpenContentId = collectionId;
     currentOpenIsCollection = true;
+    updateEditPostBtnVisibility(document.getElementById('lightboxEditBtn'), collectionId, true);
     const collectionShortCode = collectionItem && collectionItem.short_code;
     setShareLink('collection', collectionId, collectionShortCode);
     history.replaceState(null, '', buildSharePath('collection', collectionId, collectionShortCode));
@@ -6057,6 +6130,19 @@
   document.body.addEventListener('click', (e) => {
     const el = e.target.closest('[data-lightbox]');
     if (!el) return;
+
+    // Спойлер-блюр: первый клик по ещё размытому превью только снимает
+    // блюр на месте (карточка остаётся в ленте, пост не открывается),
+    // и лишь следующий клик уже открывает пост как обычно.
+    if (el.dataset.blurred === '1' && !el.classList.contains('spoiler-revealed')) {
+      el.classList.add('spoiler-revealed');
+      const hint = el.nextElementSibling;
+      if (hint && hint.classList.contains('spoiler-hint')) hint.style.display = 'none';
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     const url = el.dataset.lightbox;
     const type = el.dataset.type || 'image';
     lightboxTitle.textContent = el.dataset.title || '';
@@ -6114,6 +6200,7 @@
 
     currentOpenContentId = contentId;
     currentOpenIsCollection = false;
+    updateEditPostBtnVisibility(document.getElementById('lightboxEditBtn'), contentId, false);
     if (contentId) {
       const postShortCode = feedItem && feedItem.short_code;
       setShareLink('post', contentId, postShortCode);
@@ -6141,6 +6228,7 @@
     if (frame) frame.remove();
     currentOpenContentId = null;
     currentOpenIsCollection = false;
+    updateEditPostBtnVisibility(document.getElementById('lightboxEditBtn'), null, false);
     currentShareLink = null;
     currentPostAuthor = null;
     renderPostAuthorLine(document.getElementById('lightboxAuthorLine'), null);
@@ -7703,6 +7791,7 @@
 
       currentOpenContentId = item.id;
       currentOpenIsCollection = false;
+      updateEditPostBtnVisibility(document.getElementById('postPageEditBtn'), item.id, false);
       setShareLink('post', item.id, item.short_code);
       // Приводим адресную строку к короткому виду сразу, а не только когда
       // сюда пришли по короткой ссылке — так же, как в лайтбоксе: если
@@ -7756,6 +7845,7 @@
 
       currentOpenContentId = item.id;
       currentOpenIsCollection = true;
+      updateEditPostBtnVisibility(document.getElementById('postPageEditBtn'), item.id, true);
       setShareLink('collection', item.id, item.short_code);
       history.replaceState(null, '', buildSharePath('collection', item.id, item.short_code));
       setCommentsContext(POSTPAGE_COMMENTS_CTX);
@@ -7781,6 +7871,7 @@
     document.getElementById('postPageImg').src = '';
     currentOpenContentId = null;
     currentOpenIsCollection = false;
+    updateEditPostBtnVisibility(document.getElementById('postPageEditBtn'), null, false);
     currentShareLink = null;
     currentPostAuthor = null;
     renderPostAuthorLine(document.getElementById('postPageAuthorLine'), null);
@@ -9619,7 +9710,7 @@
       const mediaUrl = item.cover_image_url || item.source_url || '';
       let mediaHtml = '';
       if (item.content_type === 'art' && mediaUrl) {
-        mediaHtml = `<img class="card-img" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">`;
+        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
       } else if (item.content_type === 'video') {
         const ytId = getYoutubeId(mediaUrl);
         if (isOwnUploadedMediaUrl(mediaUrl)) {
@@ -10581,12 +10672,117 @@
       reset() {
         selected.clear();
         picker.querySelectorAll('.tag-chip.selected').forEach(c => c.classList.remove('selected'));
+      },
+      // Предзаполняет пикер уже существующими тегами поста — нужно для
+      // модалки редактирования (см. openEditPostModal), где надо показать
+      // текущие теги поста, а не начинать с пустого набора.
+      setTags(tags) {
+        selected.clear();
+        picker.querySelectorAll('.tag-chip.selected').forEach(c => c.classList.remove('selected'));
+        (tags || []).forEach(tag => {
+          selected.add(tag);
+          const chip = picker.querySelector(`.tag-chip[data-tag="${CSS.escape(tag)}"]`);
+          if (chip) chip.classList.add('selected');
+        });
       }
     };
   }
 
   const artTagPicker = initTagPicker('artTagPicker');
   const videoTagPicker = initTagPicker('videoTagPicker');
+  const editPostTagPicker = initTagPicker('editPostTagPicker');
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Редактирование поста модератором/гл. модератором (название + теги) ───
+  // Кнопка "✏️ Редактировать" показывается в лайтбоксе/на странице поста
+  // только модераторам (см. updateEditPostBtnVisibility, вызывается при
+  // каждом открытии поста) — можно поправить название и теги ЛЮБОГО поста,
+  // не только своего. См. add_content_update_moderator.sql — без неё PATCH
+  // упадёт с 403 (RLS).
+  let editingPostId = null;
+
+  function updateEditPostBtnVisibility(btnEl, contentId, isCollection) {
+    if (!btnEl) return;
+    const canEdit = !isCollection && !!contentId && currentUser && isModeratorOrHigher(currentUser.role);
+    btnEl.style.display = canEdit ? '' : 'none';
+  }
+
+  async function openEditPostModal(contentId) {
+    if (!contentId) return;
+    editingPostId = contentId;
+    const statusEl = document.getElementById('editPostStatus');
+    statusEl.textContent = ''; statusEl.className = '';
+    document.getElementById('editPostTitleInput').value = '';
+    editPostTagPicker.reset();
+    openOverlay('editPostOverlay');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/content?id=eq.${contentId}&select=title,tags`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const rows = await res.json();
+      const item = rows && rows[0];
+      if (!item) throw new Error('Пост не найден');
+      document.getElementById('editPostTitleInput').value = item.title || '';
+      editPostTagPicker.setTags(item.tags || []);
+    } catch (e) {
+      console.error('Не удалось загрузить данные поста для редактирования:', e);
+      statusEl.textContent = 'Не удалось загрузить данные поста';
+      statusEl.className = 'err';
+    }
+  }
+
+  const lightboxEditBtnEl = document.getElementById('lightboxEditBtn');
+  if (lightboxEditBtnEl) lightboxEditBtnEl.addEventListener('click', () => openEditPostModal(currentOpenContentId));
+  const postPageEditBtnEl = document.getElementById('postPageEditBtn');
+  if (postPageEditBtnEl) postPageEditBtnEl.addEventListener('click', () => openEditPostModal(currentOpenContentId));
+
+  document.getElementById('editPostSaveBtn').addEventListener('click', async () => {
+    if (!editingPostId) return;
+    const statusEl = document.getElementById('editPostStatus');
+    const titleInput = document.getElementById('editPostTitleInput');
+    const newTitle = titleInput.value.trim();
+    if (!newTitle) { statusEl.textContent = 'Название не может быть пустым'; statusEl.className = 'err'; return; }
+    const newTags = editPostTagPicker.getTags();
+    const btn = document.getElementById('editPostSaveBtn');
+    btn.disabled = true; btn.textContent = 'Сохраняем...';
+    statusEl.textContent = ''; statusEl.className = '';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/content?id=eq.${editingPostId}`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ title: newTitle, tags: newTags })
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(friendlySupabaseError(t)); }
+
+      // Обновляем то, что уже отрисовано на странице, без перезагрузки —
+      // локальный кэш ленты (feedItemsById/currentFeedRawData), заголовок в
+      // открытом сейчас лайтбоксе/странице поста.
+      if (feedItemsById[editingPostId]) {
+        feedItemsById[editingPostId].title = newTitle;
+        feedItemsById[editingPostId].tags = newTags;
+      }
+      const rawItem = currentFeedRawData.find(it => it.id === editingPostId);
+      if (rawItem) { rawItem.title = newTitle; rawItem.tags = newTags; }
+      if (feedItemsById[editingPostId] && ['art', 'video', 'fanfic'].includes(currentFeedFilter)) {
+        renderFilteredFeed();
+      }
+      if (currentOpenContentId === editingPostId) {
+        lightboxTitle.textContent = newTitle;
+        const ppTitleEl = document.getElementById('postPageTitle');
+        if (ppTitleEl) ppTitleEl.textContent = newTitle;
+      }
+
+      statusEl.textContent = 'Сохранено!'; statusEl.className = 'ok';
+      setTimeout(() => closeOverlay('editPostOverlay'), 700);
+    } catch (e) {
+      console.error('Ошибка сохранения поста:', e);
+      statusEl.textContent = e.message || 'Ошибка сохранения';
+      statusEl.className = 'err';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Сохранить';
+    }
+  });
   // ──────────────────────────────────────────────────────────────────────────
 
   // Сабмит арта
@@ -10608,10 +10804,11 @@
       if (b2result.error) throw new Error(b2result.error);
       const source_url = b2result.url;
 
+      const is_blurred = document.getElementById('artBlurCheckbox').checked;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/content`, {
         method: 'POST',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ title, source_url, content_type: 'art', status: 'draft', submitted_by: currentUser.id, tags: artTagPicker.getTags() })
+        body: JSON.stringify({ title, source_url, content_type: 'art', status: 'draft', submitted_by: currentUser.id, tags: artTagPicker.getTags(), is_blurred })
       });
       if (!res.ok) { const t = await res.text(); throw new Error(t); }
 
@@ -10621,6 +10818,7 @@
       document.getElementById('artFileName').textContent = '';
       artUploadedFile = null; artFileInput.value = '';
       artTagPicker.reset();
+      document.getElementById('artBlurCheckbox').checked = false;
       setTimeout(() => closeOverlay('contentOverlay'), 1200);
     } catch(e) {
       artStatusEl.textContent = 'Ошибка: ' + e.message; artStatusEl.className = 'err';
@@ -11508,6 +11706,15 @@
     }
     const cardEl = e.target.closest('[data-home-open]');
     if (cardEl) {
+      // Спойлер-блюр на карточке главной: первый клик по размытому превью
+      // просто снимает блюр на месте, не переключая вкладку.
+      const blurredImg = e.target.closest('img[data-blurred="1"]:not(.spoiler-revealed)');
+      if (blurredImg) {
+        blurredImg.classList.add('spoiler-revealed');
+        const hint = blurredImg.nextElementSibling;
+        if (hint && hint.classList.contains('spoiler-hint')) hint.style.display = 'none';
+        return;
+      }
       switchNavTabTo(cardEl.dataset.homeOpen);
       return;
     }
@@ -11806,7 +12013,7 @@
       let mediaHtml = '';
 
       if (item.content_type === 'art' && mediaUrl) {
-        mediaHtml = `<img class="card-img" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">`;
+        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
       } else if (item.content_type === 'video') {
         const ytId = getYoutubeId(mediaUrl);
         if (isOwnUploadedMediaUrl(mediaUrl)) {
@@ -11840,9 +12047,9 @@
       // та же история (клик по "Читать оригинал" сразу уводит на внешний
       // сайт), плюс честно посчитать их сложно, поэтому счётчик убран совсем.
       const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl));
-      // Никнейм автора — пока только у фанфиков (у них нет превью с автором
-      // нигде ещё, в отличие от арта/видео на главной странице).
-      const authorName = item.content_type === 'fanfic' ? ((item.profiles && item.profiles.username) || 'аноним') : null;
+      // Никнейм автора — теперь у всех типов постов в ленте (раньше видно
+      // было только внутри самого поста после открытия).
+      const authorName = (item.profiles && item.profiles.username) || 'аноним';
       const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
       const isOwnPost = currentUser && item.submitted_by === currentUser.id;
       const menuHtml = (isModerator || isOwnPost) ? `
@@ -12048,7 +12255,7 @@
       const mediaUrl = item.cover_image_url || item.source_url || '';
       let thumbHtml = '';
       if (type === 'art') {
-        thumbHtml = mediaUrl ? `<img src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy">` : '';
+        thumbHtml = mediaUrl ? `<img class="${spoilerBlurClass(item).trim()}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item)}` : '';
       } else {
         const ytId = getYoutubeId(mediaUrl);
         if (ytId) {
