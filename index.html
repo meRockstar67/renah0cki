@@ -2521,26 +2521,40 @@
   .voice-locked-send-btn:hover { background: var(--accent-hover); }
 
   /* Плеер голосового сообщения в самом комментарии */
-  /* Обёртка вокруг плеера и кнопки громкости — раньше кнопка громкости
+  /* Обёртка вокруг плеера и регулятора громкости — раньше кнопка громкости
      была ВНУТРИ .voice-message-player (закруглённой "таблетки"), из-за
      чего вылезала за скруглённый угол и выглядела обрезанной. Теперь
-     громкость — отдельный элемент РЯДОМ с таблеткой, а не внутри неё. */
+     громкость — отдельный элемент РЯДОМ с таблеткой, а не внутри неё.
+     flex-wrap: wrap — если строка не помещается по ширине (узкий экран),
+     регулятор громкости переносится на вторую строку вместо того, чтобы
+     обрезаться родителем .comment-body-wrap (у него overflow:hidden для
+     переноса длинных слов в тексте комментария — см. ниже). */
   .voice-message-player-row {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: wrap;
   }
 
-  /* Отдельная маленькая обёртка ИМЕННО вокруг кнопки громкости и её
-     попапа — раньше position:relative стоял на всей .voice-message-player-row,
-     и всплывающий слайдер позиционировался "справа:0" от ВСЕЙ строки
-     целиком (которая шире, чем кажется — тянется на всю доступную
-     ширину), из-за чего попап улетал далеко вправо от самой кнопки.
-     Теперь у попапа свой тесный "якорь" размером точно с кнопку. */
+  /* ВАЖНО: регулятор громкости раньше был кнопкой + всплывающим попапом
+     со слайдером (position:absolute), который надо было открыть кликом.
+     Проблема была в том, что .comment-body-wrap (родитель этой строки)
+     задаёт overflow:hidden (нужно для переноса длинных слов без пробелов
+     в тексте комментария) — а он обрезает ЛЮБОЕ содержимое, которое
+     выходит за пределы своей рамки, включая абсолютно позиционированные
+     элементы. Popup позиционировался НАД кнопкой (bottom: 100% + 8px) —
+     то есть заведомо выше собственной рамки .comment-body-wrap, поэтому
+     он гарантированно обрезался и был невидим, как бы правильно ни был
+     раньше рассчитан его left/right. Никакой z-index тут не помогает —
+     это именно обрезка по overflow, а не перекрытие по слоям.
+     Решение: убираем попап полностью, слайдер теперь ВСЕГДА виден
+     прямо в строке (обычный поток, без position:absolute) — так он
+     не может быть обрезан ничем и не зависит от overflow родителей. */
   .voice-volume-wrap {
-    position: relative;
     flex-shrink: 0;
     display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .voice-message-player {
@@ -2605,54 +2619,23 @@
     flex-shrink: 0;
   }
 
-  /* Регулятор громкости голосовых — иконка + всплывающий слайдер (звук
-     общий на все голосовые сообщения сразу, см. voiceMsgAudioEl — один
-     <audio> на все плееры, поэтому громкость тоже одна общая настройка,
-     сохраняется в localStorage и применяется сразу при открытии страницы). */
-  .voice-volume-btn {
+  /* Регулятор громкости голосовых — иконка + слайдер, ВСЕГДА видимый
+     (звук общий на все голосовые сообщения сразу, см. voiceMsgAudioEl —
+     один <audio> на все плееры, поэтому громкость тоже одна общая
+     настройка, сохраняется в localStorage и применяется сразу при
+     открытии страницы). */
+  .voice-volume-icon {
     flex-shrink: 0;
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: var(--panel-2);
-    color: var(--muted);
     font-size: 13px;
     line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: var(--muted);
   }
-  .voice-volume-btn:hover { color: var(--text); }
 
-  .voice-volume-popover {
-    display: none;
-    position: absolute;
-    bottom: calc(100% + 8px);
-    right: 0;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 8px 10px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-    z-index: 5;
-    align-items: center;
-    gap: 8px;
-  }
-  .voice-volume-popover.open { display: flex; }
-  .voice-volume-popover input[type="range"] {
-    width: 90px;
+  .voice-volume-slider {
+    flex-shrink: 0;
+    width: 70px;
     accent-color: var(--accent);
     cursor: pointer;
-  }
-  .voice-volume-popover .voice-volume-value {
-    font-size: 11px;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-    min-width: 28px;
-    text-align: right;
   }
   /* ──────────────────────────────────────────────────────────────────── */
 
@@ -7298,29 +7281,11 @@
     const pct = Math.round(voiceMsgVolume * 100);
     document.querySelectorAll('.voice-message-player-row').forEach(row => {
       const slider = row.querySelector('.voice-volume-slider');
-      const valueEl = row.querySelector('.voice-volume-value');
-      const btn = row.querySelector('.voice-volume-btn');
+      const icon = row.querySelector('.voice-volume-icon');
       if (slider) slider.value = pct;
-      if (valueEl) valueEl.textContent = pct + '%';
-      if (btn) btn.textContent = voiceVolumeIcon(voiceMsgVolume);
+      if (icon) icon.textContent = voiceVolumeIcon(voiceMsgVolume);
     });
   }
-
-  document.body.addEventListener('click', (e) => {
-    const volBtn = e.target.closest('.voice-volume-btn');
-    if (volBtn) {
-      e.stopPropagation();
-      const popover = volBtn.nextElementSibling;
-      const wasOpen = popover.classList.contains('open');
-      document.querySelectorAll('.voice-volume-popover.open').forEach(p => p.classList.remove('open'));
-      if (!wasOpen) popover.classList.add('open');
-      return;
-    }
-    // Клик вне попапа громкости — закрываем все открытые
-    if (!e.target.closest('.voice-volume-popover')) {
-      document.querySelectorAll('.voice-volume-popover.open').forEach(p => p.classList.remove('open'));
-    }
-  });
 
   document.body.addEventListener('input', (e) => {
     const slider = e.target.closest('.voice-volume-slider');
@@ -7432,12 +7397,9 @@
           <div class="voice-progress"><div class="voice-progress-fill"></div></div>
           <span class="voice-msg-time">0:00</span>
         </div>
-        <div class="voice-volume-wrap">
-          <button type="button" class="voice-volume-btn" title="Громкость">${voiceVolumeIcon(voiceMsgVolume)}</button>
-          <div class="voice-volume-popover">
-            <input type="range" class="voice-volume-slider" min="0" max="100" step="1" value="${Math.round(voiceMsgVolume * 100)}">
-            <span class="voice-volume-value">${Math.round(voiceMsgVolume * 100)}%</span>
-          </div>
+        <div class="voice-volume-wrap" title="Громкость">
+          <span class="voice-volume-icon">${voiceVolumeIcon(voiceMsgVolume)}</span>
+          <input type="range" class="voice-volume-slider" min="0" max="100" step="1" value="${Math.round(voiceMsgVolume * 100)}">
         </div>
       </div>
     `;
