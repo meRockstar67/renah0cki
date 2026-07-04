@@ -395,6 +395,7 @@
   .notif-item-icon.like-icon { color: var(--danger); }
   .notif-item-icon.comment-icon { color: var(--accent); }
   .notif-item-icon.newfollower-icon { color: #7acf3a; }
+  .notif-item-icon.rejection-icon { color: #f5a623; }
 
   .notif-list .empty {
     padding: 24px 14px;
@@ -5122,6 +5123,13 @@
         <span class="toggle-slider"></span>
       </label>
     </div>
+    <div class="settings-toggle-row" id="notifSettingSubmissionRow" style="display:none;">
+      <span>Новые работы на проверку (push на телефон)</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="notifSettingNewSubmission" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
 
     <div class="modal-actions">
       <button id="notifSettingsSaveBtn">Сохранить</button>
@@ -7824,6 +7832,15 @@
         document.getElementById('notifSettingLikes').checked = currentUser.notify_likes !== false;
         document.getElementById('notifSettingComments').checked = currentUser.notify_comments !== false;
         document.getElementById('notifSettingNewFollowers').checked = currentUser.notify_new_followers !== false;
+        // Пуш о новых работах на проверку имеет смысл только для модераторов —
+        // обычные пользователи эту очередь вообще не видят.
+        const submissionRow = document.getElementById('notifSettingSubmissionRow');
+        if (isModeratorOrHigher(currentUser.role)) {
+          submissionRow.style.display = '';
+          document.getElementById('notifSettingNewSubmission').checked = currentUser.notify_new_submission === true;
+        } else {
+          submissionRow.style.display = 'none';
+        }
         document.getElementById('notifSettingsStatus').textContent = '';
         document.getElementById('notifSettingsStatus').className = '';
         openOverlay('notifSettingsOverlay');
@@ -7980,6 +7997,33 @@
         );
       }
 
+      // Отклонение поста/сборника модератором — комментарий модератора
+      // (moderation_log.comment) раньше нигде не показывался автору, только
+      // лежал в базе. Показываем всегда, без отдельного тумблера в
+      // настройках — это не "опциональное" уведомление, а важная инфа о
+      // том, что случилось с твоей работой.
+      if (contentIds.length || collectionIds.length) {
+        const orParts = [];
+        if (contentIds.length) orParts.push(`content_id.in.(${contentIds.join(',')})`);
+        if (collectionIds.length) orParts.push(`collection_id.in.(${collectionIds.join(',')})`);
+        fetches.push(
+          fetch(`${SUPABASE_URL}/rest/v1/moderation_log?action=eq.rejected&or=(${orParts.join(',')})&select=id,content_id,collection_id,comment,created_at,moderator:profiles(id,username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+            .then(r => r.ok ? r.json() : [])
+            .then(rows => rows.map(row => {
+              const isColl = !!row.collection_id;
+              return {
+                type: 'rejection', kind: isColl ? 'collection' : 'content',
+                targetId: isColl ? row.collection_id : row.content_id,
+                title: isColl ? (collectionTitleById[row.collection_id] || '') : (contentTitleById[row.content_id] || ''),
+                body: row.comment,
+                actor: row.moderator, actorId: row.moderator ? row.moderator.id : null,
+                createdAt: row.created_at
+              };
+            }))
+            .catch(() => [])
+        );
+      }
+
       const results = fetches.length ? await Promise.all(fetches) : [];
       let combined = results.flat();
 
@@ -8032,19 +8076,26 @@
       const avatar = (n.actor && n.actor.avatar_url) || presetToDataUrl('p0');
       const isLike = n.type === 'like';
       const isNewFollower = n.type === 'new_follower';
+      const isRejection = n.type === 'rejection';
       const isCollectionTarget = n.kind === 'collection';
       const icon = isLike
         ? '<svg class="notif-item-icon like-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg>'
         : isNewFollower
           ? '<svg class="notif-item-icon newfollower-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>'
-          : '<svg class="notif-item-icon comment-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+          : isRejection
+            ? '<svg class="notif-item-icon rejection-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+            : '<svg class="notif-item-icon comment-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
       const actionWord = isLike
         ? (isCollectionTarget ? 'оценил(а) ваш сборник' : 'оценил(а) ваш пост')
         : isNewFollower
           ? 'подписался(лась) на тебя'
-          : (isCollectionTarget ? 'написал(а) комментарий к сборнику' : 'написал(а) комментарий к посту');
+          : isRejection
+            ? (isCollectionTarget ? 'отклонил(а) ваш сборник' : 'отклонил(а) ваш пост')
+            : (isCollectionTarget ? 'написал(а) комментарий к сборнику' : 'написал(а) комментарий к посту');
       const titlePart = (!isNewFollower && n.title) ? ` «${escapeHtml(n.title)}»` : '';
-      const snippet = (!isLike && !isNewFollower && n.body) ? `<div class="notif-item-snippet">${escapeHtml(n.body)}</div>` : '';
+      const snippet = isRejection
+        ? (n.body ? `<div class="notif-item-snippet"><b>Комментарий модератора:</b> ${escapeHtml(n.body)}</div>` : '')
+        : (!isLike && !isNewFollower && n.body) ? `<div class="notif-item-snippet">${escapeHtml(n.body)}</div>` : '';
       return `
         <div class="notif-item${isUnread ? ' unread' : ''}" data-target-id="${n.targetId}" data-target-kind="${n.kind}" data-notif-type="${n.type}">
           <img class="notif-item-avatar" src="${escapeHtml(avatar)}" alt="" data-open-profile="${n.actorId}" title="${escapeHtml(name)}">
@@ -8222,7 +8273,7 @@
 
   async function loadProfileIntoCurrentUser() {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}&select=username,avatar_url,role,is_banned,name_color,stream_twitch_url,stream_donate_url,stream_social_url,notify_likes,notify_comments,notify_new_followers`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}&select=username,avatar_url,role,is_banned,name_color,stream_twitch_url,stream_donate_url,stream_social_url,notify_likes,notify_comments,notify_new_followers,notify_new_submission`, {
         headers: {
           apikey: SUPABASE_KEY,
           Authorization: `Bearer ${currentUserToken}`
@@ -8244,6 +8295,11 @@
         currentUser.notify_likes = rows[0].notify_likes !== false;
         currentUser.notify_comments = rows[0].notify_comments !== false;
         currentUser.notify_new_followers = rows[0].notify_new_followers !== false;
+        // В отличие от остальных тумблеров (по умолчанию включены) — этот
+        // требует реальной push-подписки браузера, поэтому по умолчанию
+        // выключен (=== true, а не !== false): нет смысла показывать
+        // галочку "включено", если подписки на самом деле ещё нет.
+        currentUser.notify_new_submission = rows[0].notify_new_submission === true;
       }
       renderModerationBtn();
       renderSupportBtn();
@@ -8262,11 +8318,30 @@
       reportsBtn.style.display = 'inline-block';
       refreshModerationCount();
       refreshCommentReportsCount();
+      maybeOpenModerationFromPush();
     } else {
       btn.style.display = 'none';
       collBtn.style.display = 'none';
       reportsBtn.style.display = 'none';
     }
+  }
+
+  // Клик по push-уведомлению "новая работа на проверку" ведёт на
+  // https://renah0cki.xyz/?openModeration=1 — если это открылось у
+  // модератора, сразу открываем очередь модерации, без лишнего клика.
+  // Параметр убираем из адресной строки сразу же, чтобы обычный F5 после
+  // этого не открывал очередь модерации заново.
+  let moderationAutoOpenHandled = false;
+  function maybeOpenModerationFromPush() {
+    if (moderationAutoOpenHandled) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openModeration') !== '1') return;
+    moderationAutoOpenHandled = true;
+    params.delete('openModeration');
+    const newSearch = params.toString();
+    const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+    window.history.replaceState({}, '', newUrl);
+    document.getElementById('moderationBtn').click();
   }
 
   // ─── Жалобы на комментарии: счётчик непросмотренных жалоб у модераторов ──
@@ -10158,6 +10233,8 @@
     const notify_likes = document.getElementById('notifSettingLikes').checked;
     const notify_comments = document.getElementById('notifSettingComments').checked;
     const notify_new_followers = document.getElementById('notifSettingNewFollowers').checked;
+    const isMod = isModeratorOrHigher(currentUser.role);
+    let notify_new_submission = currentUser.notify_new_submission === true;
 
     btn.disabled = true;
     btn.textContent = 'Сохраняем...';
@@ -10165,16 +10242,36 @@
     statusEl.className = '';
 
     try {
+      // Пуш о новых работах — только для модераторов, и требует реальной
+      // подписки браузера (разрешение + PushManager), а не просто галочки:
+      // включаем/выключаем её ЗДЕСЬ же, до сохранения самого профиля, чтобы
+      // если пользователь откажет в разрешении — в базу не улетело "включено".
+      if (isMod) {
+        const wantSubmissionPush = document.getElementById('notifSettingNewSubmission').checked;
+        if (wantSubmissionPush) {
+          const ok = await enablePushSubscription();
+          if (!ok) document.getElementById('notifSettingNewSubmission').checked = false;
+          notify_new_submission = ok;
+        } else {
+          await disablePushSubscription();
+          notify_new_submission = false;
+        }
+      }
+
+      const patchBody = { notify_likes, notify_comments, notify_new_followers };
+      if (isMod) patchBody.notify_new_submission = notify_new_submission;
+
       const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}`, {
         method: 'PATCH',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ notify_likes, notify_comments, notify_new_followers })
+        body: JSON.stringify(patchBody)
       });
       if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
 
       currentUser.notify_likes = notify_likes;
       currentUser.notify_comments = notify_comments;
       currentUser.notify_new_followers = notify_new_followers;
+      if (isMod) currentUser.notify_new_submission = notify_new_submission;
       saveSession();
       // Уже загруженные уведомления могли содержать теперь отключённые типы —
       // перечитываем список, чтобы колокольчик сразу отражал новые настройки.
@@ -10291,6 +10388,103 @@
     });
   }
 
+  // ─── Push-уведомления модераторам о новых работах на проверку ─────────────
+  // Дёргается один раз сразу после успешной отправки поста/сборника на
+  // проверку. Сам пуш собирает и шлёт воркер (там же, где B2-аплоад) — он
+  // знает VAPID-приватник и умеет шифровать payload по Web Push Protocol;
+  // клиенту для этого не нужно (и не должно) видеть приватный ключ.
+  // Namешено "не мешать" самой отправке поста — если пуш не ушёл (сеть,
+  // воркер прилёг и т.п.), это не должно выглядеть как ошибка отправки.
+  async function notifyModeratorsOfSubmission(kind, title) {
+    try {
+      await fetch(`${B2_WORKER_URL}/notify-moderators`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUserToken}` },
+        body: JSON.stringify({ kind, title })
+      });
+    } catch (e) {
+      console.error('Не удалось отправить push-уведомление модераторам:', e);
+    }
+  }
+
+  // ─── Web Push: подписка модератора на пуши в этом браузере ────────────────
+  // Публичный VAPID-ключ — не секрет, он и должен быть на клиенте (это же
+  // значение передаётся воркером в заголовке Authorization при отправке
+  // пуша как "k=", подписи не даёт, только идентифицирует сервер).
+  const VAPID_PUBLIC_KEY = 'BKJxuC9MGXfirKsOTpTf6lq5Sps7wYuEtcBycCp170OWXBvdNRbyklxJjAOQmEO3UuWmFjpWBjug5iDjh-vIWNU';
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  }
+
+  // Включает push-подписку в этом браузере и сохраняет её в Supabase.
+  // Возвращает true/false — удалось ли включить (используется, чтобы
+  // откатить тумблер обратно, если пользователь отказал в разрешении).
+  async function enablePushSubscription() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('Этот браузер не поддерживает push-уведомления.');
+      return false;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Без разрешения на уведомления в браузере push-уведомления работать не будут.');
+        return false;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      }
+      const raw = subscription.toJSON();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          endpoint: raw.endpoint,
+          p256dh: raw.keys.p256dh,
+          auth: raw.keys.auth
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return true;
+    } catch (e) {
+      console.error('Не удалось включить push-уведомления:', e);
+      alert('Не удалось включить push-уведомления: ' + e.message);
+      return false;
+    }
+  }
+
+  // Отключает push-подписку в этом браузере (и убирает её из базы, чтобы
+  // воркер больше не пытался слать сюда пуши).
+  async function disablePushSubscription() {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(subscription.endpoint)}`, {
+          method: 'DELETE',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'return=minimal' }
+        });
+        await subscription.unsubscribe();
+      }
+    } catch (e) {
+      console.error('Не удалось отключить push-уведомления:', e);
+    }
+  }
+
   // ─── Теги для арта/видео (фиксированный список) ────────────────────────
   const PRESET_TAGS = ['meowh0cki', 'renamid', 'gl1n', 'EgorTsai', 'MagicKat1', 'BaNaNcHiK1'];
   const OTHER_TAG = 'Другое';
@@ -10358,6 +10552,7 @@
       if (!res.ok) { const t = await res.text(); throw new Error(t); }
 
       artStatusEl.textContent = 'Отправлено на проверку!'; artStatusEl.className = 'ok';
+      notifyModeratorsOfSubmission('art', title);
       document.getElementById('art-title').value = '';
       document.getElementById('artFileName').textContent = '';
       artUploadedFile = null; artFileInput.value = '';
@@ -10432,6 +10627,7 @@
       if (!res.ok) { const t = await res.text(); throw new Error(t); }
 
       videoStatusEl.textContent = 'Отправлено на проверку!'; videoStatusEl.className = 'ok';
+      notifyModeratorsOfSubmission('video', title);
       document.getElementById('video-title').value = '';
       document.getElementById('video-url').value = '';
       document.getElementById('videoFileName').textContent = '';
@@ -10727,6 +10923,7 @@
 
       statusEl.textContent = `Отправлено на проверку! (${itemsPayload.length} файлов)`;
       statusEl.className = 'ok';
+      notifyModeratorsOfSubmission('collection', title);
       resetCollectionForm();
       setTimeout(() => closeOverlay('collectionOverlay'), 1200);
     } catch (e) {
@@ -10804,6 +11001,7 @@
     }
 
     showContentStatus('Отправлено на проверку модератору!', 'ok');
+    notifyModeratorsOfSubmission(content_type, title);
     document.getElementById('c-title').value = '';
     document.getElementById('c-url').value = '';
     document.getElementById('c-fandom').value = '';
@@ -11572,8 +11770,8 @@
     if (reelTrackEl) reelTrackEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
 
     const [artData, videoData, streamersData, respectPlusData, moderatorsData, reelVideos] = await Promise.all([
-      fetchHomeContent('art', 4),
-      fetchHomeContent('video', 4),
+      fetchHomeContent('art', 2),
+      fetchHomeContent('video', 2),
       fetchStreamers(),
       fetchRespectPlus(),
       fetchModerators(),
