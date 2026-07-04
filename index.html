@@ -2650,17 +2650,35 @@
      высоты дорожки — так он на всю ширину слайдера доезжает ровно до
      краёв (это стандартное поведение <input type="range">: при value=min
      центр бегунка стоит точно на левом краю дорожки, при value=max — на
-     правом), а не "не доезжает", как могло казаться из-за нативного вида. */
+     правом), а не "не доезжает", как могло казаться из-за нативного вида.
+
+     ВАЖНО: этот <input> подпадает под общее правило "input, textarea,
+     select { padding, margin-bottom, border, border-radius, background }"
+     (оно нужно для обычных текстовых полей форм) — но т.к. это ОБЫЧНЫЙ
+     селектор по тегу (специфичность ниже класса), большинство наших
+     свойств здесь и так побеждают. За исключением padding/margin/border —
+     их мы раньше не сбрасывали, и они добавляли слайдеру рамку и внутренние
+     отступы ~10px сверху/снизу, из-за чего вместо тонкой дорожки на экране
+     был большой прямоугольник, а сам бегунок казался "не доезжающим" до
+     края — на самом деле край дорожки был просто внутри этой рамки.
+     Сбрасываем явно, чтобы слайдер не зависел от общих стилей полей форм. */
   .voice-volume-slider {
     flex-shrink: 0;
     width: 70px;
     height: 6px;
+    padding: 0;
+    margin: 0;
+    border: none;
     border-radius: 3px;
     cursor: pointer;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
     outline: none;
+  }
+  .voice-volume-slider:focus {
+    outline: none;
+    border: none;
   }
   .voice-volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -5694,7 +5712,7 @@
         <input type="file" id="videoFile" accept="video/mp4,video/webm,video/mov" style="display:none;">
         <span class="upload-icon">🎬</span>
         <span class="upload-label">Нажми или перетащи файл</span>
-        <span class="upload-sub">MP4, WEBM, MOV · до 50 МБ</span>
+        <span class="upload-sub">MP4, WEBM, MOV · до 30 МБ</span>
         <span class="upload-chosen" id="videoFileName"></span>
       </div>
       <div class="or-divider"><span>или вставь ссылку</span></div>
@@ -11426,8 +11444,8 @@
   });
 
   function handleVideoFile(file) {
-    if (file.size > 50 * 1024 * 1024) {
-      document.getElementById('videoStatus').textContent = 'Файл больше 50 МБ';
+    if (file.size > 30 * 1024 * 1024) {
+      document.getElementById('videoStatus').textContent = 'Файл больше 30 МБ';
       document.getElementById('videoStatus').className = 'err';
       return;
     }
@@ -11561,8 +11579,8 @@
         statusEl.className = 'err';
         continue;
       }
-      if (isVideo && file.size > 50 * 1024 * 1024) {
-        statusEl.textContent = `«${file.name}» больше 50 МБ — видео пропущено`;
+      if (isVideo && file.size > 30 * 1024 * 1024) {
+        statusEl.textContent = `«${file.name}» больше 30 МБ — видео пропущено`;
         statusEl.className = 'err';
         continue;
       }
