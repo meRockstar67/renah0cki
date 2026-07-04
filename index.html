@@ -860,8 +860,13 @@
      или на странице поста (см. applyLightboxSpoilerState/
      applyPostPageSpoilerState и обработчики клика по #lightboxZoomWrap /
      #postPageImg). */
-  .spoiler-blurred { filter: blur(24px); cursor: pointer; }
-  .spoiler-blurred.spoiler-revealed { filter: none; cursor: inherit; }
+  /* clip-path обязателен: CSS-фильтр blur() сам по себе НЕ обрезается
+     границами элемента — размытие визуально "растекается" далеко за края
+     картинки (на карточках, где родитель без overflow:hidden, это было
+     видно как блюр, залезающий на соседние карточки). clip-path обрезает
+     итоговую отрисовку ровно по границам самой картинки. */
+  .spoiler-blurred { filter: blur(24px); cursor: pointer; clip-path: inset(0 round 10px); }
+  .spoiler-blurred.spoiler-revealed { filter: none; cursor: inherit; clip-path: none; }
   .spoiler-hint {
     position: absolute;
     display: flex;
@@ -5065,7 +5070,6 @@
     </div>
     <div class="lightbox-meta-row">
       <h2 id="postPageTitle" style="margin:0;"></h2>
-      <button class="copy-link-btn" id="postPageEditBtn" type="button" style="display:none;">✏️ Редактировать</button>
       <button class="copy-link-btn" id="postPageCopyLinkBtn" type="button">🔗 Скопировать ссылку</button>
     </div>
     <p class="lightbox-desc" id="postPageDesc" style="display:none;"></p>
@@ -5366,7 +5370,6 @@
     </div>
     <div class="lightbox-meta-row">
       <h2 id="lightboxTitle" style="margin:0;"></h2>
-      <button class="copy-link-btn" id="lightboxEditBtn" type="button" style="display:none;">✏️ Редактировать</button>
       <button class="copy-link-btn" id="copyLinkBtn" type="button">🔗 Скопировать ссылку</button>
     </div>
     <p class="lightbox-desc" id="lightboxDesc" style="display:none;"></p>
@@ -6191,7 +6194,6 @@
 
     currentOpenContentId = collectionId;
     currentOpenIsCollection = true;
-    updateEditPostBtnVisibility(document.getElementById('lightboxEditBtn'), collectionId, true);
     const collectionShortCode = collectionItem && collectionItem.short_code;
     setShareLink('collection', collectionId, collectionShortCode);
     history.replaceState(null, '', buildSharePath('collection', collectionId, collectionShortCode));
@@ -6268,7 +6270,6 @@
 
     currentOpenContentId = contentId;
     currentOpenIsCollection = false;
-    updateEditPostBtnVisibility(document.getElementById('lightboxEditBtn'), contentId, false);
     if (contentId) {
       const postShortCode = feedItem && feedItem.short_code;
       setShareLink('post', contentId, postShortCode);
@@ -6296,7 +6297,6 @@
     if (frame) frame.remove();
     currentOpenContentId = null;
     currentOpenIsCollection = false;
-    updateEditPostBtnVisibility(document.getElementById('lightboxEditBtn'), null, false);
     currentShareLink = null;
     currentPostAuthor = null;
     renderPostAuthorLine(document.getElementById('lightboxAuthorLine'), null);
@@ -7861,7 +7861,6 @@
 
       currentOpenContentId = item.id;
       currentOpenIsCollection = false;
-      updateEditPostBtnVisibility(document.getElementById('postPageEditBtn'), item.id, false);
       setShareLink('post', item.id, item.short_code);
       // Приводим адресную строку к короткому виду сразу, а не только когда
       // сюда пришли по короткой ссылке — так же, как в лайтбоксе: если
@@ -7916,7 +7915,6 @@
 
       currentOpenContentId = item.id;
       currentOpenIsCollection = true;
-      updateEditPostBtnVisibility(document.getElementById('postPageEditBtn'), item.id, true);
       setShareLink('collection', item.id, item.short_code);
       history.replaceState(null, '', buildSharePath('collection', item.id, item.short_code));
       setCommentsContext(POSTPAGE_COMMENTS_CTX);
@@ -7943,7 +7941,6 @@
     applyPostPageSpoilerState(false);
     currentOpenContentId = null;
     currentOpenIsCollection = false;
-    updateEditPostBtnVisibility(document.getElementById('postPageEditBtn'), null, false);
     currentShareLink = null;
     currentPostAuthor = null;
     renderPostAuthorLine(document.getElementById('postPageAuthorLine'), null);
@@ -9812,7 +9809,7 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
-            ${canEditPosts ? `<button type="button" class="card-edit-btn" data-id="${item.id}">✏️ Редактировать</button>` : ''}
+            ${canEditPosts ? `<button type="button" class="card-edit-btn" data-id="${item.id}">Редактировать</button>` : ''}
             <button type="button" class="card-delete-btn" data-id="${item.id}">Удалить пост</button>
           </div>
         </div>` : '';
@@ -9841,7 +9838,7 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
-            ${canEditPosts ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">✏️ Редактировать</button>` : ''}
+            ${canEditPosts ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">Редактировать</button>` : ''}
             <button type="button" class="card-delete-collection-btn" data-id="${item.id}">Удалить пост</button>
           </div>
         </div>` : '';
@@ -10772,22 +10769,15 @@
 
   // ─── Редактирование поста/сборника модератором/гл. модератором (название
   // + теги у постов) ───────────────────────────────────────────────────────
-  // Кнопка "✏️ Редактировать" показывается модераторам в лайтбоксе/на
-  // странице поста (см. updateEditPostBtnVisibility, вызывается при каждом
-  // открытии) и в тех же выпадающих меню "⋮", где сейчас есть только
-  // "Удалить пост" (профиль, лента постов, лента сборников) — можно
+  // Кнопка "Редактировать" — только в выпадающих меню "⋮", где раньше было
+  // только "Удалить пост" (профиль, лента постов, лента сборников); в самом
+  // посте (лайтбокс/страница поста) кнопки редактирования нет. Можно
   // поправить название и теги ЛЮБОГО поста, не только своего. У сборников
   // тегов нет — правится только название (см. editingIsCollection).
   // См. add_content_update_moderator.sql / add_collections_update_moderator.sql —
   // без них PATCH упадёт с 403 (RLS).
   let editingPostId = null;
   let editingIsCollection = false;
-
-  function updateEditPostBtnVisibility(btnEl, contentId, isCollection) {
-    if (!btnEl) return;
-    const canEdit = !!contentId && currentUser && isModeratorOrHigher(currentUser.role);
-    btnEl.style.display = canEdit ? '' : 'none';
-  }
 
   async function openEditPostModal(id, isCollection) {
     if (!id) return;
@@ -10818,11 +10808,6 @@
       statusEl.className = 'err';
     }
   }
-
-  const lightboxEditBtnEl = document.getElementById('lightboxEditBtn');
-  if (lightboxEditBtnEl) lightboxEditBtnEl.addEventListener('click', () => openEditPostModal(currentOpenContentId, currentOpenIsCollection));
-  const postPageEditBtnEl = document.getElementById('postPageEditBtn');
-  if (postPageEditBtnEl) postPageEditBtnEl.addEventListener('click', () => openEditPostModal(currentOpenContentId, currentOpenIsCollection));
 
   document.getElementById('editPostSaveBtn').addEventListener('click', async () => {
     if (!editingPostId) return;
@@ -12160,7 +12145,7 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
-            ${isModerator ? `<button type="button" class="card-edit-btn" data-id="${item.id}">✏️ Редактировать</button>` : ''}
+            ${isModerator ? `<button type="button" class="card-edit-btn" data-id="${item.id}">Редактировать</button>` : ''}
             <button type="button" class="card-delete-btn" data-id="${item.id}">Удалить пост</button>
           </div>
         </div>` : '';
@@ -12456,7 +12441,7 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
-            ${isModerator ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">✏️ Редактировать</button>` : ''}
+            ${isModerator ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">Редактировать</button>` : ''}
             <button type="button" class="card-delete-collection-btn" data-id="${item.id}">Удалить пост</button>
           </div>
         </div>` : '';
