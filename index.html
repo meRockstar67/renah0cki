@@ -1577,19 +1577,32 @@
     flex-shrink: 0;
   }
 
+  /* #lightboxVideo не обёрнут в .lightbox-zoom-wrap (см. разметку — это
+     отдельный соседний элемент), поэтому фиксированную высоту стадии
+     (см. комментарий у .lightbox-zoom-wrap выше) ему нужно задать отдельно,
+     иначе для видео разной пропорции .gallery-stage всё равно будет
+     "прыгать" по высоте, а стрелки — съезжать вместе с ним. */
+  #lightboxVideo { height: 65vh; }
+
   #lightboxImg { background: var(--panel); }
   #lightboxVideo { background: #000; }
 
   /* ─── Зум картинки в лайтбоксе ──────────────────────────────────────── */
+  /* height (а не max-height) — сознательно: раньше высота этого блока
+     зависела от пропорций конкретной картинки/видео, из-за чего при
+     листании сборника с разными по пропорциям фото весь блок (и вместе
+     с ним стрелки "‹"/"›", у которых top:50% считается от .gallery-stage)
+     прыгал по высоте и стрелки "плавали". Теперь высота всегда одна и та
+     же, картинка вписывается внутрь через object-fit:contain. */
   .lightbox-zoom-wrap {
     width: 100%;
+    height: 65vh;
     overflow: hidden;
     border-radius: 10px;
     flex-shrink: 0;
     touch-action: none;
     cursor: zoom-in;
     position: relative;
-    max-height: 65vh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1901,10 +1914,15 @@
     box-sizing: border-box;
   }
 
+  /* height (не max-height) на обоих — та же причина, что у #lightboxImg/
+     #lightboxVideo в лайтбоксе: иначе .gallery-stage меняет высоту от
+     пропорций конкретного фото/видео, и стрелки "‹"/"›" (top:50% от
+     .gallery-stage) съезжают при листании сборника. */
   .post-page-box #postPageImg,
   .post-page-box #postPageVideo {
     width: 100%;
     max-width: 100%;
+    height: 75vh;
     max-height: 75vh;
     object-fit: contain;
     border-radius: 10px;
@@ -2657,6 +2675,15 @@
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+
+  /* Никнейм автора на карточке фанфика в ленте — то же, что .home-card-author
+     на главной, но без uppercase/letter-spacing из .meta (обычное имя). */
+  .card-author {
+    display: block;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: -4px 0 8px;
   }
 
   .card h3 {
@@ -5364,6 +5391,14 @@
       <input type="text" id="c-tags" placeholder="ангст, AU, романтика">
       <label for="c-desc">Краткое описание</label>
       <textarea id="c-desc" placeholder="1-2 предложения о том, что внутри"></textarea>
+      <label>Обложка (необязательно)</label>
+      <div class="upload-zone" id="fanficCoverUploadZone">
+        <input type="file" id="fanficCoverFile" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+        <span class="upload-icon">🖼️</span>
+        <span class="upload-label">Нажми или перетащи файл</span>
+        <span class="upload-sub">PNG, JPG, WEBP, GIF · до 4 МБ · можно не загружать</span>
+        <span class="upload-chosen" id="fanficCoverFileName"></span>
+      </div>
       <div class="modal-actions">
         <button id="contentSubmitBtn">Отправить на проверку</button>
       </div>
@@ -5378,7 +5413,7 @@
   <div class="modal modal-wide">
     <button class="close-x" data-close="collectionOverlay">×</button>
     <h2>Новый сборник</h2>
-    <p class="hint">Подборка фото и видео (до 50 файлов). Попадёт в очередь на проверку.</p>
+    <p class="hint">Подборка фото и видео (до 100 файлов). Попадёт в очередь на проверку.</p>
 
     <label for="coll-title">Название</label>
     <input type="text" id="coll-title" placeholder="Название сборника">
@@ -5390,7 +5425,7 @@
       <input type="file" id="collFiles" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/mov" multiple style="display:none;">
       <span class="upload-icon">🖼️🎬</span>
       <span class="upload-label">Нажми или перетащи файлы</span>
-      <span class="upload-sub">Фото и видео можно мешать · до 50 файлов</span>
+      <span class="upload-sub">Фото и видео можно мешать · до 100 файлов</span>
     </div>
 
     <button type="button" class="existing-picker-toggle" id="toggleExistingPickerBtn">+ Выбрать файлы, уже загруженные на сайт</button>
@@ -5401,7 +5436,7 @@
       </div>
     </div>
 
-    <div class="collection-files-count" id="collFilesCount">0 / 50 файлов</div>
+    <div class="collection-files-count" id="collFilesCount">0 / 100 файлов</div>
     <div class="collection-files-grid" id="collFilesGrid"></div>
 
     <div class="modal-actions" style="margin-top:4px;">
@@ -8617,9 +8652,13 @@
       }).join('');
 
       const collectionCardsHtml = collectionsData.map(item => {
-        const coverTag = item.cover_type === 'video'
-          ? `<video src="${item.cover_url || ''}" muted preload="metadata" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы"></video>`
-          : `<img src="${item.cover_url || ''}" alt="${escapeHtml(item.title)}" loading="lazy" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы">`;
+        // Пустой src="" у <img>/<video> браузер трактует как ссылку на текущую
+        // страницу и пытается её "загрузить как медиа" — отсюда пачка ошибок
+        // "Некорректный URI" в консоли, если у сборника почему-то нет обложки.
+        // Просто не рисуем тег вовсе, если cover_url пустой.
+        const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
+          ? `<video src="${item.cover_url}" muted preload="metadata" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы"></video>`
+          : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы">`);
         return `
         <div class="mod-card" data-kind="collection" data-id="${item.id}" data-author="${item.submitted_by}">
           <div class="mod-collection-preview" data-preview-collection="${item.id}" data-title="${escapeHtml(item.title)}" style="position:relative;">
@@ -9582,11 +9621,14 @@
             <div class="card-video-play">▶</div>
           </a>`;
         }
+      } else if (item.content_type === 'fanfic' && item.cover_image_url) {
+        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
       }
       const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com') && !getYoutubeId(mediaUrl));
       // см. комментарий в renderFeedCards — счётчик просмотров не растёт для
-      // видео по внешней ссылке (не хранится у нас), поэтому его не показываем
-      const canTrackViews = !(item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com'));
+      // видео по внешней ссылке (не хранится у нас) и для фанфиков (честно
+      // посчитать их вообще нечем), поэтому для них его не показываем
+      const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com'));
       const menuHtml = canManageThisProfile ? `
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
@@ -9610,9 +9652,11 @@
     }).join('');
 
     const collectionCardsHtml = userCollections.map(item => {
-      const coverTag = item.cover_type === 'video'
-        ? `<video src="${item.cover_url || ''}" muted preload="metadata"></video>`
-        : `<img src="${item.cover_url || ''}" alt="${escapeHtml(item.title)}" loading="lazy">`;
+      // См. комментарий в loadModerationQueue — пустой src="" у img/video
+      // засоряет консоль ошибками "Некорректный URI", просто не рисуем тег.
+      const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
+        ? `<video src="${item.cover_url}" muted preload="metadata"></video>`
+        : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy">`);
       const menuHtml = canManageThisProfile ? `
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
@@ -10443,7 +10487,14 @@
         });
       }
       const raw = subscription.toJSON();
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+      // ВАЖНО: без on_conflict=endpoint апсерт (merge-duplicates) по
+      // умолчанию сверяет конфликт только по первичному ключу (id) — а он
+      // каждый раз новый случайный UUID, поэтому конфликта с ним никогда
+      // не будет, вставка идёт как обычная и падает на уникальности
+      // endpoint (23505 duplicate key), вместо того чтобы обновить
+      // существующую строку. on_conflict явно указывает PostgREST сверяться
+      // по endpoint (там и стоит unique-ограничение).
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?on_conflict=endpoint`, {
         method: 'POST',
         headers: {
           apikey: SUPABASE_KEY,
@@ -10659,7 +10710,7 @@
 
 
   // ─── Сборники (только для модераторов) ─────────────────────────────────────
-  const COLLECTION_MAX_FILES = 50;
+  const COLLECTION_MAX_FILES = 100;
   // элементы сборника перед отправкой: { kind: 'upload', file, mediaType } —
   // новый файл, который нужно сначала залить в B2;
   // { kind: 'existing', mediaType, mediaUrl, sourceContentId } — уже
@@ -10948,6 +10999,34 @@
 
 
 
+  // Обложка фанфика — необязательная, тот же паттерн загрузки, что и у арта
+  // (см. handleArtFile/artZone выше), просто отдельная зона/переменная.
+  let fanficCoverUploadedFile = null;
+  const fanficCoverZone = document.getElementById('fanficCoverUploadZone');
+  const fanficCoverFileInput = document.getElementById('fanficCoverFile');
+
+  fanficCoverZone.addEventListener('click', () => fanficCoverFileInput.click());
+  fanficCoverZone.addEventListener('dragover', e => { e.preventDefault(); fanficCoverZone.classList.add('drag-over'); });
+  fanficCoverZone.addEventListener('dragleave', () => fanficCoverZone.classList.remove('drag-over'));
+  fanficCoverZone.addEventListener('drop', e => {
+    e.preventDefault();
+    fanficCoverZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFanficCoverFile(file);
+  });
+  fanficCoverFileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleFanficCoverFile(e.target.files[0]);
+  });
+
+  function handleFanficCoverFile(file) {
+    if (file.size > 4 * 1024 * 1024) {
+      showContentStatus('Файл обложки больше 4 МБ', 'err');
+      return;
+    }
+    fanficCoverUploadedFile = file;
+    document.getElementById('fanficCoverFileName').textContent = '✓ ' + file.name;
+  }
+
   document.getElementById('contentSubmitBtn').addEventListener('click', async () => {
     if (!currentUser) {
       showContentStatus('Сессия истекла, войди снова', 'err');
@@ -10969,7 +11048,25 @@
 
     const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
 
+    const btn = document.getElementById('contentSubmitBtn');
+    btn.disabled = true;
+    const originalBtnText = btn.textContent;
+
     try {
+      // Обложка необязательна — грузим в B2 только если человек её выбрал.
+      let cover_image_url = null;
+      if (fanficCoverUploadedFile) {
+        btn.textContent = 'Загружаем обложку...';
+        showContentStatus('Загрузка обложки...', '');
+        const b2result = await uploadToB2(fanficCoverUploadedFile, currentUser.id, pct => {
+          showContentStatus(`Загрузка обложки: ${pct}%`, '');
+        });
+        if (b2result.error) throw new Error(b2result.error);
+        cover_image_url = b2result.url;
+      }
+
+      btn.textContent = 'Отправляем...';
+      showContentStatus('', '');
       const res = await fetch(`${SUPABASE_URL}/rest/v1/content`, {
         method: 'POST',
         headers: {
@@ -10986,6 +11083,7 @@
           content_type,
           tags,
           description,
+          cover_image_url,
           status: 'draft',
           submitted_by: currentUser.id
         })
@@ -10997,6 +11095,8 @@
       }
     } catch (e) {
       showContentStatus('Ошибка отправки: ' + e.message, 'err');
+      btn.disabled = false;
+      btn.textContent = originalBtnText;
       return;
     }
 
@@ -11007,6 +11107,11 @@
     document.getElementById('c-fandom').value = '';
     document.getElementById('c-tags').value = '';
     document.getElementById('c-desc').value = '';
+    document.getElementById('fanficCoverFileName').textContent = '';
+    fanficCoverUploadedFile = null;
+    fanficCoverFileInput.value = '';
+    btn.disabled = false;
+    btn.textContent = originalBtnText;
 
     setTimeout(() => closeOverlay('contentOverlay'), 1200);
   });
@@ -11706,14 +11811,25 @@
             <div class="card-video-play">▶</div>
           </a>`;
         }
+      } else if (item.content_type === 'fanfic' && item.cover_image_url) {
+        // Обложка у фанфика необязательная — просто картинка-превью, без
+        // лайтбокса (сам текст фанфика хранится не у нас, открывать внутри
+        // сайта нечего). Клик по обложке ведёт по той же ссылке, что и
+        // "Читать оригинал" ниже.
+        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
       }
 
       const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com') && !getYoutubeId(mediaUrl));
       // Просмотры считаются только для файлов, реально хранящихся у нас (B2) —
       // для видео по внешней ссылке (YouTube и др.) счётчик никогда не растёт
       // (клик уводит сразу на сторонний сайт, наш лайтбокс не открывается),
-      // поэтому для них счётчик просмотров не показываем вовсе.
-      const canTrackViews = !(item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com'));
+      // поэтому для них счётчик просмотров не показываем вовсе. У фанфиков —
+      // та же история (клик по "Читать оригинал" сразу уводит на внешний
+      // сайт), плюс честно посчитать их сложно, поэтому счётчик убран совсем.
+      const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !mediaUrl.includes('backblazeb2.com'));
+      // Никнейм автора — пока только у фанфиков (у них нет превью с автором
+      // нигде ещё, в отличие от арта/видео на главной странице).
+      const authorName = item.content_type === 'fanfic' ? ((item.profiles && item.profiles.username) || 'аноним') : null;
       const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
       const isOwnPost = currentUser && item.submitted_by === currentUser.id;
       const menuHtml = (isModerator || isOwnPost) ? `
@@ -11735,6 +11851,7 @@
       <div class="card card-type-${item.content_type}">
         ${mediaHtml}
         <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''}</div>
+        ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
         <h3>${escapeHtml(item.title)}</h3>
         ${descHtml}
         ${tagsHtml}
@@ -12019,9 +12136,11 @@
         </div>` : '';
       const descHtml = item.description ? `<p>${escapeHtml(item.description)}</p>` : '';
 
-      const coverTag = item.cover_type === 'video'
-        ? `<video src="${item.cover_url || ''}" muted preload="metadata"></video>`
-        : `<img src="${item.cover_url || ''}" alt="${escapeHtml(item.title)}" loading="lazy">`;
+      // См. комментарий в loadModerationQueue — пустой src="" у img/video
+      // засоряет консоль ошибками "Некорректный URI", просто не рисуем тег.
+      const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
+        ? `<video src="${item.cover_url}" muted preload="metadata"></video>`
+        : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy">`);
 
       return `
       <div class="card card-type-collection">
