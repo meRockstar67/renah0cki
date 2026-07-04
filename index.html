@@ -2640,11 +2640,51 @@
     color: var(--muted);
   }
 
+  /* Кастомный вид слайдера (вместо стандартного accent-color): закруглённая
+     дорожка, залитая акцентным цветом слева от бегунка и приглушённым
+     справа (сама заливка — inline linear-gradient, см. voiceSliderGradient
+     в JS, обновляется при каждом изменении значения), и увеличенный
+     круглый бегунок. appearance:none снимает нативный вид дорожки/бегунка
+     в браузере — без него часть этих стилей (background, border-radius
+     дорожки) браузер бы просто игнорировал. Бегунок специально БОЛЬШЕ
+     высоты дорожки — так он на всю ширину слайдера доезжает ровно до
+     краёв (это стандартное поведение <input type="range">: при value=min
+     центр бегунка стоит точно на левом краю дорожки, при value=max — на
+     правом), а не "не доезжает", как могло казаться из-за нативного вида. */
   .voice-volume-slider {
     flex-shrink: 0;
     width: 70px;
-    accent-color: var(--accent);
+    height: 6px;
+    border-radius: 3px;
     cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    outline: none;
+  }
+  .voice-volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+  .voice-volume-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+  .voice-volume-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: transparent;
   }
   /* ──────────────────────────────────────────────────────────────────── */
 
@@ -7293,6 +7333,14 @@
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${speaker}<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
   }
 
+  // Заливка дорожки слайдера (акцентный цвет слева от бегунка, приглушённый
+  // — справа). У <input type="range"> нет отдельного свойства "залить до
+  // текущего значения", поэтому имитируем это через background-gradient
+  // с точкой перехода на pct% — пересчитывается при каждом изменении.
+  function voiceSliderGradient(pct) {
+    return `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
+  }
+
   // Применяет новое значение громкости везде: к самому <audio>, сохраняет
   // в localStorage, и синхронизирует иконки/слайдеры ВСЕХ плееров на
   // странице (голосовых сообщений может быть открыто несколько сразу —
@@ -7305,7 +7353,10 @@
     document.querySelectorAll('.voice-message-player-row').forEach(row => {
       const slider = row.querySelector('.voice-volume-slider');
       const icon = row.querySelector('.voice-volume-icon');
-      if (slider) slider.value = pct;
+      if (slider) {
+        slider.value = pct;
+        slider.style.background = voiceSliderGradient(pct);
+      }
       if (icon) icon.innerHTML = voiceVolumeIcon(voiceMsgVolume);
     });
   }
@@ -7413,6 +7464,7 @@
   });
 
   function renderVoiceMessageHtml(url) {
+    const pct = Math.round(voiceMsgVolume * 100);
     return `
       <div class="voice-message-player-row">
         <div class="voice-message-player">
@@ -7422,7 +7474,7 @@
         </div>
         <div class="voice-volume-wrap" title="Громкость">
           <span class="voice-volume-icon">${voiceVolumeIcon(voiceMsgVolume)}</span>
-          <input type="range" class="voice-volume-slider" min="0" max="100" step="1" value="${Math.round(voiceMsgVolume * 100)}">
+          <input type="range" class="voice-volume-slider" min="0" max="100" step="1" value="${pct}" style="background: ${voiceSliderGradient(pct)};">
         </div>
       </div>
     `;
