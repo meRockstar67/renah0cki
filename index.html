@@ -1564,6 +1564,59 @@
     flex-shrink: 0;
   }
 
+  /* Список заблокированных пользователей (модалка, открывается кнопкой
+     🚫 в шапке виджета поддержки — только у модераторов/гл. модератора). */
+  #bannedUsersList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 60vh;
+    overflow-y: auto;
+    margin-top: 12px;
+  }
+
+  .banned-user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+  }
+
+  .banned-user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .banned-user-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .banned-user-unban-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .banned-user-unban-btn:hover { background: var(--accent); color: #1a1525; }
+
   @media (max-width: 480px) {
     .support-widget {
       right: 8px;
@@ -2049,6 +2102,55 @@
     color: var(--text);
   }
 
+  /* Выпадающий список вариантов сортировки комментариев — раньше кнопка
+     "Упорядочить" просто переключала между двумя состояниями по клику,
+     теперь открывает список из 4 вариантов с подсветкой текущего. */
+  .comments-sort-wrap {
+    position: relative;
+    margin-left: auto;
+  }
+
+  .comments-sort-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-width: 160px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    z-index: 5;
+  }
+
+  .comments-sort-dropdown.open {
+    display: block;
+  }
+
+  .comments-sort-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 0;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+
+  .comments-sort-option:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .comments-sort-option.active {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
   /* Форма добавления комментария */
   .comment-input-row {
     display: flex;
@@ -2428,6 +2530,7 @@
     border-radius: 20px;
     padding: 6px 14px 6px 6px;
     max-width: 260px;
+    position: relative;
   }
 
   .voice-play-btn {
@@ -2471,6 +2574,55 @@
     color: var(--muted);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
+  }
+
+  /* Регулятор громкости голосовых — иконка + всплывающий слайдер (звук
+     общий на все голосовые сообщения сразу, см. voiceMsgAudioEl — один
+     <audio> на все плееры, поэтому громкость тоже одна общая настройка,
+     сохраняется в localStorage и применяется сразу при открытии страницы). */
+  .voice-volume-btn {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .voice-volume-btn:hover { color: var(--text); }
+
+  .voice-volume-popover {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    z-index: 5;
+    align-items: center;
+    gap: 8px;
+  }
+  .voice-volume-popover.open { display: flex; }
+  .voice-volume-popover input[type="range"] {
+    width: 90px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .voice-volume-popover .voice-volume-value {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 28px;
+    text-align: right;
   }
   /* ──────────────────────────────────────────────────────────────────── */
 
@@ -5077,7 +5229,15 @@
     <div class="comments-section" id="postPageCommentsSection" style="display:block;">
       <div class="comments-header">
         <span class="comments-count" id="postPageCommentsCount">Комментарии</span>
-        <button class="comments-sort-btn" id="postPageSortBtn" type="button">⇅ Упорядочить</button>
+        <div class="comments-sort-wrap" data-comments-sort>
+          <button class="comments-sort-btn" id="postPageSortBtn" type="button">⇅ Сначала новые</button>
+          <div class="comments-sort-dropdown">
+            <button type="button" class="comments-sort-option active" data-sort="new">Сначала новые</button>
+            <button type="button" class="comments-sort-option" data-sort="old">Сначала старые</button>
+            <button type="button" class="comments-sort-option" data-sort="likes">По лайкам</button>
+            <button type="button" class="comments-sort-option" data-sort="replies">По ответам</button>
+          </div>
+        </div>
       </div>
       <div id="postPageCommentFormWrap"></div>
       <div class="comment-thread" id="postPageCommentThread"></div>
@@ -5246,6 +5406,19 @@
   </div>
 </div>
 
+<!-- Модалка: список заблокированных пользователей (модераторы и выше) —
+     открывается кнопкой 🚫 в шапке виджета поддержки. -->
+<div class="overlay" id="bannedUsersOverlay">
+  <div class="modal modal-wide">
+    <button class="close-x" data-close="bannedUsersOverlay">×</button>
+    <h2>Заблокированные пользователи</h2>
+    <p class="hint">Аккаунты с полной блокировкой на сайте — не могут публиковать контент и оставлять комментарии.</p>
+    <div id="bannedUsersList">
+      <p class="empty">Загрузка...</p>
+    </div>
+  </div>
+</div>
+
 <!-- Модалка: пожаловаться на комментарий (обычные пользователи) -->
 <div class="overlay" id="reportCommentOverlay">
   <div class="modal">
@@ -5296,6 +5469,7 @@
         <h2 id="supportModalTitle">Поддержка</h2>
       </div>
       <div class="support-widget-header-right">
+        <button type="button" id="supportBannedListBtn" class="support-widget-back" style="display:none;" title="Заблокированные пользователи">🚫</button>
         <button type="button" id="supportCloseBtn" class="close-x" title="Свернуть">×</button>
       </div>
     </div>
@@ -5377,7 +5551,15 @@
     <div class="comments-section" id="commentsSection" style="display:none;">
       <div class="comments-header">
         <span class="comments-count" id="commentsCount">Комментарии</span>
-        <button class="comments-sort-btn" id="commentsSortBtn" type="button">⇅ Упорядочить</button>
+        <div class="comments-sort-wrap" data-comments-sort>
+          <button class="comments-sort-btn" id="commentsSortBtn" type="button">⇅ Сначала новые</button>
+          <div class="comments-sort-dropdown">
+            <button type="button" class="comments-sort-option active" data-sort="new">Сначала новые</button>
+            <button type="button" class="comments-sort-option" data-sort="old">Сначала старые</button>
+            <button type="button" class="comments-sort-option" data-sort="likes">По лайкам</button>
+            <button type="button" class="comments-sort-option" data-sort="replies">По ответам</button>
+          </div>
+        </div>
       </div>
       <div id="commentFormWrap"></div>
       <div class="comment-thread" id="commentThread"></div>
@@ -7058,6 +7240,65 @@
   let activeVoiceMsgBtn = null;
   let voiceMsgProgressRaf = null;
 
+  // ─── Громкость голосовых сообщений — общая для всех, т.к. проигрывание
+  // идёт через один и тот же <audio> (voiceMsgAudioEl). Сохраняется в
+  // localStorage и применяется сразу при загрузке страницы, до первого
+  // воспроизведения. ───────────────────────────────────────────────────────
+  function loadVoiceMsgVolume() {
+    const raw = parseFloat(localStorage.getItem('fh_voice_volume'));
+    return Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 1;
+  }
+  let voiceMsgVolume = loadVoiceMsgVolume();
+  voiceMsgAudioEl.volume = voiceMsgVolume;
+
+  function voiceVolumeIcon(vol) {
+    if (vol <= 0) return '🔇';
+    if (vol < 0.5) return '🔉';
+    return '🔊';
+  }
+
+  // Применяет новое значение громкости везде: к самому <audio>, сохраняет
+  // в localStorage, и синхронизирует иконки/слайдеры ВСЕХ плееров на
+  // странице (голосовых сообщений может быть открыто несколько сразу —
+  // громкость у них общая, поэтому все должны показывать одно и то же).
+  function setVoiceMsgVolume(vol) {
+    voiceMsgVolume = Math.max(0, Math.min(1, vol));
+    voiceMsgAudioEl.volume = voiceMsgVolume;
+    try { localStorage.setItem('fh_voice_volume', String(voiceMsgVolume)); } catch (e) {}
+    const pct = Math.round(voiceMsgVolume * 100);
+    document.querySelectorAll('.voice-message-player').forEach(player => {
+      const slider = player.querySelector('.voice-volume-slider');
+      const valueEl = player.querySelector('.voice-volume-value');
+      const btn = player.querySelector('.voice-volume-btn');
+      if (slider) slider.value = pct;
+      if (valueEl) valueEl.textContent = pct + '%';
+      if (btn) btn.textContent = voiceVolumeIcon(voiceMsgVolume);
+    });
+  }
+
+  document.body.addEventListener('click', (e) => {
+    const volBtn = e.target.closest('.voice-volume-btn');
+    if (volBtn) {
+      e.stopPropagation();
+      const popover = volBtn.nextElementSibling;
+      const wasOpen = popover.classList.contains('open');
+      document.querySelectorAll('.voice-volume-popover.open').forEach(p => p.classList.remove('open'));
+      if (!wasOpen) popover.classList.add('open');
+      return;
+    }
+    // Клик вне попапа громкости — закрываем все открытые
+    if (!e.target.closest('.voice-volume-popover')) {
+      document.querySelectorAll('.voice-volume-popover.open').forEach(p => p.classList.remove('open'));
+    }
+  });
+
+  document.body.addEventListener('input', (e) => {
+    const slider = e.target.closest('.voice-volume-slider');
+    if (!slider) return;
+    setVoiceMsgVolume(Number(slider.value) / 100);
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
   function resetVoiceMsgButton(btn) {
     if (!btn) return;
     btn.classList.remove('playing');
@@ -7159,6 +7400,11 @@
         <button type="button" class="voice-play-btn" data-src="${escapeHtml(url)}">▶</button>
         <div class="voice-progress"><div class="voice-progress-fill"></div></div>
         <span class="voice-msg-time">0:00</span>
+        <button type="button" class="voice-volume-btn" title="Громкость">${voiceVolumeIcon(voiceMsgVolume)}</button>
+        <div class="voice-volume-popover">
+          <input type="range" class="voice-volume-slider" min="0" max="100" step="1" value="${Math.round(voiceMsgVolume * 100)}">
+          <span class="voice-volume-value">${Math.round(voiceMsgVolume * 100)}%</span>
+        </div>
       </div>
     `;
   }
@@ -7314,8 +7560,9 @@
     if (commentsCache.length === 0) {
       commentThread.innerHTML = `<p class="comments-empty">Пока нет комментариев — будь первым!</p>`;
     } else {
-      const tree = buildCommentTree(commentsCache);
-      commentThread.innerHTML = tree.map(renderCommentNode).join('');
+      // Рисуем сразу с учётом текущего выбранного варианта сортировки
+      // (commentsSortMode) — а не всегда в порядке "как пришло с сервера".
+      renderSortedComments(commentThread);
     }
   }
 
@@ -7650,24 +7897,99 @@
     if (ta) autoResizeCommentTextarea(ta);
   });
 
-  // Сортировка комментариев
-  let commentsSortOrder = 'asc';
+  // ─── Сортировка комментариев — 4 варианта вместо старого переключателя
+  // "туда-сюда". Режим один общий на лайтбокс и страницу поста
+  // (commentsSortMode), т.к. видна обычно только одна из двух панелей
+  // комментариев одновременно. ВАЖНО про "По лайкам": счётчик лайков у
+  // комментариев хранится только локально в браузере (см. getLikeCount/
+  // localStorage чуть выше) — сервер общий счётчик не хранит, поэтому
+  // сортировка "по лайкам" ориентируется на то, что видел именно ТЕКУЩИЙ
+  // браузер, а не на реальную общую популярность у всех пользователей. ────
+  const COMMENTS_SORT_LABELS = {
+    new: '⇅ Сначала новые',
+    old: '⇅ Сначала старые',
+    likes: '⇅ По лайкам',
+    replies: '⇅ По ответам'
+  };
+  let commentsSortMode = 'new';
+
+  // Количество ПРЯМЫХ ответов у каждого комментария — для сортировки "По ответам".
+  function countDirectReplies(flat) {
+    const counts = {};
+    flat.forEach(c => {
+      if (c.parent_id) counts[c.parent_id] = (counts[c.parent_id] || 0) + 1;
+    });
+    return counts;
+  }
+
+  function sortCommentsFlat(flat, mode) {
+    const sorted = [...flat];
+    if (mode === 'old') {
+      sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    } else if (mode === 'likes') {
+      sorted.sort((a, b) => getLikeCount(b.id) - getLikeCount(a.id));
+    } else if (mode === 'replies') {
+      const counts = countDirectReplies(flat);
+      sorted.sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0));
+    } else {
+      sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+    return sorted;
+  }
+
+  // Пересобирает дерево из commentsCache по текущему commentsSortMode и
+  // рисует его в указанном контейнере — вызывается и при первой загрузке
+  // комментариев (см. loadComments), и при смене варианта сортировки.
+  function renderSortedComments(threadEl) {
+    if (!threadEl) return;
+    const sorted = sortCommentsFlat(commentsCache, commentsSortMode);
+    const tree = buildCommentTree(sorted);
+    threadEl.innerHTML = tree.map(renderCommentNode).join('');
+  }
+
+  // Обновляет подпись на кнопке и подсветку активного варианта во ВСЕХ
+  // панелях сортировки на странице (лайтбокс + страница поста) — режим
+  // общий, поэтому обе должны показывать одно и то же.
+  function updateCommentsSortUi() {
+    document.querySelectorAll('[data-comments-sort]').forEach(wrap => {
+      const btn = wrap.querySelector('.comments-sort-btn');
+      if (btn) btn.textContent = COMMENTS_SORT_LABELS[commentsSortMode];
+      wrap.querySelectorAll('.comments-sort-option').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.sort === commentsSortMode);
+      });
+    });
+  }
+
   document.addEventListener('click', (e) => {
     const sortBtn = e.target.closest('#commentsSortBtn, #postPageSortBtn');
-    if (!sortBtn) return;
-    commentsSortOrder = commentsSortOrder === 'asc' ? 'desc' : 'asc';
-    sortBtn.textContent = commentsSortOrder === 'asc' ? '⇅ Упорядочить' : '⇅ Сначала новые';
-    if (!commentsCache.length) return;
-    const sorted = [...commentsCache].sort((a, b) => {
-      return commentsSortOrder === 'asc'
-        ? new Date(a.created_at) - new Date(b.created_at)
-        : new Date(b.created_at) - new Date(a.created_at);
-    });
-    const tree = buildCommentTree(sorted);
-    // Обновляем именно тот thread, в котором находится нажатая кнопка
-    const targetThreadId = sortBtn.id === 'postPageSortBtn' ? 'postPageCommentThread' : 'commentThread';
-    document.getElementById(targetThreadId).innerHTML = tree.map(renderCommentNode).join('');
+    if (sortBtn) {
+      e.stopPropagation();
+      const dropdown = sortBtn.nextElementSibling;
+      const wasOpen = dropdown.classList.contains('open');
+      document.querySelectorAll('.comments-sort-dropdown.open').forEach(d => d.classList.remove('open'));
+      if (!wasOpen) dropdown.classList.add('open');
+      return;
+    }
+
+    const sortOption = e.target.closest('.comments-sort-option');
+    if (sortOption) {
+      e.stopPropagation();
+      commentsSortMode = sortOption.dataset.sort;
+      updateCommentsSortUi();
+      document.querySelectorAll('.comments-sort-dropdown.open').forEach(d => d.classList.remove('open'));
+      if (!commentsCache.length) return;
+      const wrap = sortOption.closest('[data-comments-sort]');
+      const isPostPage = !!(wrap && wrap.closest('#postPageCommentsSection'));
+      renderSortedComments(document.getElementById(isPostPage ? 'postPageCommentThread' : 'commentThread'));
+      return;
+    }
+
+    // Клик вне выпадающего списка сортировки — закрываем все открытые
+    if (!e.target.closest('.comments-sort-dropdown')) {
+      document.querySelectorAll('.comments-sort-dropdown.open').forEach(d => d.classList.remove('open'));
+    }
   });
+  // ──────────────────────────────────────────────────────────────────────────
 
   document.body.addEventListener('click', async (e) => {
     const btn = e.target.closest('#copyLinkBtn, #postPageCopyLinkBtn, #profileCopyLinkBtn');
@@ -8439,8 +8761,13 @@
     }
   }
 
-  // Если в профиле ещё нет никнейма/аватара — берём их из данных Twitch
-  // (user_metadata, которые Supabase получает от Twitch при OAuth)
+  // Синхронизация ника/аватара с Twitch (user_metadata, которые Supabase
+  // получает от Twitch при OAuth). Раньше это срабатывало только один раз —
+  // при самой первой регистрации, если в профиле ещё не было username.
+  // Теперь синхронизация происходит при КАЖДОМ входе через Twitch — если
+  // человек сменил аватарку или ник на Twitch, они подтянутся на сайт при
+  // следующем входе (не мгновенно/сами по себе, а именно при заходе через
+  // кнопку "Войти через Twitch" — сайт не следит за Twitch в фоне).
   async function ensureProfileFromTwitch(twitchUser) {
     const meta = twitchUser.user_metadata || {};
     // ВАЖНО: у Twitch есть два разных поля — login (всегда строчными буквами,
@@ -8451,7 +8778,7 @@
     // всегда побеждал name/full_name (то есть login) — ник всегда приходил
     // строчными буквами независимо от того, как он выглядит на Twitch.
     // Поэтому nickname должен проверяться первым.
-    const twitchUsername = meta.nickname || meta.preferred_username || meta.full_name || meta.name || 'twitch_user';
+    const twitchUsername = meta.nickname || meta.preferred_username || meta.full_name || meta.name || null;
     const twitchAvatar = meta.avatar_url || meta.picture || null;
 
     try {
@@ -8460,21 +8787,37 @@
       });
       const rows = await checkRes.json();
       const existing = rows && rows[0];
+      const isFirstSetup = !existing || !existing.username;
 
-      if (!existing || !existing.username) {
-        await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${twitchUser.id}`, {
-          method: 'PATCH',
-          headers: {
-            apikey: SUPABASE_KEY,
-            Authorization: `Bearer ${currentUserToken}`,
-            'Content-Type': 'application/json',
-            Prefer: 'return=minimal'
-          },
-          body: JSON.stringify({ username: twitchUsername, avatar_url: twitchAvatar })
-        });
+      const patchBody = {};
+      if (isFirstSetup) {
+        // Самая первая регистрация — гарантируем непустой ник, даже если
+        // Twitch почему-то не прислал ни одного поля с именем.
+        patchBody.username = twitchUsername || 'twitch_user';
+        patchBody.avatar_url = twitchAvatar;
+      } else {
+        // Обычный повторный вход — подтягиваем то, что реально прислал
+        // Twitch сейчас (обновляем ник/аватар, если человек их поменял),
+        // но не затираем уже сохранённые значения пустотой, если metadata
+        // от Twitch на этот раз почему-то оказалась неполной.
+        if (twitchUsername) patchBody.username = twitchUsername;
+        if (twitchAvatar) patchBody.avatar_url = twitchAvatar;
       }
+
+      if (Object.keys(patchBody).length === 0) return;
+
+      await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${twitchUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify(patchBody)
+      });
     } catch (e) {
-      console.error('Не удалось создать профиль из данных Twitch:', e);
+      console.error('Не удалось синхронизировать профиль с Twitch:', e);
     }
   }
   // ──────────────────────────────────────────────────────────────────────────
@@ -9103,9 +9446,11 @@
 
   function renderSupportBtn() {
     const widget = document.getElementById('supportOverlay');
+    const bannedListBtn = document.getElementById('supportBannedListBtn');
     if (!currentUser) {
       // без сессии писать в поддержку всё равно некуда — прячем виджет целиком
       widget.classList.remove('open');
+      if (bannedListBtn) bannedListBtn.style.display = 'none';
       return;
     }
     // как только известна сессия — сразу показываем виджет плавающим
@@ -9113,7 +9458,9 @@
     if (!widget.classList.contains('open')) {
       widget.classList.add('open', 'minimized');
     }
-    if (isModeratorOrHigher(currentUser.role)) {
+    const isModerator = isModeratorOrHigher(currentUser.role);
+    if (bannedListBtn) bannedListBtn.style.display = isModerator ? 'inline-block' : 'none';
+    if (isModerator) {
       refreshSupportModCount();
     }
   }
@@ -9178,6 +9525,72 @@
   // Примечание: у крестика виджета поддержки больше нет data-close —
   // это постоянный плавающий чат-виджет, крестик просто сворачивает его
   // в пузырь (обработчик см. выше, supportCloseBtn → minimizeSupportWidget)
+
+  // ─── Список заблокированных пользователей (кнопка 🚫 в шапке поддержки,
+  // видна только модераторам/гл. модератору — см. renderSupportBtn) ────────
+  document.getElementById('supportBannedListBtn').addEventListener('click', () => {
+    openOverlay('bannedUsersOverlay');
+    loadBannedUsersList();
+  });
+
+  async function loadBannedUsersList() {
+    const listEl = document.getElementById('bannedUsersList');
+    listEl.innerHTML = '<p class="empty">Загрузка...</p>';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?is_banned=eq.true&select=id,username,avatar_url,role&order=username.asc`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const rows = await res.json();
+      if (!rows.length) {
+        listEl.innerHTML = '<p class="empty">Заблокированных пользователей нет</p>';
+        return;
+      }
+      listEl.innerHTML = rows.map(p => {
+        const avatar = p.avatar_url || presetToDataUrl('p0');
+        return `
+          <div class="banned-user-row" data-user-id="${p.id}">
+            <img class="banned-user-avatar" src="${escapeHtml(avatar)}" alt="" data-open-profile="${p.id}" style="cursor:pointer;">
+            <span class="banned-user-name" data-open-profile="${p.id}" style="cursor:pointer;">${escapeHtml(p.username || 'без имени')}</span>
+            <button type="button" class="banned-user-unban-btn" data-user-id="${p.id}">Разблокировать</button>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      console.error('Не удалось загрузить список заблокированных:', e);
+      listEl.innerHTML = '<p class="empty">Ошибка загрузки</p>';
+    }
+  }
+
+  document.getElementById('bannedUsersList').addEventListener('click', async (e) => {
+    const unbanBtn = e.target.closest('.banned-user-unban-btn');
+    if (!unbanBtn) return;
+    const userId = unbanBtn.dataset.userId;
+    const sure = confirm('Точно разблокировать этого пользователя?');
+    if (!sure) return;
+
+    unbanBtn.disabled = true;
+    unbanBtn.textContent = 'Разблокируем...';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ is_banned: false })
+      });
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      const row = unbanBtn.closest('.banned-user-row');
+      if (row) row.remove();
+      const listEl = document.getElementById('bannedUsersList');
+      if (listEl && !listEl.querySelector('.banned-user-row')) {
+        listEl.innerHTML = '<p class="empty">Заблокированных пользователей нет</p>';
+      }
+    } catch (err) {
+      alert('Не удалось разблокировать: ' + err.message);
+      unbanBtn.disabled = false;
+      unbanBtn.textContent = 'Разблокировать';
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
 
   async function loadSupportInbox() {
     const listEl = document.getElementById('supportInbox');
@@ -10082,9 +10495,11 @@
     if (!uid) return;
     // Если открыт лайтбокс и/или страница поста — закрываем их, иначе
     // страница профиля откроется "под" ними и будет казаться, что клик
-    // ничего не делает.
+    // ничего не делает. То же самое для модалки списка заблокированных —
+    // оттуда тоже можно кликнуть по нику/аватару.
     if (lightboxOverlay.classList.contains('open')) closeLightbox();
     if (postPageEl.style.display !== 'none') closePostPage();
+    closeOverlay('bannedUsersOverlay');
     openUserProfile(uid);
   });
 
