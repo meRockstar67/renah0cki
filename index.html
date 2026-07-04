@@ -2521,6 +2521,17 @@
   .voice-locked-send-btn:hover { background: var(--accent-hover); }
 
   /* Плеер голосового сообщения в самом комментарии */
+  /* Обёртка вокруг плеера и кнопки громкости — раньше кнопка громкости
+     была ВНУТРИ .voice-message-player (закруглённой "таблетки"), из-за
+     чего вылезала за скруглённый угол и выглядела обрезанной. Теперь
+     громкость — отдельный элемент РЯДОМ с таблеткой, а не внутри неё. */
+  .voice-message-player-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+  }
+
   .voice-message-player {
     display: flex;
     align-items: center;
@@ -2528,9 +2539,9 @@
     background: var(--panel-2);
     border: 1px solid var(--border);
     border-radius: 20px;
-    padding: 6px 14px 6px 6px;
-    max-width: 260px;
-    position: relative;
+    padding: 6px 14px;
+    max-width: 220px;
+    min-width: 0;
   }
 
   .voice-play-btn {
@@ -2582,11 +2593,12 @@
      сохраняется в localStorage и применяется сразу при открытии страницы). */
   .voice-volume-btn {
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
+    width: 26px;
+    height: 26px;
     padding: 0;
     border: none;
-    background: none;
+    border-radius: 50%;
+    background: var(--panel-2);
     color: var(--muted);
     font-size: 13px;
     line-height: 1;
@@ -2601,7 +2613,7 @@
     display: none;
     position: absolute;
     bottom: calc(100% + 8px);
-    right: 6px;
+    right: 0;
     background: var(--panel-2);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -7266,10 +7278,10 @@
     voiceMsgAudioEl.volume = voiceMsgVolume;
     try { localStorage.setItem('fh_voice_volume', String(voiceMsgVolume)); } catch (e) {}
     const pct = Math.round(voiceMsgVolume * 100);
-    document.querySelectorAll('.voice-message-player').forEach(player => {
-      const slider = player.querySelector('.voice-volume-slider');
-      const valueEl = player.querySelector('.voice-volume-value');
-      const btn = player.querySelector('.voice-volume-btn');
+    document.querySelectorAll('.voice-message-player-row').forEach(row => {
+      const slider = row.querySelector('.voice-volume-slider');
+      const valueEl = row.querySelector('.voice-volume-value');
+      const btn = row.querySelector('.voice-volume-btn');
       if (slider) slider.value = pct;
       if (valueEl) valueEl.textContent = pct + '%';
       if (btn) btn.textContent = voiceVolumeIcon(voiceMsgVolume);
@@ -7396,10 +7408,12 @@
 
   function renderVoiceMessageHtml(url) {
     return `
-      <div class="voice-message-player">
-        <button type="button" class="voice-play-btn" data-src="${escapeHtml(url)}">▶</button>
-        <div class="voice-progress"><div class="voice-progress-fill"></div></div>
-        <span class="voice-msg-time">0:00</span>
+      <div class="voice-message-player-row">
+        <div class="voice-message-player">
+          <button type="button" class="voice-play-btn" data-src="${escapeHtml(url)}">▶</button>
+          <div class="voice-progress"><div class="voice-progress-fill"></div></div>
+          <span class="voice-msg-time">0:00</span>
+        </div>
         <button type="button" class="voice-volume-btn" title="Громкость">${voiceVolumeIcon(voiceMsgVolume)}</button>
         <div class="voice-volume-popover">
           <input type="range" class="voice-volume-slider" min="0" max="100" step="1" value="${Math.round(voiceMsgVolume * 100)}">
