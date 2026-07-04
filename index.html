@@ -2529,7 +2529,18 @@
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  /* Отдельная маленькая обёртка ИМЕННО вокруг кнопки громкости и её
+     попапа — раньше position:relative стоял на всей .voice-message-player-row,
+     и всплывающий слайдер позиционировался "справа:0" от ВСЕЙ строки
+     целиком (которая шире, чем кажется — тянется на всю доступную
+     ширину), из-за чего попап улетал далеко вправо от самой кнопки.
+     Теперь у попапа свой тесный "якорь" размером точно с кнопку. */
+  .voice-volume-wrap {
     position: relative;
+    flex-shrink: 0;
+    display: flex;
   }
 
   .voice-message-player {
@@ -7421,10 +7432,12 @@
           <div class="voice-progress"><div class="voice-progress-fill"></div></div>
           <span class="voice-msg-time">0:00</span>
         </div>
-        <button type="button" class="voice-volume-btn" title="Громкость">${voiceVolumeIcon(voiceMsgVolume)}</button>
-        <div class="voice-volume-popover">
-          <input type="range" class="voice-volume-slider" min="0" max="100" step="1" value="${Math.round(voiceMsgVolume * 100)}">
-          <span class="voice-volume-value">${Math.round(voiceMsgVolume * 100)}%</span>
+        <div class="voice-volume-wrap">
+          <button type="button" class="voice-volume-btn" title="Громкость">${voiceVolumeIcon(voiceMsgVolume)}</button>
+          <div class="voice-volume-popover">
+            <input type="range" class="voice-volume-slider" min="0" max="100" step="1" value="${Math.round(voiceMsgVolume * 100)}">
+            <span class="voice-volume-value">${Math.round(voiceMsgVolume * 100)}%</span>
+          </div>
         </div>
       </div>
     `;
