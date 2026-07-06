@@ -2978,6 +2978,10 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
+  .card .meta .card-upload-date {
+    text-transform: none;
+    letter-spacing: normal;
+  }
 
   /* Никнейм автора на карточке фанфика в ленте — то же, что .home-card-author
      на главной, но без uppercase/letter-spacing из .meta (обычное имя). */
@@ -4429,9 +4433,16 @@
   }
   .home-card-stats {
     display: flex;
+    flex-wrap: wrap;
+    row-gap: 2px;
     gap: 11px;
     font-size: 12.5px;
     color: var(--muted);
+  }
+  .home-card-date {
+    flex-basis: 100%;
+    font-size: 11.5px;
+    opacity: 0.85;
   }
 
   .home-see-more {
@@ -10331,7 +10342,7 @@
         </div>` : '';
       return `<div class="card card-type-${item.content_type}" data-content-type="${item.content_type}">
         ${mediaHtml}
-        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''}</div>
+        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
         <h3>${escapeHtml(item.title)}</h3>
         ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}
         <div class="card-footer">
@@ -10363,7 +10374,7 @@
           ${coverTag}
           <span class="card-collection-badge">🖼️ ${item.item_count || 0}</span>
         </div>
-        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span></div>
+        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span> · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
         <h3>${escapeHtml(item.title)}</h3>
         <div class="card-footer">
           <div class="card-footer-left">
@@ -12682,7 +12693,7 @@
       return `
       <div class="card card-type-${item.content_type}">
         ${mediaHtml}
-        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''}</div>
+        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
         ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
         <h3>${escapeHtml(item.title)}</h3>
         ${descHtml}
@@ -12908,6 +12919,7 @@
               ${canTrackViews ? `<span>👁 ${formatViews(item.views)}</span>` : ''}
               <span>♥ ${item.likes || 0}</span>
               <span>💬 ${item.comments_count || 0}</span>
+              <span class="home-card-date">${timeAgo(item.created_at)}</span>
             </div>
           </div>
         </div>
@@ -12982,7 +12994,7 @@
           ${coverTag}
           <span class="card-collection-badge">🖼️ ${item.item_count || 0}</span>
         </div>
-        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span></div>
+        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span> · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
         <h3>${escapeHtml(item.title)}</h3>
         ${descHtml}
         <div class="card-footer">
