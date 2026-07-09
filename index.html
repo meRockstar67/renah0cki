@@ -5989,8 +5989,19 @@
     if (res.status === 401 || res.status === 403) {
       let text;
       try { text = await res.text(); } catch(e) { text = ''; }
+      // PostgREST возвращает разные варианты для истёкшего токена в
+      // зависимости от версии/места проверки — либо {message: "JWT expired"}
+      // (код PGRST301), либо {code: "PGRST303", message: "expired"} (ошибка
+      // валидации claim'ов exp). Раньше здесь проверялось только точное
+      // совпадение message === 'JWT expired', из-за чего PGRST303 не
+      // распознавался как истёкший токен и запрос просто падал с ошибкой
+      // прямо в лицо пользователю вместо тихого обновления сессии.
       let isExpired = false;
-      try { isExpired = JSON.parse(text).message === 'JWT expired'; } catch (e) {}
+      try {
+        const parsed = JSON.parse(text);
+        isExpired = parsed.code === 'PGRST301' || parsed.code === 'PGRST303'
+          || /expired/i.test(parsed.message || '');
+      } catch (e) {}
       if (isExpired) {
         const refreshed = await refreshTokenIfNeeded();
         if (refreshed) {
@@ -11428,7 +11439,7 @@
       const source_url = b2result.url;
 
       const is_blurred = document.getElementById('artBlurCheckbox').checked;
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/content`, {
+      const res = await fetchAuth(`${SUPABASE_URL}/rest/v1/content`, {
         method: 'POST',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ title, source_url, content_type: 'art', status: 'draft', submitted_by: currentUser.id, tags: artTagPicker.getTags(), is_blurred })
@@ -11504,7 +11515,7 @@
         source_url = b2result.url;
       }
 
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/content`, {
+      const res = await fetchAuth(`${SUPABASE_URL}/rest/v1/content`, {
         method: 'POST',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ title, source_url, content_type: 'video', status: 'draft', submitted_by: currentUser.id, tags: videoTagPicker.getTags() })
@@ -11901,7 +11912,7 @@
 
       btn.textContent = 'Отправляем...';
       showContentStatus('', '');
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/content`, {
+      const res = await fetchAuth(`${SUPABASE_URL}/rest/v1/content`, {
         method: 'POST',
         headers: {
           apikey: SUPABASE_KEY,
