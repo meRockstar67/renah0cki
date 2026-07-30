@@ -5269,7 +5269,10 @@
   </div>
 
   <div class="home-page-layout" id="homePageLayout" style="display:none;">
-  <div class="home-top-row" id="homeTopRow">
+  <div style="width:100%; text-align:center; margin: 24px 0 32px;">
+    <h1 style="font-size:clamp(48px, 12vw, 140px); font-weight:900; line-height:1; letter-spacing:-2px; margin:0;">SWINLINE</h1>
+  </div>
+  <div class="home-top-row" id="homeTopRow" style="display:none;">
   <div class="home-moderators-sidebar" id="homeColModerators">
     <div class="home-col-header">
       <h3>Модераторы</h3>
@@ -5968,26 +5971,77 @@
     }
   });
 
+  // Защита от гонки: если обновление токена уже выполняется (например, таймер
+  // и visibilitychange сработали почти одновременно), все вызовы ждут один и
+  // тот же запрос вместо того, чтобы каждый слал свой — иначе второй запрос
+  // придёт уже с "протухшим" (ротированным) refresh_token, и Supabase может
+  // в ответ отозвать всю сессию целиком (частая причина внезапных полных
+  // разлогинов).
+  let refreshInFlight = null;
+
   async function refreshTokenIfNeeded() {
     if (!currentRefreshToken) return false;
+    if (refreshInFlight) return refreshInFlight;
+
+    refreshInFlight = (async () => {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: currentRefreshToken })
+        });
+        if (!res.ok) {
+          // Возможно, токен уже обновился в другой вкладке между чтением
+          // localStorage и этим запросом — подхватываем актуальную версию
+          // вместо того, чтобы считать это провалом и разлогинивать.
+          const fresh = readSessionFromStorage();
+          if (fresh && fresh.refreshToken && fresh.refreshToken !== currentRefreshToken) {
+            currentUserToken = fresh.token;
+            currentRefreshToken = fresh.refreshToken;
+            return true;
+          }
+          return false;
+        }
+        const data = await res.json();
+        if (!data.access_token) return false;
+        currentUserToken = data.access_token;
+        currentRefreshToken = data.refresh_token || currentRefreshToken;
+        saveSession();
+        return true;
+      } catch (e) {
+        console.error('Ошибка обновления токена:', e);
+        return false;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+
+    return refreshInFlight;
+  }
+
+  function readSessionFromStorage() {
     try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: currentRefreshToken })
-      });
-      if (!res.ok) return false;
-      const data = await res.json();
-      if (!data.access_token) return false;
-      currentUserToken = data.access_token;
-      currentRefreshToken = data.refresh_token || currentRefreshToken;
-      saveSession();
-      return true;
+      const saved = localStorage.getItem('fh_session');
+      return saved ? JSON.parse(saved) : null;
     } catch (e) {
-      console.error('Ошибка обновления токена:', e);
-      return false;
+      return null;
     }
   }
+
+  // Синхронизация токена между вкладками: если одна вкладка обновила токен,
+  // остальные подхватывают свежий вместо попытки использовать уже
+  // ротированный (невалидный) refresh_token.
+  window.addEventListener('storage', (e) => {
+    if (e.key !== 'fh_session' || !e.newValue) return;
+    try {
+      const fresh = JSON.parse(e.newValue);
+      if (fresh.refreshToken && fresh.refreshToken !== currentRefreshToken) {
+        currentUserToken = fresh.token;
+        currentRefreshToken = fresh.refreshToken;
+        scheduleTokenRefresh();
+      }
+    } catch (e2) {}
+  });
 
   // Выполняет fetch; если вернулся JWT expired — обновляет токен и повторяет запрос
   async function fetchAuth(url, options = {}) {
