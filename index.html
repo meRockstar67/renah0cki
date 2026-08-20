@@ -10973,8 +10973,15 @@
   // Загрузка файла через Cloudflare Worker → Backblaze B2
   async function uploadToB2(file, userId, onProgress) {
     return new Promise((resolve, reject) => {
+      // Если совсем нет соединения — не тратим время на попытку запроса.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        reject(new Error('Нет подключения к интернету (устройство офлайн)'));
+        return;
+      }
+
       const xhr = new XMLHttpRequest();
       xhr.open('POST', B2_WORKER_URL + '/upload');
+      xhr.timeout = 60000; // 60с — на мобильной сети большие файлы могут висеть дольше дефолтного таймаута
       xhr.setRequestHeader('Content-Type', file.type);
       // encodeURIComponent для имени файла в заголовке — HTTP-заголовки требуют ISO-8859-1.
       xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
@@ -10986,12 +10993,33 @@
       }
       xhr.onload = () => {
         if (xhr.status < 300) {
-          resolve(JSON.parse(xhr.responseText));
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (parseErr) {
+            reject(new Error(`Воркер вернул невалидный JSON (status ${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
+          }
         } else {
-          reject(new Error('Ошибка воркера: ' + xhr.responseText));
+          reject(new Error(`Ошибка воркера (status ${xhr.status} ${xhr.statusText || ''}): ${xhr.responseText.slice(0, 300)}`));
         }
       };
-      xhr.onerror = () => reject(new Error('Сетевая ошибка при загрузке'));
+      xhr.ontimeout = () => {
+        reject(new Error(`Таймаут: воркер не ответил за ${xhr.timeout / 1000}с (файл большой или сервер завис)`));
+      };
+      xhr.onabort = () => {
+        reject(new Error('Загрузка отменена (abort)'));
+      };
+      xhr.onerror = () => {
+        // Сюда попадают: обрыв сети, недоступный хост, CORS-блок, mixed content, DNS ошибка.
+        // Браузер по соображениям безопасности не даёт точный код причины через XHR,
+        // поэтому даём максимум контекста, что удалось узнать на клиенте.
+        const details = [
+          `readyState=${xhr.readyState}`,
+          `status=${xhr.status || 'нет ответа'}`,
+          `url=${B2_WORKER_URL}/upload`,
+          navigator.onLine === false ? 'устройство офлайн' : 'устройство онлайн'
+        ].join(', ');
+        reject(new Error(`Сетевая ошибка при загрузке (${details}). Возможные причины: воркер cdn.renah0cki.xyz недоступен, упал CORS, или оборвалось соединение.`));
+      };
       xhr.send(file);
     });
   }
