@@ -766,6 +766,61 @@
     position: relative;
   }
 
+  /* ─── Skeleton-заглушки на время загрузки ленты (вместо текста
+     "Загрузка...") — форма повторяет .card, чтобы не было "прыжка"
+     разметки, когда реальные карточки подгрузятся. ─────────────────────── */
+  .skeleton-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .skeleton-img {
+    width: calc(100% + 36px);
+    aspect-ratio: 4 / 3;
+    margin: -18px -18px 12px -18px;
+    border-radius: 10px;
+    background: var(--panel-2);
+  }
+  .skeleton-line {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--panel-2);
+    margin-bottom: 8px;
+  }
+  .skeleton-line.short { width: 55%; }
+  .skeleton-line.tiny { width: 35%; height: 10px; }
+  .skeleton-img, .skeleton-line {
+    position: relative;
+    overflow: hidden;
+  }
+  .skeleton-img::after, .skeleton-line::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    animation: skeleton-shimmer 1.4s infinite;
+  }
+  @keyframes skeleton-shimmer {
+    100% { transform: translateX(100%); }
+  }
+  /* Сентинел для infinite scroll — невидимый, просто маркер конца ленты
+     для IntersectionObserver. */
+  #feedLoadMoreSentinel {
+    grid-column: 1 / -1;
+    height: 1px;
+  }
+  .feed-loading-more {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 16px;
+    color: var(--text-dim, #999);
+    font-size: 13px;
+  }
+
   .pinned-video-card {
     border: 1px solid var(--accent);
     box-shadow: 0 0 0 1px rgba(180, 140, 255, 0.15);
@@ -12327,7 +12382,7 @@
     const homeLayoutEl = document.getElementById('homeLayout');
     const homePageLayoutEl = document.getElementById('homePageLayout');
     const feedLayoutWrapEl = document.getElementById('feedLayoutWrap');
-    feedEl.innerHTML = `<p class="empty">Загрузка...</p>`;
+    feedEl.innerHTML = skeletonCardsHtml(6);
     pinnedEl.innerHTML = '';
 
     // Вкладка «Сборник» — своя таблица (без фильтров контента); «Главная» — отдельная раскладка (#homePageLayout).
@@ -12469,6 +12524,20 @@
     renderFeedCards(sortFeedItems(filtered));
   }
 
+  // Skeleton-заглушка на время загрузки — карточки той же формы, что и
+  // реальные .card, чтобы не было "прыжка" разметки после подгрузки данных.
+  function skeletonCardsHtml(count) {
+    const card = `
+      <div class="skeleton-card">
+        <div class="skeleton-img"></div>
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line tiny"></div>
+      </div>
+    `;
+    return card.repeat(count);
+  }
+
   function renderFeedCards(data) {
     const feedEl = document.getElementById('feed');
 
@@ -12566,14 +12635,14 @@
     const moderatorsPanelEl = document.getElementById('homeModeratorsPanel');
 
     renderHomeTags(tagsPanelEl);
-    artGridEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
-    videoGridEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    artGridEl.innerHTML = skeletonCardsHtml(2);
+    videoGridEl.innerHTML = skeletonCardsHtml(2);
     streamersPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     respectPlusPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     moderatorsPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
 
     const reelTrackEl = document.getElementById('reelTrack');
-    if (reelTrackEl) reelTrackEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    if (reelTrackEl) reelTrackEl.innerHTML = skeletonCardsHtml(3);
 
     const [artData, videoData, streamersData, respectPlusData, moderatorsData, reelVideos] = await Promise.all([
       fetchHomeContent('art', 2),
