@@ -5049,6 +5049,9 @@
       justify-content: flex-start;
       row-gap: 8px;
     }
+    /* Кнопка аккаунта/входа всегда прижата к правому краю этой строки,
+       сколько бы кнопок ни было слева (модерация, правила, уведомления). */
+    .header-right .auth-area { margin-left: auto; }
     .mod-btn { font-size: 12px; padding: 7px 10px; }
     .nav-tabs {
       order: 4;
@@ -5306,6 +5309,7 @@
       justify-content: flex-start;
       row-gap: 8px;
     }
+    .header-right .auth-area { margin-left: auto; }
 
     /* Меню превращается в выпадающий вертикальный список ("бургер-меню"),
        раскрывающийся под шапкой на всю ширину экрана. */
