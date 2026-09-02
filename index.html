@@ -328,6 +328,29 @@
     gap: 10px;
   }
 
+  /* ─── ПК: возвращаем исходный порядок кнопок (как было до мобильных
+     правок) ───────────────────────────────────────────────────────────
+     На мобильном header-right/header-account-toggle специально разнесены
+     по разным строкам (см. мобильные медиа-запросы ниже) — трогать их
+     нельзя. На ПК же обе группы должны визуально сливаться в один ряд
+     в исходном порядке: модерация → правила → уведомления → стрик →
+     аккаунт. Раскрываем обе группы через display:contents (только на
+     ПК) и расставляем порядок явно по id, не меняя мобильную разметку. */
+  @media (min-width: 769px) {
+    .header-right,
+    .header-account-toggle {
+      display: contents;
+    }
+    #moderationBtn { order: 1; }
+    #commentReportsBtn { order: 2; }
+    #addCollectionBtn { order: 3; }
+    #rulesBtn { order: 4; }
+    #notifWrap { order: 5; }
+    #streakWrap { order: 6; }
+    #authArea { order: 7; }
+    #mobileMenuToggle { order: 8; }
+  }
+
   .mod-btn {
     background: var(--panel);
     border: 1px solid var(--border);
