@@ -57,6 +57,25 @@
     line-height: 1;
   }
 
+  .header-user-namestack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    margin-top: -3px;
+  }
+
+  .streak-badge-mini {
+    font-size: 11px;
+    padding: 1px 7px;
+    gap: 3px;
+  }
+
+  .streak-badge-mini .streak-fire {
+    font-size: 12px;
+  }
+
   /* Осень: 1-90 дней */
   .streak-badge.tier-autumn {
     color: #ffb84d;
@@ -8590,10 +8609,12 @@
       const icon = roleIcon(currentUser.role);
       authArea.innerHTML = `
         <div class="header-user-wrap">
-          <span id="streakBadge" class="streak-badge" style="display:none;"></span>
           <span class="header-user" id="openProfileBtn" title="Открыть меню профиля">
             <img class="avatar-circle" src="${escapeHtml(avatar)}" alt="">
-            <span class="header-username${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(displayName)}</span>
+            <span class="header-user-namestack">
+              <span class="header-username${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(displayName)}</span>
+              <span id="streakBadge" class="streak-badge streak-badge-mini" style="display:none;"></span>
+            </span>
             ${icon ? `<span class="role-icon" title="${roleLabel(currentUser.role) || 'Пользователь'}">${icon}</span>` : ''}
             <span class="header-user-hint">▾</span>
           </span>
