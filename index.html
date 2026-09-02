@@ -516,23 +516,41 @@
   /* ─── Стрик-кнопка в шапке (квадратная, как уведомления) ───────────── */
   .streak-wrap { position: relative; }
 
-  .streak-btn svg { color: var(--accent); fill: none; stroke: currentColor; }
-
-  .streak-count-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    min-width: 17px;
-    height: 17px;
-    padding: 0 4px;
-    border-radius: 999px;
-    background: var(--accent);
-    color: #1c130c;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 17px;
-    text-align: center;
+  .streak-btn {
+    width: auto;
+    min-width: 46px;
+    padding: 0 10px;
+    gap: 5px;
   }
+
+  .streak-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    color: var(--accent);
+    transition: color 0.3s ease;
+  }
+
+  .streak-count-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  /* Осень/зима/весна/лето — те же цвета, что и раньше у углового бейджа */
+  .streak-btn.tier-autumn .streak-icon { color: #ffb84d; }
+  .streak-btn.tier-winter .streak-icon { color: #9fd2ff; }
+  .streak-btn.tier-spring .streak-icon { color: #8fdc7a; }
+  .streak-btn.tier-summer .streak-icon { color: #ff5c4d; }
+
+  /* Стрик не обновлён за последние 24 часа — огонёк гаснет (серый) */
+  .streak-btn.stale .streak-icon { color: var(--muted) !important; }
 
   .streak-page-box { max-width: 480px; margin: 0 auto; }
 
@@ -589,7 +607,21 @@
     font-weight: 700;
     color: var(--accent);
     flex-shrink: 0;
+    transition: color 0.3s ease;
   }
+
+  .streak-item-count svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Не заходил сегодня — стрик считается неподтверждённым, огонёк гаснет */
+  .streak-item-count.stale { color: var(--muted); }
 
   .streak-list .empty {
     padding: 24px 14px;
@@ -5499,8 +5531,8 @@
     </div>
     <div class="streak-wrap" id="streakWrap" style="display:none;">
       <button type="button" id="streakBtn" class="notif-btn streak-btn" title="Топ по стрику" aria-label="Топ по стрику">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
-        <span class="streak-count-badge" id="streakCountBadge" style="display:none;">0</span>
+        <svg class="streak-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+        <span class="streak-count-text" id="streakCountBadge">0</span>
       </button>
     </div>
     <div class="auth-area" id="authArea">
@@ -8681,23 +8713,24 @@
   }
 
   let currentStreakCount = 0;
+  let currentStreakStale = false;
 
   function renderStreakBadge(count, opts = {}) {
     currentStreakCount = count || 0;
+    currentStreakStale = !!opts.stale;
     const btn = document.getElementById('streakBtn');
     const badge = document.getElementById('streakCountBadge');
     if (!btn || !badge) return;
-    if (!count) {
-      badge.style.display = 'none';
-      return;
-    }
-    const tier = streakTier(count);
+
+    const tier = streakTier(count || 0);
     const prevTier = btn.dataset.tier;
 
-    badge.style.display = 'block';
-    badge.textContent = count > 999 ? '999+' : String(count);
-    btn.title = `Стрик захода: ${count} ${dayWord(count)} подряд (${tier.label})`;
+    badge.textContent = count > 999 ? '999+' : String(count || 0);
+    btn.title = count
+      ? `Стрик захода: ${count} ${dayWord(count)} подряд (${tier.label})`
+      : 'Стрик захода: пока нет дней подряд';
     btn.dataset.tier = tier.cls;
+    btn.className = 'notif-btn streak-btn ' + tier.cls + (opts.stale ? ' stale' : '');
 
     if (opts.animateBump) {
       btn.classList.add('streak-bump');
@@ -8749,6 +8782,9 @@
       renderStreakBadge(newStreak, { animateBump: true });
     } catch (e) {
       console.error('Ошибка обновления стрика:', e);
+      // Не удалось подтвердить сегодняшний визит — гасим огонёк серым,
+      // чтобы было видно, что стрик не обновлён за последние 24 часа.
+      renderStreakBadge(currentStreakCount, { stale: true });
     }
   }
   // ─────────────────────────────────────────────────────────────────────
@@ -9131,6 +9167,7 @@
 
   // ─── Топ по стрику (кнопка-огонёк рядом с аватаром) ───────────────────────
   let streakTopCache = [];
+  const STREAK_FIRE_SVG = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>';
 
   function renderStreakWrap() {
     const wrap = document.getElementById('streakWrap');
@@ -9141,7 +9178,7 @@
   async function loadStreakTop() {
     const listEl = document.getElementById('streakList');
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,username,avatar_url,streak_count&streak_count=gt.0&order=streak_count.desc&limit=10`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,username,avatar_url,streak_count,last_visit_date&order=streak_count.desc.nullslast&limit=10`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
       streakTopCache = res.ok ? await res.json() : [];
@@ -9160,15 +9197,17 @@
       listEl.innerHTML = '<p class="empty">Пока никто не набрал стрик</p>';
       return;
     }
+    const today = new Date().toISOString().slice(0, 10);
     listEl.innerHTML = streakTopCache.map((p, i) => {
       const name = p.username || 'без имени';
       const avatar = p.avatar_url || presetToDataUrl('p0');
+      const isStale = p.last_visit_date !== today;
       return `
         <div class="streak-item" data-open-profile="${p.id}">
           <span class="streak-item-rank">${i + 1}</span>
           <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
           <span class="streak-item-name">${escapeHtml(name)}</span>
-          <span class="streak-item-count">🔥 ${p.streak_count || 0}</span>
+          <span class="streak-item-count${isStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${p.streak_count || 0}</span>
         </div>`;
     }).join('');
   }
@@ -9176,10 +9215,6 @@
   async function renderStreakMeRow() {
     const row = document.getElementById('streakMeRow');
     if (!row || !currentUser) return;
-    if (!currentStreakCount) {
-      row.style.display = 'none';
-      return;
-    }
     let rank = streakTopCache.findIndex(p => String(p.id) === String(currentUser.id)) + 1;
     if (!rank) {
       try {
@@ -9199,6 +9234,7 @@
     row.innerHTML = `
       <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
       <span class="streak-item-name">${escapeHtml(currentUser.username || 'без имени')}</span>
+      <span class="streak-item-count${currentStreakStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${currentStreakCount}</span>
       <span class="streak-me-rank">#${rank || '?'}</span>
     `;
   }
