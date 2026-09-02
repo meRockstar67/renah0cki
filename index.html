@@ -180,6 +180,17 @@
     display: block;
   }
 
+  header h1 .logo-highlight {
+    display: inline-block;
+    background: var(--accent);
+    color: #1c130c;
+    padding: 1px 7px 2px;
+    border-radius: 6px;
+    margin-left: -6px;
+    position: relative;
+    top: 3px;
+  }
+
   /* Ники наследуют системный шрифт из body (-apple-system/Segoe UI/Roboto) —
      специально НЕ переопределяем font-family здесь: на устройствах с
      собственным UI-шрифтом (MIUI и т.п.) ник выглядит нужным образом.
@@ -5692,7 +5703,7 @@
 <body>
 
 <header>
-  <h1 id="siteLogo" style="cursor:pointer;"><img class="site-logo-icon" src="https://i.postimg.cc/MpyVftRB/streamer.png" alt="">renah0cki</h1>
+  <h1 id="siteLogo" style="cursor:pointer;"><img class="site-logo-icon" src="https://i.postimg.cc/MpyVftRB/streamer.png" alt="">rena<span class="logo-highlight">h0cki</span></h1>
   <nav class="nav-tabs" id="navTabs">
     <button class="nav-tab" data-filter="art"><span class="nav-tab-icon nav-tab-icon-art"></span>Фото</button>
     <button class="nav-tab" data-filter="video"><span class="nav-tab-icon nav-tab-icon-video"></span>Видео</button>
@@ -7287,10 +7298,26 @@
       SEVENTV_EMOTE_MAP = new Map(SEVENTV_EMOTES.map(e => [e.name, e]));
       sevenTvEmotesLoaded = true;
       refreshAllEmojiPickers();
+      refreshRenderedEmotes();
     } catch (err) {
       console.error('Не удалось загрузить эмоуты 7TV:', err);
       sevenTvEmotesLoaded = true; // не блокируем UI — пикер просто останется пустым
       refreshAllEmojiPickers();
+    }
+  }
+
+  // Комментарии/отзывы могут отрисоваться раньше, чем успеет подгрузиться
+  // список эмоутов 7TV (это отдельный сетевой запрос к 7tv.io, идущий
+  // параллельно с загрузкой ленты) — тогда имена эмоутов на момент рендера
+  // ещё не распознаются и остаются просто текстом. После того как эмоуты
+  // всё же подгрузились, пересобираем уже показанный текст, чтобы имена
+  // превратились в картинки без перезагрузки страницы.
+  function refreshRenderedEmotes() {
+    if (commentsCache && commentsCache.length && commentThread) {
+      renderSortedComments(commentThread);
+    }
+    if (reviewsCache && reviewsCache.length) {
+      loadReviews();
     }
   }
 
