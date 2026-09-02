@@ -8774,9 +8774,13 @@
       }
 
       const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      // Пропуск дня(-ей) больше не сбрасывает стрик до 1 — он просто
+      // "замораживается" на текущем значении, пока человек не зайдёт снова.
+      // Так тот, кто заходит без пропусков, постепенно уходит вперёд,
+      // а не остаётся на равных с тем, кто сбросился до 1.
       const newStreak = (profile.last_visit_date === yesterday)
         ? (profile.streak_count || 0) + 1
-        : 1;
+        : (profile.streak_count || 0) || 1;
 
       await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}`, {
         method: 'PATCH',
