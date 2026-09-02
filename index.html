@@ -5032,6 +5032,91 @@
      см. "Мобильная адаптация" ближе к концу файла. */
   /* ──────────────────────────────────────────────────────────────────── */
 
+  /* ─── Блок "Отзывы" на главной ────────────────────────────────────────── */
+  .review-block-header { display: flex; align-items: center; justify-content: space-between; }
+  .review-write-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .review-write-btn:hover { background: var(--accent); border-color: var(--accent); color: #1c130c; }
+
+  .review-form-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .review-textarea {
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .review-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+  .review-track {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    padding: 10px 2px 14px;
+  }
+  .review-track::-webkit-scrollbar { display: none; }
+  .review-card {
+    flex: 0 0 260px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .review-top { display: flex; align-items: center; gap: 8px; }
+  .review-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .review-name { font-weight: 600; font-size: 13.5px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .review-time { font-size: 11.5px; color: var(--muted); margin-left: auto; white-space: nowrap; flex-shrink: 0; }
+  .review-text {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text);
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .review-like-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    margin-top: auto;
+    align-self: flex-start;
+  }
+  .review-like-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .review-like-btn.liked { color: var(--accent); }
+  .review-like-btn.liked svg { fill: var(--accent); stroke: var(--accent); }
+  .review-delete-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; margin-left: 4px;
+  }
+  .review-delete-btn:hover { color: #e05555; }
+  @media (max-width: 768px) {
+    .review-card { flex: 0 0 220px; }
+  }
+  /* ──────────────────────────────────────────────────────────────────── */
+
   /* ─── Мобильная версия ────────────────────────────────────────────────
      Общий брейкпоинт 760px — перестройка шапки, отступов и сеток под
      touch-экраны. Внутри — доп. брейкпоинт 480px для совсем узких
@@ -5708,16 +5793,24 @@
   </div>
   </div>
 
-  <div class="home-channel-reel" id="homeChannelReel">
-    <div class="home-col-header">
-      <h3>Новое на канале</h3>
+  <div class="home-channel-reel" id="homeReviewsBlock">
+    <div class="home-col-header review-block-header">
+      <h3>Отзывы</h3>
+      <button type="button" class="review-write-btn" id="reviewWriteBtn" style="display:none;">Написать отзыв</button>
+    </div>
+    <div class="review-form-wrap" id="reviewFormWrap" style="display:none;">
+      <textarea id="reviewTextInput" class="review-textarea" maxlength="500" placeholder="Ваш отзыв..."></textarea>
+      <div class="review-form-actions">
+        <button type="button" id="reviewCancelBtn" class="secondary small">Отмена</button>
+        <button type="button" id="reviewSubmitBtn" class="small">Отправить</button>
+      </div>
     </div>
     <div class="reel-wrap">
-      <button type="button" class="reel-arrow reel-arrow-left" id="reelArrowLeft" aria-label="Прокрутить назад" disabled>‹</button>
-      <div class="reel-track" id="reelTrack">
+      <button type="button" class="reel-arrow reel-arrow-left" id="reviewArrowLeft" aria-label="Прокрутить назад" disabled>‹</button>
+      <div class="review-track" id="reviewTrack">
         <p class="home-empty">Загрузка...</p>
       </div>
-      <button type="button" class="reel-arrow reel-arrow-right" id="reelArrowRight" aria-label="Прокрутить вперёд">›</button>
+      <button type="button" class="reel-arrow reel-arrow-right" id="reviewArrowRight" aria-label="Прокрутить вперёд">›</button>
     </div>
   </div>
   </div>
@@ -8946,6 +9039,7 @@
     }
     renderNotifWrap();
     renderStreakWrap();
+    updateReviewWriteBtnVisibility();
   }
 
   // Уведомления собираются на лету (нет отдельной таблицы): лайки/комменты к своим постам.
@@ -12675,17 +12769,228 @@
     rightBtn.disabled = trackEl.scrollLeft + trackEl.clientWidth >= trackEl.scrollWidth - 4;
   }
 
-  const reelTrackEl = document.getElementById('reelTrack');
-  if (reelTrackEl) reelTrackEl.addEventListener('scroll', updateReelArrows);
-  const reelArrowLeftEl = document.getElementById('reelArrowLeft');
-  if (reelArrowLeftEl) reelArrowLeftEl.addEventListener('click', () => {
-    document.getElementById('reelTrack')?.scrollBy({ left: -640, behavior: 'smooth' });
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Блок "Отзывы" на главной ──────────────────────────────────────────────
+  let reviewsCache = [];
+
+  async function fetchReviews() {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/reviews?select=*&order=created_at.desc&limit=30`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+      );
+      if (!res.ok) throw new Error(await res.text());
+      return await res.json();
+    } catch (e) {
+      console.error('Не удалось загрузить отзывы:', e);
+      return [];
+    }
+  }
+
+  async function fetchMyReviewLikes(reviewIds) {
+    if (!currentUser || !currentUserToken || !reviewIds.length) return new Set();
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/review_likes?review_id=in.(${reviewIds.join(',')})&user_id=eq.${currentUser.id}&select=review_id`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
+      );
+      if (!res.ok) return new Set();
+      const rows = await res.json();
+      return new Set(rows.map(r => r.review_id));
+    } catch (e) {
+      return new Set();
+    }
+  }
+
+  async function loadReviews() {
+    const trackEl = document.getElementById('reviewTrack');
+    if (trackEl) trackEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    const reviews = await fetchReviews();
+    const likedSet = await fetchMyReviewLikes(reviews.map(r => r.id));
+    reviewsCache = reviews;
+    renderReviews(reviews, likedSet);
+  }
+
+  function renderReviews(reviews, likedSet) {
+    const trackEl = document.getElementById('reviewTrack');
+    if (!trackEl) return;
+    likedSet = likedSet || new Set();
+    if (!reviews || !reviews.length) {
+      trackEl.innerHTML = `<p class="home-empty">Пока нет отзывов — будьте первым!</p>`;
+      updateReviewArrows();
+      return;
+    }
+    const canModerate = currentUser && isModeratorOrHigher(currentUser.role);
+    trackEl.innerHTML = reviews.map(r => {
+      const isLiked = likedSet.has(r.id);
+      const isOwn = currentUser && currentUser.id === r.user_id;
+      const avatar = r.avatar_url || presetToDataUrl('p0');
+      return `
+        <div class="review-card" data-review-id="${r.id}">
+          <div class="review-top">
+            <img class="review-avatar" src="${escapeHtml(avatar)}" alt="">
+            <span class="review-name">${escapeHtml(r.username || 'без имени')}</span>
+            <span class="review-time">${timeAgo(r.created_at)}</span>
+          </div>
+          <p class="review-text">${escapeHtml(r.text)}</p>
+          <button type="button" class="review-like-btn${isLiked ? ' liked' : ''}" data-review-id="${r.id}">
+            <svg viewBox="0 0 24 24"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg>
+            <span class="review-like-count">${r.likes || 0}</span>
+          </button>
+          ${(isOwn || canModerate) ? `<button type="button" class="review-delete-btn" data-review-id="${r.id}">Удалить</button>` : ''}
+        </div>
+      `;
+    }).join('');
+    trackEl.scrollLeft = 0;
+    updateReviewArrows();
+
+    trackEl.querySelectorAll('.review-like-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleReviewLike(btn.dataset.reviewId, btn));
+    });
+    trackEl.querySelectorAll('.review-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteReview(btn.dataset.reviewId));
+    });
+  }
+
+  function updateReviewArrows() {
+    const trackEl = document.getElementById('reviewTrack');
+    const leftBtn = document.getElementById('reviewArrowLeft');
+    const rightBtn = document.getElementById('reviewArrowRight');
+    if (!trackEl || !leftBtn || !rightBtn) return;
+    leftBtn.disabled = trackEl.scrollLeft <= 4;
+    rightBtn.disabled = trackEl.scrollLeft + trackEl.clientWidth >= trackEl.scrollWidth - 4;
+  }
+
+  const reviewTrackEl = document.getElementById('reviewTrack');
+  if (reviewTrackEl) reviewTrackEl.addEventListener('scroll', updateReviewArrows);
+  const reviewArrowLeftEl = document.getElementById('reviewArrowLeft');
+  if (reviewArrowLeftEl) reviewArrowLeftEl.addEventListener('click', () => {
+    document.getElementById('reviewTrack')?.scrollBy({ left: -560, behavior: 'smooth' });
   });
-  const reelArrowRightEl = document.getElementById('reelArrowRight');
-  if (reelArrowRightEl) reelArrowRightEl.addEventListener('click', () => {
-    document.getElementById('reelTrack')?.scrollBy({ left: 640, behavior: 'smooth' });
+  const reviewArrowRightEl = document.getElementById('reviewArrowRight');
+  if (reviewArrowRightEl) reviewArrowRightEl.addEventListener('click', () => {
+    document.getElementById('reviewTrack')?.scrollBy({ left: 560, behavior: 'smooth' });
   });
-  window.addEventListener('resize', updateReelArrows);
+  window.addEventListener('resize', updateReviewArrows);
+
+  async function toggleReviewLike(reviewId, btnEl) {
+    if (!currentUser || !currentUserToken) {
+      openOverlay('authOverlay');
+      return;
+    }
+    const countEl = btnEl.querySelector('.review-like-count');
+    const wasLiked = btnEl.classList.contains('liked');
+    btnEl.disabled = true;
+    try {
+      if (wasLiked) {
+        await fetch(`${SUPABASE_URL}/rest/v1/review_likes?review_id=eq.${reviewId}&user_id=eq.${currentUser.id}`, {
+          method: 'DELETE',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/rpc/decrement_review_likes`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rid: Number(reviewId) })
+        });
+        countEl.textContent = Math.max(0, (Number(countEl.textContent) || 0) - 1);
+        btnEl.classList.remove('liked');
+      } else {
+        await fetch(`${SUPABASE_URL}/rest/v1/review_likes`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ review_id: Number(reviewId), user_id: currentUser.id })
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_review_likes`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rid: Number(reviewId) })
+        });
+        countEl.textContent = (Number(countEl.textContent) || 0) + 1;
+        btnEl.classList.add('liked');
+      }
+    } catch (e) {
+      console.error('Не удалось поставить лайк на отзыв:', e);
+    } finally {
+      btnEl.disabled = false;
+    }
+  }
+
+  async function submitReview(text) {
+    if (!currentUser || !currentUserToken) return;
+    if (currentUser.is_banned) {
+      alert('Вы не можете оставлять отзывы, так как заблокированы.');
+      return;
+    }
+    text = text.trim();
+    if (!text) return;
+    const submitBtn = document.getElementById('reviewSubmitBtn');
+    submitBtn.disabled = true;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          username: currentUser.username || 'без имени',
+          avatar_url: currentUser.avatar_url || null,
+          text
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      document.getElementById('reviewTextInput').value = '';
+      document.getElementById('reviewFormWrap').style.display = 'none';
+      await loadReviews();
+    } catch (e) {
+      alert('Не удалось отправить отзыв: ' + e.message);
+    } finally {
+      submitBtn.disabled = false;
+    }
+  }
+
+  async function deleteReview(reviewId) {
+    if (!currentUser || !currentUserToken) return;
+    if (!confirm('Удалить этот отзыв?')) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/reviews?id=eq.${reviewId}`, {
+        method: 'DELETE',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+      });
+      await loadReviews();
+    } catch (e) {
+      alert('Не удалось удалить отзыв: ' + e.message);
+    }
+  }
+
+  function updateReviewWriteBtnVisibility() {
+    const writeBtn = document.getElementById('reviewWriteBtn');
+    const formWrap = document.getElementById('reviewFormWrap');
+    if (!writeBtn) return;
+    if (currentUser && !currentUser.is_banned) {
+      writeBtn.style.display = '';
+    } else {
+      writeBtn.style.display = 'none';
+      if (formWrap) formWrap.style.display = 'none';
+    }
+  }
+
+  const reviewWriteBtnEl = document.getElementById('reviewWriteBtn');
+  if (reviewWriteBtnEl) reviewWriteBtnEl.addEventListener('click', () => {
+    if (!currentUser) { openOverlay('authOverlay'); return; }
+    const formWrap = document.getElementById('reviewFormWrap');
+    const isOpen = formWrap.style.display !== 'none';
+    formWrap.style.display = isOpen ? 'none' : 'flex';
+    if (!isOpen) document.getElementById('reviewTextInput').focus();
+  });
+  const reviewCancelBtnEl = document.getElementById('reviewCancelBtn');
+  if (reviewCancelBtnEl) reviewCancelBtnEl.addEventListener('click', () => {
+    document.getElementById('reviewFormWrap').style.display = 'none';
+    document.getElementById('reviewTextInput').value = '';
+  });
+  const reviewSubmitBtnEl = document.getElementById('reviewSubmitBtn');
+  if (reviewSubmitBtnEl) reviewSubmitBtnEl.addEventListener('click', () => {
+    submitReview(document.getElementById('reviewTextInput').value);
+  });
   // ──────────────────────────────────────────────────────────────────────────
 
   // ─── Обработчики панели фильтров (сортировка + время + теги) ──────────────
@@ -13206,16 +13511,17 @@
     respectPlusPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     moderatorsPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
 
-    const reelTrackEl = document.getElementById('reelTrack');
-    if (reelTrackEl) reelTrackEl.innerHTML = skeletonCardsHtml(3);
+    const reviewTrackElInit = document.getElementById('reviewTrack');
+    if (reviewTrackElInit) reviewTrackElInit.innerHTML = skeletonCardsHtml(3);
+    updateReviewWriteBtnVisibility();
 
-    const [artData, videoData, streamersData, respectPlusData, moderatorsData, reelVideos] = await Promise.all([
+    const [artData, videoData, streamersData, respectPlusData, moderatorsData] = await Promise.all([
       fetchHomeContent('art', 2),
       fetchHomeContent('video', 2),
       fetchStreamers(),
       fetchRespectPlus(),
       fetchModerators(),
-      getChannelReelVideos()
+      loadReviews()
     ]);
 
     renderHomeCardGrid(artGridEl, artData, 'art');
@@ -13223,7 +13529,6 @@
     renderHomeStreamers(streamersPanelEl, streamersData);
     renderHomeStreamers(respectPlusPanelEl, respectPlusData);
     renderHomeModerators(moderatorsPanelEl, moderatorsData);
-    renderChannelReel(reelVideos);
     // ждём кадр отрисовки, чтобы карточки/кнопки уже имели финальную
     // высоту (aspect-ratio у превью считается сразу, но на всякий
     // случай — после rAF геометрия точно готова)
