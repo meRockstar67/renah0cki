@@ -623,6 +623,16 @@
   /* Не заходил сегодня — стрик считается неподтверждённым, огонёк гаснет */
   .streak-item-count.stale { color: var(--muted); }
 
+  /* Цвета времён года — те же, что и у бейджа/кнопки стрика */
+  .streak-item-count.tier-autumn { color: #ffb84d; }
+  .streak-item-count.tier-winter { color: #9fd2ff; }
+  .streak-item-count.tier-spring { color: #8fdc7a; }
+  .streak-item-count.tier-summer { color: #ff5c4d; }
+  .streak-item-count.tier-autumn.stale,
+  .streak-item-count.tier-winter.stale,
+  .streak-item-count.tier-spring.stale,
+  .streak-item-count.tier-summer.stale { color: var(--muted); }
+
   .streak-list .empty {
     padding: 24px 14px;
     text-align: center;
@@ -5720,7 +5730,7 @@
     <button class="secondary small" id="streakPageBackBtn">← Назад</button>
   </div>
   <div class="rules-page-box streak-page-box">
-    <h2>🔥 Топ 10 по стрику</h2>
+    <h2>🔥 Топ 10 по посещаемости</h2>
     <div class="streak-list" id="streakList">
       <p class="empty">Загрузка...</p>
     </div>
@@ -9202,12 +9212,13 @@
       const name = p.username || 'без имени';
       const avatar = p.avatar_url || presetToDataUrl('p0');
       const isStale = p.last_visit_date !== today;
+      const tier = streakTier(p.streak_count || 0);
       return `
         <div class="streak-item" data-open-profile="${p.id}">
           <span class="streak-item-rank">${i + 1}</span>
           <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
           <span class="streak-item-name">${escapeHtml(name)}</span>
-          <span class="streak-item-count${isStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${p.streak_count || 0}</span>
+          <span class="streak-item-count ${tier.cls}${isStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${p.streak_count || 0}</span>
         </div>`;
     }).join('');
   }
@@ -9229,12 +9240,13 @@
       }
     }
     const avatar = currentUser.avatar_url || presetToDataUrl('p0');
+    const meTier = streakTier(currentStreakCount || 0);
     row.style.display = 'flex';
     row.dataset.openProfile = currentUser.id;
     row.innerHTML = `
       <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
       <span class="streak-item-name">${escapeHtml(currentUser.username || 'без имени')}</span>
-      <span class="streak-item-count${currentStreakStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${currentStreakCount}</span>
+      <span class="streak-item-count ${meTier.cls}${currentStreakStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${currentStreakCount}</span>
       <span class="streak-me-rank">#${rank || '?'}</span>
     `;
   }
