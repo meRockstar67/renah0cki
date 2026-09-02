@@ -5047,17 +5047,24 @@
   .review-write-btn:hover { background: var(--accent); border-color: var(--accent); color: #1c130c; }
 
   .review-form-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .review-input-wrap { position: relative; }
   .review-textarea {
     width: 100%;
-    min-height: 80px;
-    resize: vertical;
+    min-height: 40px;
+    max-height: 140px;
+    resize: none;
     background: var(--panel-2);
     border: 1px solid var(--border);
     border-radius: 10px;
     color: var(--text);
-    padding: 10px 12px;
+    padding: 10px 40px 10px 12px;
     font-size: 14px;
     font-family: inherit;
+    box-sizing: border-box;
+  }
+  .review-input-wrap .emoji-toggle-btn {
+    top: 6px;
+    right: 6px;
   }
   .review-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
@@ -5112,6 +5119,26 @@
     background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; margin-left: 4px;
   }
   .review-delete-btn:hover { color: #e05555; }
+  .review-card-pending { opacity: 0.7; border-style: dashed; }
+  .review-status-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--panel-2);
+    color: var(--muted);
+    width: fit-content;
+  }
+  .review-status-badge.rejected { color: #e05555; }
+  .mod-review-text {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 8px 0;
+  }
   @media (max-width: 768px) {
     .review-card { flex: 0 0 220px; }
   }
@@ -5799,7 +5826,13 @@
       <button type="button" class="review-write-btn" id="reviewWriteBtn" style="display:none;">Написать отзыв</button>
     </div>
     <div class="review-form-wrap" id="reviewFormWrap" style="display:none;">
-      <textarea id="reviewTextInput" class="review-textarea" maxlength="500" placeholder="Ваш отзыв..."></textarea>
+      <div class="review-input-wrap">
+        <textarea id="reviewTextInput" class="review-textarea" maxlength="500" placeholder="Ваш отзыв..." rows="1"></textarea>
+        <button type="button" class="emoji-toggle-btn" title="Смайлики">
+          <img class="emoji-toggle-icon" id="reviewEmojiToggleIcon" src="" alt="">
+        </button>
+        <div class="emoji-picker" id="reviewEmojiPicker"></div>
+      </div>
       <div class="review-form-actions">
         <button type="button" id="reviewCancelBtn" class="secondary small">Отмена</button>
         <button type="button" id="reviewSubmitBtn" class="small">Отправить</button>
@@ -6385,6 +6418,8 @@
   let currentRefreshToken = null;
 
   document.getElementById('supportEmojiToggleIcon').src = EMOJI_ICON_SRC;
+  const reviewEmojiToggleIconEl = document.getElementById('reviewEmojiToggleIcon');
+  if (reviewEmojiToggleIconEl) reviewEmojiToggleIconEl.src = EMOJI_ICON_SRC;
 
   const AVATAR_PRESETS = [
     { id: 'p0', color: '#f5a3c7', emoji: '😎' },
@@ -7326,7 +7361,7 @@
 
   // Окошко эмоутов переключается в position:fixed, чтобы не обрезалось overflow:hidden родителя.
   function positionEmojiPicker(toggleBtn, picker) {
-    const scopedWrap = toggleBtn.closest('.comment-input-wrap, .reply-form-inner');
+    const scopedWrap = toggleBtn.closest('.comment-input-wrap, .reply-form-inner, .review-input-wrap');
     if (!scopedWrap) return; // другие панели смайликов (например, в саппорт-чате) не трогаем
 
     const margin = 8;
@@ -7386,7 +7421,7 @@
     const emojiItem = e.target.closest('.emoji-item');
     if (emojiItem) {
       const picker = emojiItem.closest('.emoji-picker');
-      const wrap = picker.closest('.comment-input-wrap, .reply-form-inner, .support-input-pill');
+      const wrap = picker.closest('.comment-input-wrap, .reply-form-inner, .support-input-pill, .review-input-wrap');
       const textarea = wrap?.querySelector('textarea');
       const emoteName = emojiItem.dataset.emoteName;
       if (textarea && emoteName) {
@@ -9614,17 +9649,21 @@
 
   async function refreshModerationCount() {
     try {
-      const [contentRes, collectionsRes] = await Promise.all([
+      const [contentRes, collectionsRes, reviewsRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/content?select=id&status=eq.draft`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'count=exact' }
         }),
         fetch(`${SUPABASE_URL}/rest/v1/collections?select=id&status=eq.draft`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'count=exact' }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/reviews?select=id&status=eq.draft`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'count=exact' }
         })
       ]);
       const contentCount = parseInt((contentRes.headers.get('content-range') || '').split('/')[1] || '0', 10);
       const collectionsCount = parseInt((collectionsRes.headers.get('content-range') || '').split('/')[1] || '0', 10);
-      const count = contentCount + collectionsCount;
+      const reviewsCount = parseInt((reviewsRes.headers.get('content-range') || '').split('/')[1] || '0', 10);
+      const count = contentCount + collectionsCount + reviewsCount;
       const btn = document.getElementById('moderationBtn');
       btn.textContent = count !== 0 ? `На проверке (${count})` : 'На проверке';
     } catch (e) {
@@ -9818,27 +9857,32 @@
     const listEl = document.getElementById('moderationList');
     listEl.innerHTML = '<p class="empty">Загрузка...</p>';
     try {
-      const [contentRes, collectionsRes] = await Promise.all([
+      const [contentRes, collectionsRes, reviewsRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/content?status=eq.draft&order=created_at.desc&select=*`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
         }),
         fetch(`${SUPABASE_URL}/rest/v1/collections?status=eq.draft&order=created_at.desc&select=*`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/reviews?status=eq.draft&order=created_at.desc&select=*`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
         })
       ]);
       if (!contentRes.ok) throw new Error(await contentRes.text());
       if (!collectionsRes.ok) throw new Error(await collectionsRes.text());
+      if (!reviewsRes.ok) throw new Error(await reviewsRes.text());
       const data = await contentRes.json();
       const collectionsData = await collectionsRes.json();
+      const reviewsData = await reviewsRes.json();
 
-      if ((!data || data.length === 0) && (!collectionsData || collectionsData.length === 0)) {
+      if ((!data || data.length === 0) && (!collectionsData || collectionsData.length === 0) && (!reviewsData || reviewsData.length === 0)) {
         listEl.innerHTML = '<p class="empty">Нет работ на проверке</p>';
         return;
       }
 
-      // Ники авторов — одним запросом на все id сразу (и посты, и сборники),
+      // Ники авторов — одним запросом на все id сразу (и посты, и сборники, и отзывы),
       // чтобы модератор видел, кто именно прислал работу, не открывая её.
-      const authorIds = [...data, ...collectionsData].map(item => item.submitted_by);
+      const authorIds = [...data, ...collectionsData, ...reviewsData].map(item => item.submitted_by || item.user_id);
       const authorProfilesById = await fetchProfilesByIds(authorIds);
       const authorLineHtml = (authorId) => {
         const author = authorProfilesById[authorId];
@@ -9890,7 +9934,22 @@
       `;
       }).join('');
 
-      listEl.innerHTML = contentCardsHtml + collectionCardsHtml;
+      const reviewCardsHtml = reviewsData.map(item => {
+        return `
+        <div class="mod-card" data-kind="review" data-id="${item.id}" data-author="${item.user_id}">
+          <div class="meta">отзыв</div>
+          <p class="mod-review-text">${renderMessageBody(item.text)}</p>
+          ${authorLineHtml(item.user_id)}
+          <div class="mod-actions">
+            <button class="mod-approve" title="Одобрить">✅</button>
+            <button class="mod-reject" title="Отклонить">❌</button>
+            <button class="mod-ban" title="Заблокировать автора">🚫</button>
+          </div>
+        </div>
+      `;
+      }).join('');
+
+      listEl.innerHTML = contentCardsHtml + collectionCardsHtml + reviewCardsHtml;
     } catch (e) {
       console.error('Ошибка загрузки очереди модерации:', e);
       listEl.innerHTML = '<p class="empty">Ошибка загрузки</p>';
@@ -9902,9 +9961,11 @@
     if (!card) return;
     const itemId = card.dataset.id;
     const authorId = card.dataset.author;
-    const isCollection = card.dataset.kind === 'collection';
-    const apiPath = isCollection ? 'collections' : 'content';
-    const logField = isCollection ? 'collection_id' : 'content_id';
+    const kind = card.dataset.kind;
+    const isCollection = kind === 'collection';
+    const isReview = kind === 'review';
+    const apiPath = isReview ? 'reviews' : (isCollection ? 'collections' : 'content');
+    const logField = isReview ? 'review_id' : (isCollection ? 'collection_id' : 'content_id');
 
     // Клик по превью сборника — открываем галерею в лайтбоксе
     const previewEl = e.target.closest('[data-preview-collection]');
@@ -9949,7 +10010,7 @@
         });
         card.remove();
         refreshModerationCount();
-        loadFeed();
+        if (isReview) { loadReviews(); } else { loadFeed(); }
       } catch (err) {
         alert('Не удалось одобрить пост: ' + err.message);
         approveBtn.disabled = false;
@@ -9984,17 +10045,21 @@
         // должен видеть, за что отклонили), а вот файл в B2 больше никому
         // не нужен и просто занимает место в дневном лимите хранилища —
         // чистим его тем же роутом воркера, что и при бане автора.
-        try {
-          await fetch(`${B2_WORKER_URL}/user-delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUserToken}` },
-            body: JSON.stringify(isCollection ? { collectionId: itemId } : { contentId: itemId })
-          });
-        } catch (b2err) {
-          console.error('Не удалось очистить файл отклонённого поста в B2:', b2err);
+        // У отзывов нет файлов в B2 — очистку пропускаем.
+        if (!isReview) {
+          try {
+            await fetch(`${B2_WORKER_URL}/user-delete`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUserToken}` },
+              body: JSON.stringify(isCollection ? { collectionId: itemId } : { contentId: itemId })
+            });
+          } catch (b2err) {
+            console.error('Не удалось очистить файл отклонённого поста в B2:', b2err);
+          }
         }
         card.remove();
         refreshModerationCount();
+        if (isReview) loadReviews();
       } catch (err) {
         alert('Не удалось отклонить пост: ' + err.message);
         rejectBtn.disabled = false;
@@ -10061,6 +10126,12 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
       await fetch(`${SUPABASE_URL}/rest/v1/collections?submitted_by=eq.${authorId}&status=eq.draft`, {
+        method: 'DELETE',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+      });
+      // Черновики отзывов файлов не имеют — просто удаляем записи
+      // (moderation_log.review_id удалится каскадно вместе с ними).
+      await fetch(`${SUPABASE_URL}/rest/v1/reviews?user_id=eq.${authorId}&status=eq.draft`, {
         method: 'DELETE',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
@@ -12776,8 +12847,10 @@
 
   async function fetchReviews() {
     try {
+      const orParts = ['status.eq.published'];
+      if (currentUser) orParts.push(`user_id.eq.${currentUser.id}`);
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/reviews?select=*&order=created_at.desc&limit=30`,
+        `${SUPABASE_URL}/rest/v1/reviews?select=*&or=(${orParts.join(',')})&order=created_at.desc&limit=30`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -12826,18 +12899,27 @@
       const isLiked = likedSet.has(r.id);
       const isOwn = currentUser && currentUser.id === r.user_id;
       const avatar = r.avatar_url || presetToDataUrl('p0');
+      const isPublished = r.status === 'published' || !r.status;
+      const statusBadge = r.status === 'draft'
+        ? `<span class="review-status-badge">На проверке</span>`
+        : r.status === 'rejected'
+          ? `<span class="review-status-badge rejected">Отклонён${r.rejection_reason ? ': ' + escapeHtml(r.rejection_reason) : ''}</span>`
+          : '';
       return `
-        <div class="review-card" data-review-id="${r.id}">
+        <div class="review-card${isPublished ? '' : ' review-card-pending'}" data-review-id="${r.id}">
           <div class="review-top">
             <img class="review-avatar" src="${escapeHtml(avatar)}" alt="">
             <span class="review-name">${escapeHtml(r.username || 'без имени')}</span>
             <span class="review-time">${timeAgo(r.created_at)}</span>
           </div>
-          <p class="review-text">${escapeHtml(r.text)}</p>
+          <p class="review-text">${renderMessageBody(r.text)}</p>
+          ${statusBadge}
+          ${isPublished ? `
           <button type="button" class="review-like-btn${isLiked ? ' liked' : ''}" data-review-id="${r.id}">
             <svg viewBox="0 0 24 24"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg>
             <span class="review-like-count">${r.likes || 0}</span>
           </button>
+          ` : ''}
           ${(isOwn || canModerate) ? `<button type="button" class="review-delete-btn" data-review-id="${r.id}">Удалить</button>` : ''}
         </div>
       `;
@@ -12940,7 +13022,9 @@
       if (!res.ok) throw new Error(await res.text());
       document.getElementById('reviewTextInput').value = '';
       document.getElementById('reviewFormWrap').style.display = 'none';
+      notifyModeratorsOfSubmission('review', text.slice(0, 80));
       await loadReviews();
+      alert('Отзыв отправлен на проверку модератору и появится после одобрения.');
     } catch (e) {
       alert('Не удалось отправить отзыв: ' + e.message);
     } finally {
@@ -12991,6 +13075,8 @@
   if (reviewSubmitBtnEl) reviewSubmitBtnEl.addEventListener('click', () => {
     submitReview(document.getElementById('reviewTextInput').value);
   });
+  const reviewTextInputEl = document.getElementById('reviewTextInput');
+  if (reviewTextInputEl) reviewTextInputEl.addEventListener('input', () => autoResizeCommentTextarea(reviewTextInputEl));
   // ──────────────────────────────────────────────────────────────────────────
 
   // ─── Обработчики панели фильтров (сортировка + время + теги) ──────────────
