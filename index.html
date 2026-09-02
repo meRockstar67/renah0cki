@@ -4682,6 +4682,7 @@
     .home-streamers-sidebar .home-streamers-panel {
       padding: 10px;
       gap: 3px;
+      max-height: 300px;
     }
     .home-moderators-sidebar .home-streamer-item,
     .home-streamers-sidebar .home-streamer-item {
@@ -4854,6 +4855,29 @@
     gap: 7px;
   }
   .home-see-more:hover { background: var(--panel-2); border-color: var(--accent); }
+
+  .home-sponsor-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    text-decoration: none;
+    box-sizing: border-box;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .home-sponsor-cta:hover { background: var(--panel-2); color: var(--accent); }
+  #homeSponsorHeader { margin-bottom: 10px; }
   .home-see-more-icon { width: 19px; height: 19px; object-fit: contain; flex-shrink: 0; }
 
   .home-tags-panel {
@@ -4897,6 +4921,18 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-height: 392px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .home-streamers-panel::-webkit-scrollbar { width: 5px; }
+  .home-streamers-panel::-webkit-scrollbar-track { background: transparent; }
+  .home-streamers-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .home-streamers-panel-with-cta {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: none;
   }
   .home-streamer-item {
     display: flex;
@@ -5793,6 +5829,15 @@
     <div class="home-streamers-panel" id="homeModeratorsPanel">
       <p class="home-empty">Загрузка...</p>
     </div>
+    <div id="homeSponsorSection" style="display:none;">
+      <div class="home-col-header" id="homeSponsorHeader">
+        <h3>Спонсоры</h3>
+      </div>
+      <div class="home-streamers-panel home-streamers-panel-with-cta" id="homeSponsorPanel">
+        <p class="home-empty">Загрузка...</p>
+      </div>
+      <a class="home-sponsor-cta" id="homeSponsorCtaBtn" href="https://dalink.to/merockstar_" target="_blank" rel="noopener noreferrer">Стать спонсором</a>
+    </div>
   </div>
   <div class="home-layout" id="homeLayout">
     <div class="home-col" id="homeColArt">
@@ -5979,13 +6024,13 @@
   <div class="modal">
     <button class="close-x" data-close="profileOverlay">×</button>
     <h2>Редактировать профиль</h2>
-    <p class="hint">Никнейм и аватар видны всему сообществу.</p>
+    <p class="hint">Никнейм и аватар видны всему сообществу. Никнейм — это отображаемое имя на сайте, твой логин Twitch не меняется.</p>
 
     <label for="p-username">Никнейм</label>
     <input type="text" id="p-username" placeholder="Как тебя называть">
 
     <div class="name-color-section" id="nameColorSection" style="display:none;">
-      <label>Цвет ника <span style="font-size:11px;opacity:0.6;">— только для модераторов</span></label>
+      <label>Цвет ника <span style="font-size:11px;opacity:0.6;">— для модераторов, стримеров и спонсоров</span></label>
       <div class="name-color-palette" id="nameColorPalette"></div>
       <label style="margin-top:10px;">Краски (7TV)</label>
       <div class="name-color-palette" id="nameColorPaints"></div>
@@ -8099,7 +8144,7 @@
   function renderCommentNode(node) {
     const profile = node.profiles || {};
     const avatar = profile.avatar_url || presetToDataUrl('p0');
-    const name = profile.username || 'без имени';
+    const name = profile.display_name || profile.username || 'без имени';
     const nameColor = profile.name_color || null;
     const nameAttrs = nameColorAttrs(nameColor);
     const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
@@ -8125,7 +8170,7 @@
     if (node.author_liked && currentPostAuthor) {
       const authorAvatar = currentPostAuthor.avatar_url || presetToDataUrl('p0');
       authorLikeBadgeHtml = `
-            <span class="author-like-badge" title="Понравилось автору поста${currentPostAuthor.username ? ' (' + escapeHtml(currentPostAuthor.username) + ')' : ''}">
+            <span class="author-like-badge" title="Понравилось автору поста${(currentPostAuthor.display_name || currentPostAuthor.username) ? ' (' + escapeHtml(currentPostAuthor.display_name || currentPostAuthor.username) + ')' : ''}">
               <img class="author-like-avatar" src="${escapeHtml(authorAvatar)}" alt="">
               ${authorLikeHeartSvg}
             </span>`;
@@ -8166,7 +8211,7 @@
 
     const filterField = isCollection ? 'collection_id' : 'content_id';
     const fetchComments = (token) => fetch(
-      `${SUPABASE_URL}/rest/v1/comments?${filterField}=eq.${contentId}&is_deleted=eq.false&select=*,profiles(username,avatar_url,name_color,role)&order=created_at.asc`,
+      `${SUPABASE_URL}/rest/v1/comments?${filterField}=eq.${contentId}&is_deleted=eq.false&select=*,profiles(username,display_name,avatar_url,name_color,role)&order=created_at.asc`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` } }
     );
 
@@ -8354,7 +8399,7 @@
               const authorLikeHeartSvg = `<span class="author-like-heart"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg></span>`;
               badge = document.createElement('span');
               badge.className = 'author-like-badge';
-              badge.title = `Понравилось автору поста${currentPostAuthor.username ? ' (' + escapeHtml(currentPostAuthor.username) + ')' : ''}`;
+              badge.title = `Понравилось автору поста${(currentPostAuthor.display_name || currentPostAuthor.username) ? ' (' + escapeHtml(currentPostAuthor.display_name || currentPostAuthor.username) + ')' : ''}`;
               badge.innerHTML = `<img class="author-like-avatar" src="${escapeHtml(authorAvatar)}" alt="">${authorLikeHeartSvg}`;
               likeBtn.insertAdjacentElement('afterend', badge);
             }
@@ -9038,7 +9083,7 @@
 
   function renderAuthArea() {
     if (currentUser) {
-      const displayName = currentUser.username || 'без имени';
+      const displayName = currentUser.display_name || currentUser.username || 'без имени';
       const avatar = currentUser.avatar_url || presetToDataUrl('p0');
       const nameAttrs = nameColorAttrs(currentUser.name_color);
       const icon = roleIcon(currentUser.role);
@@ -9179,7 +9224,7 @@
 
       if (contentIds.length && wantLikes) {
         fetches.push(
-          fetch(`${SUPABASE_URL}/rest/v1/content_likes?content_id=in.(${contentIds.join(',')})&user_id=neq.${currentUser.id}&select=content_id,user_id,created_at,profiles(username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+          fetch(`${SUPABASE_URL}/rest/v1/content_likes?content_id=in.(${contentIds.join(',')})&user_id=neq.${currentUser.id}&select=content_id,user_id,created_at,profiles(username,display_name,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
             .then(r => r.ok ? r.json() : [])
             .then(rows => rows.map(row => ({
               type: 'like', kind: 'content', targetId: row.content_id,
@@ -9191,7 +9236,7 @@
       }
       if (contentIds.length && wantComments) {
         fetches.push(
-          fetch(`${SUPABASE_URL}/rest/v1/comments?content_id=in.(${contentIds.join(',')})&is_deleted=eq.false&author_id=neq.${currentUser.id}&select=id,content_id,author_id,body,created_at,profiles(username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+          fetch(`${SUPABASE_URL}/rest/v1/comments?content_id=in.(${contentIds.join(',')})&is_deleted=eq.false&author_id=neq.${currentUser.id}&select=id,content_id,author_id,body,created_at,profiles(username,display_name,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
             .then(r => r.ok ? r.json() : [])
             .then(rows => rows.map(row => ({
               type: 'comment', kind: 'content', targetId: row.content_id,
@@ -9204,7 +9249,7 @@
 
       if (collectionIds.length && wantLikes) {
         fetches.push(
-          fetch(`${SUPABASE_URL}/rest/v1/collection_likes?collection_id=in.(${collectionIds.join(',')})&user_id=neq.${currentUser.id}&select=collection_id,user_id,created_at,profiles(username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+          fetch(`${SUPABASE_URL}/rest/v1/collection_likes?collection_id=in.(${collectionIds.join(',')})&user_id=neq.${currentUser.id}&select=collection_id,user_id,created_at,profiles(username,display_name,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
             .then(r => r.ok ? r.json() : [])
             .then(rows => rows.map(row => ({
               type: 'like', kind: 'collection', targetId: row.collection_id,
@@ -9216,7 +9261,7 @@
       }
       if (collectionIds.length && wantComments) {
         fetches.push(
-          fetch(`${SUPABASE_URL}/rest/v1/comments?collection_id=in.(${collectionIds.join(',')})&is_deleted=eq.false&author_id=neq.${currentUser.id}&select=id,collection_id,author_id,body,created_at,profiles(username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+          fetch(`${SUPABASE_URL}/rest/v1/comments?collection_id=in.(${collectionIds.join(',')})&is_deleted=eq.false&author_id=neq.${currentUser.id}&select=id,collection_id,author_id,body,created_at,profiles(username,display_name,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
             .then(r => r.ok ? r.json() : [])
             .then(rows => rows.map(row => ({
               type: 'comment', kind: 'collection', targetId: row.collection_id,
@@ -9246,7 +9291,7 @@
         if (contentIds.length) orParts.push(`content_id.in.(${contentIds.join(',')})`);
         if (collectionIds.length) orParts.push(`collection_id.in.(${collectionIds.join(',')})`);
         fetches.push(
-          fetch(`${SUPABASE_URL}/rest/v1/moderation_log?action=eq.rejected&or=(${orParts.join(',')})&select=id,content_id,collection_id,comment,created_at,moderator:profiles(id,username,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
+          fetch(`${SUPABASE_URL}/rest/v1/moderation_log?action=eq.rejected&or=(${orParts.join(',')})&select=id,content_id,collection_id,comment,created_at,moderator:profiles(id,username,display_name,avatar_url,name_color,role)&order=created_at.desc&limit=20`, { headers: authHeaders })
             .then(r => r.ok ? r.json() : [])
             .then(rows => rows.map(row => {
               const isColl = !!row.collection_id;
@@ -9311,7 +9356,7 @@
     const seen = getNotifSeenTime();
     listEl.innerHTML = notifCache.map(n => {
       const isUnread = new Date(n.createdAt).getTime() > seen;
-      const name = (n.actor && n.actor.username) || 'без имени';
+      const name = (n.actor && (n.actor.display_name || n.actor.username)) || 'без имени';
       const avatar = (n.actor && n.actor.avatar_url) || presetToDataUrl('p0');
       const isLike = n.type === 'like';
       const isNewFollower = n.type === 'new_follower';
@@ -9426,7 +9471,7 @@
   async function loadStreakTop() {
     const listEl = document.getElementById('streakList');
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,username,avatar_url,streak_count,last_visit_date&order=streak_count.desc.nullslast&limit=10`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,username,display_name,avatar_url,streak_count,last_visit_date&order=streak_count.desc.nullslast&limit=10`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
       streakTopCache = res.ok ? await res.json() : [];
@@ -9447,7 +9492,7 @@
     }
     const today = new Date().toISOString().slice(0, 10);
     listEl.innerHTML = streakTopCache.map((p, i) => {
-      const name = p.username || 'без имени';
+      const name = p.display_name || p.username || 'без имени';
       const avatar = p.avatar_url || presetToDataUrl('p0');
       const isStale = p.last_visit_date !== today;
       const tier = streakTier(p.streak_count || 0);
@@ -9483,7 +9528,7 @@
     row.dataset.openProfile = currentUser.id;
     row.innerHTML = `
       <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
-      <span class="streak-item-name">${escapeHtml(currentUser.username || 'без имени')}</span>
+      <span class="streak-item-name">${escapeHtml(currentUser.display_name || currentUser.username || 'без имени')}</span>
       <span class="streak-item-count ${meTier.cls}${currentStreakStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${currentStreakCount}</span>
       <span class="streak-me-rank">#${rank || '?'}</span>
     `;
@@ -9599,7 +9644,7 @@
 
   async function loadProfileIntoCurrentUser() {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}&select=username,avatar_url,role,is_banned,name_color,stream_twitch_url,stream_donate_url,stream_social_url,notify_likes,notify_comments,notify_new_followers,notify_new_submission`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}&select=username,display_name,avatar_url,role,is_banned,name_color,stream_twitch_url,stream_donate_url,stream_social_url,notify_likes,notify_comments,notify_new_followers,notify_new_submission`, {
         headers: {
           apikey: SUPABASE_KEY,
           Authorization: `Bearer ${currentUserToken}`
@@ -9608,6 +9653,7 @@
       const rows = await res.json();
       if (rows && rows[0]) {
         currentUser.username = rows[0].username;
+        currentUser.display_name = rows[0].display_name || null;
         currentUser.avatar_url = rows[0].avatar_url;
         currentUser.role = rows[0].role;
         currentUser.is_banned = rows[0].is_banned;
@@ -9763,7 +9809,7 @@
     listEl.innerHTML = '<p class="empty">Загрузка...</p>';
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/comment_reports?status=eq.pending&order=created_at.desc&select=id,reason,details,created_at,comment_id,reporter:profiles(username),comment:comments(id,body,voice_url,is_deleted,author:profiles(username))`,
+        `${SUPABASE_URL}/rest/v1/comment_reports?status=eq.pending&order=created_at.desc&select=id,reason,details,created_at,comment_id,reporter:profiles(username,display_name),comment:comments(id,body,voice_url,is_deleted,author:profiles(username,display_name))`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -9777,8 +9823,8 @@
         const commentText = commentGone
           ? '(комментарий уже удалён)'
           : (r.comment.voice_url ? '🎤 голосовое сообщение' : escapeHtml(r.comment.body || ''));
-        const authorName = r.comment && r.comment.author ? escapeHtml(r.comment.author.username || 'без имени') : '—';
-        const reporterName = r.reporter ? escapeHtml(r.reporter.username || 'без имени') : 'аноним';
+        const authorName = r.comment && r.comment.author ? escapeHtml(r.comment.author.display_name || r.comment.author.username || 'без имени') : '—';
+        const reporterName = r.reporter ? escapeHtml(r.reporter.display_name || r.reporter.username || 'без имени') : 'аноним';
         return `
           <div class="report-card" data-report-id="${r.id}" data-comment-id="${r.comment_id}">
             <span class="report-card-reason">${REPORT_REASON_LABELS[r.reason] || r.reason}</span>
@@ -9923,7 +9969,7 @@
       const authorProfilesById = await fetchProfilesByIds(authorIds);
       const authorLineHtml = (authorId) => {
         const author = authorProfilesById[authorId];
-        const name = author && author.username ? author.username : 'без имени';
+        const name = author && (author.display_name || author.username) ? (author.display_name || author.username) : 'без имени';
         return `<div class="mod-author">👤 <b>${escapeHtml(name)}</b></div>`;
       };
 
@@ -10030,7 +10076,7 @@
         const res = await fetch(`${SUPABASE_URL}/rest/v1/${apiPath}?id=eq.${itemId}`, {
           method: 'PATCH',
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-          body: JSON.stringify({ status: 'published' })
+          body: JSON.stringify({ status: 'published', published_at: new Date().toISOString() })
         });
         if (!res.ok) {
           const t = await res.text();
@@ -10337,7 +10383,7 @@
     const listEl = document.getElementById('bannedUsersList');
     listEl.innerHTML = '<p class="empty">Загрузка...</p>';
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?is_banned=eq.true&select=id,username,avatar_url,role&order=username.asc`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?is_banned=eq.true&select=id,username,display_name,avatar_url,role&order=username.asc`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
       if (!res.ok) throw new Error(await res.text());
@@ -10351,7 +10397,7 @@
         return `
           <div class="banned-user-row" data-user-id="${p.id}">
             <img class="banned-user-avatar" src="${escapeHtml(avatar)}" alt="" data-open-profile="${p.id}" style="cursor:pointer;">
-            <span class="banned-user-name" data-open-profile="${p.id}" style="cursor:pointer;">${escapeHtml(p.username || 'без имени')}</span>
+            <span class="banned-user-name" data-open-profile="${p.id}" style="cursor:pointer;">${escapeHtml(p.display_name || p.username || 'без имени')}</span>
             <button type="button" class="banned-user-unban-btn" data-user-id="${p.id}">Разблокировать</button>
           </div>
         `;
@@ -10408,7 +10454,7 @@
       }
 
       const ids = Array.from(new Set(threads.flatMap(t => [t.user_id, t.claimed_by]).filter(Boolean)));
-      const profilesRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${ids.join(',')})&select=id,username,avatar_url`, {
+      const profilesRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${ids.join(',')})&select=id,username,display_name,avatar_url`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
       const profiles = profilesRes.ok ? await profilesRes.json() : [];
@@ -10428,15 +10474,15 @@
         const preview = (lastMsgs[i] && lastMsgs[i][0]) ? lastMsgs[i][0].body : 'нет сообщений';
         const statusLabel = t.status === 'resolved' ? 'Решено' : 'Решается';
         return `
-          <button type="button" class="support-thread-card" data-thread-id="${t.id}" data-user-id="${t.user_id}" data-user-name="${escapeHtml(author.username || 'без имени')}" data-user-avatar="${avatar}">
+          <button type="button" class="support-thread-card" data-thread-id="${t.id}" data-user-id="${t.user_id}" data-user-name="${escapeHtml(author.display_name || author.username || 'без имени')}" data-user-avatar="${avatar}">
             <img class="support-thread-avatar" src="${escapeHtml(avatar)}" alt="">
             <div class="support-thread-info">
-              <div class="support-thread-name">${escapeHtml(author.username || 'без имени')}${t.support_banned ? ' 🚫' : ''}</div>
+              <div class="support-thread-name">${escapeHtml(author.display_name || author.username || 'без имени')}${t.support_banned ? ' 🚫' : ''}</div>
               <div class="support-thread-preview">${escapeHtml(preview)}</div>
             </div>
             <div class="support-thread-meta">
               <span class="support-status support-status-${t.status}">${statusLabel}</span>
-              <span class="support-claimed">${claimedProfile ? 'Отвечает: ' + escapeHtml(claimedProfile.username || '') : 'Свободно'}</span>
+              <span class="support-claimed">${claimedProfile ? 'Отвечает: ' + escapeHtml(claimedProfile.display_name || claimedProfile.username || '') : 'Свободно'}</span>
             </div>
           </button>
         `;
@@ -10471,7 +10517,7 @@
       });
       if (!res.ok) throw new Error(await res.text());
       const threadId = await res.json();
-      openSupportThread(threadId, { id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url });
+      openSupportThread(threadId, { id: currentUser.id, username: currentUser.display_name || currentUser.username, avatar_url: currentUser.avatar_url });
     } catch (e) {
       console.error('Не удалось открыть чат поддержки:', e);
       document.getElementById('supportThreadBox').innerHTML = '<p class="empty">Ошибка. Попробуй позже.</p>';
@@ -10486,7 +10532,7 @@
     headerEl.innerHTML = showHeader ? `
       <div class="support-chat-header-user">
         <img src="${ownerInfo.avatar_url || presetToDataUrl('p0')}" alt="">
-        <span>${escapeHtml(ownerInfo.username || 'без имени')}</span>
+        <span>${escapeHtml(ownerInfo.display_name || ownerInfo.username || 'без имени')}</span>
       </div>
     ` : '';
     document.getElementById('supportThreadBox').dataset.firstLoad = '';
@@ -10559,7 +10605,7 @@
       }
 
       const ids = Array.from(new Set(messages.map(m => m.sender_id)));
-      const profilesRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${ids.join(',')})&select=id,username,avatar_url,name_color`, {
+      const profilesRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${ids.join(',')})&select=id,username,display_name,avatar_url,name_color`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
       const profiles = profilesRes.ok ? await profilesRes.json() : [];
@@ -10578,7 +10624,7 @@
           <div class="support-msg-row ${isMine ? 'mine' : ''}" data-message-id="${m.id}">
             <img src="${escapeHtml(avatar)}" alt="">
             <div class="support-msg-bubble">
-              <div class="support-msg-author${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(sender.username || 'без имени')}</div>
+              <div class="support-msg-author${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(sender.display_name || sender.username || 'без имени')}</div>
               <p class="support-msg-text">${renderMessageBody(m.body)}</p>
               <div class="support-msg-footer">
                 <div class="support-msg-time">${timeAgo(m.created_at)}</div>
@@ -10731,7 +10777,7 @@
   // ============================================================
   // 8. ПРОФИЛЬ И РОЛИ
   // ============================================================
-  async function saveProfile(username, avatarUrl, streamerLinks) {
+  async function saveProfile(displayName, avatarUrl, streamerLinks) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}`, {
       method: 'PATCH',
       headers: {
@@ -10741,7 +10787,11 @@
         Prefer: 'return=minimal'
       },
       body: JSON.stringify({
-        username,
+        // Никнейм на сайте сохраняется в display_name, а не в username —
+        // username остаётся тем, что прислал Twitch при входе, и им же
+        // синхронизируется дальше (ensureProfileFromTwitch), незав. от
+        // того, что человек написал здесь.
+        display_name: displayName,
         avatar_url: avatarUrl,
         ...(canUseNameColor(currentUser.role) ? { name_color: selectedNameColor || null } : {}),
         ...(streamerLinks ? streamerLinks : {})
@@ -10797,7 +10847,7 @@
 
   // Краска/цвет ника доступны модераторам (и выше) и стримерам.
   function canUseNameColor(role) {
-    return isModeratorOrHigher(role) || isStreamer(role);
+    return isModeratorOrHigher(role) || isStreamer(role) || role === 'sponsor';
   }
 
 
@@ -10926,7 +10976,7 @@
     // Грузим профиль
     let profile = null;
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,avatar_url,role,name_color,stream_twitch_url,stream_donate_url,stream_social_url,short_code`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,display_name,avatar_url,role,name_color,stream_twitch_url,stream_donate_url,stream_social_url,short_code`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` }
       });
       const rows = await res.json();
@@ -10938,7 +10988,7 @@
     let userContent = [];
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/content?submitted_by=eq.${userId}&status=eq.published&order=created_at.desc&select=*`,
+        `${SUPABASE_URL}/rest/v1/content?submitted_by=eq.${userId}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
       userContent = await res.json();
@@ -10948,7 +10998,7 @@
     let userCollections = [];
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/collections?submitted_by=eq.${userId}&status=eq.published&order=created_at.desc&select=*`,
+        `${SUPABASE_URL}/rest/v1/collections?submitted_by=eq.${userId}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
       userCollections = await res.json();
@@ -10961,7 +11011,7 @@
       ]);
     }
 
-    const displayName = profile.username || 'без имени';
+    const displayName = profile.display_name || profile.username || 'без имени';
     const avatar = profile.avatar_url || presetToDataUrl('p0');
     const nameAttrs = nameColorAttrs(profile.name_color);
     const effectiveRole = profile.role || 'user';
@@ -11055,7 +11105,7 @@
         </div>` : '';
       return `<div class="card card-type-${item.content_type}" data-content-type="${item.content_type}">
         ${mediaHtml}
-        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
+        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         <h3>${escapeHtml(item.title)}</h3>
         ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}
         <div class="card-footer">
@@ -11087,7 +11137,7 @@
           ${coverTag}
           <span class="card-collection-badge">🖼️ ${item.item_count || 0}</span>
         </div>
-        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span> · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
+        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span> · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         <h3>${escapeHtml(item.title)}</h3>
         <div class="card-footer">
           <div class="card-footer-left">
@@ -11494,7 +11544,7 @@
     if (!el) return;
     if (!profile) { el.innerHTML = ''; return; }
     const avatar = profile.avatar_url || presetToDataUrl('p0');
-    const name = profile.username || 'без имени';
+    const name = profile.display_name || profile.username || 'без имени';
     const nameAttrs = nameColorAttrs(profile.name_color || null);
     el.innerHTML = `
       <img class="post-author-avatar" src="${escapeHtml(avatar)}" alt="" data-open-profile="${profile.id}" style="cursor:pointer;">
@@ -11545,7 +11595,7 @@
   function updateNameColorPreview() {
     const previewText = document.getElementById('nameColorPreviewText');
     const nameInput = document.getElementById('p-username');
-    previewText.textContent = nameInput.value || currentUser.username || 'Никнейм';
+    previewText.textContent = nameInput.value || currentUser.display_name || currentUser.username || 'Никнейм';
     applyNameColorToElement(previewText, selectedNameColor);
   }
 
@@ -11554,7 +11604,7 @@
 
   function openProfileModal() {
     // Предзаполняем текущие данные
-    document.getElementById('p-username').value = currentUser.username || '';
+    document.getElementById('p-username').value = currentUser.display_name || currentUser.username || '';
     profileUploadedFile = null;
     document.getElementById('profileAvatarUploadName').textContent = '';
     profileStatusEl.textContent = '';
@@ -11641,7 +11691,7 @@
 
       await saveProfile(username, avatarUrl, streamerLinks);
 
-      currentUser.username = username;
+      currentUser.display_name = username;
       currentUser.avatar_url = avatarUrl;
       if (canUseNameColor(currentUser.role)) currentUser.name_color = selectedNameColor || null;
       if (streamerLinks) Object.assign(currentUser, streamerLinks);
@@ -12339,7 +12389,7 @@
     grid.innerHTML = '<p class="empty">Загрузка...</p>';
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&order=created_at.desc&select=id,title,content_type,source_url,cover_image_url&limit=200`,
+        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&order=published_at.desc.nullslast,created_at.desc&select=id,title,content_type,source_url,cover_image_url&limit=200`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -12887,7 +12937,7 @@
       const orParts = ['status.eq.published'];
       if (currentUser) orParts.push(`user_id.eq.${currentUser.id}`);
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/reviews?select=*&or=(${orParts.join(',')})&order=created_at.desc&limit=30`,
+        `${SUPABASE_URL}/rest/v1/reviews?select=*&or=(${orParts.join(',')})&order=published_at.desc.nullslast,created_at.desc&limit=30`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -12947,7 +12997,7 @@
           <div class="review-top">
             <img class="review-avatar" src="${escapeHtml(avatar)}" alt="">
             <span class="review-name">${escapeHtml(r.username || 'без имени')}</span>
-            <span class="review-time">${timeAgo(r.created_at)}</span>
+            <span class="review-time">${timeAgo(r.published_at || r.created_at)}</span>
           </div>
           <p class="review-text">${renderMessageBody(r.text)}</p>
           ${statusBadge}
@@ -13051,7 +13101,7 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({
           user_id: currentUser.id,
-          username: currentUser.username || 'без имени',
+          username: currentUser.display_name || currentUser.username || 'без имени',
           avatar_url: currentUser.avatar_url || null,
           text
         })
@@ -13277,7 +13327,7 @@
     if (!unique.length) return {};
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/profiles?id=in.(${unique.join(',')})&select=id,username,avatar_url,name_color,role`,
+        `${SUPABASE_URL}/rest/v1/profiles?id=in.(${unique.join(',')})&select=id,username,display_name,avatar_url,name_color,role`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
       if (!res.ok) return {};
@@ -13406,7 +13456,7 @@
     let data;
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=eq.${currentFeedFilter}&order=created_at.desc&select=*`,
+        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=eq.${currentFeedFilter}&order=published_at.desc.nullslast,created_at.desc&select=*`,
         {
           headers: {
             apikey: SUPABASE_KEY,
@@ -13481,7 +13531,7 @@
 
   function feedItemPassesTimeFilter(item) {
     if (feedTimeFilterValue === 'all') return true;
-    const created = new Date(item.created_at).getTime();
+    const created = new Date(item.published_at || item.created_at).getTime();
     if (Number.isNaN(created)) return true;
     const now = Date.now();
     const ranges = { day: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000, month: 30 * 24 * 60 * 60 * 1000 };
@@ -13505,7 +13555,7 @@
     } else if (feedSortValue === 'likes') {
       sorted.sort((a, b) => (Number(b.likes) || 0) - (Number(a.likes) || 0));
     } else {
-      sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      sorted.sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
     }
     return sorted;
   }
@@ -13579,7 +13629,7 @@
       const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl));
       // Никнейм автора — теперь у всех типов постов в ленте (раньше видно
       // было только внутри самого поста после открытия).
-      const authorName = (item.profiles && item.profiles.username) || 'аноним';
+      const authorName = (item.profiles && (item.profiles.display_name || item.profiles.username)) || 'аноним';
       const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
       const isOwnPost = currentUser && item.submitted_by === currentUser.id;
       const menuHtml = (isModerator || isOwnPost) ? `
@@ -13601,7 +13651,7 @@
       return `
       <div class="card card-type-${item.content_type}">
         ${mediaHtml}
-        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
+        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
         <h3>${escapeHtml(item.title)}</h3>
         ${descHtml}
@@ -13625,6 +13675,7 @@
     const tagsPanelEl = document.getElementById('homeTagsPanel');
     const streamersPanelEl = document.getElementById('homeStreamersPanel');
     const respectPlusPanelEl = document.getElementById('homeRespectPlusPanel');
+    const sponsorPanelEl = document.getElementById('homeSponsorPanel');
     const moderatorsPanelEl = document.getElementById('homeModeratorsPanel');
 
     renderHomeTags(tagsPanelEl);
@@ -13632,17 +13683,19 @@
     videoGridEl.innerHTML = skeletonCardsHtml(2);
     streamersPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     respectPlusPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    sponsorPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     moderatorsPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
 
     const reviewTrackElInit = document.getElementById('reviewTrack');
     if (reviewTrackElInit) reviewTrackElInit.innerHTML = skeletonCardsHtml(3);
     updateReviewWriteBtnVisibility();
 
-    const [artData, videoData, streamersData, respectPlusData, moderatorsData] = await Promise.all([
+    const [artData, videoData, streamersData, respectPlusData, sponsorData, moderatorsData] = await Promise.all([
       fetchHomeContent('art', 2),
       fetchHomeContent('video', 2),
       fetchStreamers(),
       fetchRespectPlus(),
+      fetchSponsors(),
       fetchModerators(),
       loadReviews()
     ]);
@@ -13651,6 +13704,8 @@
     renderHomeCardGrid(videoGridEl, videoData, 'video');
     renderHomeStreamers(streamersPanelEl, streamersData);
     renderHomeStreamers(respectPlusPanelEl, respectPlusData);
+    renderHomeStreamers(sponsorPanelEl, sponsorData);
+    document.getElementById('homeSponsorSection').style.display = (sponsorData && sponsorData.length) ? '' : 'none';
     renderHomeModerators(moderatorsPanelEl, moderatorsData);
     // ждём кадр отрисовки, чтобы карточки/кнопки уже имели финальную
     // высоту (aspect-ratio у превью считается сразу, но на всякий
@@ -13691,7 +13746,7 @@
   async function fetchProfilesByRole(role) {
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/profiles?role=eq.${role}&order=username.asc&select=id,username,avatar_url,name_color`,
+        `${SUPABASE_URL}/rest/v1/profiles?role=eq.${role}&order=username.asc&select=id,username,display_name,avatar_url,name_color`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -13708,6 +13763,10 @@
 
   function fetchRespectPlus() {
     return fetchProfilesByRole('respect_plus');
+  }
+
+  function fetchSponsors() {
+    return fetchProfilesByRole('sponsor');
   }
 
   // Модераторы: сначала gl_moder, затем moderator — порядок задан порядком fetch, роль проставляется вручную.
@@ -13732,7 +13791,7 @@
       return `
         <div class="home-streamer-item" data-open-profile="${profile.id}">
           <img class="home-streamer-avatar" src="${escapeHtml(avatar)}" alt="">
-          <span class="home-streamer-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(profile.username || 'без имени')}</span>
+          <span class="home-streamer-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(profile.display_name || profile.username || 'без имени')}</span>
         </div>
       `;
     }).join('');
@@ -13749,7 +13808,7 @@
       return `
         <div class="home-streamer-item" data-open-profile="${profile.id}">
           <img class="home-streamer-avatar" src="${escapeHtml(avatar)}" alt="">
-          <span class="home-streamer-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(profile.username || 'без имени')}</span>
+          <span class="home-streamer-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(profile.display_name || profile.username || 'без имени')}</span>
         </div>
       `;
     }).join('');
@@ -13758,7 +13817,7 @@
   async function fetchHomeContent(type, limit) {
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=eq.${type}&order=created_at.desc&limit=${limit}&select=*`,
+        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=eq.${type}&order=published_at.desc.nullslast,created_at.desc&limit=${limit}&select=*`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -13799,9 +13858,9 @@
             : '';
         }
       }
-      const created = new Date(item.created_at).getTime();
+      const created = new Date(item.published_at || item.created_at).getTime();
       const isRecent = !Number.isNaN(created) && (Date.now() - created) < RECENT_MS;
-      const authorName = (item.profiles && item.profiles.username) || 'аноним';
+      const authorName = (item.profiles && (item.profiles.display_name || item.profiles.username)) || 'аноним';
       // см. комментарий в renderFeedCards — просмотры не растут для видео
       // по внешней ссылке (не хранится у нас), поэтому не показываем счётчик
       const canTrackViews = !(type === 'video' && !isOwnUploadedMediaUrl(mediaUrl));
@@ -13818,7 +13877,7 @@
               ${canTrackViews ? `<span>👁 ${formatViews(item.views)}</span>` : ''}
               <span>♥ ${item.likes || 0}</span>
               <span>💬 ${item.comments_count || 0}</span>
-              <span class="home-card-date">${timeAgo(item.created_at)}</span>
+              <span class="home-card-date">${timeAgo(item.published_at || item.created_at)}</span>
             </div>
           </div>
         </div>
@@ -13840,7 +13899,7 @@
     let data;
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/collections?status=eq.published&order=created_at.desc&select=*`,
+        `${SUPABASE_URL}/rest/v1/collections?status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -13889,7 +13948,7 @@
           ${coverTag}
           <span class="card-collection-badge">🖼️ ${item.item_count || 0}</span>
         </div>
-        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span> · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
+        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span> · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         <h3>${escapeHtml(item.title)}</h3>
         ${descHtml}
         <div class="card-footer">
