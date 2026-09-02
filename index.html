@@ -516,22 +516,26 @@
   /* ─── Стрик-кнопка в шапке (квадратная, как уведомления) ───────────── */
   .streak-wrap { position: relative; }
 
+  .streak-btn {
+    width: auto;
+    min-width: 46px;
+    padding: 0 10px;
+    gap: 4px;
+  }
+
   .streak-btn .streak-fire { font-size: 18px; line-height: 1; }
 
   .streak-count-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    min-width: 17px;
-    height: 17px;
-    padding: 0 4px;
-    border-radius: 999px;
-    background: var(--accent);
-    color: #1c130c;
-    font-size: 10px;
+    position: static;
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 14px;
     font-weight: 700;
-    line-height: 17px;
-    text-align: center;
+    line-height: 1;
   }
 
   .streak-dropdown {
@@ -9203,7 +9207,7 @@
       row.style.display = 'none';
       return;
     }
-    let rank = streakTopCache.findIndex(p => p.id === currentUser.id) + 1;
+    let rank = streakTopCache.findIndex(p => String(p.id) === String(currentUser.id)) + 1;
     if (!rank) {
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id&streak_count=gt.${currentStreakCount}`, {
@@ -9222,7 +9226,7 @@
     row.innerHTML = `
       <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
       <span class="streak-item-name">${escapeHtml(currentUser.username || 'без имени')}</span>
-      ${rank ? `<span class="streak-me-rank">#${rank}</span>` : ''}
+      <span class="streak-me-rank">#${rank || '?'}</span>
     `;
   }
 
