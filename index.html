@@ -4343,6 +4343,10 @@
   .streamer-btn-donate svg { fill: none; stroke: var(--muted); }
   .streamer-btn-donate:hover svg { stroke: #ffb84d; }
 
+  .streamer-btn-sponsor { --brand-color: #e9da41; }
+  .streamer-btn-sponsor svg { fill: none; stroke: var(--muted); }
+  .streamer-btn-sponsor:hover svg { stroke: #e9da41; }
+
   .profile-expiry-notice {
     background: rgba(255,170,0,0.1);
     border: 1px solid rgba(255,170,0,0.3);
@@ -6169,6 +6173,13 @@
     <div id="editPostTagsSection">
       <label style="margin-top:10px;display:block;">Теги</label>
       <div class="tag-picker" id="editPostTagPicker" data-tag-picker></div>
+    </div>
+    <div class="settings-toggle-row" id="editPostBlurRow" style="margin-top:10px;">
+      <span>Заблюрить превью (цензура)</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="editPostBlurCheckbox">
+        <span class="toggle-slider"></span>
+      </label>
     </div>
     <div class="modal-actions" style="margin-top:14px;">
       <button id="editPostSaveBtn">Сохранить</button>
@@ -11173,8 +11184,11 @@
     const STREAMER_ICONS = {
       twitch: '<svg viewBox="0 0 24 24"><path d="M4.5 2 3 5.5v14h5V22h2.8l2.7-2.5h4L21.5 16V2H4.5zm15 13-3 3h-4l-2.7 2.5V18H6V4h13.5v11z"/><path d="M16 7.5h2V13h-2zM10.5 7.5h2V13h-2z"/></svg>',
       tg: '<svg viewBox="0 0 24 24"><path d="M21.5 4.5 2.7 11.9c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5L18.8 7c.5-.3 1-.1.6.2L10 14.5l-.3 4.6c.5 0 .7-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14c.3-1.3-.5-1.9-1.5-1.6z"/></svg>',
-      donate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5v11M15 9.2c0-1.2-1.3-2.2-3-2.2s-3 .9-3 2.1c0 1.3 1.3 1.8 3 2.1 1.9.4 3 1 3 2.3 0 1.2-1.3 2.1-3 2.1s-3-1-3-2.2"/></svg>'
+      donate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5v11M15 9.2c0-1.2-1.3-2.2-3-2.2s-3 .9-3 2.1c0 1.3 1.3 1.8 3 2.1 1.9.4 3 1 3 2.3 0 1.2-1.3 2.1-3 2.1s-3-1-3-2.2"/></svg>',
+      sponsor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.7-4.3-9.3-8.1C.8 10 1.5 6.4 4.4 5 6.6 3.9 9 4.6 12 7.5 15 4.6 17.4 3.9 19.6 5c2.9 1.4 3.6 5 1.7 7.9C18.7 16.7 12 21 12 21z"/></svg>'
     };
+    // Ссылка "Стать спонсором" в профиле — та же, что на главной (плашка спонсоров).
+    const SPONSOR_LINK_URL = 'https://dalink.to/merockstar_';
     // У стримера — полный набор ссылок (Twitch/Telegram/донат).
     // У модератора и главного модератора — только ссылка на Telegram-канал.
     const streamerLinks = profile.role === 'streamer'
@@ -11186,6 +11200,11 @@
       : (isModeratorOrHigher(profile.role)
           ? [{ url: profile.stream_social_url, label: 'Telegram', cls: 'streamer-btn-tg', icon: STREAMER_ICONS.tg }].filter(l => l.url)
           : []);
+    // Кнопка "Стать спонсором" — только в своём профиле, видна лишь владельцу
+    // аккаунта; на чужих профилях (и не-владельцу) не отображается.
+    if (isOwn) {
+      streamerLinks.push({ url: SPONSOR_LINK_URL, label: 'Стать спонсором', cls: 'streamer-btn-sponsor', icon: STREAMER_ICONS.sponsor });
+    }
     const streamerBtnsHtml = streamerLinks.length
       ? `<div class="profile-streamer-btns">
           ${streamerLinks.map(l => `<a class="profile-streamer-btn ${l.cls}" href="${safeUrl(l.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(l.label)}">${l.icon}</a>`).join('')}
@@ -12059,10 +12078,13 @@
     editPostTagPicker.reset();
     const tagsSectionEl = document.getElementById('editPostTagsSection');
     if (tagsSectionEl) tagsSectionEl.style.display = editingIsCollection ? 'none' : '';
+    const blurRowEl = document.getElementById('editPostBlurRow');
+    if (blurRowEl) blurRowEl.style.display = editingIsCollection ? 'none' : '';
+    document.getElementById('editPostBlurCheckbox').checked = false;
     openOverlay('editPostOverlay');
     try {
       const table = editingIsCollection ? 'collections' : 'content';
-      const selectFields = editingIsCollection ? 'title' : 'title,tags';
+      const selectFields = editingIsCollection ? 'title' : 'title,tags,is_blurred';
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}&select=${selectFields}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
@@ -12071,7 +12093,10 @@
       const item = rows && rows[0];
       if (!item) throw new Error(editingIsCollection ? 'Сборник не найден' : 'Пост не найден');
       document.getElementById('editPostTitleInput').value = item.title || '';
-      if (!editingIsCollection) editPostTagPicker.setTags(item.tags || []);
+      if (!editingIsCollection) {
+        editPostTagPicker.setTags(item.tags || []);
+        document.getElementById('editPostBlurCheckbox').checked = !!item.is_blurred;
+      }
     } catch (e) {
       console.error('Не удалось загрузить данные для редактирования:', e);
       statusEl.textContent = 'Не удалось загрузить данные';
@@ -12086,12 +12111,13 @@
     const newTitle = titleInput.value.trim();
     if (!newTitle) { statusEl.textContent = 'Название не может быть пустым'; statusEl.className = 'err'; return; }
     const newTags = editingIsCollection ? null : editPostTagPicker.getTags();
+    const newIsBlurred = editingIsCollection ? null : document.getElementById('editPostBlurCheckbox').checked;
     const btn = document.getElementById('editPostSaveBtn');
     btn.disabled = true; btn.textContent = 'Сохраняем...';
     statusEl.textContent = ''; statusEl.className = '';
     try {
       const table = editingIsCollection ? 'collections' : 'content';
-      const body = editingIsCollection ? { title: newTitle } : { title: newTitle, tags: newTags };
+      const body = editingIsCollection ? { title: newTitle } : { title: newTitle, tags: newTags, is_blurred: newIsBlurred };
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${editingPostId}`, {
         method: 'PATCH',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -12112,12 +12138,20 @@
         if (feedItemsById[editingPostId]) {
           feedItemsById[editingPostId].title = newTitle;
           feedItemsById[editingPostId].tags = newTags;
+          feedItemsById[editingPostId].is_blurred = newIsBlurred;
         }
         const rawItem = currentFeedRawData.find(it => it.id === editingPostId);
-        if (rawItem) { rawItem.title = newTitle; rawItem.tags = newTags; }
+        if (rawItem) { rawItem.title = newTitle; rawItem.tags = newTags; rawItem.is_blurred = newIsBlurred; }
         document.querySelectorAll(`[data-content-id="${editingPostId}"]`).forEach(el => {
           if ('title' in el.dataset) el.dataset.title = newTitle;
+          if ('blurred' in el.dataset) {
+            el.dataset.blurred = newIsBlurred ? '1' : '0';
+            el.classList.toggle('spoiler-blurred', !!newIsBlurred);
+            const hintEl = el.parentElement && el.parentElement.querySelector('.card-spoiler-hint, .spoiler-hint');
+            if (hintEl) hintEl.style.display = newIsBlurred ? '' : 'none';
+          }
         });
+        if (currentOpenContentId === editingPostId) applyPostPageSpoilerState(!!newIsBlurred);
       }
       // Заголовок карточки (<h3>) — ищем через кнопку меню в этой же
       // карточке, у неё data-id одинаково называется что для постов, что
