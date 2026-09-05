@@ -11,8 +11,10 @@
 <title>renah0cki</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Vollkorn:wght@600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Vollkorn:wght@600;700&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Vollkorn:wght@600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Vollkorn:wght@600;700&display=swap" rel="stylesheet"></noscript>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
 
 <link rel="manifest" href="/manifest.json?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
@@ -1220,6 +1222,43 @@
     margin: -18px -18px 12px -18px;
     display: block;
     cursor: pointer;
+  }
+
+  /* ─── Карточки фанфиков в ленте: одинаковая высота у постов с обложкой и
+     без неё — обложка получает фиксированную высоту вместо aspect-ratio,
+     а описание/теги скроллятся внутри своего блока, если не помещаются;
+     футер (лайк/"Читать оригинал") всегда остаётся внизу карточки. ────── */
+  .card-type-fanfic {
+    display: flex;
+    flex-direction: column;
+    height: 420px;
+  }
+  .card-type-fanfic .card-img {
+    aspect-ratio: unset;
+    height: 190px;
+    object-fit: contain;
+    background: var(--panel-2);
+    flex: 0 0 auto;
+  }
+  .card-type-fanfic > .meta,
+  .card-type-fanfic > .card-author,
+  .card-type-fanfic > h3 {
+    flex: 0 0 auto;
+  }
+  .card-fanfic-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .card-fanfic-scroll::-webkit-scrollbar { width: 5px; }
+  .card-fanfic-scroll::-webkit-scrollbar-track { background: transparent; }
+  .card-fanfic-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .card-fanfic-scroll p { margin: 0 0 10px 0; }
+  .card-type-fanfic .card-footer {
+    flex: 0 0 auto;
   }
 
   /* ─── Спойлер-блюр для арта (переключатель "Заблюрить" при загрузке) ────
@@ -4650,6 +4689,7 @@
     gap: 10px;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
+    overflow-x: hidden;
   }
   @media (max-width: 1650px) {
     .home-moderators-sidebar {
@@ -4933,6 +4973,17 @@
   .home-streamers-panel::-webkit-scrollbar { width: 5px; }
   .home-streamers-panel::-webkit-scrollbar-track { background: transparent; }
   .home-streamers-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  /* Спонсоры и Респект+ обрезаны по высоте — дальше список прокручивается
+     внутри панели (вверх/вниз колёсиком). У Спонсоров высота рассчитана
+     под ~5 карточек по умолчанию; JS (syncSponsorRespectAlignment)
+     подгоняет её под фактическую нижнюю границу блока Респект+, когда
+     панель "Модераторы" свёрнута — см. loadHomeSection/toggle-обработчик. */
+  #homeSponsorPanel {
+    max-height: 320px;
+  }
+  #homeRespectPlusPanel {
+    max-height: 260px;
+  }
   .home-streamers-panel-with-cta {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
@@ -4965,6 +5016,25 @@
     flex: 1;
     min-width: 0;
   }
+
+  .home-panel-toggle-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .home-panel-toggle-btn:hover { background: var(--panel-2); }
+  #homeModeratorsPanel.collapsed { display: none; }
 
   .home-moderator-role-label {
     font-size: 11px;
@@ -5829,6 +5899,7 @@
   <div class="home-moderators-sidebar" id="homeColModerators">
     <div class="home-col-header">
       <h3>Модераторы</h3>
+      <button type="button" class="home-panel-toggle-btn" id="homeModeratorsToggleBtn" aria-expanded="true" aria-label="Свернуть список">▾</button>
     </div>
     <div class="home-streamers-panel" id="homeModeratorsPanel">
       <p class="home-empty">Загрузка...</p>
@@ -6004,7 +6075,7 @@
 
 <div class="site-bottom-deco" aria-hidden="true">
   <img class="site-bottom-deco-mobile" alt="" src="https://i.postimg.cc/0ydKyjR9/Resurs-4-4x-8.png">
-  <img class="site-bottom-deco-desktop" alt="" src="https://i.postimg.cc/N0TvzbKb/IMG-2148.png">
+  <img class="site-bottom-deco-desktop" alt="" src="https://i.postimg.cc/fTDwG4s2/IMG-2149.png">
 </div>
 
 <div class="overlay" id="authOverlay">
@@ -6439,6 +6510,24 @@
   // ============================================================
   // 1. КОНФИГУРАЦИЯ И ОБЩИЕ ХЕЛПЕРЫ
   // ============================================================
+  // Глобальный таймаут для fetch() — без VPN запросы к Supabase иногда не
+  // получают ни ответа, ни ошибки (просто "висят"), а браузер по умолчанию
+  // готов ждать очень долго. Обрываем зависшие запросы через 12 секунд,
+  // чтобы вместо бесконечной загрузки показывалась обычная ошибка сети
+  // (уже обработанная в try/catch по всему коду).
+  (function() {
+    const originalFetch = window.fetch.bind(window);
+    const FETCH_TIMEOUT_MS = 12000;
+    window.fetch = function(input, init) {
+      init = init || {};
+      if (init.signal) return originalFetch(input, init);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      return originalFetch(input, Object.assign({}, init, { signal: controller.signal }))
+        .finally(() => clearTimeout(timeoutId));
+    };
+  })();
+
   const SUPABASE_URL = 'https://ymzyypatzoxzzsutmzok.supabase.co';
   const B2_WORKER_URL = 'https://cdn.renah0cki.xyz';
 
@@ -9784,19 +9873,31 @@
     }
   }
 
-  const sbRealtimeClient = (typeof window.supabase !== 'undefined' && window.supabase.createClient)
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-    : null;
+  // ⚠️ defer на скрипте jsdelivr (см. <head>) означает, что он может
+  // выполниться ПОЗЖЕ этого места — раньше скрипт был блокирующим, и
+  // window.supabase был гарантированно готов к этому моменту. Теперь ждём
+  // либо немедленной готовности, либо событие 'load' (все ресурсы, включая
+  // deferred-скрипты, к этому моменту уже отработали).
+  function initSupabaseRealtime() {
+    const sbRealtimeClient = (typeof window.supabase !== 'undefined' && window.supabase.createClient)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+      : null;
 
-  if (sbRealtimeClient) {
-    sbRealtimeClient
-      .channel('moderation-queue-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'content' }, moderationLiveRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'collections' }, moderationLiveRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_reports' }, commentReportsLiveRefresh)
-      .subscribe();
+    if (sbRealtimeClient) {
+      sbRealtimeClient
+        .channel('moderation-queue-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'content' }, moderationLiveRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'collections' }, moderationLiveRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_reports' }, commentReportsLiveRefresh)
+        .subscribe();
+    } else {
+      console.warn('Supabase Realtime недоступен — счётчик модерации будет обновляться только по таймеру.');
+    }
+  }
+  if (typeof window.supabase !== 'undefined') {
+    initSupabaseRealtime();
   } else {
-    console.warn('Supabase Realtime недоступен — счётчик модерации будет обновляться только по таймеру.');
+    window.addEventListener('load', initSupabaseRealtime);
   }
 
   setInterval(moderationLiveRefresh, 20000);
@@ -10939,6 +11040,15 @@
   }
 
   document.getElementById('rulesBtn').addEventListener('click', openRulesPage);
+  document.getElementById('homeModeratorsToggleBtn').addEventListener('click', () => {
+    const panel = document.getElementById('homeModeratorsPanel');
+    const btn = document.getElementById('homeModeratorsToggleBtn');
+    const collapsed = panel.classList.toggle('collapsed');
+    btn.textContent = collapsed ? '▸' : '▾';
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    btn.setAttribute('aria-label', collapsed ? 'Развернуть список' : 'Свернуть список');
+    requestAnimationFrame(syncSponsorRespectAlignment);
+  });
   document.getElementById('rulesPageBackBtn').addEventListener('click', closeRulesPage);
 
   // ─── Страница топа по стрику ─────────────────────────────────────────────
@@ -11118,7 +11228,7 @@
         ${mediaHtml}
         <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         <h3>${escapeHtml(item.title)}</h3>
-        ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}
+        ${item.content_type === 'fanfic' && item.description ? `<div class="card-fanfic-scroll"><p>${escapeHtml(item.description)}</p></div>` : (item.description ? `<p>${escapeHtml(item.description)}</p>` : '')}
         <div class="card-footer">
           <div class="card-footer-left">
             ${renderCardLikeButton(item, false)}
@@ -13003,6 +13113,11 @@
     if (trackEl) trackEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     const reviews = await fetchReviews();
     const likedSet = await fetchMyReviewLikes(reviews.map(r => r.id));
+    // Отзыв хранит username/avatar на момент отправки, а не живую ссылку на
+    // профиль — цвет ника (краска) при этом мог быть назначен позже, поэтому
+    // подтягиваем актуальный name_color отдельно, по user_id.
+    const authorProfilesById = await fetchProfilesByIds(reviews.map(r => r.user_id));
+    reviews.forEach(r => { r.name_color = (authorProfilesById[r.user_id] || {}).name_color || null; });
     reviewsCache = reviews;
     renderReviews(reviews, likedSet);
   }
@@ -13021,6 +13136,7 @@
       const isLiked = likedSet.has(r.id);
       const isOwn = currentUser && currentUser.id === r.user_id;
       const avatar = r.avatar_url || presetToDataUrl('p0');
+      const nameAttrs = nameColorAttrs(r.name_color);
       const isPublished = r.status === 'published' || !r.status;
       const statusBadge = r.status === 'draft'
         ? `<span class="review-status-badge">На проверке</span>`
@@ -13031,7 +13147,7 @@
         <div class="review-card${isPublished ? '' : ' review-card-pending'}" data-review-id="${r.id}">
           <div class="review-top">
             <img class="review-avatar" src="${escapeHtml(avatar)}" alt="">
-            <span class="review-name">${escapeHtml(r.username || 'без имени')}</span>
+            <span class="review-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(r.username || 'без имени')}</span>
             <span class="review-time">${timeAgo(r.published_at || r.created_at)}</span>
           </div>
           <p class="review-text">${renderMessageBody(r.text)}</p>
@@ -13682,6 +13798,12 @@
       const tagsHtml = (item.tags && item.tags.length)
         ? `<div class="tags">${item.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`
         : '';
+      // У фанфиков описание+теги кладём в отдельный скроллящийся блок —
+      // см. .card-fanfic-scroll (фикс. высота карточки одинакова у всех
+      // фанфиков, с обложкой и без).
+      const bodyHtml = item.content_type === 'fanfic'
+        ? `<div class="card-fanfic-scroll">${descHtml}${tagsHtml}</div>`
+        : `${descHtml}${tagsHtml}`;
 
       return `
       <div class="card card-type-${item.content_type}">
@@ -13689,8 +13811,7 @@
         <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
         <h3>${escapeHtml(item.title)}</h3>
-        ${descHtml}
-        ${tagsHtml}
+        ${bodyHtml}
         <div class="card-footer">
           <div class="card-footer-left">
             ${renderCardLikeButton(item, false)}
@@ -13746,6 +13867,7 @@
     // высоту (aspect-ratio у превью считается сразу, но на всякий
     // случай — после rAF геометрия точно готова)
     requestAnimationFrame(syncHomeTagsHeight);
+    requestAnimationFrame(syncSponsorRespectAlignment);
   }
 
   // Высота панели "Теги" подгоняется под фактическую высоту соседней
@@ -13772,8 +13894,31 @@
   window.addEventListener('resize', () => {
     if (document.getElementById('homePageLayout')?.style.display !== 'none') {
       syncHomeTagsHeight();
+      syncSponsorRespectAlignment();
     }
   });
+
+  // Подгоняет нижнюю границу КНОПКИ "Стать спонсором" (левый сайдбар) под
+  // нижнюю границу панели "Респект+" (правый сайдбар) — особенно заметно,
+  // когда "Модераторы" свёрнуты и левый сайдбар короче. Минимум — высота
+  // панели под ~5 карточек (см. #homeSponsorPanel в CSS), меньше не сжимаем.
+  function syncSponsorRespectAlignment() {
+    const respectPanelEl = document.getElementById('homeRespectPlusPanel');
+    const sponsorSectionEl = document.getElementById('homeSponsorSection');
+    const sponsorPanelEl = document.getElementById('homeSponsorPanel');
+    const sponsorCtaBtnEl = document.getElementById('homeSponsorCtaBtn');
+    if (!respectPanelEl || !sponsorSectionEl || !sponsorPanelEl || !sponsorCtaBtnEl) return;
+    if (sponsorSectionEl.style.display === 'none') return;
+    if (window.innerWidth <= 1200) { sponsorPanelEl.style.maxHeight = ''; return; }
+    const minHeight = 320; // ~5 карточек
+    const respectBottom = respectPanelEl.getBoundingClientRect().bottom;
+    const sponsorTop = sponsorPanelEl.getBoundingClientRect().top;
+    // Кнопка идёт вплотную под панелью (без отступа) — вычитаем её текущую
+    // высоту, чтобы выровнять именно НИЖНЮЮ ЛИНИЮ КНОПКИ, а не панели.
+    const btnHeight = sponsorCtaBtnEl.getBoundingClientRect().height;
+    const targetHeight = Math.round(respectBottom - btnHeight - sponsorTop);
+    sponsorPanelEl.style.maxHeight = Math.max(targetHeight, minHeight) + 'px';
+  }
 
   // Список пользователей по роли (стример / респект+) для сайдбара на
   // главной. Клик по нику/аватару открывает профиль (data-open-profile —
