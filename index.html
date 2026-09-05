@@ -11200,9 +11200,10 @@
       : (isModeratorOrHigher(profile.role)
           ? [{ url: profile.stream_social_url, label: 'Telegram', cls: 'streamer-btn-tg', icon: STREAMER_ICONS.tg }].filter(l => l.url)
           : []);
-    // Кнопка "Стать спонсором" — только в своём профиле, видна лишь владельцу
-    // аккаунта; на чужих профилях (и не-владельцу) не отображается.
-    if (isOwn) {
+    // Кнопка "Стать спонсором" — только в своём профиле и только если у
+    // пользователя ещё нет роли "спонсор"; видна лишь владельцу аккаунта,
+    // на чужих профилях не отображается.
+    if (isOwn && profile.role !== 'sponsor') {
       streamerLinks.push({ url: SPONSOR_LINK_URL, label: 'Стать спонсором', cls: 'streamer-btn-sponsor', icon: STREAMER_ICONS.sponsor });
     }
     const streamerBtnsHtml = streamerLinks.length
