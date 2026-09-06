@@ -1457,6 +1457,53 @@
      итоговую отрисовку ровно по границам самой картинки. */
   .spoiler-blurred { filter: blur(24px); cursor: pointer; clip-path: inset(0 round 10px); }
   .spoiler-blurred.spoiler-revealed { filter: none; cursor: inherit; clip-path: none; }
+
+  /* ─── Паззл-спойлер (лайтбокс): вместо мгновенного снятия блюра фото
+     разбивается на квадраты, перемешанные местами — их нужно расставить
+     по местам кликами (клик по двум плиткам меняет их местами). Крестик
+     в углу сразу собирает фото в исходном виде. См. startSpoilerPuzzle. */
+  .spoiler-puzzle-overlay {
+    position: absolute;
+    display: grid;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 5;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+  }
+  .spoiler-puzzle-tile {
+    background-repeat: no-repeat;
+    outline: 1px solid rgba(23,18,13,0.55);
+    outline-offset: -1px;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+  }
+  .spoiler-puzzle-tile:hover { filter: brightness(1.08); }
+  .spoiler-puzzle-tile.selected {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    z-index: 2;
+  }
+  .spoiler-puzzle-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 6;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: rgba(23,18,13,0.85);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .spoiler-puzzle-close:hover { background: rgba(23,18,13,0.98); border-color: var(--accent); }
+  /* ────────────────────────────────────────────────────────────────────── */
   .spoiler-hint {
     position: absolute;
     display: flex;
@@ -6869,6 +6916,7 @@
   // блюра, видео, или галерея/сборник), просто сбрасывает состояние.
   function applyLightboxSpoilerState(isBlurred) {
     const hint = document.getElementById('lightboxSpoilerHint');
+    destroySpoilerPuzzle();
     lightboxImg.classList.remove('spoiler-revealed');
     if (isBlurred) {
       lightboxImg.classList.add('spoiler-blurred');
@@ -6878,6 +6926,142 @@
       if (hint) hint.style.display = 'none';
     }
   }
+
+  // ─── Паззл-спойлер: см. комментарий у .spoiler-puzzle-overlay в CSS. ─────
+  const SPOILER_PUZZLE_GRID = 4; // 4x4 = 16 квадратов
+
+  let activeSpoilerPuzzle = null; // { wrap, overlay }
+
+  function destroySpoilerPuzzle() {
+    if (activeSpoilerPuzzle) {
+      activeSpoilerPuzzle.overlay.remove();
+      activeSpoilerPuzzle = null;
+    }
+  }
+
+  // Пересчитывает позицию/размер оверлея под текущий прямоугольник картинки
+  // (не трогая уже расставленные плитки) — нужно на resize/смену ориентации.
+  function repositionSpoilerPuzzle() {
+    if (!activeSpoilerPuzzle) return;
+    const wrapRect = activeSpoilerPuzzle.wrap.getBoundingClientRect();
+    const imgRect = lightboxImg.getBoundingClientRect();
+    const overlay = activeSpoilerPuzzle.overlay;
+    overlay.style.left = (imgRect.left - wrapRect.left) + 'px';
+    overlay.style.top = (imgRect.top - wrapRect.top) + 'px';
+    overlay.style.width = imgRect.width + 'px';
+    overlay.style.height = imgRect.height + 'px';
+  }
+  window.addEventListener('resize', repositionSpoilerPuzzle);
+
+  // Убирает паззл/блюр и показывает фото целиком.
+  function revealSpoilerPhoto() {
+    destroySpoilerPuzzle();
+    lightboxImg.classList.add('spoiler-revealed');
+    const hint = document.getElementById('lightboxSpoilerHint');
+    if (hint) hint.style.display = 'none';
+  }
+
+  // Создаёт паззл поверх заблюренного фото в лайтбоксе: картинка режется на
+  // SPOILER_PUZZLE_GRID x SPOILER_PUZZLE_GRID квадратов, которые перемешаны
+  // по позициям. Клик по двум плиткам меняет их местами; когда все плитки
+  // стоят на своих местах — паззл автоматически собирается в целое фото.
+  function startSpoilerPuzzle(wrap, imgEl) {
+    destroySpoilerPuzzle();
+
+    const wrapRect = wrap.getBoundingClientRect();
+    const imgRect = imgEl.getBoundingClientRect();
+    const width = imgRect.width;
+    const height = imgRect.height;
+    if (width < 10 || height < 10) return; // картинка ещё не отрисована
+
+    const n = SPOILER_PUZZLE_GRID;
+    const overlay = document.createElement('div');
+    overlay.className = 'spoiler-puzzle-overlay';
+    overlay.style.left = (imgRect.left - wrapRect.left) + 'px';
+    overlay.style.top = (imgRect.top - wrapRect.top) + 'px';
+    overlay.style.width = width + 'px';
+    overlay.style.height = height + 'px';
+    overlay.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    overlay.style.gridTemplateRows = `repeat(${n}, 1fr)`;
+
+    // order[pos] = "правильный" индекс кусочка, который сейчас стоит в
+    // ячейке pos. Перемешиваем, пока расклад не отличается от собранного.
+    let order = Array.from({ length: n * n }, (_, i) => i);
+    do {
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+    } while (order.every((v, i) => v === i));
+
+    function pieceBgPosition(pieceIndex) {
+      const col = pieceIndex % n;
+      const row = Math.floor(pieceIndex / n);
+      return `${(col * 100) / (n - 1)}% ${(row * 100) / (n - 1)}%`;
+    }
+
+    order.forEach((pieceIndex) => {
+      const tile = document.createElement('div');
+      tile.className = 'spoiler-puzzle-tile';
+      tile.style.backgroundImage = `url("${imgEl.src}")`;
+      tile.style.backgroundSize = `${n * 100}% ${n * 100}%`;
+      tile.style.backgroundPosition = pieceBgPosition(pieceIndex);
+      tile.dataset.piece = String(pieceIndex);
+      overlay.appendChild(tile);
+    });
+
+    let selectedTile = null;
+
+    function checkSolved() {
+      const solved = Array.from(overlay.children)
+        .filter(el => el.classList.contains('spoiler-puzzle-tile'))
+        .every((tile, pos) => Number(tile.dataset.piece) === pos);
+      if (solved) setTimeout(revealSpoilerPhoto, 150);
+    }
+
+    overlay.addEventListener('click', (e) => {
+      const tile = e.target.closest('.spoiler-puzzle-tile');
+      if (!tile) return;
+      if (!selectedTile) {
+        selectedTile = tile;
+        tile.classList.add('selected');
+        return;
+      }
+      if (selectedTile === tile) {
+        selectedTile.classList.remove('selected');
+        selectedTile = null;
+        return;
+      }
+      // Меняем местами кусочки (и их позицию в фоне) двух плиток
+      const pieceA = selectedTile.dataset.piece;
+      const pieceB = tile.dataset.piece;
+      const posA = selectedTile.style.backgroundPosition;
+      const posB = tile.style.backgroundPosition;
+      selectedTile.dataset.piece = pieceB;
+      tile.dataset.piece = pieceA;
+      selectedTile.style.backgroundPosition = posB;
+      tile.style.backgroundPosition = posA;
+      selectedTile.classList.remove('selected');
+      selectedTile = null;
+      checkSolved();
+    });
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'spoiler-puzzle-close';
+    closeBtn.title = 'Собрать сразу';
+    closeBtn.setAttribute('aria-label', 'Собрать фото сразу');
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      revealSpoilerPhoto();
+    });
+    overlay.appendChild(closeBtn);
+
+    wrap.appendChild(overlay);
+    activeSpoilerPuzzle = { wrap, overlay };
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   // То же самое для отдельной страницы поста (?post=id / ?collection=id).
   function applyPostPageSpoilerState(isBlurred) {
@@ -7146,8 +7330,8 @@
 
     videoEl.pause();
 
-    // Сбрасываем зум при смене кадра
-    if (isLightbox) resetZoom();
+    // Сбрасываем зум и паззл-спойлер при смене кадра
+    if (isLightbox) { resetZoom(); destroySpoilerPuzzle(); }
 
     if (item) {
       if (item.media_type === 'video') {
@@ -7268,15 +7452,16 @@
   // увеличена локальными кнопками зума — сначала просто сбрасываем.
   document.getElementById('lightboxZoomWrap').addEventListener('click', (e) => {
     if (e.target.closest('.zoom-btn')) return;
+    if (e.target.closest('.spoiler-puzzle-overlay')) return; // клики по паззлу обрабатываются им самим
     if (zoomDragging) return; // не открывать если был drag
 
-    // Спойлер-блюр: первый клик по фото в уже открытом посте только
-    // убирает размытие (спойлер раскрыт), не открывая полноэкранный
-    // просмотр — повторный клик уже открывает его как обычно.
+    // Спойлер-блюр: первый клик по фото в уже открытом посте запускает
+    // паззл — фото разбито на квадраты, которые нужно собрать кликами
+    // (см. startSpoilerPuzzle); крестик в углу паззла собирает сразу.
+    // Полноэкранный просмотр открывается только после того, как фото
+    // раскрыто.
     if (lightboxImg.classList.contains('spoiler-blurred') && !lightboxImg.classList.contains('spoiler-revealed')) {
-      lightboxImg.classList.add('spoiler-revealed');
-      const hint = document.getElementById('lightboxSpoilerHint');
-      if (hint) hint.style.display = 'none';
+      if (!activeSpoilerPuzzle) startSpoilerPuzzle(document.getElementById('lightboxZoomWrap'), lightboxImg);
       return;
     }
 
@@ -7643,6 +7828,7 @@
 
   function closeLightbox() {
     lightboxOverlay.classList.remove('open');
+    destroySpoilerPuzzle();
     lightboxVideo.pause();
     lightboxVideo.src = '';
     lightboxImg.src = '';
