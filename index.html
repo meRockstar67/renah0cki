@@ -13599,6 +13599,7 @@
     const toolbarEl = document.querySelector('main .toolbar');
     const homeLayoutEl = document.getElementById('homeLayout');
     const homePageLayoutEl = document.getElementById('homePageLayout');
+    const homeReviewsBlockEl = document.getElementById('homeReviewsBlock');
     const feedLayoutWrapEl = document.getElementById('feedLayoutWrap');
     feedEl.innerHTML = skeletonCardsHtml(6);
     pinnedEl.innerHTML = '';
@@ -13610,6 +13611,7 @@
       if (feedLayoutWrapEl) feedLayoutWrapEl.style.display = 'none';
       if (homePageLayoutEl) homePageLayoutEl.style.display = '';
       if (homeLayoutEl) homeLayoutEl.style.display = '';
+      if (homeReviewsBlockEl) homeReviewsBlockEl.style.display = '';
       document.body.classList.add('is-home-page');
       await loadHomeSection();
       return;
@@ -13619,6 +13621,7 @@
     if (toolbarEl) toolbarEl.style.display = '';
     if (homePageLayoutEl) homePageLayoutEl.style.display = 'none';
     if (homeLayoutEl) homeLayoutEl.style.display = 'none';
+    if (homeReviewsBlockEl) homeReviewsBlockEl.style.display = 'none';
     if (feedLayoutWrapEl) feedLayoutWrapEl.style.display = '';
     if (filtersBarEl) filtersBarEl.style.display = '';
     if (currentFeedFilter === 'collection') {
