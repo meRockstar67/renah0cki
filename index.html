@@ -880,10 +880,11 @@
   .author-search-wrap {
     position: absolute;
     top: 0;
-    right: -16px;
+    right: 0;
     display: flex;
     align-items: center;
     gap: 0;
+    transform: translateX(16px);
   }
   /* Открытое состояние — единая "пилюля" (общая рамка+фон на иконку и
      инпут вместе, без шва между ними), а не два отдельных прямоугольника.
@@ -895,6 +896,7 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     overflow: hidden;
+    transform: translateX(0);
   }
   .author-search-wrap.open .author-search-btn {
     background: transparent;
