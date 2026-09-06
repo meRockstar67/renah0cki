@@ -846,6 +846,7 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 18px;
+    position: relative;
   }
 
   .feed-filter-select {
@@ -872,6 +873,61 @@
   }
 
   .feed-filter-select:focus { outline: none; border-color: var(--accent); }
+
+  /* Поиск по нику автора — прижат к правому краю строки фильтров, на одном
+     уровне с "Теги". Виден только на вкладках "Фото"/"Видео" (см. loadFeed).
+     Кнопка (стиль notif-btn) по клику разворачивает поле ввода рядом. */
+  .author-search-wrap {
+    position: absolute;
+    top: 0;
+    right: -16px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  /* Открытое состояние — единая "пилюля" (общая рамка+фон на иконку и
+     инпут вместе, без шва между ними), а не два отдельных прямоугольника.
+     Рамку/фон/скругление рисует сам .author-search-wrap, а кнопка и
+     инпут внутри становятся прозрачными и без своих границ. */
+  .author-search-wrap.open {
+    gap: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .author-search-wrap.open .author-search-btn {
+    background: transparent;
+    border-color: transparent;
+  }
+  /* Резервируем место под абсолютно спозиционированную кнопку поиска (38px),
+     чтобы она не перекрывала "Теги" при недостатке свободного места справа. */
+  .feed-filters.has-author-search { padding-right: 46px; }
+  .author-search-btn.active { background: var(--panel-2); border-color: var(--accent); color: var(--accent); }
+  .author-search-input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 13px;
+    padding: 0 10px;
+    margin: 0;
+    border-radius: 0;
+    box-sizing: border-box;
+    height: 38px;
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    transition: width 0.18s ease, opacity 0.15s ease, padding 0.18s ease;
+  }
+  .author-search-wrap.open .author-search-input {
+    width: 190px;
+    opacity: 1;
+    pointer-events: auto;
+    padding: 0 12px 0 0;
+  }
+  .author-search-input:focus { outline: none; border-color: var(--accent); }
+  .author-search-input::placeholder { color: var(--muted); }
 
   .tag-filter-wrap { position: relative; }
 
@@ -967,6 +1023,44 @@
   }
 
   .tag-filter-clear:hover { color: var(--text); }
+
+  /* Кастомный дропдаун для "Сортировки"/"Периода" — раньше это были нативные
+     <select>, у которых при открытии список подсвечивает пункт синим цветом
+     системы (не стилизуется кроссбраузерно). Заменили на свою плашку в том
+     же стиле, что и "Теги" — полный контроль над цветом выделения. */
+  .select-filter-btn {
+    min-width: 150px;
+    justify-content: space-between;
+  }
+  .select-filter-dropdown {
+    min-width: 100%;
+    max-width: none;
+    padding: 6px;
+  }
+  .select-filter-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .select-filter-option:hover { background: var(--panel-2); }
+  .select-filter-option.active {
+    background: rgba(214,140,62,0.18);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .select-filter-option-subscriptions {
+    margin-top: 4px;
+    padding-top: 9px;
+    border-top: 1px solid var(--border);
+  }
 
   /* Закреплённая карточка нарезки канала — отдельная узкая колонка слева
      от основной ленты (не часть грид-сетки #feed), компактнее, чем была
@@ -5681,6 +5775,11 @@
       max-height: 60vh;
       z-index: 90;
     }
+    /* Поиск по нику теперь абсолютно спозиционирован (см. .author-search-wrap
+       в базовых правилах) — привязан к правому краю строки фильтров, точно
+       под кнопкой "+", независимо от переноса строк у остальных фильтров.
+       На телефоне только сужаем раскрытое поле, чтобы не вылезало за край. */
+    .author-search-wrap.open .author-search-input { width: 140px; }
     input[type="text"],
     input[type="email"],
     input[type="password"],
@@ -5878,20 +5977,31 @@
   </div>
 
   <div class="feed-filters" id="feedFiltersBar">
-    <select id="feedSortFilter" class="feed-filter-select">
-      <option value="new">Сначала новые</option>
-      <option value="likes">По лайкам</option>
-      <option value="views">По просмотрам</option>
-      <option value="comments">По комментариям</option>
-    </select>
+    <div class="tag-filter-wrap" id="sortFilterWrap">
+      <button type="button" class="tag-filter-btn select-filter-btn" id="sortFilterBtn">
+        <span id="sortFilterLabel">Сначала новые</span> ▾
+      </button>
+      <div class="tag-filter-dropdown select-filter-dropdown" id="sortFilterDropdown">
+        <button type="button" class="select-filter-option active" data-value="new">Сначала новые</button>
+        <button type="button" class="select-filter-option" data-value="likes">По лайкам</button>
+        <button type="button" class="select-filter-option" data-value="views">По просмотрам</button>
+        <button type="button" class="select-filter-option" data-value="comments">По комментариям</button>
+        <button type="button" class="select-filter-option select-filter-option-subscriptions" data-value="subscriptions">★ Подписки</button>
+      </div>
+    </div>
 
     <div id="feedFiltersContentOnly" style="display:contents;">
-      <select id="feedTimeFilter" class="feed-filter-select">
-        <option value="all">За всё время</option>
-        <option value="day">За 24 часа</option>
-        <option value="week">За неделю</option>
-        <option value="month">За месяц</option>
-      </select>
+      <div class="tag-filter-wrap" id="timeFilterWrap">
+        <button type="button" class="tag-filter-btn select-filter-btn" id="timeFilterBtn">
+          <span id="timeFilterLabel">За всё время</span> ▾
+        </button>
+        <div class="tag-filter-dropdown select-filter-dropdown" id="timeFilterDropdown">
+          <button type="button" class="select-filter-option active" data-value="all">За всё время</button>
+          <button type="button" class="select-filter-option" data-value="day">За 24 часа</button>
+          <button type="button" class="select-filter-option" data-value="week">За неделю</button>
+          <button type="button" class="select-filter-option" data-value="month">За месяц</button>
+        </div>
+      </div>
 
       <div class="tag-filter-wrap" id="tagFilterWrap">
         <button type="button" class="tag-filter-btn" id="tagFilterBtn">
@@ -5901,6 +6011,17 @@
           <p class="empty" style="margin:0;padding:8px 4px;">Нет тегов</p>
         </div>
       </div>
+    </div>
+
+    <!-- Поиск по нику автора — только на вкладках "Фото" и "Видео"
+         (см. loadFeed): показывает только работы конкретного человека.
+         Кнопка в стиле notif-btn ("Правила"/"Уведомления"); по клику
+         разворачивается поле ввода и сразу получает фокус. -->
+    <div class="author-search-wrap" id="authorSearchWrap" style="display:none;">
+      <button type="button" class="notif-btn author-search-btn" id="authorSearchBtn" title="Поиск по нику" aria-label="Поиск по нику" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      </button>
+      <input type="text" id="authorSearchInput" class="author-search-input" placeholder="Поиск по нику">
     </div>
   </div>
 
@@ -12866,6 +12987,9 @@
   // библиотека падает с DataCloneError на postMessage.
   let currentFeedFilter = 'home';
   let feedTimeFilterValue = 'all';
+  let feedAuthorSearchQuery = '';
+  let feedSubscriptionsOnly = false;
+  let mySubscriptionIds = null;
   let feedTagFilterSet = new Set();
   let feedSortValue = 'new';
   let currentFeedRawData = [];
@@ -13342,8 +13466,54 @@
   // ──────────────────────────────────────────────────────────────────────────
 
   // ─── Обработчики панели фильтров (сортировка + время + теги) ──────────────
-  document.getElementById('feedSortFilter').addEventListener('change', (e) => {
-    feedSortValue = e.target.value;
+  function setupSimpleFilterDropdown(btnId, dropdownId, labelId, onSelect) {
+    const btnEl = document.getElementById(btnId);
+    const dropdownEl = document.getElementById(dropdownId);
+    const labelEl = document.getElementById(labelId);
+    btnEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !dropdownEl.classList.contains('open');
+      if (willOpen && window.innerWidth <= 768) {
+        const barEl = document.getElementById('feedFiltersBar');
+        const top = (barEl ? barEl.getBoundingClientRect().bottom : 60) + 8;
+        dropdownEl.style.top = top + 'px';
+      }
+      dropdownEl.classList.toggle('open', willOpen);
+    });
+    dropdownEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const optionEl = e.target.closest('.select-filter-option');
+      if (!optionEl) return;
+      dropdownEl.querySelectorAll('.select-filter-option').forEach(o => o.classList.remove('active'));
+      optionEl.classList.add('active');
+      labelEl.textContent = optionEl.textContent;
+      dropdownEl.classList.remove('open');
+      onSelect(optionEl.dataset.value);
+    });
+    document.addEventListener('click', (e) => {
+      if (!btnEl.parentElement.contains(e.target)) dropdownEl.classList.remove('open');
+    });
+  }
+
+  setupSimpleFilterDropdown('sortFilterBtn', 'sortFilterDropdown', 'sortFilterLabel', async (value) => {
+    if (value === 'subscriptions') {
+      if (!currentUser) {
+        // Не залогинен — откатываем выбор обратно на "Сначала новые".
+        const dropdownEl = document.getElementById('sortFilterDropdown');
+        dropdownEl.querySelectorAll('.select-filter-option').forEach(o => o.classList.toggle('active', o.dataset.value === 'new'));
+        document.getElementById('sortFilterLabel').textContent = 'Сначала новые';
+        return;
+      }
+      feedSubscriptionsOnly = true;
+      feedSortValue = 'new';
+      document.getElementById('sortFilterLabel').textContent = 'Загрузка...';
+      await fetchMySubscriptionIds();
+      document.getElementById('sortFilterLabel').textContent = '★ Подписки';
+      renderFilteredFeed();
+      return;
+    }
+    feedSubscriptionsOnly = false;
+    feedSortValue = value;
     if (currentFeedFilter === 'collection') {
       loadCollectionsFeed();
     } else {
@@ -13351,9 +13521,33 @@
     }
   });
 
-  document.getElementById('feedTimeFilter').addEventListener('change', (e) => {
-    feedTimeFilterValue = e.target.value;
+  setupSimpleFilterDropdown('timeFilterBtn', 'timeFilterDropdown', 'timeFilterLabel', (value) => {
+    feedTimeFilterValue = value;
     renderFilteredFeed();
+  });
+
+  document.getElementById('authorSearchInput').addEventListener('input', (e) => {
+    feedAuthorSearchQuery = e.target.value;
+    renderFilteredFeed();
+  });
+
+
+  document.getElementById('authorSearchBtn').addEventListener('click', () => {
+    const wrapEl = document.getElementById('authorSearchWrap');
+    const btnEl = document.getElementById('authorSearchBtn');
+    const inputEl = document.getElementById('authorSearchInput');
+    const isOpen = wrapEl.classList.toggle('open');
+    btnEl.classList.toggle('active', isOpen);
+    btnEl.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+      // Ждём конца transition ширины поля, иначе фокус может "провалиться"
+      // в ещё нулевую по ширине область в некоторых браузерах.
+      requestAnimationFrame(() => inputEl.focus());
+    } else {
+      inputEl.value = '';
+      feedAuthorSearchQuery = '';
+      renderFilteredFeed();
+    }
   });
 
   document.getElementById('tagFilterBtn').addEventListener('click', (e) => {
@@ -13372,7 +13566,7 @@
     dropdown.classList.toggle('open', willOpen);
   });
 
-  document.getElementById('tagFilterDropdown').addEventListener('click', (e) => {
+  document.getElementById('tagFilterDropdown').addEventListener('click', async (e) => {
     // не закрываем дропдаун кликом внутри — закрытие только по клику снаружи
     e.stopPropagation();
 
@@ -13383,13 +13577,14 @@
       return;
     }
 
-    if (e.target.matches('.tag-filter-option')) {
+    if (e.target.matches('.tag-filter-option') && e.target.dataset.tag) {
       const tag = e.target.dataset.tag;
       if (feedTagFilterSet.has(tag)) feedTagFilterSet.delete(tag);
       else feedTagFilterSet.add(tag);
       e.target.classList.toggle('active');
       updateTagFilterCount();
       renderFilteredFeed();
+      return;
     }
   });
 
@@ -13420,8 +13615,24 @@
     if (tabBtn) tabBtn.classList.add('active');
     currentFeedFilter = filterName;
     feedTagFilterSet.clear();
+    feedSubscriptionsOnly = false;
+    feedSortValue = 'new';
+    const sortDropdownResetEl = document.getElementById('sortFilterDropdown');
+    if (sortDropdownResetEl) {
+      sortDropdownResetEl.querySelectorAll('.select-filter-option').forEach(o => o.classList.toggle('active', o.dataset.value === 'new'));
+    }
+    const sortLabelResetEl = document.getElementById('sortFilterLabel');
+    if (sortLabelResetEl) sortLabelResetEl.textContent = 'Сначала новые';
     feedTimeFilterValue = 'all';
-    document.getElementById('feedTimeFilter').value = 'all';
+    const timeDropdownResetEl = document.getElementById('timeFilterDropdown');
+    if (timeDropdownResetEl) {
+      timeDropdownResetEl.querySelectorAll('.select-filter-option').forEach(o => o.classList.toggle('active', o.dataset.value === 'all'));
+    }
+    const timeLabelResetEl = document.getElementById('timeFilterLabel');
+    if (timeLabelResetEl) timeLabelResetEl.textContent = 'За всё время';
+    feedAuthorSearchQuery = '';
+    const authorSearchInputResetEl = document.getElementById('authorSearchInput');
+    if (authorSearchInputResetEl) authorSearchInputResetEl.value = '';
     await loadFeed();
   }
 
@@ -13631,6 +13842,24 @@
     }
     if (contentOnlyFiltersEl) contentOnlyFiltersEl.style.display = 'contents';
 
+    // Поиск по нику автора — только на вкладках "Фото" и "Видео"; на
+    // остальных (фанфики) скрываем и сбрасываем, чтобы фильтр не остался
+    // "залипшим" при возврате на эти вкладки.
+    const authorSearchWrapEl = document.getElementById('authorSearchWrap');
+    const authorSearchInputEl = document.getElementById('authorSearchInput');
+    const showAuthorSearch = currentFeedFilter === 'art' || currentFeedFilter === 'video';
+    if (authorSearchWrapEl) {
+      authorSearchWrapEl.style.display = showAuthorSearch ? 'flex' : 'none';
+      filtersBarEl.classList.toggle('has-author-search', showAuthorSearch);
+    }
+    if (!showAuthorSearch) {
+      feedAuthorSearchQuery = '';
+      if (authorSearchInputEl) authorSearchInputEl.value = '';
+      if (authorSearchWrapEl) authorSearchWrapEl.classList.remove('open');
+      const authorSearchBtnResetEl = document.getElementById('authorSearchBtn');
+      if (authorSearchBtnResetEl) { authorSearchBtnResetEl.classList.remove('active'); authorSearchBtnResetEl.setAttribute('aria-expanded', 'false'); }
+    }
+
     let data;
     try {
       const res = await fetch(
@@ -13707,6 +13936,27 @@
     if (countEl) countEl.textContent = feedTagFilterSet.size ? `(${feedTagFilterSet.size})` : '';
   }
 
+  // Загружает id авторов, на которых подписан текущий пользователь (один
+  // раз, кэшируется в mySubscriptionIds — сбрасывается при переключении
+  // вкладок/аккаунта).
+  async function fetchMySubscriptionIds() {
+    if (!currentUser) return new Set();
+    if (mySubscriptionIds) return mySubscriptionIds;
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/subscriptions?follower_id=eq.${currentUser.id}&select=following_id`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+      );
+      const rows = res.ok ? await res.json() : [];
+      mySubscriptionIds = new Set(rows.map(r => r.following_id));
+    } catch (e) {
+      console.error('Не удалось загрузить подписки:', e);
+      mySubscriptionIds = new Set();
+    }
+    return mySubscriptionIds;
+  }
+
+
   function feedItemPassesTimeFilter(item) {
     if (feedTimeFilterValue === 'all') return true;
     const created = new Date(item.published_at || item.created_at).getTime();
@@ -13721,6 +13971,17 @@
     if (!feedTagFilterSet.size) return true;
     const itemTags = item.tags || [];
     return [...feedTagFilterSet].every(t => itemTags.includes(t));
+  }
+
+  // Поиск по нику автора (вкладки "Фото"/"Видео") — сравниваем и username,
+  // и display_name, без учёта регистра, частичным совпадением.
+  function feedItemPassesAuthorFilter(item) {
+    const query = feedAuthorSearchQuery.trim().toLowerCase();
+    if (!query) return true;
+    const profile = item.profiles || {};
+    const username = (profile.username || '').toLowerCase();
+    const displayName = (profile.display_name || '').toLowerCase();
+    return username.includes(query) || displayName.includes(query);
   }
 
   // Сортировка ленты — на уже загруженных данных, без лишнего запроса; общая для постов и сборников.
@@ -13738,12 +13999,19 @@
     return sorted;
   }
 
+  function feedItemPassesSubscriptionFilter(item) {
+    if (!feedSubscriptionsOnly) return true;
+    if (!mySubscriptionIds) return true; // ещё грузится — не режем ленту в пустоту
+    return mySubscriptionIds.has(item.submitted_by);
+  }
+
   function renderFilteredFeed() {
     const filtered = currentFeedRawData.filter(item =>
-      feedItemPassesTimeFilter(item) && feedItemPassesTagFilter(item)
+      feedItemPassesTimeFilter(item) && feedItemPassesTagFilter(item) && feedItemPassesAuthorFilter(item) && feedItemPassesSubscriptionFilter(item)
     );
     renderFeedCards(sortFeedItems(filtered));
   }
+
 
   // Skeleton-заглушка на время загрузки — карточки той же формы, что и
   // реальные .card, чтобы не было "прыжка" разметки после подгрузки данных.
