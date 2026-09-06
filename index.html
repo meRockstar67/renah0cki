@@ -4764,7 +4764,16 @@
     .home-channel-reel { order: 3; }
     #homeRespectHeader,
     #homeRespectPlusPanel { display: none; }
+    /* Спонсоров на мобильном/планшете в сайдбаре не видно (весь
+       home-moderators-sidebar скрыт выше) — показываем их вместо колонки
+       "Теги", тем же компактным форматом. */
+    #homeColTags { display: none; }
+    #homeColMobileSponsors { display: flex; }
+    #homeMobileSponsorPanel { max-height: 240px; }
   }
+
+  #homeColMobileSponsors { display: none; }
+  #homeColMobileSponsors.mobile-sponsors-empty { display: none !important; }
 
   .home-col { display: flex; flex-direction: column; gap: 16px; }
 
@@ -5060,6 +5069,7 @@
     width: 100%;
     margin: 0 auto;
   }
+
 
   /* ============================================================ */
   /* 11. YOUTUBE-РОЛИКИ КАНАЛА */
@@ -5934,6 +5944,19 @@
       </div>
     </div>
 
+    <!-- Мобильная замена колонки "Теги" — та же информация о спонсорах,
+         что в левом сайдбаре на десктопе (который на мобильном скрыт
+         целиком). Видна только через media query ниже 1200px. -->
+    <div class="home-col" id="homeColMobileSponsors">
+      <div class="home-col-header">
+        <h3>Спонсоры</h3>
+      </div>
+      <div class="home-streamers-panel home-streamers-panel-with-cta" id="homeMobileSponsorPanel">
+        <p class="home-empty">Загрузка...</p>
+      </div>
+      <a class="home-sponsor-cta" href="https://dalink.to/merockstar_" target="_blank" rel="noopener noreferrer">Стать спонсором</a>
+    </div>
+
     <div class="home-col" id="homeColVideo">
       <div class="home-col-header" data-home-goto="video">
         <h3>Видео</h3>
@@ -5958,6 +5981,8 @@
     <div class="home-streamers-panel" id="homeRespectPlusPanel">
       <p class="home-empty">Загрузка...</p>
     </div>
+  </div>
+
   </div>
   </div>
 
@@ -5986,7 +6011,6 @@
       </div>
       <button type="button" class="reel-arrow reel-arrow-right" id="reviewArrowRight" aria-label="Прокрутить вперёд">›</button>
     </div>
-  </div>
   </div>
 
   <div class="feed-layout" id="feedLayoutWrap">
@@ -13862,6 +13886,13 @@
     renderHomeStreamers(respectPlusPanelEl, respectPlusData);
     renderHomeStreamers(sponsorPanelEl, sponsorData);
     document.getElementById('homeSponsorSection').style.display = (sponsorData && sponsorData.length) ? '' : 'none';
+    // Тот же список спонсоров дублируем в мобильный блок (см. #homeColMobileSponsors) —
+    // на мобильном/планшете виден он вместо колонки "Теги", а не сайдбар.
+    const mobileSponsorPanelEl = document.getElementById('homeMobileSponsorPanel');
+    if (mobileSponsorPanelEl) {
+      renderHomeStreamers(mobileSponsorPanelEl, sponsorData);
+      document.getElementById('homeColMobileSponsors').classList.toggle('mobile-sponsors-empty', !(sponsorData && sponsorData.length));
+    }
     renderHomeModerators(moderatorsPanelEl, moderatorsData);
     // ждём кадр отрисовки, чтобы карточки/кнопки уже имели финальную
     // высоту (aspect-ratio у превью считается сразу, но на всякий
