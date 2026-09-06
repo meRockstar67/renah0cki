@@ -380,6 +380,31 @@
     color: #fff;
   }
 
+  /* Кнопка "Жалобы" — теперь иконка (документ+крестик+злой смайл), как
+     остальные квадратные icon-кнопки в шапке (notif-btn). Счётчик
+     непросмотренных жалоб — бейдж-кружок сверху справа, как у колокольчика,
+     вместо текста "Жалобы (N)". */
+  #commentReportsBtn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  #commentReportsBtn svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  #commentReportsBtn .notif-badge { display: none; }
+  #commentReportsBtn .notif-badge.show { display: block; }
+
   /* ─── Уведомления (лайки/комментарии) ──────────────────────────────── */
 
   /* ============================================================ */
@@ -2343,9 +2368,8 @@
     margin: 16px 0 0;
     font-size: 18px;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
 
   /* ─── Кто выложил пост (автор) — над заголовком в лайтбоксе/странице поста */
@@ -2377,7 +2401,7 @@
 
   .lightbox-meta-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 10px;
     margin-top: 4px;
@@ -3532,7 +3556,9 @@
     margin: 0 0 14px;
   }
 
-  .card .tags {
+  .card .tags,
+  #lightboxTags,
+  #postPageTags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
@@ -5935,7 +5961,20 @@
   <div class="header-right-outer" id="headerRightOuter">
     <div class="header-right">
       <button id="moderationBtn" class="mod-btn" style="display:none;">На проверке</button>
-      <button id="commentReportsBtn" class="mod-btn" style="display:none;">Жалобы</button>
+      <button id="commentReportsBtn" class="mod-btn" title="Жалобы" aria-label="Жалобы" style="display:none;">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14.5 2H5.5v18h6"/>
+          <path d="M8 6h6"/>
+          <path d="M8 9.2h6"/>
+          <path d="M8 12.4h4"/>
+          <circle cx="18.5" cy="8.5" r="3.2"/>
+          <path d="M17.1 7.1l2.8 2.8M19.9 7.1l-2.8 2.8"/>
+          <circle cx="18.5" cy="18" r="3.6"/>
+          <path d="M16.9 19.3c.4-.7 1-1 1.6-1s1.2.3 1.6 1"/>
+          <path d="M17 17l-.5.5M20 17l.5.5"/>
+        </svg>
+        <span class="notif-badge" id="commentReportsBadge">0</span>
+      </button>
       <button id="addCollectionBtn" class="mod-btn" style="display:none;">+ Сборник</button>
       <button type="button" id="rulesBtn" class="notif-btn" title="Правила" aria-label="Правила">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
@@ -6170,6 +6209,7 @@
       <button class="copy-link-btn" id="postPageCopyLinkBtn" type="button">🔗 Скопировать ссылку</button>
     </div>
     <p class="lightbox-desc" id="postPageDesc" style="display:none;"></p>
+    <div class="tags" id="postPageTags" style="display:none;"></div>
 
     <div class="comments-section" id="postPageCommentsSection" style="display:block;">
       <div class="comments-header">
@@ -6492,6 +6532,7 @@
       <button class="copy-link-btn" id="copyLinkBtn" type="button">🔗 Скопировать ссылку</button>
     </div>
     <p class="lightbox-desc" id="lightboxDesc" style="display:none;"></p>
+    <div class="tags" id="lightboxTags" style="display:none;"></div>
 
     <div class="comments-section" id="commentsSection" style="display:none;">
       <div class="comments-header">
@@ -7349,6 +7390,7 @@
     const desc = el.dataset.desc || '';
     lightboxDesc.textContent = desc;
     lightboxDesc.style.display = desc ? 'block' : 'none';
+    renderTagsBlock(document.getElementById('lightboxTags'), null);
 
     const oldFrame = document.getElementById('lightboxFrame');
     if (oldFrame) oldFrame.remove();
@@ -7434,6 +7476,7 @@
 
     const contentId = el.dataset.contentId || null;
     const feedItem = contentId ? feedItemsById[contentId] : null;
+    renderTagsBlock(document.getElementById('lightboxTags'), feedItem ? feedItem.tags : null);
     currentPostAuthor = feedItem && feedItem.profiles
       ? { id: feedItem.submitted_by, ...feedItem.profiles }
       : null;
@@ -9054,8 +9097,7 @@
       } else {
         descEl.style.display = 'none';
       }
-
-      // Обычный одиночный пост — без галереи, стрелки скрыты
+      renderTagsBlock(document.getElementById('postPageTags'), item.tags);
       currentGalleryItems = [];
       currentGalleryIndex = 0;
       currentGalleryMode = 'postpage';
@@ -9127,6 +9169,7 @@
       const desc = item.description || '';
       descEl.textContent = desc;
       descEl.style.display = desc ? 'block' : 'none';
+      renderTagsBlock(document.getElementById('postPageTags'), null);
 
       currentGalleryItems = await fetchCollectionItems(collectionId);
       currentGalleryIndex = 0;
@@ -9938,7 +9981,7 @@
     if (currentUser && isModeratorOrHigher(currentUser.role)) {
       btn.style.display = 'inline-block';
       collBtn.style.display = 'inline-block';
-      reportsBtn.style.display = 'inline-block';
+      reportsBtn.style.display = 'flex';
       refreshModerationCount();
       refreshCommentReportsCount();
       maybeOpenModerationFromPush();
@@ -9970,8 +10013,11 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'count=exact' }
       });
       const count = parseInt((res.headers.get('content-range') || '').split('/')[1] || '0', 10);
-      const btn = document.getElementById('commentReportsBtn');
-      btn.textContent = count !== 0 ? `Жалобы (${count})` : 'Жалобы';
+      const badge = document.getElementById('commentReportsBadge');
+      if (badge) {
+        badge.textContent = String(count);
+        badge.classList.toggle('show', count !== 0);
+      }
     } catch (e) {
       console.error('Не удалось получить счётчик жалоб на комментарии:', e);
     }
@@ -10321,6 +10367,7 @@
       currentGalleryMode = 'lightbox';
       lightboxTitle.textContent = title;
       lightboxDesc.style.display = 'none';
+      renderTagsBlock(document.getElementById('lightboxTags'), null);
       document.getElementById('commentsSection').style.display = 'none';
       renderGalleryFrame('lightbox');
       lightboxOverlay.classList.add('open');
@@ -12423,6 +12470,8 @@
         lightboxTitle.textContent = newTitle;
         const ppTitleEl = document.getElementById('postPageTitle');
         if (ppTitleEl) ppTitleEl.textContent = newTitle;
+        renderTagsBlock(document.getElementById('lightboxTags'), newTags);
+        renderTagsBlock(document.getElementById('postPageTags'), newTags);
       }
 
       statusEl.textContent = 'Сохранено!'; statusEl.className = 'ok';
@@ -14456,6 +14505,19 @@
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Рендер тегов под заголовком в открытом посте (лайтбокс / страница поста) —
+  // тот же вид, что и на карточке в ленте (.tag внутри .tags).
+  function renderTagsBlock(el, tags) {
+    if (!el) return;
+    if (tags && tags.length) {
+      el.innerHTML = tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+      el.style.display = 'flex';
+    } else {
+      el.innerHTML = '';
+      el.style.display = 'none';
+    }
   }
 
   // escapeHtml/safeUrl: разрешены только http/https и относительные пути — защита от javascript:/data: URI.
