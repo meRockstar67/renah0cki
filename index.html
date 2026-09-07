@@ -1440,11 +1440,17 @@
     color: var(--accent);
     opacity: 0.5;
   }
+  /* Выбранный смайл настроения — показываем в своих естественных цветах,
+     без затемнения (opacity 0.5 выше — только для плейсхолдера-кавычки). */
+  .card-post-emoji {
+    opacity: 1;
+  }
   .card-type-post > .meta,
   .card-type-post > .card-author {
     flex: 0 0 auto;
   }
   .card-type-post > p {
+    color: var(--text);
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -12005,7 +12011,7 @@
           </div>
         </div>` : '';
       return `<div class="card card-type-post" data-content-type="post">
-        <div class="card-post-visual"><span class="card-post-quote">${item.emoji || '”'}</span></div>
+        <div class="card-post-visual"><span class="card-post-quote${item.emoji ? ' card-post-emoji' : ''}">${item.emoji || '”'}</span></div>
         <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
         ${item.text ? `<p>${escapeHtml(item.text)}</p>` : ''}
         <div class="card-footer">
@@ -14771,7 +14777,7 @@
       if (isPost) {
         return `
         <div class="card card-type-post">
-          <div class="card-post-visual"><span class="card-post-quote">${item.emoji || '”'}</span></div>
+          <div class="card-post-visual"><span class="card-post-quote${item.emoji ? ' card-post-emoji' : ''}">${item.emoji || '”'}</span></div>
           <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
           ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
           ${descHtml}
