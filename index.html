@@ -6211,7 +6211,18 @@
         <button type="button" class="select-filter-option" data-value="likes">По лайкам</button>
         <button type="button" class="select-filter-option" data-value="views">По просмотрам</button>
         <button type="button" class="select-filter-option" data-value="comments">По комментариям</button>
-        <button type="button" class="select-filter-option select-filter-option-subscriptions" data-value="subscriptions">★ Подписки</button>
+      </div>
+    </div>
+
+    <div class="tag-filter-wrap" id="subsTypeFilterWrap" style="display:none;">
+      <button type="button" class="tag-filter-btn select-filter-btn" id="subsTypeFilterBtn">
+        <span id="subsTypeFilterLabel">Всё</span> ▾
+      </button>
+      <div class="tag-filter-dropdown select-filter-dropdown" id="subsTypeFilterDropdown">
+        <button type="button" class="select-filter-option active" data-value="all">Всё</button>
+        <button type="button" class="select-filter-option" data-value="art">Фото</button>
+        <button type="button" class="select-filter-option" data-value="video">Видео</button>
+        <button type="button" class="select-filter-option" data-value="post">Посты</button>
       </div>
     </div>
 
@@ -6476,7 +6487,7 @@
     <input type="text" id="p-username" placeholder="Как тебя называть">
 
     <label for="p-bio" style="margin-top:10px;">Описание профиля</label>
-    <textarea id="p-bio" rows="3" maxlength="500" placeholder="Расскажи немного о себе"></textarea>
+    <textarea id="p-bio" rows="3" maxlength="100" placeholder="Расскажи немного о себе (до 100 символов)"></textarea>
 
     <div class="name-color-section" id="nameColorSection" style="display:none;">
       <label>Цвет ника <span style="font-size:11px;opacity:0.6;">— для модераторов, стримеров и спонсоров</span></label>
@@ -11744,6 +11755,20 @@
       userCollections = await res.json();
     } catch (e) { console.error(e); }
 
+    // Грузим текстовые посты пользователя — RLS на таблице posts сама
+    // ограничивает видимость только автору и его подписчикам, так что
+    // здесь дополнительная проверка не нужна.
+    let userPosts = [];
+    if (currentUser) {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/posts?author_id=eq.${userId}&order=created_at.desc&select=*`,
+          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
+        );
+        userPosts = res.ok ? await res.json() : [];
+      } catch (e) { console.error(e); }
+    }
+
     if (currentUser) {
       await Promise.all([
         fetchMyLikedIds(userContent.map(it => it.id), false),
@@ -11763,7 +11788,7 @@
       ? `<span class="profile-role-badge ${roleBadgeClass(effectiveRole)}">${icon} ${label}</span><br>`
       : `<span class="role-icon" title="Пользователь">${icon}</span><br>`;
 
-    const totalCount = userContent.length + userCollections.length;
+    const totalCount = userContent.length + userCollections.length + userPosts.length;
 
     // Предупреждение об автоудалении — только для владельца профиля (не привилегированного)
     const isOwn = currentUser && currentUser.id === userId;
@@ -11888,14 +11913,36 @@
       </div>`;
     }).join('');
 
-    const allCardsHtml = contentCardsHtml + collectionCardsHtml || `<p class="empty" style="grid-column:1/-1;">Нет опубликованных работ</p>`;
+    // Текстовые посты — та же карточка, что и в ленте "Подписки": без
+    // медиа, только текст, автор, дата, меню удаления (себе/модератору).
+    const postCardsHtml = userPosts.map(item => {
+      const canDeletePost = currentUser && (isModeratorOrHigher(currentUser.role) || currentUser.id === item.author_id);
+      const menuHtml = canDeletePost ? `
+        <div class="card-menu" data-card-menu>
+          <button class="card-menu-btn" type="button">⋮</button>
+          <div class="card-menu-dropdown">
+            <button type="button" class="card-delete-textpost-btn" data-id="${item.id}">Удалить пост</button>
+          </div>
+        </div>` : '';
+      return `<div class="card card-type-post" data-content-type="post">
+        <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
+        ${item.text ? `<p>${escapeHtml(item.text)}</p>` : ''}
+        <div class="card-footer">
+          <div class="card-footer-left"></div>
+          ${menuHtml}
+        </div>
+      </div>`;
+    }).join('');
+
+    const allCardsHtml = contentCardsHtml + collectionCardsHtml + postCardsHtml || `<p class="empty" style="grid-column:1/-1;">Нет опубликованных работ</p>`;
 
     // Считаем сколько работ каждого типа, чтобы показывать только нужные вкладки
-    const typeLabels = { art: 'Фото', video: 'Видео', fanfic: 'Фанфики', collection: 'Сборники' };
-    const typeOrder = ['art', 'video', 'fanfic', 'collection'];
-    const typeCounts = { art: 0, video: 0, fanfic: 0, collection: 0 };
+    const typeLabels = { art: 'Фото', video: 'Видео', fanfic: 'Фанфики', collection: 'Сборники', post: 'Посты' };
+    const typeOrder = ['art', 'video', 'fanfic', 'collection', 'post'];
+    const typeCounts = { art: 0, video: 0, fanfic: 0, collection: 0, post: 0 };
     userContent.forEach(item => { if (typeCounts[item.content_type] !== undefined) typeCounts[item.content_type]++; });
     typeCounts.collection = userCollections.length;
+    typeCounts.post = userPosts.length;
 
     const availableTypes = typeOrder.filter(t => typeCounts[t] > 0);
     const tabsHtml = availableTypes.length > 1
@@ -12441,7 +12488,7 @@
         stream_social_url: document.getElementById('p-social-url').value.trim() || null
       } : null);
 
-      const bio = document.getElementById('p-bio').value.trim();
+      const bio = document.getElementById('p-bio').value.trim().slice(0, 100);
 
       await saveProfile(username, avatarUrl, streamerLinks, bio);
 
@@ -13977,30 +14024,21 @@
     });
   }
 
-  setupSimpleFilterDropdown('sortFilterBtn', 'sortFilterDropdown', 'sortFilterLabel', async (value) => {
-    if (value === 'subscriptions') {
-      if (!currentUser) {
-        // Не залогинен — откатываем выбор обратно на "Сначала новые".
-        const dropdownEl = document.getElementById('sortFilterDropdown');
-        dropdownEl.querySelectorAll('.select-filter-option').forEach(o => o.classList.toggle('active', o.dataset.value === 'new'));
-        document.getElementById('sortFilterLabel').textContent = 'Сначала новые';
-        return;
-      }
-      feedSubscriptionsOnly = true;
-      feedSortValue = 'new';
-      document.getElementById('sortFilterLabel').textContent = 'Загрузка...';
-      await fetchMySubscriptionIds();
-      document.getElementById('sortFilterLabel').textContent = '★ Подписки';
-      renderFilteredFeed();
-      return;
-    }
-    feedSubscriptionsOnly = false;
+  setupSimpleFilterDropdown('sortFilterBtn', 'sortFilterDropdown', 'sortFilterLabel', (value) => {
     feedSortValue = value;
     if (currentFeedFilter === 'subscriptions') {
       renderFilteredSubscriptionsFeed();
     } else {
       renderFilteredFeed();
     }
+  });
+
+  // Фильтр по типу контента ("Всё"/"Фото"/"Видео"/"Посты") — только на
+  // вкладке "Подписки", применяется к уже загруженным данным без запроса.
+  let feedSubscriptionsTypeFilter = 'all';
+  setupSimpleFilterDropdown('subsTypeFilterBtn', 'subsTypeFilterDropdown', 'subsTypeFilterLabel', (value) => {
+    feedSubscriptionsTypeFilter = value;
+    renderFilteredSubscriptionsFeed();
   });
 
   setupSimpleFilterDropdown('timeFilterBtn', 'timeFilterDropdown', 'timeFilterLabel', (value) => {
@@ -14318,11 +14356,14 @@
     if (homeReviewsBlockEl) homeReviewsBlockEl.style.display = 'none';
     if (feedLayoutWrapEl) feedLayoutWrapEl.style.display = '';
     if (filtersBarEl) filtersBarEl.style.display = '';
+    const subsTypeFilterWrapEl = document.getElementById('subsTypeFilterWrap');
     if (currentFeedFilter === 'subscriptions') {
       if (contentOnlyFiltersEl) contentOnlyFiltersEl.style.display = 'none';
+      if (subsTypeFilterWrapEl) subsTypeFilterWrapEl.style.display = '';
       await loadSubscriptionsFeed();
       return;
     }
+    if (subsTypeFilterWrapEl) subsTypeFilterWrapEl.style.display = 'none';
     if (contentOnlyFiltersEl) contentOnlyFiltersEl.style.display = 'contents';
     renderWriteTextPostButton();
 
@@ -14366,6 +14407,37 @@
       return;
     }
 
+    // Сборники (создаются только модераторами) показываются прямо во
+    // вкладке "Фото" как обычные посты — отдельной вкладки "Сборник"
+    // в навигации больше нет.
+    if (currentFeedFilter === 'art') {
+      try {
+        const collRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/collections?status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
+          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+        );
+        const collRows = collRes.ok ? await collRes.json() : [];
+        const collAsArt = collRows.map(c => ({
+          id: c.id,
+          content_type: 'art',
+          is_collection: true,
+          item_count: c.item_count,
+          title: c.title,
+          description: c.description,
+          cover_image_url: c.cover_url,
+          tags: c.tags || [],
+          submitted_by: c.submitted_by,
+          created_at: c.created_at,
+          published_at: c.published_at,
+          likes: c.likes || 0,
+          views: c.views || 0
+        }));
+        data = [...data, ...collAsArt];
+      } catch (e) {
+        console.error('Не удалось загрузить сборники для вкладки "Фото":', e);
+      }
+    }
+
     // закреплённая карточка нарезки канала — отдельная колонка слева от
     // ленты (#pinnedSlot), не часть сетки #feed; видна только на вкладке
     // "Видео", на остальных вкладках слот остаётся пустым и скрывается
@@ -14377,7 +14449,12 @@
 
     const authorProfilesById = await fetchProfilesByIds(data.map(it => it.submitted_by));
     data.forEach(item => { item.profiles = authorProfilesById[item.submitted_by] || null; });
-    if (currentUser) await fetchMyLikedIds(data.map(it => it.id), false);
+    if (currentUser) {
+      await Promise.all([
+        fetchMyLikedIds(data.filter(it => !it.is_collection).map(it => it.id), false),
+        fetchMyLikedIds(data.filter(it => it.is_collection).map(it => it.id), true)
+      ]);
+    }
 
     currentFeedRawData = data;
     buildTagFilterOptions(data);
@@ -14567,10 +14644,13 @@
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
-            ${(!isPost && isModerator) ? `<button type="button" class="card-edit-btn" data-id="${item.id}">Редактировать</button>` : ''}
+            ${(!isPost && !item.is_collection && isModerator) ? `<button type="button" class="card-edit-btn" data-id="${item.id}">Редактировать</button>` : ''}
+            ${(item.is_collection && isModerator) ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">Редактировать</button>` : ''}
             ${isPost
               ? `<button type="button" class="card-delete-textpost-btn" data-id="${item.id}">Удалить пост</button>`
-              : `<button type="button" class="card-delete-btn" data-id="${item.id}">Удалить пост</button>`}
+              : (item.is_collection
+                  ? `<button type="button" class="card-delete-collection-btn" data-id="${item.id}">Удалить пост</button>`
+                  : `<button type="button" class="card-delete-btn" data-id="${item.id}">Удалить пост</button>`)}
           </div>
         </div>` : '';
       // не рисуем пустые <p>/<div.tags> — у видео их обычно нет вовсе,
@@ -14606,13 +14686,13 @@
       return `
       <div class="card card-type-${item.content_type}">
         ${mediaHtml}
-        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
+        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.is_collection ? 'сборник' : item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
         <h3>${escapeHtml(item.title)}</h3>
         ${bodyHtml}
         <div class="card-footer">
           <div class="card-footer-left">
-            ${renderCardLikeButton(item, false)}
+            ${renderCardLikeButton(item, !!item.is_collection)}
             ${isExternalLink ? `<a class="go" href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
           </div>
           ${menuHtml}
@@ -14904,23 +14984,24 @@
 
     const subIdsSet = await fetchMySubscriptionIds();
     const subIds = [...subIdsSet];
-    if (!subIds.length) {
-      feedEl.innerHTML = `<p class="empty">Ты пока ни на кого не подписан(а). Подпишись на авторов, чтобы видеть их фото, видео и посты здесь.</p>`;
-      currentSubscriptionsFeedData = [];
-      return;
-    }
+    // Автор своего текстового поста должен видеть его сам, даже если он
+    // ни на кого не подписан — поэтому в список авторов для постов
+    // дополнительно всегда добавляем currentUser.id.
+    const postAuthorIds = [...new Set([...subIds, currentUser.id])];
 
-    const idsList = subIds.join(',');
     let contentRows = [];
     let postRows = [];
     try {
-      const [contentRes, postsRes] = await Promise.all([
-        fetch(`${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&submitted_by=in.(${idsList})&order=published_at.desc.nullslast,created_at.desc&select=*`,
-          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }),
-        fetch(`${SUPABASE_URL}/rest/v1/posts?author_id=in.(${idsList})&order=created_at.desc&select=*`,
+      const fetches = [
+        subIds.length
+          ? fetch(`${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&submitted_by=in.(${subIds.join(',')})&order=published_at.desc.nullslast,created_at.desc&select=*`,
+              { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } })
+          : Promise.resolve(null),
+        fetch(`${SUPABASE_URL}/rest/v1/posts?author_id=in.(${postAuthorIds.join(',')})&order=created_at.desc&select=*`,
           { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } })
-      ]);
-      contentRows = contentRes.ok ? await contentRes.json() : [];
+      ];
+      const [contentRes, postsRes] = await Promise.all(fetches);
+      contentRows = (contentRes && contentRes.ok) ? await contentRes.json() : [];
       postRows = postsRes.ok ? await postsRes.json() : [];
     } catch (e) {
       console.error('Не удалось загрузить ленту подписок:', e);
@@ -14944,7 +15025,9 @@
     const merged = [...contentRows, ...postItems];
 
     if (!merged.length) {
-      feedEl.innerHTML = `<p class="empty">У авторов, на которых ты подписан(а), пока нет публикаций.</p>`;
+      feedEl.innerHTML = subIds.length
+        ? `<p class="empty">У авторов, на которых ты подписан(а), пока нет публикаций.</p>`
+        : `<p class="empty">Ты пока ни на кого не подписан(а). Подпишись на авторов, чтобы видеть их фото, видео и посты здесь.</p>`;
       currentSubscriptionsFeedData = [];
       return;
     }
@@ -14958,7 +15041,10 @@
   }
 
   function renderFilteredSubscriptionsFeed() {
-    renderFeedCards(sortFeedItems(currentSubscriptionsFeedData));
+    const filtered = feedSubscriptionsTypeFilter === 'all'
+      ? currentSubscriptionsFeedData
+      : currentSubscriptionsFeedData.filter(item => item.content_type === feedSubscriptionsTypeFilter);
+    renderFeedCards(sortFeedItems(filtered));
   }
 
   document.getElementById('addTextPostBtn').addEventListener('click', () => {
