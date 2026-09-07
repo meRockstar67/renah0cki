@@ -15307,7 +15307,7 @@
   async function fetchHomeStreaks() {
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/profiles?select=id,username,display_name,avatar_url,streak_count,last_visit_date&streak_count=gte.2&order=streak_count.desc.nullslast`,
+        `${SUPABASE_URL}/rest/v1/profiles?select=id,username,display_name,avatar_url,streak_count,last_visit_date&streak_count=gt.0&order=streak_count.desc.nullslast`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -15320,7 +15320,7 @@
 
   function renderHomeTags(el, data) {
     if (!data || !data.length) {
-      el.innerHTML = `<p class="home-empty">Пока ни у кого нет стрика 2+</p>`;
+      el.innerHTML = `<p class="home-empty">Пока ни у кого нет стрика</p>`;
       return;
     }
     const today = new Date().toISOString().slice(0, 10);
