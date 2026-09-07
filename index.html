@@ -1570,6 +1570,43 @@
     padding: 0;
   }
   .spoiler-puzzle-close:hover { background: rgba(23,18,13,0.98); border-color: var(--accent); }
+
+  /* ─── Экран выбора уровня пазла (когда puzzle_difficulty = 'choice' —
+     см. showPuzzleDifficultyPicker в JS). Переиспользует
+     .spoiler-puzzle-overlay для позиционирования, но display:flex вместо
+     grid. ────────────────────────────────────────────────────────────── */
+  .spoiler-puzzle-overlay.spoiler-puzzle-picker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(23,18,13,0.92);
+    padding: 20px;
+    text-align: center;
+  }
+  .spoiler-puzzle-picker p {
+    margin: 0 0 6px;
+    font-weight: 600;
+    color: var(--text);
+    font-size: 14px;
+  }
+  .spoiler-puzzle-picker .puzzle-level-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    width: 100%;
+    max-width: 220px;
+  }
+  .spoiler-puzzle-picker .puzzle-level-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent-hover);
+  }
   /* ────────────────────────────────────────────────────────────────────── */
   .spoiler-hint {
     position: absolute;
@@ -6737,6 +6774,15 @@
         <span class="toggle-slider"></span>
       </label>
     </div>
+    <div id="editPostPuzzleDifficultyRow" style="display:none;margin-top:10px;">
+      <label for="editPostPuzzleDifficultySelect">Сложность пазла</label>
+      <select id="editPostPuzzleDifficultySelect">
+        <option value="easy">Лёгкий</option>
+        <option value="x2">Сложный (×2 квадратов)</option>
+        <option value="x3">Сложный (×3 квадратов)</option>
+        <option value="choice">На выбор (решает зритель)</option>
+      </select>
+    </div>
     <div class="modal-actions" style="margin-top:14px;">
       <button id="editPostSaveBtn">Сохранить</button>
     </div>
@@ -6947,7 +6993,16 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <p class="hint" style="margin-top:2px;">Картинка в ленте будет размытой, пока по ней не кликнут — сам пост при открытии всегда показывается чётким.</p>
+      <p class="hint" style="margin-top:2px;">Картинка в ленте будет размытой — открывший пост собирает пазл, чтобы её увидеть.</p>
+      <div id="artPuzzleDifficultyRow" style="display:none;margin-top:10px;">
+        <label for="artPuzzleDifficultySelect">Сложность пазла</label>
+        <select id="artPuzzleDifficultySelect">
+          <option value="easy">Лёгкий</option>
+          <option value="x2">Сложный (×2 квадратов)</option>
+          <option value="x3">Сложный (×3 квадратов)</option>
+          <option value="choice">На выбор (решает зритель)</option>
+        </select>
+      </div>
       <div class="modal-actions" style="margin-top:16px;">
         <button id="artSubmitBtn">Отправить на проверку</button>
       </div>
@@ -7146,7 +7201,18 @@
   }
 
   // ─── Паззл-спойлер: см. комментарий у .spoiler-puzzle-overlay в CSS. ─────
-  const SPOILER_PUZZLE_GRID = 4; // 4x4 = 16 квадратов
+  // Уровни сложности: квадратная сетка n x n, где n подобрано так, чтобы
+  // количество квадратов было примерно в 2 и в 3 раза больше "лёгкого"
+  // уровня (16 квадратов) — 6x6=36 (~x2.25, ближайший квадрат к x2) и
+  // 7x7=49 (~x3.06, ближайший квадрат к x3). Значение хранится в поле
+  // content.puzzle_difficulty ('easy' | 'x2' | 'x3' | 'choice').
+  const PUZZLE_GRID_BY_LEVEL = { easy: 4, x2: 6, x3: 7 };
+  const DEFAULT_PUZZLE_LEVEL = 'easy';
+  const PUZZLE_LEVEL_LABELS = { easy: 'Лёгкий', x2: 'Сложный (×2 квадратов)', x3: 'Сложный (×3 квадратов)' };
+
+  // Уровень сложности паззла текущего открытого в лайтбоксе поста —
+  // проставляется при открытии лайтбокса (см. currentPuzzleDifficulty ниже).
+  let currentPuzzleDifficulty = DEFAULT_PUZZLE_LEVEL;
 
   let activeSpoilerPuzzle = null; // { wrap, overlay }
 
@@ -7183,7 +7249,7 @@
   // SPOILER_PUZZLE_GRID x SPOILER_PUZZLE_GRID квадратов, которые перемешаны
   // по позициям. Клик по двум плиткам меняет их местами; когда все плитки
   // стоят на своих местах — паззл автоматически собирается в целое фото.
-  function startSpoilerPuzzle(wrap, imgEl) {
+  function startSpoilerPuzzle(wrap, imgEl, gridSize) {
     destroySpoilerPuzzle();
 
     const wrapRect = wrap.getBoundingClientRect();
@@ -7192,7 +7258,7 @@
     const height = imgRect.height;
     if (width < 10 || height < 10) return; // картинка ещё не отрисована
 
-    const n = SPOILER_PUZZLE_GRID;
+    const n = gridSize || PUZZLE_GRID_BY_LEVEL[DEFAULT_PUZZLE_LEVEL];
     const overlay = document.createElement('div');
     overlay.className = 'spoiler-puzzle-overlay';
     overlay.style.left = (imgRect.left - wrapRect.left) + 'px';
@@ -7278,6 +7344,67 @@
 
     wrap.appendChild(overlay);
     activeSpoilerPuzzle = { wrap, overlay };
+  }
+
+  // Экран выбора уровня — показывается вместо самого паззла, если у поста
+  // выставлен puzzle_difficulty === 'choice' (см. artPuzzleDifficultySelect
+  // в форме загрузки). Пользователь сам решает, насколько сложным будет
+  // именно этот пазл.
+  function showPuzzleDifficultyPicker(wrap, imgEl) {
+    destroySpoilerPuzzle();
+
+    const wrapRect = wrap.getBoundingClientRect();
+    const imgRect = imgEl.getBoundingClientRect();
+    if (imgRect.width < 10 || imgRect.height < 10) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'spoiler-puzzle-overlay spoiler-puzzle-picker';
+    overlay.style.left = (imgRect.left - wrapRect.left) + 'px';
+    overlay.style.top = (imgRect.top - wrapRect.top) + 'px';
+    overlay.style.width = imgRect.width + 'px';
+    overlay.style.height = imgRect.height + 'px';
+
+    const title = document.createElement('p');
+    title.textContent = 'Выбери уровень пазла';
+    overlay.appendChild(title);
+
+    ['easy', 'x2', 'x3'].forEach((level) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'puzzle-level-btn';
+      btn.textContent = PUZZLE_LEVEL_LABELS[level];
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startSpoilerPuzzle(wrap, imgEl, PUZZLE_GRID_BY_LEVEL[level]);
+      });
+      overlay.appendChild(btn);
+    });
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'spoiler-puzzle-close';
+    closeBtn.title = 'Показать сразу';
+    closeBtn.setAttribute('aria-label', 'Показать фото сразу');
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      revealSpoilerPhoto();
+    });
+    overlay.appendChild(closeBtn);
+
+    wrap.appendChild(overlay);
+    activeSpoilerPuzzle = { wrap, overlay };
+  }
+
+  // Точка входа для запуска паззла: смотрит на currentPuzzleDifficulty
+  // и либо сразу собирает сетку нужного размера, либо сперва показывает
+  // выбор уровня (для 'choice').
+  function beginSpoilerPuzzle(wrap, imgEl) {
+    if (currentPuzzleDifficulty === 'choice') {
+      showPuzzleDifficultyPicker(wrap, imgEl);
+    } else {
+      startSpoilerPuzzle(wrap, imgEl, PUZZLE_GRID_BY_LEVEL[currentPuzzleDifficulty] || PUZZLE_GRID_BY_LEVEL[DEFAULT_PUZZLE_LEVEL]);
+    }
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -7680,7 +7807,7 @@
     // Полноэкранный просмотр открывается только после того, как фото
     // раскрыто.
     if (lightboxImg.classList.contains('spoiler-blurred') && !lightboxImg.classList.contains('spoiler-revealed')) {
-      if (!activeSpoilerPuzzle) startSpoilerPuzzle(document.getElementById('lightboxZoomWrap'), lightboxImg);
+      if (!activeSpoilerPuzzle) beginSpoilerPuzzle(document.getElementById('lightboxZoomWrap'), lightboxImg);
       return;
     }
 
@@ -8012,6 +8139,7 @@
 
     const contentId = el.dataset.contentId || null;
     const feedItem = contentId ? feedItemsById[contentId] : null;
+    currentPuzzleDifficulty = (feedItem && feedItem.puzzle_difficulty) || DEFAULT_PUZZLE_LEVEL;
     renderTagsBlock(document.getElementById('lightboxTags'), feedItem ? feedItem.tags : null);
     currentPostAuthor = feedItem && feedItem.profiles
       ? { id: feedItem.submitted_by, ...feedItem.profiles }
@@ -12827,6 +12955,12 @@
     document.getElementById('artFileName').textContent = '✓ ' + file.name;
   }
 
+  // Выбор сложности пазла показываем только когда включён блюр-спойлер.
+  document.getElementById('artBlurCheckbox').addEventListener('change', (e) => {
+    const row = document.getElementById('artPuzzleDifficultyRow');
+    if (row) row.style.display = e.target.checked ? '' : 'none';
+  });
+
 
   // Загрузка файла через Cloudflare Worker → Backblaze B2
   async function uploadToB2(file, userId, onProgress) {
@@ -13048,10 +13182,13 @@
     const blurRowEl = document.getElementById('editPostBlurRow');
     if (blurRowEl) blurRowEl.style.display = editingIsCollection ? 'none' : '';
     document.getElementById('editPostBlurCheckbox').checked = false;
+    const puzzleRowEl = document.getElementById('editPostPuzzleDifficultyRow');
+    document.getElementById('editPostPuzzleDifficultySelect').value = 'easy';
+    if (puzzleRowEl) puzzleRowEl.style.display = 'none';
     openOverlay('editPostOverlay');
     try {
       const table = editingIsCollection ? 'collections' : 'content';
-      const selectFields = editingIsCollection ? 'title' : 'title,tags,is_blurred';
+      const selectFields = editingIsCollection ? 'title' : 'title,tags,is_blurred,puzzle_difficulty';
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}&select=${selectFields}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
@@ -13063,6 +13200,9 @@
       if (!editingIsCollection) {
         editPostTagPicker.setTags(item.tags || []);
         document.getElementById('editPostBlurCheckbox').checked = !!item.is_blurred;
+        document.getElementById('editPostPuzzleDifficultySelect').value = item.puzzle_difficulty || 'easy';
+        const puzzleRowEl2 = document.getElementById('editPostPuzzleDifficultyRow');
+        if (puzzleRowEl2) puzzleRowEl2.style.display = item.is_blurred ? '' : 'none';
       }
     } catch (e) {
       console.error('Не удалось загрузить данные для редактирования:', e);
@@ -13070,6 +13210,11 @@
       statusEl.className = 'err';
     }
   }
+
+  document.getElementById('editPostBlurCheckbox').addEventListener('change', (e) => {
+    const puzzleRowEl = document.getElementById('editPostPuzzleDifficultyRow');
+    if (puzzleRowEl) puzzleRowEl.style.display = e.target.checked ? '' : 'none';
+  });
 
   document.getElementById('editPostSaveBtn').addEventListener('click', async () => {
     if (!editingPostId) return;
@@ -13079,12 +13224,13 @@
     if (!newTitle) { statusEl.textContent = 'Название не может быть пустым'; statusEl.className = 'err'; return; }
     const newTags = editingIsCollection ? null : editPostTagPicker.getTags();
     const newIsBlurred = editingIsCollection ? null : document.getElementById('editPostBlurCheckbox').checked;
+    const newPuzzleDifficulty = editingIsCollection ? null : (newIsBlurred ? document.getElementById('editPostPuzzleDifficultySelect').value : 'easy');
     const btn = document.getElementById('editPostSaveBtn');
     btn.disabled = true; btn.textContent = 'Сохраняем...';
     statusEl.textContent = ''; statusEl.className = '';
     try {
       const table = editingIsCollection ? 'collections' : 'content';
-      const body = editingIsCollection ? { title: newTitle } : { title: newTitle, tags: newTags, is_blurred: newIsBlurred };
+      const body = editingIsCollection ? { title: newTitle } : { title: newTitle, tags: newTags, is_blurred: newIsBlurred, puzzle_difficulty: newPuzzleDifficulty };
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${editingPostId}`, {
         method: 'PATCH',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -13106,9 +13252,10 @@
           feedItemsById[editingPostId].title = newTitle;
           feedItemsById[editingPostId].tags = newTags;
           feedItemsById[editingPostId].is_blurred = newIsBlurred;
+          feedItemsById[editingPostId].puzzle_difficulty = newPuzzleDifficulty;
         }
         const rawItem = currentFeedRawData.find(it => it.id === editingPostId);
-        if (rawItem) { rawItem.title = newTitle; rawItem.tags = newTags; rawItem.is_blurred = newIsBlurred; }
+        if (rawItem) { rawItem.title = newTitle; rawItem.tags = newTags; rawItem.is_blurred = newIsBlurred; rawItem.puzzle_difficulty = newPuzzleDifficulty; }
         document.querySelectorAll(`[data-content-id="${editingPostId}"]`).forEach(el => {
           if ('title' in el.dataset) el.dataset.title = newTitle;
           if ('blurred' in el.dataset) {
@@ -13118,7 +13265,10 @@
             if (hintEl) hintEl.style.display = newIsBlurred ? '' : 'none';
           }
         });
-        if (currentOpenContentId === editingPostId) applyPostPageSpoilerState(!!newIsBlurred);
+        if (currentOpenContentId === editingPostId) {
+          applyPostPageSpoilerState(!!newIsBlurred);
+          currentPuzzleDifficulty = newPuzzleDifficulty || DEFAULT_PUZZLE_LEVEL;
+        }
       }
       // Заголовок карточки (<h3>) — ищем через кнопку меню в этой же
       // карточке, у неё data-id одинаково называется что для постов, что
@@ -13172,10 +13322,11 @@
       const source_url = b2result.url;
 
       const is_blurred = document.getElementById('artBlurCheckbox').checked;
+      const puzzle_difficulty = is_blurred ? document.getElementById('artPuzzleDifficultySelect').value : 'easy';
       const res = await fetchAuth(`${SUPABASE_URL}/rest/v1/content`, {
         method: 'POST',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ title, source_url, content_type: 'art', status: 'draft', submitted_by: currentUser.id, tags: artTagPicker.getTags(), is_blurred })
+        body: JSON.stringify({ title, source_url, content_type: 'art', status: 'draft', submitted_by: currentUser.id, tags: artTagPicker.getTags(), is_blurred, puzzle_difficulty })
       });
       if (!res.ok) { const t = await res.text(); throw new Error(t); }
 
@@ -13186,6 +13337,9 @@
       artUploadedFile = null; artFileInput.value = '';
       artTagPicker.reset();
       document.getElementById('artBlurCheckbox').checked = false;
+      document.getElementById('artPuzzleDifficultySelect').value = 'easy';
+      const artPuzzleRowEl = document.getElementById('artPuzzleDifficultyRow');
+      if (artPuzzleRowEl) artPuzzleRowEl.style.display = 'none';
       setTimeout(() => closeOverlay('contentOverlay'), 1200);
     } catch(e) {
       artStatusEl.textContent = 'Ошибка: ' + e.message; artStatusEl.className = 'err';
