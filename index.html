@@ -11742,10 +11742,10 @@
 
   // Модератор и главный модератор могут, как и стример, указать ссылку на
   // свой Telegram-канал в профиле, но БЕЗ полей Twitch и приватного доната —
-  // им доступно только поле Telegram. Respect+ имеет ту же возможность
-  // (только Telegram, без Twitch/доната), как и модераторы.
+  // им доступно только поле Telegram. Respect+ и Спонсор имеют ту же
+  // возможность (только Telegram, без Twitch/доната), как и модераторы.
   function canEditTelegramOnly(role) {
-    return (isModeratorOrHigher(role) && !isStreamer(role)) || role === 'respect_plus';
+    return (isModeratorOrHigher(role) && !isStreamer(role)) || role === 'respect_plus' || role === 'sponsor';
   }
 
   // Роли выше обычного пользователя — им доступна публикация текстовых
