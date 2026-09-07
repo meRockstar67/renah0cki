@@ -803,6 +803,17 @@
     padding: 2px 9px;
   }
 
+  /* Плашка "вы" на главной — наезжает на низ списка стриков, а не идёт
+     отдельным блоком с отступом сверху: выглядит как приподнятая карточка,
+     прижатая к нижнему краю панели. */
+  .home-streak-me-row {
+    margin-top: -18px;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+    background: var(--panel-2);
+  }
+
 
   /* ============================================================ */
   /* 3. АВТОРИЗАЦИЯ И ОБЩИЙ LAYOUT */
@@ -6434,7 +6445,7 @@
       <div class="home-tags-panel" id="homeTagsPanel">
         <p class="home-empty">Загрузка...</p>
       </div>
-      <div class="streak-me-row" id="homeStreakMeRow" style="display:none;"></div>
+      <div class="streak-me-row home-streak-me-row" id="homeStreakMeRow" style="display:none;"></div>
     </div>
 
     <!-- Мобильная замена колонки "Теги" — та же информация о спонсорах,
