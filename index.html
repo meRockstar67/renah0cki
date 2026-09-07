@@ -1573,7 +1573,8 @@
 
   /* ─── Переключатель уровня пазла над кнопкой "Скопировать ссылку" —
      виден только когда у поста puzzle_difficulty = 'choice' и пазл ещё не
-     собран (см. updatePuzzleLevelSwitchUI в JS). ──────────────────────── */
+     собран (см. updatePuzzleLevelSwitchUI в JS). Кружки: зелёный→лёгкий,
+     жёлтый→x2, оранжевый→x3, красный→x4. ─────────────────────────────── */
   .puzzle-level-switch-row {
     align-items: center;
     gap: 10px;
@@ -1583,23 +1584,24 @@
   }
   .puzzle-level-switch {
     display: inline-flex;
-    gap: 6px;
+    gap: 8px;
   }
   .puzzle-level-switch-btn {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 4px 12px;
-    border-radius: 999px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 0;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
   }
-  .puzzle-level-switch-btn:hover { border-color: var(--accent); }
+  .puzzle-level-switch-btn.puzzle-level-easy { background: #3ecf5f; }
+  .puzzle-level-switch-btn.puzzle-level-x2   { background: #f5c518; }
+  .puzzle-level-switch-btn.puzzle-level-x3   { background: #f2994a; }
+  .puzzle-level-switch-btn.puzzle-level-x4   { background: #eb5757; }
   .puzzle-level-switch-btn.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #1c130c;
+    border-color: var(--text);
+    transform: scale(1.15);
   }
   /* ────────────────────────────────────────────────────────────────────── */
   .spoiler-hint {
@@ -6774,6 +6776,7 @@
         <option value="easy">Лёгкий</option>
         <option value="x2">Сложный (×2 квадратов)</option>
         <option value="x3">Сложный (×3 квадратов)</option>
+        <option value="x4">Очень сложный (×4 квадратов)</option>
         <option value="choice">На выбор (решает зритель)</option>
       </select>
     </div>
@@ -6920,9 +6923,10 @@
     <div class="puzzle-level-switch-row" id="lightboxPuzzleLevelRow" style="display:none;">
       <span>Уровень пазла:</span>
       <div class="puzzle-level-switch" id="lightboxPuzzleLevelSwitch">
-        <button type="button" class="puzzle-level-switch-btn" data-level="easy">Лёгкий</button>
-        <button type="button" class="puzzle-level-switch-btn" data-level="x2">×2</button>
-        <button type="button" class="puzzle-level-switch-btn" data-level="x3">×3</button>
+        <button type="button" class="puzzle-level-switch-btn puzzle-level-easy" data-level="easy" title="Лёгкий" aria-label="Лёгкий"></button>
+        <button type="button" class="puzzle-level-switch-btn puzzle-level-x2" data-level="x2" title="Сложный ×2" aria-label="Сложный ×2"></button>
+        <button type="button" class="puzzle-level-switch-btn puzzle-level-x3" data-level="x3" title="Сложный ×3" aria-label="Сложный ×3"></button>
+        <button type="button" class="puzzle-level-switch-btn puzzle-level-x4" data-level="x4" title="Очень сложный ×4" aria-label="Очень сложный ×4"></button>
       </div>
     </div>
     <div class="lightbox-meta-row">
@@ -7002,6 +7006,7 @@
           <option value="easy">Лёгкий</option>
           <option value="x2">Сложный (×2 квадратов)</option>
           <option value="x3">Сложный (×3 квадратов)</option>
+          <option value="x4">Очень сложный (×4 квадратов)</option>
           <option value="choice">На выбор (решает зритель)</option>
         </select>
       </div>
@@ -7205,11 +7210,12 @@
 
   // ─── Паззл-спойлер: см. комментарий у .spoiler-puzzle-overlay в CSS. ─────
   // Уровни сложности: квадратная сетка n x n, где n подобрано так, чтобы
-  // количество квадратов было примерно в 2 и в 3 раза больше "лёгкого"
-  // уровня (16 квадратов) — 6x6=36 (~x2.25, ближайший квадрат к x2) и
-  // 7x7=49 (~x3.06, ближайший квадрат к x3). Значение хранится в поле
-  // content.puzzle_difficulty ('easy' | 'x2' | 'x3' | 'choice').
-  const PUZZLE_GRID_BY_LEVEL = { easy: 4, x2: 6, x3: 7 };
+  // количество квадратов было примерно в 2/3/4 раза больше "лёгкого"
+  // уровня (16 квадратов) — 6x6=36 (~x2.25, ближайший квадрат к x2),
+  // 7x7=49 (~x3.06, ближайший квадрат к x3), 8x8=64 (ровно x4). Значение
+  // хранится в поле content.puzzle_difficulty
+  // ('easy' | 'x2' | 'x3' | 'x4' | 'choice').
+  const PUZZLE_GRID_BY_LEVEL = { easy: 4, x2: 6, x3: 7, x4: 8 };
   const DEFAULT_PUZZLE_LEVEL = 'easy';
 
   // Настройка сложности пазла у текущего открытого в лайтбоксе поста
