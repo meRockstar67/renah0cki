@@ -15352,18 +15352,14 @@
     const list = data || [];
     const idx = list.findIndex(p => String(p.id) === String(currentUser.id));
     const rank = idx >= 0 ? idx + 1 : 0;
-    const today = new Date().toISOString().slice(0, 10);
-    const isStale = idx >= 0 ? (list[idx].last_visit_date !== today) : currentStreakStale;
-    const count = idx >= 0 ? (list[idx].streak_count || 0) : currentStreakCount;
     const avatar = currentUser.avatar_url || presetToDataUrl('p0');
-    const tier = streakTier(count || 0);
     row.style.display = 'flex';
     row.dataset.openProfile = currentUser.id;
     row.innerHTML = `
       <span class="streak-item-rank">${rank || '—'}</span>
       <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
       <span class="streak-item-name">${escapeHtml(currentUser.display_name || currentUser.username || 'без имени')}</span>
-      <span class="streak-item-count ${tier.cls}${isStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${count}</span>
+      <span class="streak-me-rank">#${rank || '?'}</span>
     `;
   }
   // ──────────────────────────────────────────────────────────────────────────
