@@ -15074,7 +15074,7 @@
     if (reviewTrackElInit) reviewTrackElInit.innerHTML = skeletonCardsHtml(3);
     updateReviewWriteBtnVisibility();
 
-    const [artData, videoData, streamersData, respectPlusData, sponsorData, moderatorsData, streaksData] = await Promise.all([
+    const [artData, videoData, streamersData, respectPlusData, sponsorData, moderatorsData, reviewsData, streaksData] = await Promise.all([
       fetchHomeContent('art', 2),
       fetchHomeContent('video', 2),
       fetchStreamers(),
