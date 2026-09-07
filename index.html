@@ -1438,12 +1438,6 @@
     font-size: 84px;
     line-height: 1;
     color: var(--accent);
-    opacity: 0.5;
-  }
-  /* Выбранный смайл настроения — показываем в своих естественных цветах,
-     без затемнения (opacity 0.5 выше — только для плейсхолдера-кавычки). */
-  .card-post-emoji {
-    opacity: 1;
   }
   .card-type-post > .meta,
   .card-type-post > .card-author {
@@ -1463,6 +1457,20 @@
   .card-type-post > p::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   .card-type-post .card-footer {
     flex: 0 0 auto;
+  }
+  .card-post-pinned-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    font-size: 15px;
+    background: rgba(0,0,0,0.45);
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   /* ─── Карточки фанфиков в ленте: одинаковая высота у постов с обложкой и
@@ -6736,6 +6744,58 @@
   </div>
 </div>
 
+<div class="overlay" id="editTextPostOverlay">
+  <div class="modal">
+    <button class="close-x" data-close="editTextPostOverlay">×</button>
+    <h2>Редактировать пост</h2>
+    <p class="hint">Доступно модераторам — можно изменить текст, настроение, видимость, закрепление и автоудаление любого поста.</p>
+
+    <label for="edit-post-text-body">Текст поста</label>
+    <textarea id="edit-post-text-body" rows="6" maxlength="4000"></textarea>
+
+    <label>Настроение (необязательно)</label>
+    <div class="post-emoji-picker" id="editPostEmojiPicker">
+      <button type="button" class="post-emoji-option" data-emoji="🥰" title="Влюблён(а)">🥰</button>
+      <button type="button" class="post-emoji-option" data-emoji="😂" title="Смешно">😂</button>
+      <button type="button" class="post-emoji-option" data-emoji="😔" title="Грустно">😔</button>
+      <button type="button" class="post-emoji-option" data-emoji="😡" title="Злюсь">😡</button>
+      <button type="button" class="post-emoji-option" data-emoji="🤫" title="Секрет">🤫</button>
+    </div>
+
+    <div class="name-color-section">
+      <p class="hint" style="margin-top:0;">Настройки модератора</p>
+      <div class="settings-toggle-row">
+        <span>Показать всем (не только подписчикам)</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="edit-post-is-public">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="settings-toggle-row" style="margin-top:8px;">
+        <span>Закрепить (будет первым у всех)</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="edit-post-pinned">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <label for="edit-post-delete-after" style="margin-top:10px;">Самоудаление</label>
+      <select id="edit-post-delete-after">
+        <option value="">Никогда не удалять</option>
+        <option value="1">Через 1 день (с этого момента)</option>
+        <option value="2">Через 2 дня (с этого момента)</option>
+        <option value="3">Через 3 дня (с этого момента)</option>
+        <option value="5">Через 5 дней (с этого момента)</option>
+        <option value="7">Через 7 дней (с этого момента)</option>
+      </select>
+    </div>
+
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="editTextPostSaveBtn">Сохранить</button>
+    </div>
+    <div id="editTextPostStatus"></div>
+  </div>
+</div>
+
 <div class="support-widget" id="supportOverlay">
   <div class="support-widget-panel">
     <div class="support-widget-header">
@@ -6956,6 +7016,34 @@
         <button type="button" class="post-emoji-option" data-emoji="😡" title="Злюсь">😡</button>
         <button type="button" class="post-emoji-option" data-emoji="🤫" title="Секрет">🤫</button>
       </div>
+
+      <div class="name-color-section" id="postModOptionsSection" style="display:none;">
+        <p class="hint" style="margin-top:0;">Настройки модератора</p>
+        <div class="settings-toggle-row">
+          <span>Показать всем (не только подписчикам)</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="post-is-public">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-toggle-row" style="margin-top:8px;">
+          <span>Закрепить (будет первым у всех)</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="post-pinned">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <label for="post-delete-after" style="margin-top:10px;">Самоудаление</label>
+        <select id="post-delete-after">
+          <option value="">Никогда не удалять</option>
+          <option value="1">Через 1 день</option>
+          <option value="2">Через 2 дня</option>
+          <option value="3">Через 3 дня</option>
+          <option value="5">Через 5 дней</option>
+          <option value="7">Через 7 дней</option>
+        </select>
+      </div>
+
       <div class="modal-actions">
         <button id="postSubmitBtn">Опубликовать</button>
       </div>
@@ -11841,8 +11929,8 @@
     } catch (e) { console.error(e); }
 
     // Грузим текстовые посты пользователя — RLS на таблице posts сама
-    // ограничивает видимость только автору и его подписчикам, так что
-    // здесь дополнительная проверка не нужна.
+    // ограничивает видимость только автору, подписчикам и (для публичных
+    // модераторских постов) всем; здесь дополнительная проверка не нужна.
     let userPosts = [];
     if (currentUser) {
       try {
@@ -11850,7 +11938,10 @@
           `${SUPABASE_URL}/rest/v1/posts?author_id=eq.${userId}&order=created_at.desc&select=*`,
           { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
         );
-        userPosts = res.ok ? await res.json() : [];
+        const rows = res.ok ? await res.json() : [];
+        const nowIso = new Date().toISOString();
+        userPosts = rows.filter(r => !r.expires_at || r.expires_at > nowIso);
+        userPosts.sort((a, b) => (a.pinned === b.pinned ? 0 : (a.pinned ? -1 : 1)));
       } catch (e) { console.error(e); }
     }
 
@@ -12000,17 +12091,21 @@
     }).join('');
 
     // Текстовые посты — та же карточка, что и в ленте "Подписки": декоративный
-    // блок вместо медиа, текст, автор, дата, лайк, меню удаления (себе/модератору).
+    // блок вместо медиа, текст, автор, дата, лайк, меню удаления (себе/модератору),
+    // редактирование доступно moderator/gl_moder для любого поста.
     const postCardsHtml = userPosts.map(item => {
       const canDeletePost = currentUser && (isModeratorOrHigher(currentUser.role) || currentUser.id === item.author_id);
-      const menuHtml = canDeletePost ? `
+      const canEditPost = currentUser && isModeratorOrHigher(currentUser.role);
+      const menuHtml = (canDeletePost || canEditPost) ? `
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
           <div class="card-menu-dropdown">
-            <button type="button" class="card-delete-textpost-btn" data-id="${item.id}">Удалить пост</button>
+            ${canEditPost ? `<button type="button" class="card-edit-textpost-btn" data-id="${item.id}">Редактировать</button>` : ''}
+            ${canDeletePost ? `<button type="button" class="card-delete-textpost-btn" data-id="${item.id}">Удалить пост</button>` : ''}
           </div>
         </div>` : '';
       return `<div class="card card-type-post" data-content-type="post">
+        ${item.pinned ? `<span class="card-post-pinned-badge" title="Закреплено">📌</span>` : ''}
         <div class="card-post-visual"><span class="card-post-quote${item.emoji ? ' card-post-emoji' : ''}">${item.emoji || '”'}</span></div>
         <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
         ${item.text ? `<p>${escapeHtml(item.text)}</p>` : ''}
@@ -14749,6 +14844,7 @@
           <div class="card-menu-dropdown">
             ${(!isPost && !item.is_collection && isModerator) ? `<button type="button" class="card-edit-btn" data-id="${item.id}">Редактировать</button>` : ''}
             ${(item.is_collection && isModerator) ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">Редактировать</button>` : ''}
+            ${(isPost && isModerator) ? `<button type="button" class="card-edit-textpost-btn" data-id="${item.id}">Редактировать</button>` : ''}
             ${isPost
               ? `<button type="button" class="card-delete-textpost-btn" data-id="${item.id}">Удалить пост</button>`
               : (item.is_collection
@@ -14777,6 +14873,7 @@
       if (isPost) {
         return `
         <div class="card card-type-post">
+          ${item.pinned ? `<span class="card-post-pinned-badge" title="Закреплено">📌</span>` : ''}
           <div class="card-post-visual"><span class="card-post-quote${item.emoji ? ' card-post-emoji' : ''}">${item.emoji || '”'}</span></div>
           <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
           ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
@@ -15090,18 +15187,33 @@
 
     let contentRows = [];
     let postRows = [];
+    let publicPostRows = [];
     try {
+      const nowIso = new Date().toISOString();
       const fetches = [
         subIds.length
           ? fetch(`${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&submitted_by=in.(${subIds.join(',')})&order=published_at.desc.nullslast,created_at.desc&select=*`,
               { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } })
           : Promise.resolve(null),
         fetch(`${SUPABASE_URL}/rest/v1/posts?author_id=in.(${postAuthorIds.join(',')})&order=created_at.desc&select=*`,
+          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }),
+        // Публичные посты модераторов/гл.модератора — видны абсолютно всем,
+        // независимо от подписки (переключатель "Показать всем" при создании).
+        fetch(`${SUPABASE_URL}/rest/v1/posts?is_public=eq.true&order=created_at.desc&select=*`,
           { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } })
       ];
-      const [contentRes, postsRes] = await Promise.all(fetches);
+      const [contentRes, postsRes, publicPostsRes] = await Promise.all(fetches);
       contentRows = (contentRes && contentRes.ok) ? await contentRes.json() : [];
       postRows = postsRes.ok ? await postsRes.json() : [];
+      publicPostRows = publicPostsRes.ok ? await publicPostsRes.json() : [];
+      // На случай, если запланированное удаление просроченных постов ещё не
+      // отработало на сервере — прячем их и на фронтенде тоже.
+      const notExpired = row => !row.expires_at || row.expires_at > nowIso;
+      postRows = postRows.filter(notExpired);
+      publicPostRows = publicPostRows.filter(notExpired);
+      // Дедуп: пост может попасть и в "мои/подписки", и в "публичные" одновременно.
+      const seenPostIds = new Set(postRows.map(p => p.id));
+      publicPostRows.forEach(p => { if (!seenPostIds.has(p.id)) { postRows.push(p); seenPostIds.add(p.id); } });
     } catch (e) {
       console.error('Не удалось загрузить ленту подписок:', e);
     }
@@ -15114,6 +15226,9 @@
       title: '',
       description: p.text,
       emoji: p.emoji || null,
+      pinned: !!p.pinned,
+      is_public: !!p.is_public,
+      expires_at: p.expires_at || null,
       tags: [],
       submitted_by: p.author_id,
       created_at: p.created_at,
@@ -15145,7 +15260,12 @@
     const filtered = feedSubscriptionsTypeFilter === 'all'
       ? currentSubscriptionsFeedData
       : currentSubscriptionsFeedData.filter(item => item.content_type === feedSubscriptionsTypeFilter);
-    renderFeedCards(sortFeedItems(filtered));
+    const sorted = sortFeedItems(filtered);
+    // Закреплённый пост (модератор/гл.модератор) — всегда первым, независимо
+    // от выбранной сортировки.
+    const pinned = sorted.filter(it => it.pinned);
+    const rest = sorted.filter(it => !it.pinned);
+    renderFeedCards([...pinned, ...rest]);
   }
 
   // ─── Вкладка "Пост" в модалке "Добавить контент" ───────────────────────────
@@ -15159,6 +15279,8 @@
     const tabEl = document.getElementById('contentTabPost');
     if (!tabEl) return;
     tabEl.style.display = (currentUser && canWriteTextPost(currentUser.role)) ? '' : 'none';
+    const modSectionEl = document.getElementById('postModOptionsSection');
+    if (modSectionEl) modSectionEl.style.display = (currentUser && isModeratorOrHigher(currentUser.role)) ? 'block' : 'none';
   }
 
   document.getElementById('postEmojiPicker').addEventListener('click', (e) => {
@@ -15192,6 +15314,13 @@
     statusEl.textContent = '';
     statusEl.className = '';
 
+    // Настройки публичности/закрепления/автоудаления — только moderator/gl_moder.
+    const isModPoster = isModeratorOrHigher(currentUser.role);
+    const isPublic = isModPoster ? document.getElementById('post-is-public').checked : false;
+    const pinned = isModPoster ? document.getElementById('post-pinned').checked : false;
+    const deleteAfterRaw = isModPoster ? document.getElementById('post-delete-after').value : '';
+    const deleteAfterDays = deleteAfterRaw ? parseInt(deleteAfterRaw, 10) : null;
+
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/posts`, {
         method: 'POST',
@@ -15201,7 +15330,14 @@
           'Content-Type': 'application/json',
           Prefer: 'return=minimal'
         },
-        body: JSON.stringify({ author_id: currentUser.id, text, emoji: selectedPostEmoji || null })
+        body: JSON.stringify({
+          author_id: currentUser.id,
+          text,
+          emoji: selectedPostEmoji || null,
+          is_public: isPublic,
+          pinned: pinned,
+          delete_after_days: deleteAfterDays
+        })
       });
       if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
 
@@ -15215,6 +15351,110 @@
     } finally {
       btnEl.disabled = false;
       btnEl.textContent = 'Опубликовать';
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Редактирование текстового поста (только moderator/gl_moder, любой пост) ─
+  let editingTextPostId = null;
+  let selectedEditPostEmoji = null;
+
+  function canManageAnyTextPost(role) {
+    return isModeratorOrHigher(role);
+  }
+
+  async function openEditTextPostModal(postId) {
+    if (!currentUser || !canManageAnyTextPost(currentUser.role)) return;
+    let post = null;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/posts?id=eq.${postId}&select=*`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+      });
+      const rows = res.ok ? await res.json() : [];
+      post = rows && rows[0];
+    } catch (e) { console.error('Не удалось загрузить пост для редактирования:', e); }
+    if (!post) { alert('Не удалось загрузить пост.'); return; }
+
+    editingTextPostId = postId;
+    selectedEditPostEmoji = post.emoji || null;
+
+    document.getElementById('edit-post-text-body').value = post.text || '';
+    document.querySelectorAll('#editPostEmojiPicker .post-emoji-option').forEach(b => {
+      b.classList.toggle('active', b.dataset.emoji === selectedEditPostEmoji);
+    });
+    document.getElementById('edit-post-is-public').checked = !!post.is_public;
+    document.getElementById('edit-post-pinned').checked = !!post.pinned;
+    document.getElementById('edit-post-delete-after').value = post.delete_after_days ? String(post.delete_after_days) : '';
+    document.getElementById('editTextPostStatus').textContent = '';
+    document.getElementById('editTextPostStatus').className = '';
+
+    openOverlay('editTextPostOverlay');
+  }
+
+  document.getElementById('editPostEmojiPicker').addEventListener('click', (e) => {
+    const btn = e.target.closest('.post-emoji-option');
+    if (!btn) return;
+    const emoji = btn.dataset.emoji;
+    const alreadyActive = btn.classList.contains('active');
+    document.querySelectorAll('#editPostEmojiPicker .post-emoji-option').forEach(b => b.classList.remove('active'));
+    if (alreadyActive) {
+      selectedEditPostEmoji = null;
+    } else {
+      selectedEditPostEmoji = emoji;
+      btn.classList.add('active');
+    }
+  });
+
+  document.getElementById('editTextPostSaveBtn').addEventListener('click', async () => {
+    if (!editingTextPostId || !currentUser || !canManageAnyTextPost(currentUser.role)) return;
+    const statusEl = document.getElementById('editTextPostStatus');
+    const btnEl = document.getElementById('editTextPostSaveBtn');
+    const text = document.getElementById('edit-post-text-body').value.trim();
+    if (!text) {
+      statusEl.textContent = 'Текст поста не может быть пустым';
+      statusEl.className = 'err';
+      return;
+    }
+
+    const isPublic = document.getElementById('edit-post-is-public').checked;
+    const pinned = document.getElementById('edit-post-pinned').checked;
+    const deleteAfterRaw = document.getElementById('edit-post-delete-after').value;
+    const deleteAfterDays = deleteAfterRaw ? parseInt(deleteAfterRaw, 10) : null;
+
+    btnEl.disabled = true;
+    btnEl.textContent = 'Сохраняем...';
+    statusEl.textContent = '';
+    statusEl.className = '';
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/posts?id=eq.${editingTextPostId}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          text,
+          emoji: selectedEditPostEmoji || null,
+          is_public: isPublic,
+          pinned: pinned,
+          delete_after_days: deleteAfterDays
+        })
+      });
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+
+      statusEl.textContent = 'Сохранено!';
+      statusEl.className = 'ok';
+      setTimeout(() => closeOverlay('editTextPostOverlay'), 600);
+      if (currentFeedFilter === 'subscriptions') loadSubscriptionsFeed();
+    } catch (e) {
+      statusEl.textContent = 'Ошибка: ' + e.message;
+      statusEl.className = 'err';
+    } finally {
+      btnEl.disabled = false;
+      btnEl.textContent = 'Сохранить';
     }
   });
   // ──────────────────────────────────────────────────────────────────────────
@@ -15530,6 +15770,7 @@
     const deleteBtn = e.target.closest('.card-delete-btn');
     const deleteCollectionBtn = e.target.closest('.card-delete-collection-btn');
     const deleteTextPostBtn = e.target.closest('.card-delete-textpost-btn');
+    const editTextPostBtn = e.target.closest('.card-edit-textpost-btn');
     const editBtn = e.target.closest('.card-edit-btn');
     const editCollectionBtn = e.target.closest('.card-edit-collection-btn');
 
@@ -15539,6 +15780,13 @@
       document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
       if (!wasOpen) dropdown.classList.add('open');
       e.stopPropagation();
+      return;
+    }
+
+    if (editTextPostBtn) {
+      e.stopPropagation();
+      document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+      openEditTextPostModal(editTextPostBtn.dataset.id);
       return;
     }
 
