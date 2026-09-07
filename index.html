@@ -1411,18 +1411,19 @@
     cursor: pointer;
   }
 
-  /* ─── Текстовый пост (вкладка "Подписки"/профиль): вместо обложки —
-     декоративный блок той же пропорции (4/3), что и у фото/видео, чтобы
-     карточка поста не отличалась по размеру от соседних карточек с медиа
-     и не "проваливалась" пустотой, если грид растягивает её по высоте
-     строки. align-self:start — на случай, если пост всё равно короче
-     соседей, лучше естественная высота, чем лишняя пустота внизу. ────── */
+  /* ─── Текстовый пост (вкладка "Подписки"/профиль): та же логика, что и у
+     карточек фанфиков ниже — фиксированная высота (совпадает с обычными
+     карточками фото/видео/фанфика в сетке), декоративный блок 4/3 вместо
+     обложки, текст скроллится внутри своего блока, если не помещается,
+     футер всегда прижат к низу. Так карточка поста не отличается по
+     размеру от соседних карточек с медиа. ────────────────────────────── */
   .card-type-post {
     display: flex;
     flex-direction: column;
-    align-self: start;
+    height: 420px;
   }
   .card-post-visual {
+    flex: 0 0 auto;
     width: calc(100% + 36px);
     aspect-ratio: 4 / 3;
     margin: -18px -18px 12px -18px;
@@ -1439,8 +1440,23 @@
     color: var(--accent);
     opacity: 0.5;
   }
-  .card-type-post p {
-    flex: 1;
+  .card-type-post > .meta,
+  .card-type-post > .card-author {
+    flex: 0 0 auto;
+  }
+  .card-type-post > p {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0 0 10px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .card-type-post > p::-webkit-scrollbar { width: 5px; }
+  .card-type-post > p::-webkit-scrollbar-track { background: transparent; }
+  .card-type-post > p::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .card-type-post .card-footer {
+    flex: 0 0 auto;
   }
 
   /* ─── Карточки фанфиков в ленте: одинаковая высота у постов с обложкой и
@@ -4202,6 +4218,34 @@
     background: none;
   }
 
+  .post-emoji-picker {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .post-emoji-option {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel-2, var(--panel));
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+  .post-emoji-option:hover {
+    border-color: var(--accent);
+  }
+  .post-emoji-option.active {
+    border-color: var(--accent);
+    background: rgba(214,140,62,0.18);
+    transform: scale(1.06);
+  }
+
   .avatar-upload-row {
     display: flex;
     align-items: center;
@@ -6229,7 +6273,6 @@
 <main>
   <div class="toolbar">
     <h2 id="feedTitle">Лента сообщества</h2>
-    <button id="addTextPostBtn" class="secondary small" style="display:none;" title="Написать пост" aria-label="Написать пост">✎ Написать пост</button>
     <button id="addContentBtn" title="Добавить контент" aria-label="Добавить контент"><img class="add-content-icon" src="https://i.postimg.cc/KY2ChZtS/dobavit'-publikaciu-4x-8.png" alt="Добавить контент"></button>
   </div>
 
@@ -6556,22 +6599,6 @@
   </div>
 </div>
 
-<div class="overlay" id="textPostOverlay">
-  <div class="modal">
-    <button class="close-x" data-close="textPostOverlay">×</button>
-    <h2>Написать пост</h2>
-    <p class="hint">Текстовый пост увидят только твои подписчики, во вкладке «Подписки».</p>
-
-    <label for="p-text-post-body">Текст поста</label>
-    <textarea id="p-text-post-body" rows="6" maxlength="4000" placeholder="Что нового?"></textarea>
-
-    <div class="modal-actions">
-      <button id="textPostSaveBtn">Опубликовать</button>
-    </div>
-    <div id="textPostStatus"></div>
-  </div>
-</div>
-
 <div class="overlay" id="notifSettingsOverlay">
   <div class="modal">
     <button class="close-x" data-close="notifSettingsOverlay">×</button>
@@ -6830,6 +6857,7 @@
       <button class="content-tab active" data-type="art">🎨 Арт</button>
       <button class="content-tab" data-type="video">🎬 Видео</button>
       <button class="content-tab" data-type="fanfic">📖 Фанфик</button>
+      <button class="content-tab" data-type="post" id="contentTabPost" style="display:none;">✎ Пост</button>
     </div>
 
     <div class="tab-form" id="form-art">
@@ -6908,6 +6936,24 @@
         <button id="contentSubmitBtn">Отправить на проверку</button>
       </div>
       <div id="contentStatus"></div>
+    </div>
+
+    <div class="tab-form" id="form-post" style="display:none;">
+      <p class="hint" style="margin-top:14px;">Текстовый пост увидят только твои подписчики, во вкладке «Подписки». Публикуется сразу, без проверки модератором.</p>
+      <label for="post-text-body">Текст поста</label>
+      <textarea id="post-text-body" rows="6" maxlength="4000" placeholder="Что нового?"></textarea>
+      <label>Настроение (необязательно)</label>
+      <div class="post-emoji-picker" id="postEmojiPicker">
+        <button type="button" class="post-emoji-option" data-emoji="🥰" title="Влюблён(а)">🥰</button>
+        <button type="button" class="post-emoji-option" data-emoji="😂" title="Смешно">😂</button>
+        <button type="button" class="post-emoji-option" data-emoji="😔" title="Грустно">😔</button>
+        <button type="button" class="post-emoji-option" data-emoji="😡" title="Злюсь">😡</button>
+        <button type="button" class="post-emoji-option" data-emoji="🤫" title="Секрет">🤫</button>
+      </div>
+      <div class="modal-actions">
+        <button id="postSubmitBtn">Опубликовать</button>
+      </div>
+      <div id="postStatus"></div>
     </div>
 
   </div>
@@ -11959,7 +12005,7 @@
           </div>
         </div>` : '';
       return `<div class="card card-type-post" data-content-type="post">
-        <div class="card-post-visual"><span class="card-post-quote">”</span></div>
+        <div class="card-post-visual"><span class="card-post-quote">${item.emoji || '”'}</span></div>
         <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
         ${item.text ? `<p>${escapeHtml(item.text)}</p>` : ''}
         <div class="card-footer">
@@ -13135,6 +13181,12 @@
       return;
     }
     switchContentTab('art');
+    updateContentPostTabVisibility();
+    selectedPostEmoji = null;
+    document.querySelectorAll('#postEmojiPicker .post-emoji-option').forEach(b => b.classList.remove('active'));
+    document.getElementById('post-text-body').value = '';
+    document.getElementById('postStatus').textContent = '';
+    document.getElementById('postStatus').className = '';
     openOverlay('contentOverlay');
   });
   // ──────────────────────────────────────────────────────────────────────────
@@ -14391,7 +14443,6 @@
       if (homeLayoutEl) homeLayoutEl.style.display = '';
       if (homeReviewsBlockEl) homeReviewsBlockEl.style.display = '';
       document.body.classList.add('is-home-page');
-      renderWriteTextPostButton();
       await loadHomeSection();
       return;
     }
@@ -14412,7 +14463,6 @@
     }
     if (subsTypeFilterWrapEl) subsTypeFilterWrapEl.style.display = 'none';
     if (contentOnlyFiltersEl) contentOnlyFiltersEl.style.display = 'contents';
-    renderWriteTextPostButton();
 
     // Поиск по нику автора — только на вкладках "Фото" и "Видео"; на
     // остальных (фанфики) скрываем и сбрасываем, чтобы фильтр не остался
@@ -14721,7 +14771,7 @@
       if (isPost) {
         return `
         <div class="card card-type-post">
-          <div class="card-post-visual"><span class="card-post-quote">”</span></div>
+          <div class="card-post-visual"><span class="card-post-quote">${item.emoji || '”'}</span></div>
           <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
           ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
           ${descHtml}
@@ -15016,17 +15066,8 @@
   // подписчикам автора и создаются ролями выше обычного пользователя.
   let currentSubscriptionsFeedData = [];
 
-  function renderWriteTextPostButton() {
-    const btnEl = document.getElementById('addTextPostBtn');
-    if (!btnEl) return;
-    const canWrite = currentFeedFilter === 'subscriptions' && currentUser && canWriteTextPost(currentUser.role);
-    btnEl.style.display = canWrite ? '' : 'none';
-  }
-
   async function loadSubscriptionsFeed() {
     const feedEl = document.getElementById('feed');
-
-    renderWriteTextPostButton();
 
     if (!currentUser) {
       feedEl.innerHTML = `<p class="empty">Войди в аккаунт, чтобы видеть публикации авторов, на которых ты подписан(а).</p>`;
@@ -15066,6 +15107,7 @@
       content_type: 'post',
       title: '',
       description: p.text,
+      emoji: p.emoji || null,
       tags: [],
       submitted_by: p.author_id,
       created_at: p.created_at,
@@ -15100,18 +15142,38 @@
     renderFeedCards(sortFeedItems(filtered));
   }
 
-  document.getElementById('addTextPostBtn').addEventListener('click', () => {
-    if (!currentUser || !canWriteTextPost(currentUser.role)) return;
-    document.getElementById('p-text-post-body').value = '';
-    document.getElementById('textPostStatus').textContent = '';
-    document.getElementById('textPostStatus').className = '';
-    openOverlay('textPostOverlay');
+  // ─── Вкладка "Пост" в модалке "Добавить контент" ───────────────────────────
+  // Видна только ролям выше user (canWriteTextPost); публикуется сразу, без
+  // очереди модерации. Опционально — один из 5 смайлов вместо кавычки-плейсхолдера
+  // на декоративном блоке карточки поста.
+  const POST_MOOD_EMOJIS = ['🥰', '😂', '😔', '😡', '🤫']; // для справки — совпадают со значениями data-emoji в HTML-пикере
+  let selectedPostEmoji = null;
+
+  function updateContentPostTabVisibility() {
+    const tabEl = document.getElementById('contentTabPost');
+    if (!tabEl) return;
+    tabEl.style.display = (currentUser && canWriteTextPost(currentUser.role)) ? '' : 'none';
+  }
+
+  document.getElementById('postEmojiPicker').addEventListener('click', (e) => {
+    const btn = e.target.closest('.post-emoji-option');
+    if (!btn) return;
+    const emoji = btn.dataset.emoji;
+    const alreadyActive = btn.classList.contains('active');
+    document.querySelectorAll('#postEmojiPicker .post-emoji-option').forEach(b => b.classList.remove('active'));
+    if (alreadyActive) {
+      // Повторный клик по уже выбранному смайлу — снимаем выбор (вернётся кавычка).
+      selectedPostEmoji = null;
+    } else {
+      selectedPostEmoji = emoji;
+      btn.classList.add('active');
+    }
   });
 
-  document.getElementById('textPostSaveBtn').addEventListener('click', async () => {
-    const statusEl = document.getElementById('textPostStatus');
-    const btnEl = document.getElementById('textPostSaveBtn');
-    const text = document.getElementById('p-text-post-body').value.trim();
+  document.getElementById('postSubmitBtn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('postStatus');
+    const btnEl = document.getElementById('postSubmitBtn');
+    const text = document.getElementById('post-text-body').value.trim();
     if (!text) {
       statusEl.textContent = 'Текст поста не может быть пустым';
       statusEl.className = 'err';
@@ -15133,13 +15195,13 @@
           'Content-Type': 'application/json',
           Prefer: 'return=minimal'
         },
-        body: JSON.stringify({ author_id: currentUser.id, text })
+        body: JSON.stringify({ author_id: currentUser.id, text, emoji: selectedPostEmoji || null })
       });
       if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
 
       statusEl.textContent = 'Опубликовано!';
       statusEl.className = 'ok';
-      setTimeout(() => closeOverlay('textPostOverlay'), 600);
+      setTimeout(() => closeOverlay('contentOverlay'), 600);
       if (currentFeedFilter === 'subscriptions') loadSubscriptionsFeed();
     } catch (e) {
       statusEl.textContent = 'Ошибка: ' + e.message;
