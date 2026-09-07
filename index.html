@@ -1411,6 +1411,38 @@
     cursor: pointer;
   }
 
+  /* ─── Текстовый пост (вкладка "Подписки"/профиль): вместо обложки —
+     декоративный блок той же пропорции (4/3), что и у фото/видео, чтобы
+     карточка поста не отличалась по размеру от соседних карточек с медиа
+     и не "проваливалась" пустотой, если грид растягивает её по высоте
+     строки. align-self:start — на случай, если пост всё равно короче
+     соседей, лучше естественная высота, чем лишняя пустота внизу. ────── */
+  .card-type-post {
+    display: flex;
+    flex-direction: column;
+    align-self: start;
+  }
+  .card-post-visual {
+    width: calc(100% + 36px);
+    aspect-ratio: 4 / 3;
+    margin: -18px -18px 12px -18px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(214,140,62,0.20), rgba(204,122,207,0.14));
+  }
+  .card-post-quote {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 84px;
+    line-height: 1;
+    color: var(--accent);
+    opacity: 0.5;
+  }
+  .card-type-post p {
+    flex: 1;
+  }
+
   /* ─── Карточки фанфиков в ленте: одинаковая высота у постов с обложкой и
      без неё — обложка получает фиксированную высоту вместо aspect-ratio,
      а описание/теги скроллятся внутри своего блока, если не помещаются;
@@ -7349,6 +7381,7 @@
   // между неполными перезагрузками разных вкладок.
   let myLikedContentIds = new Set();
   let myLikedCollectionIds = new Set();
+  let myLikedPostIds = new Set();
 
   // ─── Галерея сборника — общее состояние для лайтбокса и пост-страницы.
   // currentGalleryItems пуст для обычного поста (одно фото/видео без
@@ -11772,7 +11805,8 @@
     if (currentUser) {
       await Promise.all([
         fetchMyLikedIds(userContent.map(it => it.id), false),
-        fetchMyLikedIds(userCollections.map(it => it.id), true)
+        fetchMyLikedIds(userCollections.map(it => it.id), true),
+        fetchMyLikedIds(userPosts.map(it => it.id), 'post')
       ]);
     }
 
@@ -11913,8 +11947,8 @@
       </div>`;
     }).join('');
 
-    // Текстовые посты — та же карточка, что и в ленте "Подписки": без
-    // медиа, только текст, автор, дата, меню удаления (себе/модератору).
+    // Текстовые посты — та же карточка, что и в ленте "Подписки": декоративный
+    // блок вместо медиа, текст, автор, дата, лайк, меню удаления (себе/модератору).
     const postCardsHtml = userPosts.map(item => {
       const canDeletePost = currentUser && (isModeratorOrHigher(currentUser.role) || currentUser.id === item.author_id);
       const menuHtml = canDeletePost ? `
@@ -11925,10 +11959,13 @@
           </div>
         </div>` : '';
       return `<div class="card card-type-post" data-content-type="post">
+        <div class="card-post-visual"><span class="card-post-quote">”</span></div>
         <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.created_at)}</span></div>
         ${item.text ? `<p>${escapeHtml(item.text)}</p>` : ''}
         <div class="card-footer">
-          <div class="card-footer-left"></div>
+          <div class="card-footer-left">
+            ${renderCardLikeButton(item, 'post', false)}
+          </div>
           ${menuHtml}
         </div>
       </div>`;
@@ -14248,12 +14285,20 @@
   }
 
   // Лайки: батч-проверка для ленты/профиля + точечная для прямых ссылок; результат добавляется в общий Set.
-  async function fetchMyLikedIds(ids, isCollection) {
+  function likeKindMeta(kind) {
+    // Раньше isCollection был boolean (true/false) — оставляем обратную
+    // совместимость со старыми вызовами, добавляя новый вид 'post'.
+    const normalized = kind === true ? 'collection' : kind === false ? 'content' : kind;
+    if (normalized === 'collection') return { kind: 'collection', table: 'collection_likes', field: 'collection_id', set: myLikedCollectionIds };
+    if (normalized === 'post') return { kind: 'post', table: 'post_likes', field: 'post_id', set: myLikedPostIds };
+    return { kind: 'content', table: 'content_likes', field: 'content_id', set: myLikedContentIds };
+  }
+
+  async function fetchMyLikedIds(ids, kind) {
     if (!currentUser || !currentUserToken) return;
     const unique = [...new Set(ids.filter(Boolean))];
     if (!unique.length) return;
-    const table = isCollection ? 'collection_likes' : 'content_likes';
-    const field = isCollection ? 'collection_id' : 'content_id';
+    const { table, field, set: targetSet } = likeKindMeta(kind);
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/${table}?user_id=eq.${currentUser.id}&${field}=in.(${unique.join(',')})&select=${field}`,
@@ -14261,17 +14306,15 @@
       );
       if (!res.ok) return;
       const rows = await res.json();
-      const targetSet = isCollection ? myLikedCollectionIds : myLikedContentIds;
       rows.forEach(r => targetSet.add(r[field]));
     } catch (e) {
       console.error('Не удалось загрузить мои лайки:', e);
     }
   }
 
-  async function checkLikedByMe(id, isCollection) {
+  async function checkLikedByMe(id, kind) {
     if (!currentUser || !currentUserToken || !id) return false;
-    const table = isCollection ? 'collection_likes' : 'content_likes';
-    const field = isCollection ? 'collection_id' : 'content_id';
+    const { table, field } = likeKindMeta(kind);
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/${table}?${field}=eq.${id}&user_id=eq.${currentUser.id}&select=${field}`,
@@ -14287,18 +14330,22 @@
   }
 
   // Разметка кнопки-сердечка на карточке ленты/профиля — переиспользуется
-  // во всех 4 местах рендера карточек (лента, сборники, профиль×2)
-  function renderCardLikeButton(item, isCollection) {
-    const liked = isCollection ? myLikedCollectionIds.has(item.id) : myLikedContentIds.has(item.id);
-    return `
-      <button type="button" class="card-like-btn${liked ? ' liked' : ''}" data-like-id="${item.id}" data-like-kind="${isCollection ? 'collection' : 'content'}" title="${liked ? 'Убрать лайк' : 'Нравится'}">
-        <svg class="like-heart" width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg>
-        <span class="card-like-count">${item.likes || 0}</span>
-      </button>
+  // во всех местах рендера карточек (лента, сборники, посты, профиль).
+  // showComments=false скрывает значок комментариев там, где их нет
+  // (текстовые посты — без комментариев).
+  function renderCardLikeButton(item, kind, showComments) {
+    const { kind: normalizedKind, set } = likeKindMeta(kind);
+    const liked = set.has(item.id);
+    const commentsHtml = showComments === false ? '' : `
       <span class="card-comment-count" title="Комментарии">
         <svg width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         ${item.comments_count || 0}
       </span>`;
+    return `
+      <button type="button" class="card-like-btn${liked ? ' liked' : ''}" data-like-id="${item.id}" data-like-kind="${normalizedKind}" title="${liked ? 'Убрать лайк' : 'Нравится'}">
+        <svg class="like-heart" width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg>
+        <span class="card-like-count">${item.likes || 0}</span>
+      </button>${commentsHtml}`;
   }
 
   // Показывает/скрывает и наполняет кнопку лайка в лайтбоксе/на странице
@@ -14667,16 +14714,21 @@
         ? `<div class="card-fanfic-scroll">${descHtml}${tagsHtml}</div>`
         : `${descHtml}${tagsHtml}`;
 
-      // Текстовый пост (вкладка "Подписки") — без медиа, заголовка и лайков,
-      // только текст, автор и меню удаления (себе/модератору).
+      // Текстовый пост (вкладка "Подписки") — вместо медиа декоративный
+      // блок с кавычкой (той же высоты, что обложка фото/видео, чтобы
+      // карточка не "проваливалась" пустотой при растяжении по сетке),
+      // ниже текст, автор, лайк и меню удаления (себе/модератору).
       if (isPost) {
         return `
         <div class="card card-type-post">
+          <div class="card-post-visual"><span class="card-post-quote">”</span></div>
           <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
           ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
           ${descHtml}
           <div class="card-footer">
-            <div class="card-footer-left"></div>
+            <div class="card-footer-left">
+              ${renderCardLikeButton(item, 'post', false)}
+            </div>
             ${menuHtml}
           </div>
         </div>
@@ -15018,7 +15070,7 @@
       submitted_by: p.author_id,
       created_at: p.created_at,
       published_at: p.created_at,
-      likes: 0,
+      likes: p.likes || 0,
       views: 0
     }));
 
@@ -15035,6 +15087,7 @@
     const authorProfilesById = await fetchProfilesByIds(merged.map(it => it.submitted_by));
     merged.forEach(item => { item.profiles = authorProfilesById[item.submitted_by] || null; });
     if (contentRows.length) await fetchMyLikedIds(contentRows.map(it => it.id), false);
+    if (postItems.length) await fetchMyLikedIds(postItems.map(it => it.id), 'post');
 
     currentSubscriptionsFeedData = merged;
     renderFilteredSubscriptionsFeed();
@@ -15287,8 +15340,7 @@
     }
 
     const id = likeBtn.dataset.likeId;
-    const kind = likeBtn.dataset.likeKind;
-    const isCollection = kind === 'collection';
+    const kind = likeBtn.dataset.likeKind; // 'content' | 'collection' | 'post'
     if (!id || likeBtn.disabled) return;
 
     const matchingBtns = [...document.querySelectorAll(
@@ -15310,8 +15362,8 @@
     });
 
     try {
-      const rpcName = isCollection ? 'toggle_collection_like' : 'toggle_content_like';
-      const paramName = isCollection ? 'p_collection_id' : 'p_content_id';
+      const rpcName = kind === 'collection' ? 'toggle_collection_like' : kind === 'post' ? 'toggle_post_like' : 'toggle_content_like';
+      const paramName = kind === 'collection' ? 'p_collection_id' : kind === 'post' ? 'p_post_id' : 'p_content_id';
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${rpcName}`, {
         method: 'POST',
         headers: {
@@ -15329,10 +15381,10 @@
         b.title = liked ? 'Убрать лайк' : 'Нравится';
       });
 
-      const likedSet = isCollection ? myLikedCollectionIds : myLikedContentIds;
+      const likedSet = kind === 'collection' ? myLikedCollectionIds : kind === 'post' ? myLikedPostIds : myLikedContentIds;
       if (liked) likedSet.add(id); else likedSet.delete(id);
 
-      const store = isCollection ? collectionsById : feedItemsById;
+      const store = kind === 'collection' ? collectionsById : feedItemsById;
       if (store && store[id]) store[id].likes = optimisticCount;
     } catch (err) {
       matchingBtns.forEach(b => {
