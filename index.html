@@ -1571,41 +1571,35 @@
   }
   .spoiler-puzzle-close:hover { background: rgba(23,18,13,0.98); border-color: var(--accent); }
 
-  /* ─── Экран выбора уровня пазла (когда puzzle_difficulty = 'choice' —
-     см. showPuzzleDifficultyPicker в JS). Переиспользует
-     .spoiler-puzzle-overlay для позиционирования, но display:flex вместо
-     grid. ────────────────────────────────────────────────────────────── */
-  .spoiler-puzzle-overlay.spoiler-puzzle-picker {
-    display: flex;
-    flex-direction: column;
+  /* ─── Переключатель уровня пазла над кнопкой "Скопировать ссылку" —
+     виден только когда у поста puzzle_difficulty = 'choice' и пазл ещё не
+     собран (см. updatePuzzleLevelSwitchUI в JS). ──────────────────────── */
+  .puzzle-level-switch-row {
     align-items: center;
-    justify-content: center;
     gap: 10px;
-    background: rgba(23,18,13,0.92);
-    padding: 20px;
-    text-align: center;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
   }
-  .spoiler-puzzle-picker p {
-    margin: 0 0 6px;
-    font-weight: 600;
-    color: var(--text);
-    font-size: 14px;
+  .puzzle-level-switch {
+    display: inline-flex;
+    gap: 6px;
   }
-  .spoiler-puzzle-picker .puzzle-level-btn {
+  .puzzle-level-switch-btn {
     background: var(--panel-2);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 10px 16px;
-    border-radius: 8px;
+    padding: 4px 12px;
+    border-radius: 999px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
-    width: 100%;
-    max-width: 220px;
   }
-  .spoiler-puzzle-picker .puzzle-level-btn:hover {
+  .puzzle-level-switch-btn:hover { border-color: var(--accent); }
+  .puzzle-level-switch-btn.active {
+    background: var(--accent);
     border-color: var(--accent);
-    color: var(--accent-hover);
+    color: #1c130c;
   }
   /* ────────────────────────────────────────────────────────────────────── */
   .spoiler-hint {
@@ -6923,6 +6917,14 @@
         <span class="post-like-count">0</span>
       </button>
     </div>
+    <div class="puzzle-level-switch-row" id="lightboxPuzzleLevelRow" style="display:none;">
+      <span>Уровень пазла:</span>
+      <div class="puzzle-level-switch" id="lightboxPuzzleLevelSwitch">
+        <button type="button" class="puzzle-level-switch-btn" data-level="easy">Лёгкий</button>
+        <button type="button" class="puzzle-level-switch-btn" data-level="x2">×2</button>
+        <button type="button" class="puzzle-level-switch-btn" data-level="x3">×3</button>
+      </div>
+    </div>
     <div class="lightbox-meta-row">
       <h2 id="lightboxTitle" style="margin:0;"></h2>
       <button class="copy-link-btn" id="copyLinkBtn" type="button">🔗 Скопировать ссылку</button>
@@ -7198,6 +7200,7 @@
       lightboxImg.classList.remove('spoiler-blurred');
       if (hint) hint.style.display = 'none';
     }
+    updatePuzzleLevelSwitchUI();
   }
 
   // ─── Паззл-спойлер: см. комментарий у .spoiler-puzzle-overlay в CSS. ─────
@@ -7208,11 +7211,17 @@
   // content.puzzle_difficulty ('easy' | 'x2' | 'x3' | 'choice').
   const PUZZLE_GRID_BY_LEVEL = { easy: 4, x2: 6, x3: 7 };
   const DEFAULT_PUZZLE_LEVEL = 'easy';
-  const PUZZLE_LEVEL_LABELS = { easy: 'Лёгкий', x2: 'Сложный (×2 квадратов)', x3: 'Сложный (×3 квадратов)' };
 
-  // Уровень сложности паззла текущего открытого в лайтбоксе поста —
-  // проставляется при открытии лайтбокса (см. currentPuzzleDifficulty ниже).
-  let currentPuzzleDifficulty = DEFAULT_PUZZLE_LEVEL;
+  // Настройка сложности пазла у текущего открытого в лайтбоксе поста
+  // ('easy' | 'x2' | 'x3' | 'choice') — как есть в базе. Проставляется
+  // при открытии лайтбокса.
+  let postPuzzleDifficultySetting = DEFAULT_PUZZLE_LEVEL;
+  // Фактический уровень, по которому собирается сетка сейчас. Для
+  // фиксированной сложности совпадает с postPuzzleDifficultySetting; для
+  // 'choice' по умолчанию 'easy', дальше зритель может переключить его
+  // переключателем над кнопкой "Скопировать ссылку" (см.
+  // #lightboxPuzzleLevelSwitch).
+  let activePuzzleLevel = DEFAULT_PUZZLE_LEVEL;
 
   let activeSpoilerPuzzle = null; // { wrap, overlay }
 
@@ -7241,6 +7250,7 @@
   function revealSpoilerPhoto() {
     destroySpoilerPuzzle();
     lightboxImg.classList.add('spoiler-revealed');
+    updatePuzzleLevelSwitchUI();
     const hint = document.getElementById('lightboxSpoilerHint');
     if (hint) hint.style.display = 'none';
   }
@@ -7346,66 +7356,46 @@
     activeSpoilerPuzzle = { wrap, overlay };
   }
 
-  // Экран выбора уровня — показывается вместо самого паззла, если у поста
-  // выставлен puzzle_difficulty === 'choice' (см. artPuzzleDifficultySelect
-  // в форме загрузки). Пользователь сам решает, насколько сложным будет
-  // именно этот пазл.
-  function showPuzzleDifficultyPicker(wrap, imgEl) {
-    destroySpoilerPuzzle();
-
-    const wrapRect = wrap.getBoundingClientRect();
-    const imgRect = imgEl.getBoundingClientRect();
-    if (imgRect.width < 10 || imgRect.height < 10) return;
-
-    const overlay = document.createElement('div');
-    overlay.className = 'spoiler-puzzle-overlay spoiler-puzzle-picker';
-    overlay.style.left = (imgRect.left - wrapRect.left) + 'px';
-    overlay.style.top = (imgRect.top - wrapRect.top) + 'px';
-    overlay.style.width = imgRect.width + 'px';
-    overlay.style.height = imgRect.height + 'px';
-
-    const title = document.createElement('p');
-    title.textContent = 'Выбери уровень пазла';
-    overlay.appendChild(title);
-
-    ['easy', 'x2', 'x3'].forEach((level) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'puzzle-level-btn';
-      btn.textContent = PUZZLE_LEVEL_LABELS[level];
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        startSpoilerPuzzle(wrap, imgEl, PUZZLE_GRID_BY_LEVEL[level]);
-      });
-      overlay.appendChild(btn);
-    });
-
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'spoiler-puzzle-close';
-    closeBtn.title = 'Показать сразу';
-    closeBtn.setAttribute('aria-label', 'Показать фото сразу');
-    closeBtn.textContent = '✕';
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      revealSpoilerPhoto();
-    });
-    overlay.appendChild(closeBtn);
-
-    wrap.appendChild(overlay);
-    activeSpoilerPuzzle = { wrap, overlay };
+  // Точка входа для запуска паззла: для фиксированной сложности и для
+  // 'choice' (там по умолчанию 'easy', см. activePuzzleLevel) собирает
+  // сетку нужного размера сразу — без экрана выбора. Сменить уровень для
+  // 'choice' можно переключателем над кнопкой "Скопировать ссылку" (см.
+  // #lightboxPuzzleLevelSwitch и updatePuzzleLevelSwitchUI).
+  function beginSpoilerPuzzle(wrap, imgEl) {
+    startSpoilerPuzzle(wrap, imgEl, PUZZLE_GRID_BY_LEVEL[activePuzzleLevel] || PUZZLE_GRID_BY_LEVEL[DEFAULT_PUZZLE_LEVEL]);
   }
 
-  // Точка входа для запуска паззла: смотрит на currentPuzzleDifficulty
-  // и либо сразу собирает сетку нужного размера, либо сперва показывает
-  // выбор уровня (для 'choice').
-  function beginSpoilerPuzzle(wrap, imgEl) {
-    if (currentPuzzleDifficulty === 'choice') {
-      showPuzzleDifficultyPicker(wrap, imgEl);
-    } else {
-      startSpoilerPuzzle(wrap, imgEl, PUZZLE_GRID_BY_LEVEL[currentPuzzleDifficulty] || PUZZLE_GRID_BY_LEVEL[DEFAULT_PUZZLE_LEVEL]);
+  // Показывает/прячет переключатель уровня над кнопкой "Скопировать
+  // ссылку" в лайтбоксе и подсвечивает текущий выбранный уровень.
+  // Переключатель виден только если у поста puzzle_difficulty === 'choice'
+  // и фото ещё не раскрыто (идёт сборка пазла).
+  function updatePuzzleLevelSwitchUI() {
+    const row = document.getElementById('lightboxPuzzleLevelRow');
+    if (!row) return;
+    const isRelevant = postPuzzleDifficultySetting === 'choice'
+      && lightboxImg.classList.contains('spoiler-blurred')
+      && !lightboxImg.classList.contains('spoiler-revealed');
+    row.style.display = isRelevant ? 'flex' : 'none';
+    if (isRelevant) {
+      row.querySelectorAll('.puzzle-level-switch-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.level === activePuzzleLevel);
+      });
     }
   }
+
+  // Клик по переключателю: меняет уровень и, если пазл уже собирается,
+  // пересобирает его заново с новым размером сетки.
+  document.getElementById('lightboxPuzzleLevelSwitch').addEventListener('click', (e) => {
+    const btn = e.target.closest('.puzzle-level-switch-btn');
+    if (!btn) return;
+    const level = btn.dataset.level;
+    if (level === activePuzzleLevel) return;
+    activePuzzleLevel = level;
+    updatePuzzleLevelSwitchUI();
+    if (activeSpoilerPuzzle) {
+      startSpoilerPuzzle(document.getElementById('lightboxZoomWrap'), lightboxImg, PUZZLE_GRID_BY_LEVEL[activePuzzleLevel]);
+    }
+  });
   // ──────────────────────────────────────────────────────────────────────────
 
   // То же самое для отдельной страницы поста (?post=id / ?collection=id).
@@ -8139,7 +8129,9 @@
 
     const contentId = el.dataset.contentId || null;
     const feedItem = contentId ? feedItemsById[contentId] : null;
-    currentPuzzleDifficulty = (feedItem && feedItem.puzzle_difficulty) || DEFAULT_PUZZLE_LEVEL;
+    postPuzzleDifficultySetting = (feedItem && feedItem.puzzle_difficulty) || DEFAULT_PUZZLE_LEVEL;
+    activePuzzleLevel = postPuzzleDifficultySetting === 'choice' ? DEFAULT_PUZZLE_LEVEL : postPuzzleDifficultySetting;
+    updatePuzzleLevelSwitchUI();
     renderTagsBlock(document.getElementById('lightboxTags'), feedItem ? feedItem.tags : null);
     currentPostAuthor = feedItem && feedItem.profiles
       ? { id: feedItem.submitted_by, ...feedItem.profiles }
@@ -13267,7 +13259,9 @@
         });
         if (currentOpenContentId === editingPostId) {
           applyPostPageSpoilerState(!!newIsBlurred);
-          currentPuzzleDifficulty = newPuzzleDifficulty || DEFAULT_PUZZLE_LEVEL;
+          postPuzzleDifficultySetting = newPuzzleDifficulty || DEFAULT_PUZZLE_LEVEL;
+          activePuzzleLevel = postPuzzleDifficultySetting === 'choice' ? DEFAULT_PUZZLE_LEVEL : postPuzzleDifficultySetting;
+          updatePuzzleLevelSwitchUI();
         }
       }
       // Заголовок карточки (<h3>) — ищем через кнопку меню в этой же
