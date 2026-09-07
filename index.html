@@ -804,14 +804,18 @@
   }
 
   /* Плашка "вы" на главной — наезжает на низ списка стриков, а не идёт
-     отдельным блоком с отступом сверху: выглядит как приподнятая карточка,
-     прижатая к нижнему краю панели. */
+     отдельным блоком с отступом сверху: якорится по нижнему краю панели
+     #homeTagsPanel (через #homeColTags{position:relative}), поэтому её
+     нижний край всегда совпадает с нижней границей списка, а не торчит ниже. */
   .home-streak-me-row {
-    margin-top: -18px;
-    position: relative;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 2;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
     background: var(--panel-2);
+    margin-top: 0;
   }
 
 
@@ -6438,7 +6442,7 @@
       <button type="button" class="home-see-more" data-home-goto="art"><img class="home-see-more-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALIAAACyCAMAAADRVGVaAAAAM1BMVEVMaXH////////////////////////////////////////////////////////////////x7/yuAAAAEXRSTlMAkUNwLQuoslmGFiKcZXtOOKGmROUAAAAJcEhZcwAALEoAACxKAXd6dE0AAAfjSURBVHic7Z3ruqMqDIY9Fzzf/9XO03aAgCBJQGXv6fdvrap9G0OAILH6/2rsxCLl6yLVshX7mNF447bOV8FCDes2ZeEV9R24SvOSSt3cyvvVvPVs3l4M9wO/NbQ8v34M+KOWYenmSeC3pQUReLwsnuE1dxTi7WjiQYqmyxKDPAbqduGLowvaO/qDidctZ5wPaGxa11I10kaTc6Js+EGHqr117u2OuYDT7pjxhq3RCVSIVtgwvSmfnOjaxi68WC58s4WV+oXADI/F+dE1mmosM/SK9QGfAFpwzJB4u5/S1g48egkdNAGnIPU81wg6R+P/ht78rOGibo6mvo4BmT6vftaNtQDz7EMS5icVQmwxr8dPp9hNeESA+RhyzWcFEVfVOATv/RZrnE+pC0U6Ey08PvOsTBuzhw/6/96W+ax0JJN+IxfQhbgavXCiWLeoIB0wszby8NBoMyI9LTR4OlxQJ+I3SQ/XzJBO/Ypyuj1HB8CpcCMDM6tOQ4+my/TkCph5DfxdoHTQ+HqG9gv6XG9qxCqllKtAxPNOtO9jpdjowX+0PUP9goF4md1K7kQSrM5Mf6WOZNSo7RszpPUXVs0xh3aS9DgmfgdBCk8qDn/t6rZGjHbv4kkohXZM8n2+nTIj1t47wj/wv7pffQjB2UEfWr2QhBClbNSAmFejz57CCyi+Hj9ITJoAKSsJ0PrQruxmRi15fnjolmijoaQwJWh92K7vlNhzme70cDSzuswMkJHBcrSI53brum5fTGs8jFPAR8vedd222I6C9A0dmUHAwJ1qOWZrzjHTHScOGCObRaZxAb8bO+D1IONOBNk9u73rkYvjzTotb802YcyRFUrqbnVEZOCYblTVP8b2DPVNLhhYLMC5s2Qiy/D39C9zzdh/K6sZ44bpTOQmTGyuaZlf3RbPAMYwo4IVE1mefYnwfaaQfQ67k8zMQ9Z9u7enJCObTgbjzTxk3fq9MZyOrGM8ZrDAQx7Ovp+BTJrCsZB1hPNPXxjIuktDjENZyIppPv+YgKy9GTHtZCGrkwLrQxxkFTURkzgW8rlfsJC1Z8RHOBzkLnIkB9mabORHVjPGUERiIau4GVyMTEKOXZ2FvEU+T0NW54TuIQs55m1pyC9zTj5kfdVoZ8JAHmMH8pBrQ5IdWX15cDzAQ159Z2VCjjYUHrI6KxoyGMheonTkJnZAArJ30pGOHPW3DMjBdsJDjrbqBOT5GmSOybCnRI9jIqt5Q2xgdCWyXKSWUL18GBmbYKMjq6lqeGRrclwePYEcv8NMZNWXxOZSBSFH4/2/hKx6qfDEsjjk+JX/HWQ13IrlBa5DnqUQ7/WFjxqxyCGCHG8kFyLXreg8OcxxF3IoE/lU4XRsschh/ZCBfshGP2SgH7LRDxnoh2wUH9UWh3z94DOebifqOmS14Ix8egKvJ+d+P2RXBSFjc+J85MBqMF/XZYuIj03h9R9Exq7vJCDnfvode10GMnq1iyjs9ycsPGTe6jxdiKyS25kHGejgmbCIlnmQgV53ZyCjF+hoUk9EXbG6il/TJyn2/EEKMvGpYaxehiQ/sopyWbfuX/s8hgoZWfclKVeOP4/IQdaP1ebcYqfWbK95tsjZp5RFhP1ZrOfklDNnDHPK2a56tE/vF83mGfoZcsSmFhZyfs/QK0KIgQvvYWDlGfi9SefSO5MxUx0esvaMTANQbWTMUIuHrF0vj5m1o134LL55sj1LD6gfxb9yx4PuXnNsi6dteEjfCpPuGiNtWwkb2ZRXoe10PcrsD0Pusecig21dicG5pV6IjdxTd2NFibHdPxvZNJokZkOMbsh8ZLjjj+vPcJMzOseQgAzKBb0ka4A0zZxfnYIM94Jyas6ZekOkCnApyPYeYWrZuQnufKcU+0pCtplJZU97q8IkqTxZGrLlja/XjA0dbvkG0g1KRHY33Q8CEaomp4YnMd6kIjt3+FPx4tRm4+ZWFqAOBkGyWF2COjY7lg6WgVok/b4cKiHM5JwT4GSnuq22r7Fb0Zkr9e/6ub7CDYySp8Ab0Hm8ozwFhFGilSn+Cu6OVh0wJ2988GiMyMWgP4K5YvxeMJ9GKjSxxouWsmybIW88Hqomn4hfjR3mXcO7/rHqsaXoV/7SkE2pvi9lEWTcosXHI4E7Ip12/RymvCRxdbrflyB2KGLjZW/20POMDCsKnwpXYACS630Tev72t89U18/+DE4+NY5ZVdaGWoTrRimXU857KDBXnKaDI1Bypo9I91e6WbSFm1mnSOXxX4Wa2VetRAfUxyuI+9T5LJo1CZtds8fIwMwFlnQUPiPDJGxxLTCIpoNGSWW53+q1W7gDepOELaVc+1+ZodbBliZTlv0RyRSZSY9nBGR+TuqaQkYZQ/rKb4P8fDHM4KUT3iYGasUVwgzSuoE+DmyLfPjNH1+1CBuCY+rHu0FYi/AkiiXm53MK5oPP4q6Vg33iVUFacO/uee9mMc+PGbqr0cRurls+UtnfTprF39jlZAbvh3ayfKjxg/USp9ervvH9YlW1O0V5ke/525284NDeRL0fMpLoWdJ4TAvWy37pqPS9v/zwpaTUub8+wCylXERuSSn970glRtnnX6NY0xu+v8L5XRp4EzpPHfmbNDNXJ96WfsQ96rQp8yhuNvWQ/Ebe95jKE34uUr3k62w7/yJpRtWr2PN3WP27OHv2sCyarvMVL/Grqqo/ptHwUoZrSC8AAAAASUVORK5CYII=" alt=""> Смотреть больше ›</button>
     </div>
 
-    <div class="home-col" id="homeColTags">
+    <div class="home-col" id="homeColTags" style="position:relative;">
       <div class="home-col-header">
         <h3>Стрики</h3>
       </div>
