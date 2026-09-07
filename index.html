@@ -6434,6 +6434,7 @@
       <div class="home-tags-panel" id="homeTagsPanel">
         <p class="home-empty">Загрузка...</p>
       </div>
+      <div class="streak-me-row" id="homeStreakMeRow" style="display:none;"></div>
     </div>
 
     <!-- Мобильная замена колонки "Теги" — та же информация о спонсорах,
@@ -15088,6 +15089,7 @@
     renderHomeCardGrid(artGridEl, artData, 'art');
     renderHomeCardGrid(videoGridEl, videoData, 'video');
     renderHomeTags(tagsPanelEl, streaksData);
+    renderHomeStreakMeRow(streaksData);
     renderHomeStreamers(streamersPanelEl, streamersData);
     renderHomeStreamers(respectPlusPanelEl, respectPlusData);
     renderHomeStreamers(sponsorPanelEl, sponsorData);
@@ -15337,6 +15339,32 @@
           <span class="streak-item-count ${tier.cls}${isStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${p.streak_count || 0}</span>
         </div>`;
     }).join('');
+  }
+
+  // Пин текущего пользователя под списком стриков на главной — виден всегда,
+  // даже если он не входит в верхнюю видимую часть прокручиваемого списка.
+  // fetchHomeStreaks() возвращает полный список (без limit), поэтому ранг
+  // можно посчитать прямо по индексу в data, без дополнительного запроса.
+  function renderHomeStreakMeRow(data) {
+    const row = document.getElementById('homeStreakMeRow');
+    if (!row) return;
+    if (!currentUser) { row.style.display = 'none'; return; }
+    const list = data || [];
+    const idx = list.findIndex(p => String(p.id) === String(currentUser.id));
+    const rank = idx >= 0 ? idx + 1 : 0;
+    const today = new Date().toISOString().slice(0, 10);
+    const isStale = idx >= 0 ? (list[idx].last_visit_date !== today) : currentStreakStale;
+    const count = idx >= 0 ? (list[idx].streak_count || 0) : currentStreakCount;
+    const avatar = currentUser.avatar_url || presetToDataUrl('p0');
+    const tier = streakTier(count || 0);
+    row.style.display = 'flex';
+    row.dataset.openProfile = currentUser.id;
+    row.innerHTML = `
+      <span class="streak-item-rank">${rank || '—'}</span>
+      <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
+      <span class="streak-item-name">${escapeHtml(currentUser.display_name || currentUser.username || 'без имени')}</span>
+      <span class="streak-item-count ${tier.cls}${isStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${count}</span>
+    `;
   }
   // ──────────────────────────────────────────────────────────────────────────
 
