@@ -5206,12 +5206,20 @@
     #homeColTags { display: none; }
     #homeColMobileSponsors { display: flex; }
     #homeMobileSponsorPanel { max-height: 240px; }
+    /* Топ по стрикам, продублированный под блоком "Отзывы" — см.
+       #homeMobileStreakBlock в разметке ниже .home-channel-reel. */
+    .home-mobile-streaks-block { display: flex; }
   }
 
   #homeColMobileSponsors { display: none; }
   #homeColMobileSponsors.mobile-sponsors-empty { display: none !important; }
 
   .home-col { display: flex; flex-direction: column; gap: 16px; }
+  /* Дубль колонки "Стрики" для мобильной версии — стоит под блоком
+     "Отзывы", в самом низу главной. На десктопе скрыт (там уже есть
+     обычная колонка "Стрики" внутри .home-layout); появляется в
+     @media (max-width: 1200px) ниже. */
+  .home-mobile-streaks-block { display: none; }
 
   .home-col-header {
     display: flex;
@@ -6519,6 +6527,19 @@
       </div>
       <button type="button" class="reel-arrow reel-arrow-right" id="reviewArrowRight" aria-label="Прокрутить вперёд">›</button>
     </div>
+  </div>
+
+  <!-- Мобильный дубль колонки "Стрики" с главной для ПК — виден только
+       на телефоне/планшете (см. .home-mobile-streaks-block), под блоком
+       "Отзывы" в самом низу. Наполняется тем же loadHomeSection(). -->
+  <div class="home-col home-mobile-streaks-block" id="homeMobileStreakBlock" style="position:relative;">
+    <div class="home-col-header">
+      <h3>Стрики</h3>
+    </div>
+    <div class="home-tags-panel" id="homeMobileTagsPanel">
+      <p class="home-empty">Загрузка...</p>
+    </div>
+    <div class="streak-me-row home-streak-me-row" id="homeMobileStreakMeRow" style="display:none;"></div>
   </div>
 
   <div class="feed-layout" id="feedLayoutWrap">
@@ -15105,6 +15126,11 @@
     renderHomeCardGrid(videoGridEl, videoData, 'video');
     renderHomeTags(tagsPanelEl, streaksData);
     renderHomeStreakMeRow(streaksData);
+    // Дубль топа по стрикам под "Отзывы" (мобильная версия) — та же
+    // выборка, просто отрисовывается ещё и во второй набор элементов.
+    const mobileTagsPanelEl = document.getElementById('homeMobileTagsPanel');
+    if (mobileTagsPanelEl) renderHomeTags(mobileTagsPanelEl, streaksData);
+    renderHomeStreakMeRow(streaksData, 'homeMobileStreakMeRow');
     renderHomeStreamers(streamersPanelEl, streamersData);
     renderHomeStreamers(respectPlusPanelEl, respectPlusData);
     renderHomeStreamers(sponsorPanelEl, sponsorData);
@@ -15360,8 +15386,8 @@
   // даже если он не входит в верхнюю видимую часть прокручиваемого списка.
   // fetchHomeStreaks() возвращает полный список (без limit), поэтому ранг
   // можно посчитать прямо по индексу в data, без дополнительного запроса.
-  function renderHomeStreakMeRow(data) {
-    const row = document.getElementById('homeStreakMeRow');
+  function renderHomeStreakMeRow(data, rowId = 'homeStreakMeRow') {
+    const row = document.getElementById(rowId);
     if (!row) return;
     if (!currentUser) { row.style.display = 'none'; return; }
     const list = data || [];
