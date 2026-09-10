@@ -1488,6 +1488,21 @@
     justify-content: center;
   }
 
+  .age-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--border);
+    color: var(--text-dim, #999);
+    vertical-align: middle;
+  }
+  .age-badge-18 {
+    background: #c0392b;
+    color: #fff;
+  }
+
   /* ─── Карточки фанфиков в ленте: одинаковая высота у постов с обложкой и
      без неё — обложка получает фиксированную высоту вместо aspect-ratio,
      а описание/теги скроллятся внутри своего блока, если не помещаются;
@@ -7102,6 +7117,14 @@
       <input type="text" id="c-tags" placeholder="ангст, AU, романтика">
       <label for="c-desc">Краткое описание</label>
       <textarea id="c-desc" placeholder="1-2 предложения о том, что внутри"></textarea>
+      <div class="settings-toggle-row" style="margin-top:10px;">
+        <span id="c-age-rating-label">Рейтинг: PG-13</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="c-age-rating">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="hint" style="margin-top:2px;">Включи, если в работе 18+ контент.</p>
       <label>Обложка (необязательно)</label>
       <div class="upload-zone" id="fanficCoverUploadZone">
         <input type="file" id="fanficCoverFile" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
@@ -10997,7 +11020,7 @@
         return `
         <div class="mod-card" data-kind="content" data-id="${item.id}" data-author="${item.submitted_by}">
           ${mediaHtml}
-          <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}</div>
+          <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${item.content_type === 'fanfic' ? ` · <span class="age-badge${item.age_rating === '18+' ? ' age-badge-18' : ''}">${item.age_rating === '18+' ? '18+' : 'PG-13'}</span>` : ''}</div>
           <h4>${escapeHtml(item.title)}</h4>
           ${authorLineHtml(item.submitted_by)}
           ${linkHtml}
@@ -12217,7 +12240,7 @@
         </div>` : '';
       return `<div class="card card-type-${item.content_type}" data-content-type="${item.content_type}">
         ${mediaHtml}
-        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
+        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.content_type}${item.content_type === 'fanfic' ? ` · <span class="age-badge${item.age_rating === '18+' ? ' age-badge-18' : ''}">${item.age_rating === '18+' ? '18+' : 'PG-13'}</span>` : ''}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         <h3>${escapeHtml(item.title)}</h3>
         ${item.content_type === 'fanfic' && item.description ? `<div class="card-fanfic-scroll"><p>${escapeHtml(item.description)}</p></div>` : (item.description ? `<p>${escapeHtml(item.description)}</p>` : '')}
         <div class="card-footer">
@@ -13809,6 +13832,10 @@
     document.getElementById('fanficCoverFileName').textContent = '✓ ' + file.name;
   }
 
+  document.getElementById('c-age-rating').addEventListener('change', e => {
+    document.getElementById('c-age-rating-label').textContent = e.target.checked ? 'Рейтинг: 18+' : 'Рейтинг: PG-13';
+  });
+
   document.getElementById('contentSubmitBtn').addEventListener('click', async () => {
     if (!currentUser) {
       showContentStatus('Сессия истекла, войди снова', 'err');
@@ -13822,6 +13849,7 @@
     const content_type = currentContentType;
     const tagsRaw = document.getElementById('c-tags').value.trim();
     const description = document.getElementById('c-desc').value.trim();
+    const age_rating = document.getElementById('c-age-rating').checked ? '18+' : 'pg13';
 
     if (!title || !source_url) {
       showContentStatus('Заполни хотя бы название и ссылку', 'err');
@@ -13865,6 +13893,7 @@
           content_type,
           tags,
           description,
+          age_rating,
           cover_image_url,
           status: 'draft',
           submitted_by: currentUser.id
@@ -13889,6 +13918,8 @@
     document.getElementById('c-fandom').value = '';
     document.getElementById('c-tags').value = '';
     document.getElementById('c-desc').value = '';
+    document.getElementById('c-age-rating').checked = false;
+    document.getElementById('c-age-rating-label').textContent = 'Рейтинг: PG-13';
     document.getElementById('fanficCoverFileName').textContent = '';
     fanficCoverUploadedFile = null;
     fanficCoverFileInput.value = '';
@@ -15076,7 +15107,7 @@
       return `
       <div class="card card-type-${item.content_type}">
         ${mediaHtml}
-        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.is_collection ? 'сборник' : item.content_type}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
+        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.is_collection ? 'сборник' : item.content_type}${item.content_type === 'fanfic' ? ` · <span class="age-badge${item.age_rating === '18+' ? ' age-badge-18' : ''}">${item.age_rating === '18+' ? '18+' : 'PG-13'}</span>` : ''}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
         <h3>${escapeHtml(item.title)}</h3>
         ${bodyHtml}
