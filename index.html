@@ -6848,6 +6848,13 @@
         <option value="choice">На выбор (решает зритель)</option>
       </select>
     </div>
+    <div class="settings-toggle-row" id="editPostAgeRatingRow" style="display:none;margin-top:10px;">
+      <span id="editPostAgeRatingLabel">Рейтинг: PG-13</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="editPostAgeRatingCheckbox">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
     <div class="modal-actions" style="margin-top:14px;">
       <button id="editPostSaveBtn">Сохранить</button>
     </div>
@@ -13233,6 +13240,7 @@
   // Редактирование поста/сборника модератором (название+теги) — доступно из меню «⋮» в ленте/профиле.
   let editingPostId = null;
   let editingIsCollection = false;
+  let editingContentType = null;
 
   async function openEditPostModal(id, isCollection) {
     if (!id) return;
@@ -13250,10 +13258,15 @@
     const puzzleRowEl = document.getElementById('editPostPuzzleDifficultyRow');
     document.getElementById('editPostPuzzleDifficultySelect').value = 'easy';
     if (puzzleRowEl) puzzleRowEl.style.display = 'none';
+    const ageRatingRowEl = document.getElementById('editPostAgeRatingRow');
+    document.getElementById('editPostAgeRatingCheckbox').checked = false;
+    document.getElementById('editPostAgeRatingLabel').textContent = 'Рейтинг: PG-13';
+    if (ageRatingRowEl) ageRatingRowEl.style.display = 'none';
+    editingContentType = null;
     openOverlay('editPostOverlay');
     try {
       const table = editingIsCollection ? 'collections' : 'content';
-      const selectFields = editingIsCollection ? 'title' : 'title,tags,is_blurred,puzzle_difficulty';
+      const selectFields = editingIsCollection ? 'title' : 'title,tags,is_blurred,puzzle_difficulty,content_type,age_rating';
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}&select=${selectFields}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
@@ -13263,11 +13276,17 @@
       if (!item) throw new Error(editingIsCollection ? 'Сборник не найден' : 'Пост не найден');
       document.getElementById('editPostTitleInput').value = item.title || '';
       if (!editingIsCollection) {
+        editingContentType = item.content_type;
         editPostTagPicker.setTags(item.tags || []);
         document.getElementById('editPostBlurCheckbox').checked = !!item.is_blurred;
         document.getElementById('editPostPuzzleDifficultySelect').value = item.puzzle_difficulty || 'easy';
         const puzzleRowEl2 = document.getElementById('editPostPuzzleDifficultyRow');
         if (puzzleRowEl2) puzzleRowEl2.style.display = item.is_blurred ? '' : 'none';
+        if (item.content_type === 'fanfic' && ageRatingRowEl) {
+          ageRatingRowEl.style.display = '';
+          document.getElementById('editPostAgeRatingCheckbox').checked = item.age_rating === '18+';
+          document.getElementById('editPostAgeRatingLabel').textContent = item.age_rating === '18+' ? 'Рейтинг: 18+' : 'Рейтинг: PG-13';
+        }
       }
     } catch (e) {
       console.error('Не удалось загрузить данные для редактирования:', e);
@@ -13281,6 +13300,10 @@
     if (puzzleRowEl) puzzleRowEl.style.display = e.target.checked ? '' : 'none';
   });
 
+  document.getElementById('editPostAgeRatingCheckbox').addEventListener('change', (e) => {
+    document.getElementById('editPostAgeRatingLabel').textContent = e.target.checked ? 'Рейтинг: 18+' : 'Рейтинг: PG-13';
+  });
+
   document.getElementById('editPostSaveBtn').addEventListener('click', async () => {
     if (!editingPostId) return;
     const statusEl = document.getElementById('editPostStatus');
@@ -13290,12 +13313,14 @@
     const newTags = editingIsCollection ? null : editPostTagPicker.getTags();
     const newIsBlurred = editingIsCollection ? null : document.getElementById('editPostBlurCheckbox').checked;
     const newPuzzleDifficulty = editingIsCollection ? null : (newIsBlurred ? document.getElementById('editPostPuzzleDifficultySelect').value : 'easy');
+    const newAgeRating = (!editingIsCollection && editingContentType === 'fanfic') ? (document.getElementById('editPostAgeRatingCheckbox').checked ? '18+' : 'pg13') : null;
     const btn = document.getElementById('editPostSaveBtn');
     btn.disabled = true; btn.textContent = 'Сохраняем...';
     statusEl.textContent = ''; statusEl.className = '';
     try {
       const table = editingIsCollection ? 'collections' : 'content';
       const body = editingIsCollection ? { title: newTitle } : { title: newTitle, tags: newTags, is_blurred: newIsBlurred, puzzle_difficulty: newPuzzleDifficulty };
+      if (newAgeRating) body.age_rating = newAgeRating;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${editingPostId}`, {
         method: 'PATCH',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -13318,9 +13343,23 @@
           feedItemsById[editingPostId].tags = newTags;
           feedItemsById[editingPostId].is_blurred = newIsBlurred;
           feedItemsById[editingPostId].puzzle_difficulty = newPuzzleDifficulty;
+          if (newAgeRating) feedItemsById[editingPostId].age_rating = newAgeRating;
         }
         const rawItem = currentFeedRawData.find(it => it.id === editingPostId);
-        if (rawItem) { rawItem.title = newTitle; rawItem.tags = newTags; rawItem.is_blurred = newIsBlurred; rawItem.puzzle_difficulty = newPuzzleDifficulty; }
+        if (rawItem) {
+          rawItem.title = newTitle; rawItem.tags = newTags; rawItem.is_blurred = newIsBlurred; rawItem.puzzle_difficulty = newPuzzleDifficulty;
+          if (newAgeRating) rawItem.age_rating = newAgeRating;
+        }
+        if (newAgeRating) {
+          document.querySelectorAll(`.card[data-content-type="fanfic"] .card-delete-btn[data-id="${editingPostId}"]`).forEach(delBtn => {
+            const card = delBtn.closest('.card');
+            const badge = card && card.querySelector('.age-badge');
+            if (badge) {
+              badge.textContent = newAgeRating === '18+' ? '18+' : 'PG-13';
+              badge.classList.toggle('age-badge-18', newAgeRating === '18+');
+            }
+          });
+        }
         document.querySelectorAll(`[data-content-id="${editingPostId}"]`).forEach(el => {
           if ('title' in el.dataset) el.dataset.title = newTitle;
           if ('blurred' in el.dataset) {
