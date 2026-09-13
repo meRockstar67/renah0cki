@@ -16288,12 +16288,23 @@
       currentUser = parsed.user;
       currentUserToken = parsed.token;
       currentRefreshToken = parsed.refreshToken || null;
-      scheduleTokenRefresh();
-      loadProfileIntoCurrentUser().then(() => {
-        renderAuthArea();
-        loadFeed();
-        resolveAndOpenFromUrl();
-        updateStreak();
+
+      // Если access_token уже протух (например, вкладка была закрыта больше
+      // часа — время жизни токена Supabase по умолчанию), сперва обновляем
+      // его через refresh_token, и только потом лезем за профилем. Иначе
+      // loadProfileIntoCurrentUser() бьёт по API старым токеном, получает
+      // 401 и профиль просто не подгружается — выглядит как "надо перелогиниться".
+      const expiresAt = decodeJwtExpiry(currentUserToken);
+      const needsRefresh = !expiresAt || expiresAt - Date.now() < 60000;
+
+      (needsRefresh ? refreshTokenIfNeeded() : Promise.resolve(true)).then(() => {
+        scheduleTokenRefresh();
+        loadProfileIntoCurrentUser().then(() => {
+          renderAuthArea();
+          loadFeed();
+          resolveAndOpenFromUrl();
+          updateStreak();
+        });
       });
     } else {
       resolveAndOpenFromUrl();
