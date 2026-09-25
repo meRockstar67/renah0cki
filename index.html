@@ -4048,6 +4048,8 @@
     border: 1px solid rgba(122, 223, 160, 0.3);
   }
 
+  .err, [id$="Status"] { overflow-wrap: anywhere; word-break: break-word; }
+
   #status.err {
     display: block;
     background: rgba(255, 122, 122, 0.1);
@@ -7630,6 +7632,10 @@
             currentRefreshToken = fresh.refreshToken;
             return true;
           }
+          // 4xx от /auth/v1/token = refresh_token мёртв (протух/отозван/уже
+          // использован). Повторять бесполезно, и перезагрузка тоже не спасёт —
+          // он лежит в localStorage. Разлогиниваем локально, чтобы юзер зашёл заново.
+          if (res.status >= 400 && res.status < 500) handleDeadSession();
           return false;
         }
         const data = await res.json();
@@ -7697,6 +7703,87 @@
     }
     return res;
   }
+
+  // Сессия умерла окончательно — чистим её и показываем кнопку входа.
+  const SESSION_EXPIRED_MSG = 'Сессия истекла — войди в аккаунт заново и повтори действие.';
+  let sessionDeadHandled = false;
+  function handleDeadSession() {
+    if (sessionDeadHandled) return;
+    sessionDeadHandled = true;
+    if (tokenRefreshTimer) { clearTimeout(tokenRefreshTimer); tokenRefreshTimer = null; }
+    currentUser = null;
+    currentUserToken = null;
+    currentRefreshToken = null;
+    try { localStorage.removeItem('fh_session'); } catch (e) {}
+    try { renderAuthArea(); } catch (e) {}
+    try { closeSupportOverlayState(); renderSupportBtn(); } catch (e) {}
+  }
+
+  // Глобальная подстраховка для ВСЕХ запросов к Supabase/воркеру с токеном
+  // пользователя (большинство вызовов идут через обычный fetch, а не fetchAuth):
+  //  1) если токен вот-вот протухнет — сначала обновляем его и подменяем заголовок;
+  //  2) если сервер всё равно ответил "JWT expired" — обновляем и повторяем;
+  //  3) если обновить не удалось — отдаём понятное сообщение вместо сырого JSON.
+  (function() {
+    const baseFetch = window.fetch;
+
+    function getAuthHeader(headers) {
+      if (!headers) return null;
+      if (headers instanceof Headers) return headers.get('Authorization');
+      return headers.Authorization || headers.authorization || null;
+    }
+    function withAuth(init, token) {
+      const h = init.headers instanceof Headers
+        ? new Headers(init.headers)
+        : { ...init.headers };
+      if (h instanceof Headers) h.set('Authorization', `Bearer ${token}`);
+      else { delete h.authorization; h.Authorization = `Bearer ${token}`; }
+      return { ...init, headers: h };
+    }
+    function expiredResponse() {
+      return new Response(JSON.stringify({ code: 'PGRST303', message: SESSION_EXPIRED_MSG, hint: 'JWT expired' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    window.fetch = async function(input, init) {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      init = init || {};
+      const isOurs = (url.startsWith(SUPABASE_URL) && !url.includes('/auth/v1/token') && !url.includes('/auth/v1/logout'))
+        || url.startsWith(B2_WORKER_URL);
+      const auth = getAuthHeader(init.headers);
+      const isUserReq = isOurs && typeof input === 'string' && auth && auth.startsWith('Bearer ')
+        && auth !== `Bearer ${SUPABASE_KEY}`;
+      if (!isUserReq) return baseFetch(input, init);
+
+      // 1) Проактивное обновление
+      if (currentRefreshToken) {
+        const exp = decodeJwtExpiry(currentUserToken || '');
+        if (!exp || exp - Date.now() < 30000) {
+          const ok = await refreshTokenIfNeeded();
+          if (ok) scheduleTokenRefresh();
+          else if (!currentUserToken) return expiredResponse();
+        }
+      }
+      if (currentUserToken && auth !== `Bearer ${currentUserToken}`) init = withAuth(init, currentUserToken);
+
+      const res = await baseFetch(input, init);
+      if (res.status !== 401 && res.status !== 403) return res;
+
+      // 2) Реактивное обновление
+      let text = '';
+      try { text = await res.clone().text(); } catch (e) {}
+      if (!/PGRST30[13]|JWT expired|expired/i.test(text)) return res;
+
+      const ok = currentRefreshToken ? await refreshTokenIfNeeded() : false;
+      if (ok && currentUserToken) {
+        scheduleTokenRefresh();
+        return baseFetch(input, withAuth(init, currentUserToken));
+      }
+      // 3) Не вышло — сессия мертва
+      handleDeadSession();
+      return expiredResponse();
+    };
+  })();
   // ──────────────────────────────────────────────────────────────────────────
 
   document.querySelectorAll('[data-close]').forEach(btn => {
@@ -8132,7 +8219,7 @@
       `${SUPABASE_URL}/rest/v1/collection_items?collection_id=eq.${collectionId}&order=position.asc&select=media_type,media_url`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
     );
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
     return res.json();
   }
 
@@ -9277,7 +9364,7 @@
           throw new Error(text);
         }
       }
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       commentsCache = await res.json();
     } catch (e) {
       console.error('Не удалось загрузить комментарии:', e);
@@ -9304,8 +9391,8 @@
   function friendlySupabaseError(rawText) {
     let parsed = null;
     try { parsed = JSON.parse(rawText); } catch (e) {}
-    if (parsed && parsed.message === 'JWT expired') {
-      return 'Сессия истекла — выйди и войди снова, потом повтори действие.';
+    if (parsed && (parsed.code === 'PGRST301' || parsed.code === 'PGRST303' || /JWT expired/i.test(parsed.message || ''))) {
+      return SESSION_EXPIRED_MSG;
     }
     return (parsed && parsed.message) || rawText;
   }
@@ -10618,7 +10705,7 @@
       const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` }
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const twitchUser = await res.json();
 
       currentUser = twitchUser;
@@ -10879,7 +10966,7 @@
         `${SUPABASE_URL}/rest/v1/comment_reports?status=eq.pending&order=created_at.desc&select=id,reason,details,created_at,comment_id,reporter:profiles(username,display_name),comment:comments(id,body,voice_url,is_deleted,author:profiles(username,display_name))`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const data = await res.json();
       if (!data || data.length === 0) {
         listEl.innerHTML = '<p class="empty">Жалоб нет.</p>';
@@ -11454,7 +11541,7 @@
       const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?is_banned=eq.true&select=id,username,display_name,avatar_url,role&order=username.asc`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const rows = await res.json();
       if (!rows.length) {
         listEl.innerHTML = '<p class="empty">Заблокированных пользователей нет</p>';
@@ -11494,7 +11581,7 @@
       const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,username,display_name,avatar_url,role&order=username.asc`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       allUsersCache = await res.json();
       renderAllUsersList(allUsersCache);
     } catch (e) {
@@ -11570,7 +11657,7 @@
       const res = await fetch(`${SUPABASE_URL}/rest/v1/support_threads?select=*&order=last_message_at.desc`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const threads = await res.json();
 
       if (!threads.length) {
@@ -11640,7 +11727,7 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
         body: '{}'
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const threadId = await res.json();
       openSupportThread(threadId, { id: currentUser.id, username: currentUser.display_name || currentUser.username, avatar_url: currentUser.avatar_url });
     } catch (e) {
@@ -11721,7 +11808,7 @@
       const res = await fetch(`${SUPABASE_URL}/rest/v1/support_messages?thread_id=eq.${supportCurrentThreadId}&order=created_at.asc&select=*`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const messages = await res.json();
 
       if (!messages.length) {
@@ -11845,7 +11932,7 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ thread_id: supportCurrentThreadId, sender_id: currentUser.id, body })
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       input.value = '';
       autoResizeSupportInput();
       await loadSupportMessages();
@@ -11868,7 +11955,7 @@
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ p_thread_id: supportCurrentThreadId, p_status: nextStatus })
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
         await loadSupportMessages();
         if (isModeratorOrHigher(currentUser.role)) refreshSupportModCount();
       } catch (err) {
@@ -11888,7 +11975,7 @@
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ p_thread_id: supportCurrentThreadId, p_banned: nextBanned })
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
         await loadSupportMessages();
       } catch (err) {
         console.error('Не удалось изменить бан в поддержке:', err);
@@ -11930,6 +12017,7 @@
   }
 
   function saveSession() {
+    if (currentUserToken) sessionDeadHandled = false;
     try {
       localStorage.setItem('fh_session', JSON.stringify({ user: currentUser, token: currentUserToken, refreshToken: currentRefreshToken }));
     } catch (e) {
@@ -13171,7 +13259,7 @@
           auth: raw.keys.auth
         })
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       return true;
     } catch (e) {
       console.error('Не удалось включить push-уведомления:', e);
@@ -13288,7 +13376,7 @@
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}&select=${selectFields}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const rows = await res.json();
       const item = rows && rows[0];
       if (!item) throw new Error(editingIsCollection ? 'Сборник не найден' : 'Пост не найден');
@@ -13452,7 +13540,7 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ title, source_url, content_type: 'art', status: 'draft', submitted_by: currentUser.id, tags: artTagPicker.getTags(), is_blurred, puzzle_difficulty })
       });
-      if (!res.ok) { const t = await res.text(); throw new Error(t); }
+      if (!res.ok) { const t = await res.text(); throw new Error(friendlySupabaseError(t)); }
 
       artStatusEl.textContent = 'Отправлено на проверку!'; artStatusEl.className = 'ok';
       notifyModeratorsOfSubmission('art', title);
@@ -13531,7 +13619,7 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ title, source_url, content_type: 'video', status: 'draft', submitted_by: currentUser.id, tags: videoTagPicker.getTags() })
       });
-      if (!res.ok) { const t = await res.text(); throw new Error(t); }
+      if (!res.ok) { const t = await res.text(); throw new Error(friendlySupabaseError(t)); }
 
       videoStatusEl.textContent = 'Отправлено на проверку!'; videoStatusEl.className = 'ok';
       notifyModeratorsOfSubmission('video', title);
@@ -13679,7 +13767,7 @@
         `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&order=published_at.desc.nullslast,created_at.desc&select=id,title,content_type,source_url,cover_image_url&limit=200`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       existingPickerData = await res.json();
       renderExistingPickerGrid(existingPickerData);
     } catch (e) {
@@ -14021,7 +14109,7 @@
     try {
       const url = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${YOUTUBE_CHANNEL_ID}&part=snippet&order=date&type=video&maxResults=1`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const data = await res.json();
       const item = data.items && data.items[0];
       if (!item) return null;
@@ -14109,7 +14197,7 @@
 
     const url = `https://www.googleapis.com/youtube/v3/channels?key=${YOUTUBE_API_KEY}&id=${YOUTUBE_CHANNEL_ID}&part=contentDetails`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
     const data = await res.json();
     const playlistId = data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
     if (!playlistId) throw new Error('uploads playlist not found');
@@ -14238,7 +14326,7 @@
         `${SUPABASE_URL}/rest/v1/reviews?select=*&or=(${orParts.join(',')})&order=published_at.desc.nullslast,created_at.desc&limit=30`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       return await res.json();
     } catch (e) {
       console.error('Не удалось загрузить отзывы:', e);
@@ -14410,7 +14498,7 @@
           text
         })
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       document.getElementById('reviewTextInput').value = '';
       document.getElementById('reviewFormWrap').style.display = 'none';
       notifyModeratorsOfSubmission('review', text.slice(0, 80));
@@ -15300,7 +15388,7 @@
         `${SUPABASE_URL}/rest/v1/profiles?role=eq.${role}&order=username.asc&select=id,username,display_name,avatar_url,name_color`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       return await res.json();
     } catch (e) {
       console.error(`Не удалось загрузить список профилей роли "${role}":`, e);
@@ -15371,7 +15459,7 @@
         `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=eq.${type}&order=published_at.desc.nullslast,created_at.desc&limit=${limit}&select=*`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       const data = await res.json();
       const authorProfilesById = await fetchProfilesByIds(data.map(it => it.submitted_by));
       data.forEach(item => { item.profiles = authorProfilesById[item.submitted_by] || null; });
@@ -15444,7 +15532,7 @@
         `${SUPABASE_URL}/rest/v1/profiles?select=id,username,display_name,avatar_url,streak_count,last_visit_date&streak_count=gt.0&order=streak_count.desc.nullslast`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       return await res.json();
     } catch (e) {
       console.error('Не удалось загрузить список стриков:', e);
@@ -15803,7 +15891,7 @@
         `${SUPABASE_URL}/rest/v1/collections?status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       data = await res.json();
     } catch (e) {
       console.error('Ошибка загрузки сборников:', e);
@@ -15953,7 +16041,7 @@
         },
         body: JSON.stringify({ [paramName]: id })
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       if (viewsEl) renderViewsLine(viewsEl, (Number(currentValue) || 0) + 1);
       const store = isCollection ? collectionsById : feedItemsById;
       if (store && store[id]) store[id].views = (Number(store[id].views) || 0) + 1;
@@ -16298,6 +16386,7 @@
       const needsRefresh = !expiresAt || expiresAt - Date.now() < 60000;
 
       (needsRefresh ? refreshTokenIfNeeded() : Promise.resolve(true)).then(() => {
+        if (!currentUser) { renderAuthArea(); loadFeed(); resolveAndOpenFromUrl(); return; } // сессия мертва — уже разлогинили
         scheduleTokenRefresh();
         loadProfileIntoCurrentUser().then(() => {
           renderAuthArea();
