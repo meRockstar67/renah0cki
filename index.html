@@ -6875,6 +6875,13 @@
         <span class="toggle-slider"></span>
       </label>
     </div>
+    <div id="editPostCoverSection" style="display:none;margin-top:12px;">
+      <div style="font-size:13px;opacity:.8;margin-bottom:6px;">Обложка (фото)</div>
+      <img id="editPostCoverPreview" alt="" style="display:none;max-width:100%;max-height:160px;border-radius:8px;margin-bottom:8px;">
+      <input type="file" id="editPostCoverInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+      <button type="button" id="editPostCoverPickBtn">Выбрать фото</button>
+      <label id="editPostCoverRemoveRow" style="display:none;margin-top:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="editPostCoverRemove"> Удалить обложку</label>
+    </div>
     <div class="modal-actions" style="margin-top:14px;">
       <button id="editPostSaveBtn">Сохранить</button>
     </div>
@@ -13369,10 +13376,15 @@
     document.getElementById('editPostAgeRatingLabel').textContent = 'Рейтинг: PG-13';
     if (ageRatingRowEl) ageRatingRowEl.style.display = 'none';
     editingContentType = null;
+    editPostCoverFile = null;
+    editPostCoverOrigUrl = null;
+    document.getElementById('editPostCoverInput').value = '';
+    document.getElementById('editPostCoverRemove').checked = false;
+    document.getElementById('editPostCoverSection').style.display = 'none';
     openOverlay('editPostOverlay');
     try {
       const table = editingIsCollection ? 'collections' : 'content';
-      const selectFields = editingIsCollection ? 'title' : 'title,tags,is_blurred,puzzle_difficulty,content_type,age_rating';
+      const selectFields = editingIsCollection ? 'title' : 'title,tags,is_blurred,puzzle_difficulty,content_type,age_rating,cover_image_url';
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}&select=${selectFields}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
       });
@@ -13388,6 +13400,11 @@
         document.getElementById('editPostPuzzleDifficultySelect').value = item.puzzle_difficulty || 'easy';
         const puzzleRowEl2 = document.getElementById('editPostPuzzleDifficultyRow');
         if (puzzleRowEl2) puzzleRowEl2.style.display = item.is_blurred ? '' : 'none';
+        if (item.content_type === 'fanfic') {
+          editPostCoverOrigUrl = item.cover_image_url || null;
+          document.getElementById('editPostCoverSection').style.display = '';
+          updateEditPostCoverUI();
+        }
         if (item.content_type === 'fanfic' && ageRatingRowEl) {
           ageRatingRowEl.style.display = '';
           document.getElementById('editPostAgeRatingCheckbox').checked = item.age_rating === '18+';
@@ -13400,6 +13417,30 @@
       statusEl.className = 'err';
     }
   }
+
+  let editPostCoverFile = null;
+  let editPostCoverOrigUrl = null;
+  function updateEditPostCoverUI() {
+    const prev = document.getElementById('editPostCoverPreview');
+    const rm = document.getElementById('editPostCoverRemove');
+    const url = editPostCoverFile ? URL.createObjectURL(editPostCoverFile) : (rm.checked ? null : editPostCoverOrigUrl);
+    if (url) { prev.src = url; prev.style.display = ''; } else { prev.removeAttribute('src'); prev.style.display = 'none'; }
+    document.getElementById('editPostCoverPickBtn').textContent = (editPostCoverOrigUrl || editPostCoverFile) ? 'Заменить фото' : 'Добавить фото';
+    document.getElementById('editPostCoverRemoveRow').style.display = (editPostCoverOrigUrl && !editPostCoverFile) ? '' : 'none';
+  }
+  document.getElementById('editPostCoverPickBtn').addEventListener('click', () => document.getElementById('editPostCoverInput').click());
+  document.getElementById('editPostCoverInput').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    const statusEl = document.getElementById('editPostStatus');
+    if (!f) return;
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(f.type)) { statusEl.textContent = 'Нужен файл PNG/JPEG/WebP/GIF'; statusEl.className = 'err'; e.target.value = ''; return; }
+    if (f.size > 4 * 1024 * 1024) { statusEl.textContent = 'Фото больше 4 МБ'; statusEl.className = 'err'; e.target.value = ''; return; }
+    statusEl.textContent = ''; statusEl.className = '';
+    editPostCoverFile = f;
+    document.getElementById('editPostCoverRemove').checked = false;
+    updateEditPostCoverUI();
+  });
+  document.getElementById('editPostCoverRemove').addEventListener('change', updateEditPostCoverUI);
 
   document.getElementById('editPostBlurCheckbox').addEventListener('change', (e) => {
     const puzzleRowEl = document.getElementById('editPostPuzzleDifficultyRow');
@@ -13427,6 +13468,18 @@
       const table = editingIsCollection ? 'collections' : 'content';
       const body = editingIsCollection ? { title: newTitle } : { title: newTitle, tags: newTags, is_blurred: newIsBlurred, puzzle_difficulty: newPuzzleDifficulty };
       if (newAgeRating) body.age_rating = newAgeRating;
+      let coverChanged = false, newCoverUrl;
+      if (!editingIsCollection && editingContentType === 'fanfic') {
+        if (editPostCoverFile) {
+          btn.textContent = 'Загружаем фото...';
+          const b2 = await uploadToB2(editPostCoverFile, currentUser.id);
+          if (b2.error) throw new Error(b2.error);
+          newCoverUrl = b2.url; coverChanged = true;
+        } else if (document.getElementById('editPostCoverRemove').checked && editPostCoverOrigUrl) {
+          newCoverUrl = null; coverChanged = true;
+        }
+        if (coverChanged) body.cover_image_url = newCoverUrl;
+      }
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${editingPostId}`, {
         method: 'PATCH',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -13450,11 +13503,21 @@
           feedItemsById[editingPostId].is_blurred = newIsBlurred;
           feedItemsById[editingPostId].puzzle_difficulty = newPuzzleDifficulty;
           if (newAgeRating) feedItemsById[editingPostId].age_rating = newAgeRating;
+          if (coverChanged) feedItemsById[editingPostId].cover_image_url = newCoverUrl;
         }
         const rawItem = currentFeedRawData.find(it => it.id === editingPostId);
         if (rawItem) {
           rawItem.title = newTitle; rawItem.tags = newTags; rawItem.is_blurred = newIsBlurred; rawItem.puzzle_difficulty = newPuzzleDifficulty;
           if (newAgeRating) rawItem.age_rating = newAgeRating;
+          if (coverChanged) rawItem.cover_image_url = newCoverUrl;
+        }
+        if (coverChanged) {
+          document.querySelectorAll(`.card[data-content-type="fanfic"] .card-delete-btn[data-id="${editingPostId}"]`).forEach(delBtn => {
+            const card = delBtn.closest('.card');
+            const img = card && card.querySelector('img.card-img');
+            if (img && newCoverUrl) img.src = newCoverUrl;
+          });
+          if (typeof renderFilteredFeed === 'function') { try { renderFilteredFeed(); } catch (_) {} }
         }
         if (newAgeRating) {
           document.querySelectorAll(`.card[data-content-type="fanfic"] .card-delete-btn[data-id="${editingPostId}"]`).forEach(delBtn => {
