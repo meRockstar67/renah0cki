@@ -13185,17 +13185,34 @@
       xhr.onabort = () => {
         reject(new Error('Загрузка отменена (abort)'));
       };
-      xhr.onerror = () => {
-        // Сюда попадают: обрыв сети, недоступный хост, CORS-блок, mixed content, DNS ошибка.
-        // Браузер по соображениям безопасности не даёт точный код причины через XHR,
-        // поэтому даём максимум контекста, что удалось узнать на клиенте.
-        const details = [
-          `readyState=${xhr.readyState}`,
-          `status=${xhr.status || 'нет ответа'}`,
-          `url=${B2_WORKER_URL}/upload`,
-          navigator.onLine === false ? 'устройство офлайн' : 'устройство онлайн'
-        ].join(', ');
-        reject(new Error(`Сетевая ошибка при загрузке (${details}). Возможные причины: воркер cdn.renah0cki.xyz недоступен, упал CORS, или оборвалось соединение.`));
+      xhr.onerror = async () => {
+        const mb = (file.size / 1048576).toFixed(1);
+        const base = `${file.name} (${mb} МБ, ${file.type || 'тип неизвестен'})`;
+        let cause;
+        if (navigator.onLine === false) {
+          cause = 'у устройства нет интернета';
+        } else if (file.size > 30 * 1048576) {
+          cause = `файл слишком большой (${mb} МБ) — сервер обрывает такие загрузки`;
+        } else {
+          let reachable = false, probeErr = '';
+          try {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 8000);
+            await fetch(B2_WORKER_URL + '/?_=' + Date.now(), { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
+            clearTimeout(t);
+            reachable = true;
+          } catch (e) { probeErr = e && e.name === 'AbortError' ? 'таймаут 8с' : (e && e.message) || 'ошибка'; }
+          if (!reachable) {
+            cause = `сервер cdn.renah0cki.xyz недоступен с этого устройства (${probeErr}) — блокировка провайдером/DNS, антивирус, расширение-блокировщик или сервер лежит`;
+          } else {
+            let corsOk = false;
+            try { await fetch(B2_WORKER_URL + '/', { cache: 'no-store' }); corsOk = true; } catch (e) { corsOk = false; }
+            cause = corsOk
+              ? 'сервер доступен, но оборвал или отклонил именно загрузку (POST /upload): воркер упал с ошибкой или не принял файл, а его ответ скрыт от браузера (нет CORS-заголовков на ошибках)'
+              : 'сервер доступен, но блокирует запросы с этого сайта (CORS): воркер должен отдавать Access-Control-Allow-Origin на OPTIONS и на все ответы, включая ошибки';
+          }
+        }
+        reject(new Error(`Не удалось загрузить ${base}. Причина: ${cause}. [readyState=${xhr.readyState}, status=${xhr.status || 'нет ответа'}]`));
       };
       xhr.send(file);
     });
