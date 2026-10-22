@@ -12176,7 +12176,7 @@
   async function sgLoad() {
     const list = document.getElementById('sgList');
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions?select=*&order=created_at.desc&limit=100`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions?select=*&order=status.desc,created_at.desc&limit=100`, {
         headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY }
       });
       if (!res.ok) throw new Error(await res.text());
@@ -12186,15 +12186,18 @@
         const can = currentUser && (currentUser.id === r.user_id || isModeratorOrHigher(currentUser.role));
         const id = encodeURIComponent(r.video_id);
         const t = escapeHtml(r.title || 'Видео');
+        const pending = r.status !== 'approved';
+        const isMod = currentUser && isModeratorOrHigher(currentUser.role);
         return `<div class="card card-type-video">
           <a class="card-video-thumb" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" title="${t}">
             <img class="card-video" src="https://img.youtube.com/vi/${id}/mqdefault.jpg" alt="${t}" loading="lazy" style="width:100%;height:100%;object-fit:cover;pointer-events:none;">
             <div class="card-video-play">▶</div>
           </a>
           ${can ? `<button class="sg-del" data-id="${r.id}" title="Удалить">×</button>` : ''}
-          <div class="meta">video · <span class="card-upload-date">${timeAgo(r.created_at)}</span></div>
+          <div class="meta">video${pending ? ' · <b style="color:#e0a040">на проверке</b>' : ''} · <span class="card-upload-date">${timeAgo(r.created_at)}</span></div>
           ${r.author_name ? `<span class="card-author">${escapeHtml(r.author_name)}</span>` : ''}
           <h3><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;">${t}</a></h3>
+          ${(pending && isMod) ? `<button class="sg-approve" data-id="${r.id}" style="margin-top:10px">Одобрить</button>` : ''}
         </div>`;
       }).join('');
     } catch (e) {
@@ -12257,15 +12260,26 @@
     const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ user_id: currentUser.id, video_id: id, title: title || 'Видео', author_name: currentUser.display_name || currentUser.username || '' })
+      body: JSON.stringify({ user_id: currentUser.id, video_id: id, title: title || 'Видео', author_name: currentUser.display_name || currentUser.username || '', status: isModeratorOrHigher(currentUser.role) ? 'approved' : 'pending' })
     });
     if (!res.ok) { sgMsg.textContent = 'Ошибка: ' + (await res.text()).slice(0, 120); return; }
     input.value = '';
     sgMsg.textContent = '';
     closeOverlay('sgOverlay');
+    if (!isModeratorOrHigher(currentUser.role)) alert('Видео отправлено на модерацию и появится после проверки');
     sgLoad();
   });
   document.getElementById('sgList').addEventListener('click', async (e) => {
+    const ap = e.target.closest('.sg-approve');
+    if (ap) {
+      await fetch(`${SUPABASE_URL}/rest/v1/suggestions?id=eq.${ap.dataset.id}`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' })
+      });
+      sgLoad();
+      return;
+    }
     const b = e.target.closest('.sg-del');
     if (!b) return;
     await fetch(`${SUPABASE_URL}/rest/v1/suggestions?id=eq.${b.dataset.id}`, {
