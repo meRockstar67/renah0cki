@@ -6316,8 +6316,11 @@
   .sg-plus{display:inline-flex;align-items:center;justify-content:center;padding:0;background:transparent;border-radius:10px;line-height:0;transition:transform .15s ease,filter .15s ease}
   .sg-plus:hover{background:transparent;transform:scale(1.06);filter:brightness(1.08)}
   body.is-home-page main#suggestPage{max-width:1000px}
+  #suggestBtn.active{color:var(--text);transform:translateY(-50%) scale(1.06)}
+  #suggestBtn.active::after{transform:scaleX(1)}
   .sg-grid{align-items:start}
-  .sg-grid .card-video-thumb{aspect-ratio:16/9}
+  .sg-grid .card-video-thumb{aspect-ratio:16/9;background:#000}
+  .sg-grid .card-video{transform:scale(1.01)}
   .sg-grid .card .sg-del{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:50%;width:26px;height:26px;line-height:1;cursor:pointer;font-size:16px;padding:0;z-index:3}
   @media (max-width:768px){.sg-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}}
 </style>
@@ -12215,11 +12218,15 @@
     rulesPageEl.style.display = 'none';
     streakPageEl.style.display = 'none';
     suggestPageEl.style.display = 'block';
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('suggestBtn').classList.add('active');
     history.pushState(null, '', '/?suggest=1');
     window.scrollTo(0, 0);
     sgLoad();
   }
   function closeSuggestPage() {
+    document.getElementById('suggestBtn').classList.remove('active');
+    { const t = document.querySelector(`.nav-tab[data-filter="${currentFeedFilter}"]`); if (t) t.classList.add('active'); }
     suggestPageEl.style.display = 'none';
     document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = '';
     history.pushState(null, '', '/');
@@ -12265,6 +12272,8 @@
   });
 
   function showMainFeed() {
+    document.getElementById('suggestBtn').classList.remove('active');
+    { const t = document.querySelector(`.nav-tab[data-filter="${currentFeedFilter}"]`); if (t) t.classList.add('active'); }
     document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = '';
     document.getElementById('postPage').style.display = 'none';
     profilePageEl.style.display = 'none';
