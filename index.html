@@ -6322,6 +6322,8 @@
   body.is-home-page main#suggestPage{max-width:1000px}
   #suggestBtn.active{color:var(--text);transform:translateY(-50%) scale(1.06)}
   #suggestBtn.active::after{transform:scaleX(1)}
+  .sg-grid .card .meta span{text-transform:none}
+  .sg-dur{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.78);color:#fff;font-size:12px;font-weight:600;padding:2px 6px;border-radius:5px;line-height:1.3;z-index:2}
   .sg-grid{align-items:start}
   .sg-grid .card-video-thumb{aspect-ratio:16/9;background:#000}
   .sg-grid .card-video{transform:scale(1.14);transform-origin:50% 20%}
@@ -12231,6 +12233,15 @@
   }
 
   // ─── Предложка ───────────────────────────────────────────────────────
+  function sgDuration(iso) {
+    const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || '');
+    if (!m) return '';
+    const sec = (+m[1] || 0) * 86400 + (+m[2] || 0) * 3600 + (+m[3] || 0) * 60 + (+m[4] || 0);
+    if (!sec) return 'LIVE';
+    const h = Math.floor(sec / 3600), mi = Math.floor(sec % 3600 / 60), se = sec % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return h ? `${h}:${pad(mi)}:${pad(se)}` : `${mi}:${pad(se)}`;
+  }
   function sgAgo(dateStr) {
     const min = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
     if (min < 1) return 'только что';
@@ -12254,11 +12265,11 @@
       const rows = await res.json();
       if (!rows.length) { list.innerHTML = '<p class="empty">Пока пусто</p>'; return; }
       // Просмотры на YouTube — одним запросом на все видео (до 50 за раз)
-      const sgViews = {}, sgPub = {};
+      const sgViews = {}, sgPub = {}, sgDur = {};
       try {
         const ids = [...new Set(rows.map(r => r.video_id))].slice(0, 50).join(',');
-        const vr = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids}&key=${YOUTUBE_API_KEY}`);
-        if (vr.ok) (await vr.json()).items.forEach(it => { sgViews[it.id] = it.statistics && it.statistics.viewCount; sgPub[it.id] = it.snippet && it.snippet.publishedAt; });
+        const vr = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids}&key=${YOUTUBE_API_KEY}`);
+        if (vr.ok) (await vr.json()).items.forEach(it => { sgViews[it.id] = it.statistics && it.statistics.viewCount; sgPub[it.id] = it.snippet && it.snippet.publishedAt; sgDur[it.id] = it.contentDetails && it.contentDetails.duration; });
       } catch (e) {}
       list.innerHTML = rows.map(r => {
         const can = currentUser && (currentUser.id === r.user_id || isModeratorOrHigher(currentUser.role));
@@ -12270,6 +12281,7 @@
           <a class="card-video-thumb" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" title="${t}">
             <img class="card-video" src="https://img.youtube.com/vi/${id}/mqdefault.jpg" alt="${t}" loading="lazy" style="width:100%;height:100%;object-fit:cover;pointer-events:none;">
             <div class="card-video-play">▶</div>
+            ${sgDur[r.video_id] && sgDuration(sgDur[r.video_id]) ? `<span class="sg-dur">${sgDuration(sgDur[r.video_id])}</span>` : ''}
           </a>
           ${can ? `<button class="sg-del" data-id="${r.id}" title="Удалить">×</button>` : ''}
           <div class="meta">video${pending ? ' · <b style="color:#e0a040">на проверке</b>' : ''} · <span class="card-upload-date">${sgAgo(r.approved_at || r.created_at)}</span>${sgViews[r.video_id] != null ? ` · <span class="card-views">👁 ${formatViews(sgViews[r.video_id])}</span>` : ''}${sgPub[r.video_id] ? ` · <span title="Дата публикации на YouTube">${sgAgo(sgPub[r.video_id])}</span>` : ''}</div>
