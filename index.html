@@ -6311,7 +6311,11 @@
   #suggestBtn::after{content:'';position:absolute;left:14px;right:14px;bottom:-1px;height:2px;background:var(--accent);transform:scaleX(0);transition:transform .2s ease}
   #suggestBtn:hover{color:var(--text);background:none;transform:translateY(-50%) scale(1.14)}
   #suggestBtn:hover::after{transform:scaleX(1)}
-  @media (max-width:1250px){#suggestBtn{position:fixed;left:12px;bottom:12px;top:auto;transform:none;background:var(--card,#222);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.35);color:var(--text);z-index:900}#suggestBtn:hover{transform:none}}
+  @media (max-width:1559px){.header-slogan{display:none}}
+  #navTabs #suggestBtn{position:static;transform:scale(1)}
+  #navTabs #suggestBtn:hover{transform:scale(1.14)}
+  #navTabs #suggestBtn.active{transform:scale(1.06)}
+  @media (max-width:768px){#navTabs #suggestBtn{padding:8px 12px;font-size:12.5px;flex-shrink:0}}
   .sg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
   .sg-plus{display:inline-flex;align-items:center;justify-content:center;padding:0;background:transparent;border-radius:10px;line-height:0;transition:transform .15s ease,filter .15s ease}
   .sg-plus:hover{background:transparent;transform:scale(1.06);filter:brightness(1.08)}
@@ -6320,7 +6324,7 @@
   #suggestBtn.active::after{transform:scaleX(1)}
   .sg-grid{align-items:start}
   .sg-grid .card-video-thumb{aspect-ratio:16/9;background:#000}
-  .sg-grid .card-video{transform:scale(1.01)}
+  .sg-grid .card-video{transform:scale(1.14);transform-origin:50% 20%}
   .sg-grid .card .sg-del{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:50%;width:26px;height:26px;line-height:1;cursor:pointer;font-size:16px;padding:0;z-index:3}
   @media (max-width:768px){.sg-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}}
 </style>
@@ -12270,6 +12274,20 @@
     });
     sgLoad();
   });
+
+  // Кнопка «Предложка»: на широком экране стоит в пустом месте шапки слева,
+  // на узком (не хватает места) переезжает в начало блока вкладок.
+  (function () {
+    const btn = document.getElementById('suggestBtn');
+    const nav = document.getElementById('navTabs');
+    const mq = window.matchMedia('(max-width: 1559px)');
+    function place() {
+      if (mq.matches) { if (btn.parentNode !== nav) nav.insertBefore(btn, nav.firstChild); }
+      else if (btn.parentNode === nav) nav.parentNode.insertBefore(btn, nav);
+    }
+    place();
+    mq.addEventListener('change', place);
+  })();
 
   function showMainFeed() {
     document.getElementById('suggestBtn').classList.remove('active');
