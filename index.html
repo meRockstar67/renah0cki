@@ -12231,6 +12231,18 @@
   }
 
   // ─── Предложка ───────────────────────────────────────────────────────
+  function sgAgo(dateStr) {
+    const min = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+    if (min < 1) return 'только что';
+    if (min < 60) return `${min} мин. назад`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `${h} ч. назад`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d} д. назад`;
+    if (d < 30) return `${Math.floor(d / 7)} нед. назад`;
+    if (d < 365) return `${Math.floor(d / 30)} мес. назад`;
+    return `${Math.floor(d / 365)} г. назад`;
+  }
   const sgMsg = document.getElementById('sgMsg');
   async function sgLoad() {
     const list = document.getElementById('sgList');
@@ -12260,7 +12272,7 @@
             <div class="card-video-play">▶</div>
           </a>
           ${can ? `<button class="sg-del" data-id="${r.id}" title="Удалить">×</button>` : ''}
-          <div class="meta">video${pending ? ' · <b style="color:#e0a040">на проверке</b>' : ''} · <span class="card-upload-date">${timeAgo(r.approved_at || r.created_at)}</span>${sgViews[r.video_id] != null ? ` · <span class="card-views">👁 ${formatViews(sgViews[r.video_id])}</span>` : ''}${sgPub[r.video_id] ? ` · <span title="Дата публикации на YouTube">▶ ${timeAgo(sgPub[r.video_id])}</span>` : ''}</div>
+          <div class="meta">video${pending ? ' · <b style="color:#e0a040">на проверке</b>' : ''} · <span class="card-upload-date">${sgAgo(r.approved_at || r.created_at)}</span>${sgViews[r.video_id] != null ? ` · <span class="card-views">👁 ${formatViews(sgViews[r.video_id])}</span>` : ''}${sgPub[r.video_id] ? ` · <span title="Дата публикации на YouTube">${sgAgo(sgPub[r.video_id])}</span>` : ''}</div>
           ${r.author_name ? `<span class="card-author">${escapeHtml(r.author_name)}</span>` : ''}
           <h3><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;">${t}</a></h3>
           ${(pending && isMod) ? `<button class="sg-approve" data-id="${r.id}" style="margin-top:10px">Одобрить</button>` : ''}
