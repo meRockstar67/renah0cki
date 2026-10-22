@@ -6304,6 +6304,19 @@
     }
   }
   /* ──────────────────────────────────────────────────────────────────── */
+
+  /* ── Предложка ── */
+  #suggestBtn{position:absolute;left:430px;top:50%;transform:translateY(-50%) scale(1);background:none;border:none;color:var(--muted);font-size:15px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:8px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:transform .18s ease,color .15s ease;z-index:5}
+  #suggestBtn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  #suggestBtn::after{content:'';position:absolute;left:14px;right:14px;bottom:-1px;height:2px;background:var(--accent);transform:scaleX(0);transition:transform .2s ease}
+  #suggestBtn:hover{color:var(--text);background:none;transform:translateY(-50%) scale(1.14)}
+  #suggestBtn:hover::after{transform:scaleX(1)}
+  @media (max-width:1250px){#suggestBtn{position:fixed;left:12px;bottom:12px;top:auto;transform:none;background:var(--card,#222);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.35);color:var(--text);z-index:900}#suggestBtn:hover{transform:none}}
+  .sg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+  .sg-plus{display:inline-flex;align-items:center;justify-content:center;padding:0;background:transparent;border-radius:10px;line-height:0;transition:transform .15s ease,filter .15s ease}
+  .sg-plus:hover{background:transparent;transform:scale(1.06);filter:brightness(1.08)}
+  .sg-grid .card .sg-del{position:absolute;top:8px;right:10px;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:50%;width:26px;height:26px;line-height:1;cursor:pointer;font-size:16px;padding:0;z-index:3}
+  @media (max-width:768px){.sg-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}}
 </style>
 </head>
 <body>
@@ -6311,6 +6324,7 @@
 <header>
   <h1 id="siteLogo" style="cursor:pointer;"><img class="site-logo-icon" src="https://i.postimg.cc/QtmsVpyj/Resurs-134x-8.png" alt="">rena<span class="logo-highlight">h0cki</span></h1>
   <div class="header-slogan">Сперма льется через туз<br>Ренахоки точка хуз</div>
+  <button type="button" id="suggestBtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Предложка</button>
   <nav class="nav-tabs" id="navTabs">
     <button class="nav-tab" data-filter="art"><span class="nav-tab-icon nav-tab-icon-art"></span>Фото</button>
     <button class="nav-tab" data-filter="video"><span class="nav-tab-icon nav-tab-icon-video"></span>Видео</button>
@@ -6886,6 +6900,25 @@
       <button id="editPostSaveBtn">Сохранить</button>
     </div>
     <div id="editPostStatus"></div>
+  </div>
+</div>
+
+<main id="suggestPage" style="display:none;">
+  <div class="toolbar">
+    <h2>Предложка</h2>
+    <button id="sgAddBtn" class="sg-plus" title="Добавить видео" aria-label="Добавить видео"><img class="add-content-icon" src="https://i.postimg.cc/KY2ChZtS/dobavit'-publikaciu-4x-8.png" alt="Добавить видео"></button>
+  </div>
+  <div class="sg-grid" id="sgList"><p class="empty">Загрузка...</p></div>
+</main>
+
+<div class="overlay" id="sgOverlay">
+  <div class="modal">
+    <button class="close-x" data-close="sgOverlay">×</button>
+    <h2>Добавить видео</h2>
+    <label for="sgUrl">Ссылка на видео с YouTube</label>
+    <input type="text" id="sgUrl" placeholder="https://www.youtube.com/watch?v=...">
+    <p class="hint" id="sgMsg"></p>
+    <button type="button" id="sgSendBtn">Отправить</button>
   </div>
 </div>
 
@@ -8224,7 +8257,7 @@
   async function fetchCollectionItems(collectionId) {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/collection_items?collection_id=eq.${collectionId}&order=position.asc&select=media_type,media_url`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+      { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
     );
     if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
     return res.json();
@@ -10006,7 +10039,7 @@
   async function openCollectionPageFromUrl(collectionId) {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/collections?id=eq.${collectionId}&select=*`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` }
+        headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY }
       });
       const rows = await res.json();
       const item = rows && rows[0];
@@ -10081,7 +10114,7 @@
     // Возвращает на главную вкладку из любого места: со страницы поста,
     // сборника, профиля, а также с любой другой вкладки (Фото/Видео/
     // Фанфики/Сборник) — и сбрасывает URL обратно на корень сайта.
-    const isOnSubPage = postPageEl.style.display !== 'none' || profilePageEl.style.display !== 'none' || rulesPageEl.style.display !== 'none' || streakPageEl.style.display !== 'none';
+    const isOnSubPage = postPageEl.style.display !== 'none' || profilePageEl.style.display !== 'none' || rulesPageEl.style.display !== 'none' || streakPageEl.style.display !== 'none' || document.getElementById('suggestPage').style.display !== 'none';
     if (isOnSubPage) {
       showMainFeed();
     }
@@ -12121,19 +12154,119 @@
   const streakPageEl = document.getElementById('streakPage');
 
   function hideAllMainPages() {
-    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage)').style.display = 'none';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = 'none';
     document.getElementById('postPage').style.display = 'none';
     profilePageEl.style.display = 'none';
     rulesPageEl.style.display = 'none';
-    streakPageEl.style.display = 'none';
+    streakPageEl.style.display = 'none'; document.getElementById('suggestPage').style.display = 'none';
   }
 
-  function showMainFeed() {
-    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage)').style.display = '';
-    document.getElementById('postPage').style.display = 'none';
+  // ─── Предложка ───────────────────────────────────────────────────────
+  const sgMsg = document.getElementById('sgMsg');
+  async function sgLoad() {
+    const list = document.getElementById('sgList');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions?select=*&order=created_at.desc&limit=100`, {
+        headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const rows = await res.json();
+      if (!rows.length) { list.innerHTML = '<p class="empty">Пока пусто</p>'; return; }
+      list.innerHTML = rows.map(r => {
+        const can = currentUser && (currentUser.id === r.user_id || isModeratorOrHigher(currentUser.role));
+        const id = encodeURIComponent(r.video_id);
+        const t = escapeHtml(r.title || 'Видео');
+        return `<div class="card card-type-video">
+          <a class="card-video-thumb" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" title="${t}">
+            <img class="card-video" src="https://img.youtube.com/vi/${id}/hqdefault.jpg" alt="${t}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+            <div class="card-video-play">▶</div>
+          </a>
+          ${can ? `<button class="sg-del" data-id="${r.id}" title="Удалить">×</button>` : ''}
+          <div class="meta">video · <span class="card-upload-date">${timeAgo(r.created_at)}</span></div>
+          ${r.author_name ? `<span class="card-author">${escapeHtml(r.author_name)}</span>` : ''}
+          <h3><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;">${t}</a></h3>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      console.error(e);
+      list.innerHTML = '<p class="empty">Не удалось загрузить</p>';
+    }
+  }
+  async function sgFetchTitle(id) {
+    try {
+      const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + id)}&format=json`);
+      if (r.ok) { const j = await r.json(); return j.title; }
+    } catch (e) {}
+    try {
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${YOUTUBE_API_KEY}`);
+      if (r.ok) { const j = await r.json(); return j.items && j.items[0] && j.items[0].snippet.title; }
+    } catch (e) {}
+    return null;
+  }
+  const suggestPageEl = document.getElementById('suggestPage');
+  function openSuggestPage() {
+    if (lightboxOverlay.classList.contains('open')) closeLightbox();
+    if (postPageEl.style.display !== 'none') closePostPage();
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = 'none';
     profilePageEl.style.display = 'none';
     rulesPageEl.style.display = 'none';
     streakPageEl.style.display = 'none';
+    suggestPageEl.style.display = 'block';
+    history.pushState(null, '', '/?suggest=1');
+    window.scrollTo(0, 0);
+    sgLoad();
+  }
+  function closeSuggestPage() {
+    suggestPageEl.style.display = 'none';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = '';
+    history.pushState(null, '', '/');
+  }
+  document.getElementById('suggestBtn').addEventListener('click', openSuggestPage);
+  window.addEventListener('popstate', () => {
+    const q = new URLSearchParams(location.search).get('suggest');
+    if (q && suggestPageEl.style.display === 'none') openSuggestPage();
+    else if (!q && suggestPageEl.style.display !== 'none') closeSuggestPage();
+  });
+  document.getElementById('sgAddBtn').addEventListener('click', () => {
+    if (!currentUser) { openOverlay('authOverlay'); return; }
+    sgMsg.textContent = '';
+    openOverlay('sgOverlay');
+    document.getElementById('sgUrl').focus();
+  });
+  document.getElementById('sgSendBtn').addEventListener('click', async () => {
+    const input = document.getElementById('sgUrl');
+    const id = getYoutubeId(input.value.trim());
+    if (!id) { sgMsg.textContent = 'Нужна ссылка на видео с YouTube'; return; }
+    if (currentUser.is_banned) { sgMsg.textContent = 'Вы заблокированы'; return; }
+    sgMsg.textContent = 'Добавляю...';
+    const title = await sgFetchTitle(id);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ user_id: currentUser.id, video_id: id, title: title || 'Видео', author_name: currentUser.display_name || currentUser.username || '' })
+    });
+    if (!res.ok) { sgMsg.textContent = 'Ошибка: ' + (await res.text()).slice(0, 120); return; }
+    input.value = '';
+    sgMsg.textContent = '';
+    closeOverlay('sgOverlay');
+    sgLoad();
+  });
+  document.getElementById('sgList').addEventListener('click', async (e) => {
+    const b = e.target.closest('.sg-del');
+    if (!b) return;
+    await fetch(`${SUPABASE_URL}/rest/v1/suggestions?id=eq.${b.dataset.id}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+    });
+    sgLoad();
+  });
+
+  function showMainFeed() {
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = '';
+    document.getElementById('postPage').style.display = 'none';
+    profilePageEl.style.display = 'none';
+    rulesPageEl.style.display = 'none';
+    streakPageEl.style.display = 'none'; document.getElementById('suggestPage').style.display = 'none';
     document.body.classList.remove('is-post-page');
   }
 
@@ -12141,9 +12274,9 @@
   function openRulesPage() {
     if (lightboxOverlay.classList.contains('open')) closeLightbox();
     if (postPageEl.style.display !== 'none') closePostPage();
-    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage)').style.display = 'none';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = 'none';
     profilePageEl.style.display = 'none';
-    streakPageEl.style.display = 'none';
+    streakPageEl.style.display = 'none'; document.getElementById('suggestPage').style.display = 'none';
     rulesPageEl.style.display = 'block';
     history.pushState(null, '', `/?rules=1`);
     window.scrollTo(0, 0);
@@ -12151,7 +12284,7 @@
 
   function closeRulesPage() {
     rulesPageEl.style.display = 'none';
-    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage)').style.display = '';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = '';
     history.pushState(null, '', '/');
   }
 
@@ -12172,7 +12305,7 @@
     if (!currentUser) return;
     if (lightboxOverlay.classList.contains('open')) closeLightbox();
     if (postPageEl.style.display !== 'none') closePostPage();
-    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage)').style.display = 'none';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = 'none';
     profilePageEl.style.display = 'none';
     rulesPageEl.style.display = 'none';
     streakPageEl.style.display = 'block';
@@ -12182,8 +12315,8 @@
   }
 
   function closeStreakPage() {
-    streakPageEl.style.display = 'none';
-    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage)').style.display = '';
+    streakPageEl.style.display = 'none'; document.getElementById('suggestPage').style.display = 'none';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = '';
     history.pushState(null, '', '/');
   }
 
@@ -12214,7 +12347,7 @@
     let profile = null;
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,display_name,avatar_url,role,name_color,stream_twitch_url,stream_donate_url,stream_social_url,short_code,bio`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` }
+        headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY }
       });
       const rows = await res.json();
       profile = rows && rows[0];
@@ -12226,7 +12359,7 @@
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/content?submitted_by=eq.${userId}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
-        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
       );
       userContent = await res.json();
     } catch (e) { console.error(e); }
@@ -12236,7 +12369,7 @@
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/collections?submitted_by=eq.${userId}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
-        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
       );
       userCollections = await res.json();
     } catch (e) { console.error(e); }
@@ -12623,10 +12756,10 @@
     }
 
     // Скрываем ленту, показываем профиль
-    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage)').style.display = 'none';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = 'none';
     document.getElementById('postPage').style.display = 'none';
     rulesPageEl.style.display = 'none';
-    streakPageEl.style.display = 'none';
+    streakPageEl.style.display = 'none'; document.getElementById('suggestPage').style.display = 'none';
     profilePageEl.style.display = 'block';
     setShareLink('user', userId, profile.username);
     history.pushState(null, '', buildSharePath('user', userId, profile.username));
@@ -12636,7 +12769,7 @@
   function closeProfilePage() {
     profilePageEl.style.display = 'none';
     currentShareLink = null;
-    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage)').style.display = '';
+    document.querySelector('main:not(#postPage):not(#profilePage):not(#rulesPage):not(#streakPage):not(#suggestPage)').style.display = '';
     history.pushState(null, '', '/');
   }
 
@@ -12960,18 +13093,35 @@
 
       if (profileUploadedFile) {
         // Расширение аватарки санитизируется — иначе имя файла со спецсимволами открывает stored XSS.
-        const rawExt = (profileUploadedFile.name.split('.').pop() || '').toLowerCase();
-        const ext = /^[a-z0-9]{1,5}$/.test(rawExt) ? rawExt : 'jpg';
+        // Аватарка сжимается до 256px (WebP) — оригиналы по несколько МБ
+        // раздували cached egress в Supabase. GIF не трогаем.
+        let avatarBlob = profileUploadedFile, avatarType = profileUploadedFile.type, ext;
+        if (avatarType !== 'image/gif') {
+          try {
+            const bmp = await createImageBitmap(profileUploadedFile);
+            const side = Math.min(bmp.width, bmp.height);
+            const cv = document.createElement('canvas');
+            cv.width = cv.height = Math.min(256, side);
+            cv.getContext('2d').drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, cv.width, cv.height);
+            const b = await new Promise(r => cv.toBlob(r, 'image/webp', 0.85));
+            if (b && b.type === 'image/webp') { avatarBlob = b; avatarType = 'image/webp'; ext = 'webp'; }
+          } catch (e) { console.warn('Не удалось сжать аватарку, грузим оригинал', e); }
+        }
+        if (!ext) {
+          const rawExt = (profileUploadedFile.name.split('.').pop() || '').toLowerCase();
+          ext = /^[a-z0-9]{1,5}$/.test(rawExt) ? rawExt : 'jpg';
+        }
         const path = `${currentUser.id}/avatar.${ext}`;
         const res = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
           method: 'POST',
           headers: {
             apikey: SUPABASE_KEY,
             Authorization: `Bearer ${currentUserToken}`,
-            'Content-Type': profileUploadedFile.type,
+            'Content-Type': avatarType,
+            'cache-control': 'max-age=31536000',
             'x-upsert': 'true'
           },
-          body: profileUploadedFile
+          body: avatarBlob
         });
         if (!res.ok) { const t = await res.text(); throw new Error('Ошибка загрузки фото: ' + t); }
         avatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`;
@@ -13845,7 +13995,7 @@
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&order=published_at.desc.nullslast,created_at.desc&select=id,title,content_type,source_url,cover_image_url&limit=200`,
-        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
       );
       if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       existingPickerData = await res.json();
@@ -14404,7 +14554,7 @@
       if (currentUser) orParts.push(`user_id.eq.${currentUser.id}`);
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/reviews?select=*&or=(${orParts.join(',')})&order=published_at.desc.nullslast,created_at.desc&limit=30`,
-        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
       );
       if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       return await res.json();
@@ -14768,7 +14918,7 @@
   // ============================================================
   async function switchNavTabTo(filterName) {
     // Клик по вкладке шапки всегда ведёт на неё, даже если открыт профиль/пост (как клик по логотипу).
-    const isOnSubPage = postPageEl.style.display !== 'none' || profilePageEl.style.display !== 'none' || rulesPageEl.style.display !== 'none' || streakPageEl.style.display !== 'none';
+    const isOnSubPage = postPageEl.style.display !== 'none' || profilePageEl.style.display !== 'none' || rulesPageEl.style.display !== 'none' || streakPageEl.style.display !== 'none' || document.getElementById('suggestPage').style.display !== 'none';
     if (isOnSubPage) {
       showMainFeed();
       history.pushState(null, '', '/');
@@ -14865,7 +15015,7 @@
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/profiles?id=in.(${unique.join(',')})&select=id,username,display_name,avatar_url,name_color,role`,
-        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
       );
       if (!res.ok) return {};
       const rows = await res.json();
@@ -15145,7 +15295,7 @@
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/subscriptions?follower_id=eq.${currentUser.id}&select=following_id`,
-        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
       );
       const rows = res.ok ? await res.json() : [];
       mySubscriptionIds = new Set(rows.map(r => r.following_id));
@@ -15610,7 +15760,7 @@
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/profiles?select=id,username,display_name,avatar_url,streak_count,last_visit_date&streak_count=gt.0&order=streak_count.desc.nullslast`,
-        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
       );
       if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
       return await res.json();
@@ -15694,14 +15844,14 @@
       const fetches = [
         subIds.length
           ? fetch(`${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&submitted_by=in.(${subIds.join(',')})&order=published_at.desc.nullslast,created_at.desc&select=*`,
-              { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } })
+              { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } })
           : Promise.resolve(null),
         fetch(`${SUPABASE_URL}/rest/v1/posts?author_id=in.(${postAuthorIds.join(',')})&order=created_at.desc&select=*`,
-          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } }),
+          { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }),
         // Публичные посты модераторов/гл.модератора — видны абсолютно всем,
         // независимо от подписки (переключатель "Показать всем" при создании).
         fetch(`${SUPABASE_URL}/rest/v1/posts?is_public=eq.true&order=created_at.desc&select=*`,
-          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } })
+          { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } })
       ];
       const [contentRes, postsRes, publicPostsRes] = await Promise.all(fetches);
       contentRows = (contentRes && contentRes.ok) ? await contentRes.json() : [];
