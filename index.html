@@ -10921,6 +10921,10 @@
 
   async function refreshModerationCount() {
     try {
+      const sugCountRes = await fetch(`${SUPABASE_URL}/rest/v1/suggestions?select=id&status=eq.pending`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'count=exact' }
+      }).catch(() => null);
+      const sugCount = sugCountRes && sugCountRes.ok ? parseInt((sugCountRes.headers.get('content-range') || '').split('/')[1] || '0', 10) : 0;
       const [contentRes, collectionsRes, reviewsRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/content?select=id&status=eq.draft`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'count=exact' }
@@ -10935,7 +10939,7 @@
       const contentCount = parseInt((contentRes.headers.get('content-range') || '').split('/')[1] || '0', 10);
       const collectionsCount = parseInt((collectionsRes.headers.get('content-range') || '').split('/')[1] || '0', 10);
       const reviewsCount = parseInt((reviewsRes.headers.get('content-range') || '').split('/')[1] || '0', 10);
-      const count = contentCount + collectionsCount + reviewsCount;
+      const count = contentCount + collectionsCount + reviewsCount + sugCount;
       const badge = document.getElementById('moderationBadge');
       if (badge) {
         badge.textContent = String(count);
@@ -10980,6 +10984,7 @@
         .channel('moderation-queue-live')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'content' }, moderationLiveRefresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'collections' }, moderationLiveRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'suggestions' }, () => { moderationLiveRefresh(); sgLiveRefresh(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_reports' }, commentReportsLiveRefresh)
         .subscribe();
     } else {
@@ -10992,6 +10997,11 @@
     window.addEventListener('load', initSupabaseRealtime);
   }
 
+  function sgLiveRefresh() {
+    const pg = document.getElementById('suggestPage');
+    if (pg && pg.style.display !== 'none' && typeof sgLoad === 'function') sgLoad();
+  }
+  setInterval(sgLiveRefresh, 20000);
   setInterval(moderationLiveRefresh, 20000);
   setInterval(commentReportsLiveRefresh, 20000);
   // ──────────────────────────────────────────────────────────────────────────
@@ -11144,6 +11154,13 @@
     const listEl = document.getElementById('moderationList');
     listEl.innerHTML = '<p class="empty">Загрузка...</p>';
     try {
+      let sugData = [];
+      try {
+        const sr = await fetch(`${SUPABASE_URL}/rest/v1/suggestions?status=eq.pending&order=created_at.desc&select=*`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+        });
+        if (sr.ok) sugData = await sr.json();
+      } catch (e) {}
       const [contentRes, collectionsRes, reviewsRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/content?status=eq.draft&order=created_at.desc&select=*`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
@@ -11162,7 +11179,7 @@
       const collectionsData = await collectionsRes.json();
       const reviewsData = await reviewsRes.json();
 
-      if ((!data || data.length === 0) && (!collectionsData || collectionsData.length === 0) && (!reviewsData || reviewsData.length === 0)) {
+      if ((!data || data.length === 0) && (!collectionsData || collectionsData.length === 0) && (!reviewsData || reviewsData.length === 0) && sugData.length === 0) {
         listEl.innerHTML = '<p class="empty">Нет работ на проверке</p>';
         return;
       }
@@ -11236,7 +11253,23 @@
       `;
       }).join('');
 
-      listEl.innerHTML = contentCardsHtml + collectionCardsHtml + reviewCardsHtml;
+      const sugCardsHtml = sugData.map(item => {
+        const vid = encodeURIComponent(item.video_id);
+        return `
+        <div class="mod-card" data-kind="suggestion" data-id="${item.id}" data-author="${item.user_id}">
+          <img src="https://img.youtube.com/vi/${vid}/mqdefault.jpg" alt="" loading="lazy">
+          <div class="meta">предложка · video</div>
+          <h4>${escapeHtml(item.title || 'Видео')}</h4>
+          <div class="mod-author">👤 <b>${escapeHtml(item.author_name || 'без имени')}</b></div>
+          <a class="mod-link" href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener noreferrer">▶ Открыть на YouTube</a>
+          <div class="mod-actions">
+            <button class="mod-approve" title="Одобрить">✅</button>
+            <button class="mod-reject" title="Отклонить">❌</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      listEl.innerHTML = sugCardsHtml + contentCardsHtml + collectionCardsHtml + reviewCardsHtml;
     } catch (e) {
       console.error('Ошибка загрузки очереди модерации:', e);
       listEl.innerHTML = '<p class="empty">Ошибка загрузки</p>';
@@ -11249,6 +11282,32 @@
     const itemId = card.dataset.id;
     const authorId = card.dataset.author;
     const kind = card.dataset.kind;
+    if (kind === 'suggestion') {
+      const isApprove = e.target.classList.contains('mod-approve');
+      const isReject = e.target.classList.contains('mod-reject');
+      if (!isApprove && !isReject) return;
+      e.target.disabled = true;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions?id=eq.${itemId}`, isApprove ? {
+          method: 'PATCH',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+          body: JSON.stringify({ status: 'approved', approved_at: new Date().toISOString() })
+        } : {
+          method: 'DELETE',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'return=representation' }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const rows = await res.json();
+        if (!rows || !rows.length) throw new Error('не хватает прав (RLS) на suggestions');
+        card.remove();
+        refreshModerationCount();
+        if (typeof sgLoad === 'function') sgLoad();
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+        e.target.disabled = false;
+      }
+      return;
+    }
     const isCollection = kind === 'collection';
     const isReview = kind === 'review';
     const apiPath = isReview ? 'reviews' : (isCollection ? 'collections' : 'content');
@@ -12176,7 +12235,7 @@
   async function sgLoad() {
     const list = document.getElementById('sgList');
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions?select=*&order=status.desc,created_at.desc&limit=100`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions?select=*&order=approved_at.desc.nullsfirst,created_at.desc&limit=100`, {
         headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY }
       });
       if (!res.ok) throw new Error(await res.text());
@@ -12194,7 +12253,7 @@
             <div class="card-video-play">▶</div>
           </a>
           ${can ? `<button class="sg-del" data-id="${r.id}" title="Удалить">×</button>` : ''}
-          <div class="meta">video${pending ? ' · <b style="color:#e0a040">на проверке</b>' : ''} · <span class="card-upload-date">${timeAgo(r.created_at)}</span></div>
+          <div class="meta">video${pending ? ' · <b style="color:#e0a040">на проверке</b>' : ''} · <span class="card-upload-date">${timeAgo(r.approved_at || r.created_at)}</span></div>
           ${r.author_name ? `<span class="card-author">${escapeHtml(r.author_name)}</span>` : ''}
           <h3><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;">${t}</a></h3>
           ${(pending && isMod) ? `<button class="sg-approve" data-id="${r.id}" style="margin-top:10px">Одобрить</button>` : ''}
@@ -12260,7 +12319,7 @@
     const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ user_id: currentUser.id, video_id: id, title: title || 'Видео', author_name: currentUser.display_name || currentUser.username || '', status: isModeratorOrHigher(currentUser.role) ? 'approved' : 'pending' })
+      body: JSON.stringify({ user_id: currentUser.id, video_id: id, title: title || 'Видео', author_name: currentUser.display_name || currentUser.username || '', status: isModeratorOrHigher(currentUser.role) ? 'approved' : 'pending', approved_at: isModeratorOrHigher(currentUser.role) ? new Date().toISOString() : null })
     });
     if (!res.ok) { sgMsg.textContent = 'Ошибка: ' + (await res.text()).slice(0, 120); return; }
     input.value = '';
@@ -12275,7 +12334,7 @@
       await fetch(`${SUPABASE_URL}/rest/v1/suggestions?id=eq.${ap.dataset.id}`, {
         method: 'PATCH',
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved' })
+        body: JSON.stringify({ status: 'approved', approved_at: new Date().toISOString() })
       });
       sgLoad();
       return;
