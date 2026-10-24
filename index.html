@@ -6328,7 +6328,7 @@
   .sg-grid .card{display:flex;flex-direction:column}
   .sg-grid .card h3{line-height:1.3;min-height:2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;word-break:break-word}
   .sg-grid .card-video-thumb{aspect-ratio:16/9;background:#000}
-  .sg-grid .card-video{transform:scale(1.14);transform-origin:50% 20%}
+  .sg-grid .card-video{border-radius:0}
   .sg-grid .card .sg-del{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:50%;width:26px;height:26px;line-height:1;cursor:pointer;font-size:16px;padding:0;z-index:3}
   @media (max-width:768px){.sg-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}}
 </style>
@@ -12288,7 +12288,7 @@
           ${can ? `<button class="sg-del" data-id="${r.id}" title="Удалить">×</button>` : ''}
           <div class="meta">video${pending ? ' · <b style="color:#e0a040">на проверке</b>' : ''} · <span class="card-upload-date">${sgAgo(r.approved_at || r.created_at)}</span>${sgViews[r.video_id] != null ? ` · <span class="card-views">👁 ${formatViews(sgViews[r.video_id])}</span>` : ''}${sgPub[r.video_id] ? ` · <span title="Дата публикации на YouTube">${sgAgo(sgPub[r.video_id])}</span>` : ''}</div>
           ${r.author_name ? `<span class="card-author">${escapeHtml(r.author_name)}</span>` : ''}
-          <h3><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;">${t}</a></h3>
+          <h3 title="${t}"><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;">${t}</a></h3>
           ${(pending && isMod) ? `<button class="sg-approve" data-id="${r.id}" style="margin-top:10px">Одобрить</button>` : ''}
         </div>`;
       }).join('');
