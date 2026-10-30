@@ -13999,4 +13999,2896 @@
       const source_url = b2result.url;
 
       const is_blurred = document.getElementById('artBlurCheckbox').checked;
-      const puzzle_difficulty = is_blurred ? document.getElementById('artPuzzleDiffi
+      const puzzle_difficulty = is_blurred ? document.getElementById('artPuzzleDifficultySelect').value : 'easy';
+      const res = await fetchAuth(`${SUPABASE_URL}/rest/v1/content`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ title, source_url, content_type: 'art', status: 'draft', submitted_by: currentUser.id, tags: artTagPicker.getTags(), is_blurred, puzzle_difficulty })
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(friendlySupabaseError(t)); }
+
+      artStatusEl.textContent = 'Отправлено на проверку!'; artStatusEl.className = 'ok';
+      notifyModeratorsOfSubmission('art', title);
+      document.getElementById('art-title').value = '';
+      document.getElementById('artFileName').textContent = '';
+      artUploadedFile = null; artFileInput.value = '';
+      artTagPicker.reset();
+      document.getElementById('artBlurCheckbox').checked = false;
+      document.getElementById('artPuzzleDifficultySelect').value = 'easy';
+      const artPuzzleRowEl = document.getElementById('artPuzzleDifficultyRow');
+      if (artPuzzleRowEl) artPuzzleRowEl.style.display = 'none';
+      setTimeout(() => closeOverlay('contentOverlay'), 1200);
+    } catch(e) {
+      artStatusEl.textContent = 'Ошибка: ' + e.message; artStatusEl.className = 'err';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Отправить на проверку';
+    }
+  });
+
+  // Зона загрузки видео
+  let videoUploadedFile = null;
+  const videoZone = document.getElementById('videoUploadZone');
+  const videoFileInput = document.getElementById('videoFile');
+
+  videoZone.addEventListener('click', () => videoFileInput.click());
+  videoZone.addEventListener('dragover', e => { e.preventDefault(); videoZone.classList.add('drag-over'); });
+  videoZone.addEventListener('dragleave', () => videoZone.classList.remove('drag-over'));
+  videoZone.addEventListener('drop', e => {
+    e.preventDefault();
+    videoZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleVideoFile(file);
+  });
+  videoFileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleVideoFile(e.target.files[0]);
+  });
+
+  function handleVideoFile(file) {
+    if (file.size > 30 * 1024 * 1024) {
+      document.getElementById('videoStatus').textContent = 'Файл больше 30 МБ';
+      document.getElementById('videoStatus').className = 'err';
+      return;
+    }
+    videoUploadedFile = file;
+    document.getElementById('video-url').value = '';
+    document.getElementById('videoFileName').textContent = '✓ ' + file.name;
+  }
+
+  // Сабмит видео
+  document.getElementById('videoSubmitBtn').addEventListener('click', async () => {
+    const title = document.getElementById('video-title').value.trim();
+    const urlInput = document.getElementById('video-url').value.trim();
+    const videoStatusEl = document.getElementById('videoStatus');
+
+    if (!title) { videoStatusEl.textContent = 'Добавь название'; videoStatusEl.className = 'err'; return; }
+    if (!videoUploadedFile && !urlInput) { videoStatusEl.textContent = 'Загрузи файл или вставь ссылку'; videoStatusEl.className = 'err'; return; }
+
+    const btn = document.getElementById('videoSubmitBtn');
+    btn.disabled = true; btn.textContent = 'Отправляем...';
+    videoStatusEl.textContent = ''; videoStatusEl.className = '';
+
+    try {
+      let source_url = urlInput;
+
+      if (videoUploadedFile) {
+        videoStatusEl.textContent = 'Загрузка файла...';
+        const b2result = await uploadToB2(videoUploadedFile, currentUser.id, pct => {
+          videoStatusEl.textContent = `Загрузка: ${pct}%`;
+        });
+        if (b2result.error) throw new Error(b2result.error);
+        source_url = b2result.url;
+      }
+
+      const res = await fetchAuth(`${SUPABASE_URL}/rest/v1/content`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ title, source_url, content_type: 'video', status: 'draft', submitted_by: currentUser.id, tags: videoTagPicker.getTags() })
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(friendlySupabaseError(t)); }
+
+      videoStatusEl.textContent = 'Отправлено на проверку!'; videoStatusEl.className = 'ok';
+      notifyModeratorsOfSubmission('video', title);
+      document.getElementById('video-title').value = '';
+      document.getElementById('video-url').value = '';
+      document.getElementById('videoFileName').textContent = '';
+      videoUploadedFile = null; videoFileInput.value = '';
+      videoTagPicker.reset();
+      setTimeout(() => closeOverlay('contentOverlay'), 1200);
+    } catch(e) {
+      videoStatusEl.textContent = 'Ошибка: ' + e.message; videoStatusEl.className = 'err';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Отправить на проверку';
+    }
+  });
+
+  // Кнопка "Добавить контент"
+  document.getElementById('addContentBtn').addEventListener('click', () => {
+    if (!currentUser) {
+      document.getElementById('authModalHint').textContent = 'Войди, чтобы добавлять контент в ленту.';
+      openOverlay('authOverlay');
+      return;
+    }
+    if (currentUser.is_banned) {
+      alert('Твой аккаунт заблокирован модератором. Добавлять контент нельзя.');
+      return;
+    }
+    switchContentTab('art');
+    updateContentPostTabVisibility();
+    selectedPostEmoji = null;
+    document.querySelectorAll('#postEmojiPicker .post-emoji-option').forEach(b => b.classList.remove('active'));
+    document.getElementById('post-text-body').value = '';
+    document.getElementById('postStatus').textContent = '';
+    document.getElementById('postStatus').className = '';
+    openOverlay('contentOverlay');
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+
+  // ─── Сборники (только для модераторов) ─────────────────────────────────────
+  const COLLECTION_MAX_FILES = 100;
+  // элементы сборника перед отправкой: { kind: 'upload', file, mediaType } —
+  // новый файл, который нужно сначала залить в B2;
+  // { kind: 'existing', mediaType, mediaUrl, sourceContentId } — уже
+  // опубликованная на сайте работа, просто ссылаемся на её файл.
+  let collectionItems = [];
+  let existingPickerLoaded = false;
+
+  function collIsVideoFile(file) {
+    return file.type.startsWith('video/');
+  }
+
+  function refreshCollectionFilesUI() {
+    const grid = document.getElementById('collFilesGrid');
+    const countEl = document.getElementById('collFilesCount');
+    countEl.textContent = `${collectionItems.length} / ${COLLECTION_MAX_FILES} файлов`;
+    countEl.classList.toggle('limit-reached', collectionItems.length >= COLLECTION_MAX_FILES);
+
+    grid.innerHTML = collectionItems.map((item, idx) => {
+      const isVideo = item.mediaType === 'video';
+      if (item.kind === 'upload' && !item._previewUrl) {
+        item._previewUrl = URL.createObjectURL(item.file);
+      }
+      const src = item.kind === 'upload' ? item._previewUrl : item.mediaUrl;
+      const mediaTag = isVideo
+        ? `<video src="${src}" muted preload="metadata"></video><span class="cf-video-badge">▶</span>`
+        : `<img src="${src}" alt="">`;
+      return `
+        <div class="collection-file-item" data-idx="${idx}">
+          ${mediaTag}
+          <button type="button" class="collection-file-remove" data-remove-idx="${idx}">×</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('collFilesGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-remove-idx]');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.removeIdx, 10);
+    const removed = collectionItems.splice(idx, 1)[0];
+    if (removed && removed._previewUrl) URL.revokeObjectURL(removed._previewUrl);
+    refreshCollectionFilesUI();
+  });
+
+  function addFilesToCollection(fileList) {
+    const statusEl = document.getElementById('collectionStatus');
+    const files = Array.from(fileList);
+    for (const file of files) {
+      if (collectionItems.length >= COLLECTION_MAX_FILES) {
+        statusEl.textContent = `Максимум ${COLLECTION_MAX_FILES} файлов в сборнике`;
+        statusEl.className = 'err';
+        break;
+      }
+      const isVideo = collIsVideoFile(file);
+      if (!isVideo && file.size > 4 * 1024 * 1024) {
+        statusEl.textContent = `«${file.name}» больше 4 МБ — фото пропущено`;
+        statusEl.className = 'err';
+        continue;
+      }
+      if (isVideo && file.size > 30 * 1024 * 1024) {
+        statusEl.textContent = `«${file.name}» больше 30 МБ — видео пропущено`;
+        statusEl.className = 'err';
+        continue;
+      }
+      collectionItems.push({ kind: 'upload', file, mediaType: isVideo ? 'video' : 'photo' });
+    }
+    refreshCollectionFilesUI();
+  }
+
+  const collZone = document.getElementById('collUploadZone');
+  const collFilesInput = document.getElementById('collFiles');
+
+  collZone.addEventListener('click', () => collFilesInput.click());
+  collZone.addEventListener('dragover', e => { e.preventDefault(); collZone.classList.add('drag-over'); });
+  collZone.addEventListener('dragleave', () => collZone.classList.remove('drag-over'));
+  collZone.addEventListener('drop', e => {
+    e.preventDefault();
+    collZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) addFilesToCollection(e.dataTransfer.files);
+  });
+  collFilesInput.addEventListener('change', e => {
+    if (e.target.files.length) addFilesToCollection(e.target.files);
+    collFilesInput.value = '';
+  });
+
+  // ── Выбор уже загруженных на сайт файлов (опубликованный арт/видео) ──────
+  document.getElementById('toggleExistingPickerBtn').addEventListener('click', async () => {
+    const picker = document.getElementById('existingPicker');
+    const isOpen = picker.style.display !== 'none';
+    picker.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen && !existingPickerLoaded) {
+      await loadExistingPicker();
+      existingPickerLoaded = true;
+    }
+  });
+
+  let existingPickerData = [];
+
+  async function loadExistingPicker() {
+    const grid = document.getElementById('existingPickerGrid');
+    grid.innerHTML = '<p class="empty">Загрузка...</p>';
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&order=published_at.desc.nullslast,created_at.desc&select=id,title,content_type,source_url,cover_image_url&limit=200`,
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
+      );
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      existingPickerData = await res.json();
+      renderExistingPickerGrid(existingPickerData);
+    } catch (e) {
+      grid.innerHTML = '<p class="empty">Не удалось загрузить список</p>';
+      console.error('Ошибка загрузки существующих файлов:', e);
+    }
+  }
+
+  function renderExistingPickerGrid(items) {
+    const grid = document.getElementById('existingPickerGrid');
+    if (!items.length) {
+      grid.innerHTML = '<p class="empty">Ничего не найдено</p>';
+      return;
+    }
+    grid.innerHTML = items.map(item => {
+      const mediaUrl = item.cover_image_url || item.source_url || '';
+      const isVideoFile = item.content_type === 'video' && isOwnUploadedMediaUrl(mediaUrl);
+      const isYoutube = item.content_type === 'video' && getYoutubeId(mediaUrl);
+      // Сборник умеет хранить только прямые файлы (фото/видео из B2) —
+      // внешние ссылки (YouTube, сторонние сайты) сюда не утащить, у них
+      // нет собственного файла, который можно листать стрелками.
+      if (!mediaUrl || (item.content_type === 'video' && !isVideoFile && !isYoutube)) return '';
+      const alreadyPicked = collectionItems.some(ci => ci.kind === 'existing' && ci.sourceContentId === item.id);
+      const thumbUrl = isYoutube ? `https://img.youtube.com/vi/${getYoutubeId(mediaUrl)}/hqdefault.jpg` : mediaUrl;
+      const tag = (isVideoFile)
+        ? `<video src="${thumbUrl}" muted preload="metadata"></video>`
+        : `<img src="${thumbUrl}" alt="">`;
+      return `
+        <div class="existing-picker-item ${alreadyPicked ? 'picked' : ''}" data-content-id="${item.id}" data-media-url="${escapeHtml(isYoutube ? thumbUrl : mediaUrl)}" data-media-type="${item.content_type === 'video' ? 'video' : 'photo'}" data-youtube="${isYoutube ? '1' : '0'}" title="${escapeHtml(item.title)}">
+          ${tag}
+          <span class="ep-check">✓</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('existingPickerSearch').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    const filtered = q ? existingPickerData.filter(i => i.title.toLowerCase().includes(q)) : existingPickerData;
+    renderExistingPickerGrid(filtered);
+  });
+
+  document.getElementById('existingPickerGrid').addEventListener('click', (e) => {
+    const el = e.target.closest('.existing-picker-item');
+    if (!el) return;
+    const contentId = el.dataset.contentId;
+    // YouTube-видео нельзя утащить в сборник как файл — отдельная
+    // проверка на случай если миниатюра всё же отрисовалась
+    if (el.dataset.youtube === '1') {
+      alert('YouTube-видео нельзя добавить в сборник — только файлы, загруженные на сайт.');
+      return;
+    }
+    const existingIdx = collectionItems.findIndex(ci => ci.kind === 'existing' && ci.sourceContentId === contentId);
+    if (existingIdx !== -1) {
+      collectionItems.splice(existingIdx, 1);
+      el.classList.remove('picked');
+      refreshCollectionFilesUI();
+      return;
+    }
+    if (collectionItems.length >= COLLECTION_MAX_FILES) {
+      document.getElementById('collectionStatus').textContent = `Максимум ${COLLECTION_MAX_FILES} файлов в сборнике`;
+      document.getElementById('collectionStatus').className = 'err';
+      return;
+    }
+    collectionItems.push({
+      kind: 'existing',
+      mediaType: el.dataset.mediaType,
+      mediaUrl: el.dataset.mediaUrl,
+      sourceContentId: contentId
+    });
+    el.classList.add('picked');
+    refreshCollectionFilesUI();
+  });
+
+  // ── Отправка сборника на проверку ─────────────────────────────────────────
+  function resetCollectionForm() {
+    document.getElementById('coll-title').value = '';
+    document.getElementById('coll-desc').value = '';
+    collectionItems.forEach(item => { if (item._previewUrl) URL.revokeObjectURL(item._previewUrl); });
+    collectionItems = [];
+    refreshCollectionFilesUI();
+    document.getElementById('existingPicker').style.display = 'none';
+    document.querySelectorAll('.existing-picker-item.picked').forEach(el => el.classList.remove('picked'));
+    document.getElementById('collectionStatus').textContent = '';
+    document.getElementById('collectionStatus').className = '';
+  }
+
+  document.getElementById('collectionSubmitBtn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('collectionStatus');
+    const title = document.getElementById('coll-title').value.trim();
+    const description = document.getElementById('coll-desc').value.trim();
+
+    if (!title) { statusEl.textContent = 'Добавь название'; statusEl.className = 'err'; return; }
+    if (!collectionItems.length) { statusEl.textContent = 'Добавь хотя бы один файл'; statusEl.className = 'err'; return; }
+
+    const btn = document.getElementById('collectionSubmitBtn');
+    btn.disabled = true; btn.textContent = 'Отправляем...';
+    statusEl.className = '';
+
+    try {
+      // 1. Создаём сам сборник как draft
+      statusEl.textContent = 'Создаём сборник...';
+      const createRes = await fetchAuth(`${SUPABASE_URL}/rest/v1/collections`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ title, description, status: 'draft', submitted_by: currentUser.id })
+      });
+      if (!createRes.ok) throw new Error(await createRes.text());
+      const created = await createRes.json();
+      const collectionId = created[0].id;
+
+      // 2. Загружаем новые файлы в B2 (по порядку, с прогрессом), уже
+      //    выбранные существующие работы просто переиспользуют их URL
+      const itemsPayload = [];
+      for (let i = 0; i < collectionItems.length; i++) {
+        const item = collectionItems[i];
+        statusEl.textContent = `Загружаем файл ${i + 1} из ${collectionItems.length}...`;
+        let mediaUrl;
+        if (item.kind === 'upload') {
+          const b2result = await uploadToB2(item.file, currentUser.id, pct => {
+            statusEl.textContent = `Файл ${i + 1} из ${collectionItems.length}: ${pct}%`;
+          });
+          if (b2result.error) throw new Error(b2result.error);
+          mediaUrl = b2result.url;
+        } else {
+          mediaUrl = item.mediaUrl;
+        }
+        itemsPayload.push({
+          collection_id: collectionId,
+          position: i,
+          media_type: item.mediaType,
+          media_url: mediaUrl,
+          source_content_id: item.kind === 'existing' ? item.sourceContentId : null
+        });
+      }
+
+      // 3. Сохраняем элементы сборника одним батч-запросом
+      statusEl.textContent = 'Сохраняем сборник...';
+      const itemsRes = await fetchAuth(`${SUPABASE_URL}/rest/v1/collection_items`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(itemsPayload)
+      });
+      if (!itemsRes.ok) throw new Error(await itemsRes.text());
+
+      // 4. Кэшируем обложку (превью первого файла) и количество файлов в
+      //    самом сборнике — чтобы лента могла показать карточку без
+      //    джойна на collection_items
+      await fetchAuth(`${SUPABASE_URL}/rest/v1/collections?id=eq.${collectionId}`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ cover_url: itemsPayload[0].media_url, cover_type: itemsPayload[0].media_type, item_count: itemsPayload.length })
+      });
+
+      statusEl.textContent = `Отправлено на проверку! (${itemsPayload.length} файлов)`;
+      statusEl.className = 'ok';
+      notifyModeratorsOfSubmission('collection', title);
+      resetCollectionForm();
+      setTimeout(() => closeOverlay('collectionOverlay'), 1200);
+    } catch (e) {
+      statusEl.textContent = 'Ошибка: ' + e.message;
+      statusEl.className = 'err';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Отправить на проверку';
+    }
+  });
+
+  // Кнопка "+ Сборник" в шапке (видна только модераторам через renderModerationBtn)
+  document.getElementById('addCollectionBtn').addEventListener('click', () => {
+    if (!currentUser || !isModeratorOrHigher(currentUser.role)) return;
+    if (currentUser.is_banned) {
+      alert('Твой аккаунт заблокирован. Создание сборников недоступно.');
+      return;
+    }
+    resetCollectionForm();
+    openOverlay('collectionOverlay');
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+
+
+  // Обложка фанфика — необязательная, тот же паттерн загрузки, что и у арта
+  // (см. handleArtFile/artZone выше), просто отдельная зона/переменная.
+  let fanficCoverUploadedFile = null;
+  const fanficCoverZone = document.getElementById('fanficCoverUploadZone');
+  const fanficCoverFileInput = document.getElementById('fanficCoverFile');
+
+  fanficCoverZone.addEventListener('click', () => fanficCoverFileInput.click());
+  fanficCoverZone.addEventListener('dragover', e => { e.preventDefault(); fanficCoverZone.classList.add('drag-over'); });
+  fanficCoverZone.addEventListener('dragleave', () => fanficCoverZone.classList.remove('drag-over'));
+  fanficCoverZone.addEventListener('drop', e => {
+    e.preventDefault();
+    fanficCoverZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFanficCoverFile(file);
+  });
+  fanficCoverFileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleFanficCoverFile(e.target.files[0]);
+  });
+
+  function handleFanficCoverFile(file) {
+    if (file.size > 4 * 1024 * 1024) {
+      showContentStatus('Файл обложки больше 4 МБ', 'err');
+      return;
+    }
+    fanficCoverUploadedFile = file;
+    document.getElementById('fanficCoverFileName').textContent = '✓ ' + file.name;
+  }
+
+  document.getElementById('c-age-rating').addEventListener('change', e => {
+    document.getElementById('c-age-rating-label').textContent = e.target.checked ? 'Рейтинг: 18+' : 'Рейтинг: PG-13';
+  });
+
+  document.getElementById('contentSubmitBtn').addEventListener('click', async () => {
+    if (!currentUser) {
+      showContentStatus('Сессия истекла, войди снова', 'err');
+      return;
+    }
+
+    const title = document.getElementById('c-title').value.trim();
+    const source_url = document.getElementById('c-url').value.trim();
+    const fandom = document.getElementById('c-fandom').value.trim();
+    const pairing = document.getElementById('c-pairing').value.trim();
+    const content_type = currentContentType;
+    const tagsRaw = document.getElementById('c-tags').value.trim();
+    const description = document.getElementById('c-desc').value.trim();
+    const age_rating = document.getElementById('c-age-rating').checked ? '18+' : 'pg13';
+
+    if (!title || !source_url) {
+      showContentStatus('Заполни хотя бы название и ссылку', 'err');
+      return;
+    }
+
+    const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+    const btn = document.getElementById('contentSubmitBtn');
+    btn.disabled = true;
+    const originalBtnText = btn.textContent;
+
+    try {
+      // Обложка необязательна — грузим в B2 только если человек её выбрал.
+      let cover_image_url = null;
+      if (fanficCoverUploadedFile) {
+        btn.textContent = 'Загружаем обложку...';
+        showContentStatus('Загрузка обложки...', '');
+        const b2result = await uploadToB2(fanficCoverUploadedFile, currentUser.id, pct => {
+          showContentStatus(`Загрузка обложки: ${pct}%`, '');
+        });
+        if (b2result.error) throw new Error(b2result.error);
+        cover_image_url = b2result.url;
+      }
+
+      btn.textContent = 'Отправляем...';
+      showContentStatus('', '');
+      const res = await fetchAuth(`${SUPABASE_URL}/rest/v1/content`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          title,
+          source_url,
+          fandom,
+          pairing,
+          content_type,
+          tags,
+          description,
+          age_rating,
+          cover_image_url,
+          status: 'draft',
+          submitted_by: currentUser.id
+        })
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+    } catch (e) {
+      showContentStatus('Ошибка отправки: ' + e.message, 'err');
+      btn.disabled = false;
+      btn.textContent = originalBtnText;
+      return;
+    }
+
+    showContentStatus('Отправлено на проверку модератору!', 'ok');
+    notifyModeratorsOfSubmission(content_type, title);
+    document.getElementById('c-title').value = '';
+    document.getElementById('c-url').value = '';
+    document.getElementById('c-fandom').value = '';
+    document.getElementById('c-tags').value = '';
+    document.getElementById('c-desc').value = '';
+    document.getElementById('c-age-rating').checked = false;
+    document.getElementById('c-age-rating-label').textContent = 'Рейтинг: PG-13';
+    document.getElementById('fanficCoverFileName').textContent = '';
+    fanficCoverUploadedFile = null;
+    fanficCoverFileInput.value = '';
+    btn.disabled = false;
+    btn.textContent = originalBtnText;
+
+    setTimeout(() => closeOverlay('contentOverlay'), 1200);
+  });
+
+  // Лента: грузится для всех, без авторизации.
+  // Используем прямой fetch к REST API Supabase вместо клиентской
+  // библиотеки — в некоторых средах (sandboxed-просмотрщики, превью)
+  // библиотека падает с DataCloneError на postMessage.
+  let currentFeedFilter = 'home';
+  let feedTimeFilterValue = 'all';
+  let feedAuthorSearchQuery = '';
+  let feedSubscriptionsOnly = false;
+  let mySubscriptionIds = null;
+  let feedTagFilterSet = new Set();
+  let feedSortValue = 'new';
+  let currentFeedRawData = [];
+
+  // ─── Закреплённое видео с канала @rockstarnarezchik ──────────────────────
+  const YT_CACHE_KEY = 'fh_latest_rockstar_video';
+  const YT_CACHE_TTL_MS = 60 * 60 * 1000; // 1 час
+
+
+  // ============================================================
+  // 11. YOUTUBE-ПЛЕЕР КАНАЛА
+  // ============================================================
+  async function getLatestRockstarVideo() {
+    try {
+      const cached = localStorage.getItem(YT_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.fetchedAt < YT_CACHE_TTL_MS) {
+          return parsed.video;
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${YOUTUBE_CHANNEL_ID}&part=snippet&order=date&type=video&maxResults=1`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      const data = await res.json();
+      const item = data.items && data.items[0];
+      if (!item) return null;
+
+      const video = {
+        id: item.id.videoId,
+        title: item.snippet.title,
+        thumb: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url
+      };
+
+      try {
+        localStorage.setItem(YT_CACHE_KEY, JSON.stringify({ video, fetchedAt: Date.now() }));
+      } catch (e) {}
+
+      return video;
+    } catch (e) {
+      console.error('Не удалось получить последнее видео с YouTube:', e);
+      // если запрос упал, но есть старый кэш — лучше показать его, чем ничего
+      try {
+        const cached = localStorage.getItem(YT_CACHE_KEY);
+        if (cached) return JSON.parse(cached).video;
+      } catch (e2) {}
+      return null;
+    }
+  }
+
+  function renderRockstarVideoCard(video) {
+    if (!video) return '';
+    const watchUrl = `https://www.youtube.com/watch?v=${video.id}`;
+    return `
+      <div class="card pinned-video-card">
+        <a class="card-video-thumb" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
+          <img class="card-video" src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+          <div class="card-video-play">▶</div>
+        </a>
+        <div class="meta">📌 НОВОЕ НА КАНАЛЕ</div>
+        <h3>${escapeHtml(video.title)}</h3>
+        <div class="card-footer">
+          <a class="go" href="${watchUrl}" target="_blank" rel="noopener noreferrer">Смотреть на YouTube →</a>
+          <span></span>
+        </div>
+      </div>
+    `;
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Лента "Новое на канале" на главной — 15 последних видео ─────────────
+  const YT_REEL_CACHE_KEY = 'fh_channel_reel_videos_v4';
+  // Кэш держим дольше часа — пагинация ниже может делать несколько
+  // запросов к /search (он самый "дорогой" по квоте YouTube API), так
+  // что реже освежаем, чтобы не упереться в дневной лимит.
+  const YT_REEL_CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3 часа
+  const YT_REEL_COUNT = 15;
+  // Листаем /search постранично, пока не наберём нужное число длинных роликов (бывают пачки шортсов).
+  const YT_REEL_PAGE_SIZE = 50; // максимум, который отдаёт YouTube за раз
+  const YT_REEL_MAX_PAGES = 5;  // до 250 просмотренных видео за один пересчёт
+  // YouTube относит к шортсам ролики длительностью до 3 минут — берём
+  // порог с небольшим запасом (61 сек — старый лимит, но на всякий
+  // случай отсекаем и новый, расширенный до ~3 минут).
+  const YT_SHORTS_MAX_SECONDS = 183;
+
+  // "PT1H2M10S" → секунды. Если строка не распознана — считаем видео
+  // длинным (0 бы дал ложное срабатывание фильтра), чтобы не выкинуть
+  // случайно нормальное видео из-за странного формата.
+  function parseIsoDurationToSeconds(iso) {
+    if (!iso) return null;
+    const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+    if (!m) return null;
+    const h = parseInt(m[1] || '0', 10);
+    const min = parseInt(m[2] || '0', 10);
+    const s = parseInt(m[3] || '0', 10);
+    return h * 3600 + min * 60 + s;
+  }
+
+  const YT_UPLOADS_PLAYLIST_CACHE_KEY = 'fh_channel_uploads_playlist_id';
+
+  // ID плейлиста "Uploads" канала — вычисляется из channelId один раз
+  // (UC... -> UU...) и почти никогда не меняется, поэтому кэшируем
+  // отдельно и надолго, чтобы не тратить лишний запрос к /channels.
+  async function getUploadsPlaylistId() {
+    try {
+      const cached = localStorage.getItem(YT_UPLOADS_PLAYLIST_CACHE_KEY);
+      if (cached) return cached;
+    } catch (e) {}
+
+    const url = `https://www.googleapis.com/youtube/v3/channels?key=${YOUTUBE_API_KEY}&id=${YOUTUBE_CHANNEL_ID}&part=contentDetails`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+    const data = await res.json();
+    const playlistId = data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    if (!playlistId) throw new Error('uploads playlist not found');
+
+    try { localStorage.setItem(YT_UPLOADS_PLAYLIST_CACHE_KEY, playlistId); } catch (e) {}
+    return playlistId;
+  }
+
+  async function getChannelReelVideos() {
+    try {
+      const cached = localStorage.getItem(YT_REEL_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.fetchedAt < YT_REEL_CACHE_TTL_MS) {
+          return parsed.videos;
+        }
+      }
+    } catch (e) {}
+
+    try {
+      // Плейлист "Uploads" отдаёт ролики строго в порядке загрузки на
+      // канал, без задержек индексации и "пропажи" свежих видео,
+      // которые бывают у /search?order=date.
+      const uploadsPlaylistId = await getUploadsPlaylistId();
+
+      const longItems = [];
+      let pageToken = '';
+      for (let page = 0; page < YT_REEL_MAX_PAGES && longItems.length < YT_REEL_COUNT; page++) {
+        const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?key=${YOUTUBE_API_KEY}&playlistId=${uploadsPlaylistId}&part=snippet&maxResults=${YT_REEL_PAGE_SIZE}${pageToken ? `&pageToken=${pageToken}` : ''}`;
+        const playlistRes = await fetch(playlistUrl);
+        if (!playlistRes.ok) throw new Error(await playlistRes.text());
+        const playlistData = await playlistRes.json();
+        const items = (playlistData.items || []).filter(item => item.snippet?.resourceId?.videoId);
+        if (!items.length) break;
+
+        // Длительность в /playlistItems не отдаётся — второй запрос к
+        // /videos за contentDetails, чтобы отсеять шортсы из этой страницы.
+        const ids = items.map(item => item.snippet.resourceId.videoId).join(',');
+        const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?key=${YOUTUBE_API_KEY}&id=${ids}&part=contentDetails`;
+        const detailsRes = await fetch(detailsUrl);
+        if (!detailsRes.ok) throw new Error(await detailsRes.text());
+        const detailsData = await detailsRes.json();
+        const durationById = {};
+        (detailsData.items || []).forEach(d => {
+          durationById[d.id] = parseIsoDurationToSeconds(d.contentDetails?.duration);
+        });
+
+        items.forEach(item => {
+          const videoId = item.snippet.resourceId.videoId;
+          const looksLikeShortTitle = /#shorts?\b/i.test(item.snippet.title || '');
+          const seconds = durationById[videoId];
+          const isShort = looksLikeShortTitle || (seconds != null && seconds <= YT_SHORTS_MAX_SECONDS);
+          if (!isShort) longItems.push(item);
+        });
+
+        if (!playlistData.nextPageToken) break;
+        pageToken = playlistData.nextPageToken;
+      }
+
+      const videos = longItems.slice(0, YT_REEL_COUNT).map(item => ({
+        id: item.snippet.resourceId.videoId,
+        title: item.snippet.title,
+        thumb: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url
+      }));
+
+      try {
+        localStorage.setItem(YT_REEL_CACHE_KEY, JSON.stringify({ videos, fetchedAt: Date.now() }));
+      } catch (e) {}
+
+      return videos;
+    } catch (e) {
+      console.error('Не удалось получить список видео с канала:', e);
+      // если запрос упал, но есть старый кэш — лучше показать его, чем ничего
+      try {
+        const cached = localStorage.getItem(YT_REEL_CACHE_KEY);
+        if (cached) return JSON.parse(cached).videos;
+      } catch (e2) {}
+      return [];
+    }
+  }
+
+  function renderChannelReel(videos) {
+    const trackEl = document.getElementById('reelTrack');
+    if (!trackEl) return;
+    if (!videos || !videos.length) {
+      trackEl.innerHTML = `<p class="home-empty">Не удалось загрузить видео с канала</p>`;
+      updateReelArrows();
+      return;
+    }
+    trackEl.innerHTML = videos.map(video => {
+      const watchUrl = `https://www.youtube.com/watch?v=${video.id}`;
+      return `
+        <a class="reel-item" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
+          <div class="reel-thumb-wrap">
+            <img src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy">
+            <div class="reel-play">▶</div>
+          </div>
+          <p class="reel-item-title">${escapeHtml(video.title)}</p>
+        </a>
+      `;
+    }).join('');
+    // прокрутка сбрасывается при перерисовке — актуализируем состояние стрелок
+    trackEl.scrollLeft = 0;
+    updateReelArrows();
+  }
+
+  function updateReelArrows() {
+    const trackEl = document.getElementById('reelTrack');
+    const leftBtn = document.getElementById('reelArrowLeft');
+    const rightBtn = document.getElementById('reelArrowRight');
+    if (!trackEl || !leftBtn || !rightBtn) return;
+    leftBtn.disabled = trackEl.scrollLeft <= 4;
+    rightBtn.disabled = trackEl.scrollLeft + trackEl.clientWidth >= trackEl.scrollWidth - 4;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Блок "Отзывы" на главной ──────────────────────────────────────────────
+  let reviewsCache = [];
+
+  async function fetchReviews() {
+    try {
+      const orParts = ['status.eq.published'];
+      if (currentUser) orParts.push(`user_id.eq.${currentUser.id}`);
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/reviews?select=*&or=(${orParts.join(',')})&order=published_at.desc.nullslast,created_at.desc&limit=30`,
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
+      );
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      return await res.json();
+    } catch (e) {
+      console.error('Не удалось загрузить отзывы:', e);
+      return [];
+    }
+  }
+
+  async function fetchMyReviewLikes(reviewIds) {
+    if (!currentUser || !currentUserToken || !reviewIds.length) return new Set();
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/review_likes?review_id=in.(${reviewIds.join(',')})&user_id=eq.${currentUser.id}&select=review_id`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
+      );
+      if (!res.ok) return new Set();
+      const rows = await res.json();
+      return new Set(rows.map(r => r.review_id));
+    } catch (e) {
+      return new Set();
+    }
+  }
+
+  async function loadReviews() {
+    const trackEl = document.getElementById('reviewTrack');
+    if (trackEl) trackEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    const reviews = await fetchReviews();
+    const likedSet = await fetchMyReviewLikes(reviews.map(r => r.id));
+    // Отзыв хранит username/avatar на момент отправки, а не живую ссылку на
+    // профиль — цвет ника (краска) при этом мог быть назначен позже, поэтому
+    // подтягиваем актуальный name_color отдельно, по user_id.
+    const authorProfilesById = await fetchProfilesByIds(reviews.map(r => r.user_id));
+    reviews.forEach(r => { r.name_color = (authorProfilesById[r.user_id] || {}).name_color || null; });
+    reviewsCache = reviews;
+    renderReviews(reviews, likedSet);
+  }
+
+  function renderReviews(reviews, likedSet) {
+    const trackEl = document.getElementById('reviewTrack');
+    if (!trackEl) return;
+    likedSet = likedSet || new Set();
+    if (!reviews || !reviews.length) {
+      trackEl.innerHTML = `<p class="home-empty">Пока нет отзывов — будьте первым!</p>`;
+      updateReviewArrows();
+      return;
+    }
+    const canModerate = currentUser && isModeratorOrHigher(currentUser.role);
+    trackEl.innerHTML = reviews.map(r => {
+      const isLiked = likedSet.has(r.id);
+      const isOwn = currentUser && currentUser.id === r.user_id;
+      const avatar = r.avatar_url || presetToDataUrl('p0');
+      const nameAttrs = nameColorAttrs(r.name_color);
+      const isPublished = r.status === 'published' || !r.status;
+      const statusBadge = r.status === 'draft'
+        ? `<span class="review-status-badge">На проверке</span>`
+        : r.status === 'rejected'
+          ? `<span class="review-status-badge rejected">Отклонён${r.rejection_reason ? ': ' + escapeHtml(r.rejection_reason) : ''}</span>`
+          : '';
+      return `
+        <div class="review-card${isPublished ? '' : ' review-card-pending'}" data-review-id="${r.id}">
+          <div class="review-top">
+            <img class="review-avatar" src="${escapeHtml(avatar)}" alt="">
+            <span class="review-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(r.username || 'без имени')}</span>
+            <span class="review-time">${timeAgo(r.published_at || r.created_at)}</span>
+          </div>
+          <p class="review-text">${renderMessageBody(r.text)}</p>
+          ${statusBadge}
+          ${isPublished ? `
+          <button type="button" class="review-like-btn${isLiked ? ' liked' : ''}" data-review-id="${r.id}">
+            <svg viewBox="0 0 24 24"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg>
+            <span class="review-like-count">${r.likes || 0}</span>
+          </button>
+          ` : ''}
+          ${(isOwn || canModerate) ? `<button type="button" class="review-delete-btn" data-review-id="${r.id}">Удалить</button>` : ''}
+        </div>
+      `;
+    }).join('');
+    trackEl.scrollLeft = 0;
+    updateReviewArrows();
+
+    trackEl.querySelectorAll('.review-like-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleReviewLike(btn.dataset.reviewId, btn));
+    });
+    trackEl.querySelectorAll('.review-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteReview(btn.dataset.reviewId));
+    });
+  }
+
+  function updateReviewArrows() {
+    const trackEl = document.getElementById('reviewTrack');
+    const leftBtn = document.getElementById('reviewArrowLeft');
+    const rightBtn = document.getElementById('reviewArrowRight');
+    if (!trackEl || !leftBtn || !rightBtn) return;
+    leftBtn.disabled = trackEl.scrollLeft <= 4;
+    rightBtn.disabled = trackEl.scrollLeft + trackEl.clientWidth >= trackEl.scrollWidth - 4;
+  }
+
+  const reviewTrackEl = document.getElementById('reviewTrack');
+  if (reviewTrackEl) reviewTrackEl.addEventListener('scroll', updateReviewArrows);
+  const reviewArrowLeftEl = document.getElementById('reviewArrowLeft');
+  if (reviewArrowLeftEl) reviewArrowLeftEl.addEventListener('click', () => {
+    document.getElementById('reviewTrack')?.scrollBy({ left: -560, behavior: 'smooth' });
+  });
+  const reviewArrowRightEl = document.getElementById('reviewArrowRight');
+  if (reviewArrowRightEl) reviewArrowRightEl.addEventListener('click', () => {
+    document.getElementById('reviewTrack')?.scrollBy({ left: 560, behavior: 'smooth' });
+  });
+  window.addEventListener('resize', updateReviewArrows);
+
+  async function toggleReviewLike(reviewId, btnEl) {
+    if (!currentUser || !currentUserToken) {
+      openOverlay('authOverlay');
+      return;
+    }
+    const countEl = btnEl.querySelector('.review-like-count');
+    const wasLiked = btnEl.classList.contains('liked');
+    btnEl.disabled = true;
+    try {
+      if (wasLiked) {
+        await fetch(`${SUPABASE_URL}/rest/v1/review_likes?review_id=eq.${reviewId}&user_id=eq.${currentUser.id}`, {
+          method: 'DELETE',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/rpc/decrement_review_likes`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rid: Number(reviewId) })
+        });
+        countEl.textContent = Math.max(0, (Number(countEl.textContent) || 0) - 1);
+        btnEl.classList.remove('liked');
+      } else {
+        await fetch(`${SUPABASE_URL}/rest/v1/review_likes`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ review_id: Number(reviewId), user_id: currentUser.id })
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_review_likes`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rid: Number(reviewId) })
+        });
+        countEl.textContent = (Number(countEl.textContent) || 0) + 1;
+        btnEl.classList.add('liked');
+      }
+    } catch (e) {
+      console.error('Не удалось поставить лайк на отзыв:', e);
+    } finally {
+      btnEl.disabled = false;
+    }
+  }
+
+  async function submitReview(text) {
+    if (!currentUser || !currentUserToken) return;
+    if (currentUser.is_banned) {
+      alert('Вы не можете оставлять отзывы, так как заблокированы.');
+      return;
+    }
+    text = text.trim();
+    if (!text) return;
+    const submitBtn = document.getElementById('reviewSubmitBtn');
+    submitBtn.disabled = true;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          username: currentUser.display_name || currentUser.username || 'без имени',
+          avatar_url: currentUser.avatar_url || null,
+          text
+        })
+      });
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      document.getElementById('reviewTextInput').value = '';
+      document.getElementById('reviewFormWrap').style.display = 'none';
+      notifyModeratorsOfSubmission('review', text.slice(0, 80));
+      await loadReviews();
+      alert('Отзыв отправлен на проверку модератору и появится после одобрения.');
+    } catch (e) {
+      alert('Не удалось отправить отзыв: ' + e.message);
+    } finally {
+      submitBtn.disabled = false;
+    }
+  }
+
+  async function deleteReview(reviewId) {
+    if (!currentUser || !currentUserToken) return;
+    if (!confirm('Удалить этот отзыв?')) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/reviews?id=eq.${reviewId}`, {
+        method: 'DELETE',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+      });
+      await loadReviews();
+    } catch (e) {
+      alert('Не удалось удалить отзыв: ' + e.message);
+    }
+  }
+
+  function updateReviewWriteBtnVisibility() {
+    const writeBtn = document.getElementById('reviewWriteBtn');
+    const formWrap = document.getElementById('reviewFormWrap');
+    if (!writeBtn) return;
+    if (currentUser && !currentUser.is_banned) {
+      writeBtn.style.display = '';
+    } else {
+      writeBtn.style.display = 'none';
+      if (formWrap) formWrap.style.display = 'none';
+    }
+  }
+
+  const reviewWriteBtnEl = document.getElementById('reviewWriteBtn');
+  if (reviewWriteBtnEl) reviewWriteBtnEl.addEventListener('click', () => {
+    if (!currentUser) { openOverlay('authOverlay'); return; }
+    const formWrap = document.getElementById('reviewFormWrap');
+    const isOpen = formWrap.style.display !== 'none';
+    formWrap.style.display = isOpen ? 'none' : 'flex';
+    if (!isOpen) document.getElementById('reviewTextInput').focus();
+  });
+  const reviewCancelBtnEl = document.getElementById('reviewCancelBtn');
+  if (reviewCancelBtnEl) reviewCancelBtnEl.addEventListener('click', () => {
+    document.getElementById('reviewFormWrap').style.display = 'none';
+    document.getElementById('reviewTextInput').value = '';
+  });
+  const reviewSubmitBtnEl = document.getElementById('reviewSubmitBtn');
+  if (reviewSubmitBtnEl) reviewSubmitBtnEl.addEventListener('click', () => {
+    submitReview(document.getElementById('reviewTextInput').value);
+  });
+  const reviewTextInputEl = document.getElementById('reviewTextInput');
+  if (reviewTextInputEl) reviewTextInputEl.addEventListener('input', () => autoResizeCommentTextarea(reviewTextInputEl));
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Обработчики панели фильтров (сортировка + время + теги) ──────────────
+  function setupSimpleFilterDropdown(btnId, dropdownId, labelId, onSelect) {
+    const btnEl = document.getElementById(btnId);
+    const dropdownEl = document.getElementById(dropdownId);
+    const labelEl = document.getElementById(labelId);
+    btnEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !dropdownEl.classList.contains('open');
+      if (willOpen && window.innerWidth <= 768) {
+        const barEl = document.getElementById('feedFiltersBar');
+        const top = (barEl ? barEl.getBoundingClientRect().bottom : 60) + 8;
+        dropdownEl.style.top = top + 'px';
+      }
+      dropdownEl.classList.toggle('open', willOpen);
+    });
+    dropdownEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const optionEl = e.target.closest('.select-filter-option');
+      if (!optionEl) return;
+      dropdownEl.querySelectorAll('.select-filter-option').forEach(o => o.classList.remove('active'));
+      optionEl.classList.add('active');
+      labelEl.textContent = optionEl.textContent;
+      dropdownEl.classList.remove('open');
+      onSelect(optionEl.dataset.value);
+    });
+    document.addEventListener('click', (e) => {
+      if (!btnEl.parentElement.contains(e.target)) dropdownEl.classList.remove('open');
+    });
+  }
+
+  setupSimpleFilterDropdown('sortFilterBtn', 'sortFilterDropdown', 'sortFilterLabel', (value) => {
+    feedSortValue = value;
+    if (currentFeedFilter === 'subscriptions') {
+      renderFilteredSubscriptionsFeed();
+    } else {
+      renderFilteredFeed();
+    }
+  });
+
+  // Фильтр по типу контента ("Всё"/"Фото"/"Видео"/"Посты") — только на
+  // вкладке "Подписки", применяется к уже загруженным данным без запроса.
+  let feedSubscriptionsTypeFilter = 'all';
+  setupSimpleFilterDropdown('subsTypeFilterBtn', 'subsTypeFilterDropdown', 'subsTypeFilterLabel', (value) => {
+    feedSubscriptionsTypeFilter = value;
+    renderFilteredSubscriptionsFeed();
+  });
+
+  setupSimpleFilterDropdown('timeFilterBtn', 'timeFilterDropdown', 'timeFilterLabel', (value) => {
+    feedTimeFilterValue = value;
+    renderFilteredFeed();
+  });
+
+  document.getElementById('authorSearchInput').addEventListener('input', (e) => {
+    feedAuthorSearchQuery = e.target.value;
+    renderFilteredFeed();
+  });
+
+
+  document.getElementById('authorSearchBtn').addEventListener('click', () => {
+    const wrapEl = document.getElementById('authorSearchWrap');
+    const btnEl = document.getElementById('authorSearchBtn');
+    const inputEl = document.getElementById('authorSearchInput');
+    const isOpen = wrapEl.classList.toggle('open');
+    btnEl.classList.toggle('active', isOpen);
+    btnEl.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+      // Ждём конца transition ширины поля, иначе фокус может "провалиться"
+      // в ещё нулевую по ширине область в некоторых браузерах.
+      requestAnimationFrame(() => inputEl.focus());
+    } else {
+      inputEl.value = '';
+      feedAuthorSearchQuery = '';
+      renderFilteredFeed();
+    }
+  });
+
+  document.getElementById('tagFilterBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dropdown = document.getElementById('tagFilterDropdown');
+    const willOpen = !dropdown.classList.contains('open');
+    // На телефоне дропдаун — position:fixed (см. CSS .tag-filter-dropdown.open),
+    // поэтому top считаем от фактического низа строки фильтров, а не от
+    // самой кнопки "Теги" (та стоит с краю ряда, и абсолютное позиционирование
+    // от неё уводило панель за правый край экрана).
+    if (willOpen && window.innerWidth <= 768) {
+      const barEl = document.getElementById('feedFiltersBar');
+      const top = (barEl ? barEl.getBoundingClientRect().bottom : 60) + 8;
+      dropdown.style.top = top + 'px';
+    }
+    dropdown.classList.toggle('open', willOpen);
+  });
+
+  document.getElementById('tagFilterDropdown').addEventListener('click', async (e) => {
+    // не закрываем дропдаун кликом внутри — закрытие только по клику снаружи
+    e.stopPropagation();
+
+    if (e.target.id === 'tagFilterClearBtn') {
+      feedTagFilterSet.clear();
+      buildTagFilterOptions(currentFeedRawData);
+      renderFilteredFeed();
+      return;
+    }
+
+    if (e.target.matches('.tag-filter-option') && e.target.dataset.tag) {
+      const tag = e.target.dataset.tag;
+      if (feedTagFilterSet.has(tag)) feedTagFilterSet.delete(tag);
+      else feedTagFilterSet.add(tag);
+      e.target.classList.toggle('active');
+      updateTagFilterCount();
+      renderFilteredFeed();
+      return;
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('tagFilterWrap');
+    // Клик где угодно вне .tag-filter-wrap (кнопки "Теги" + самой панели)
+    // закрывает панель — подложки/оверлея больше нет, панель просто плашка
+    // под строкой фильтров.
+    if (wrap && !wrap.contains(e.target)) {
+      document.getElementById('tagFilterDropdown').classList.remove('open');
+    }
+  });
+
+
+  // ============================================================
+  // 12. НАВИГАЦИЯ (ШАПКА И МОБИЛЬНОЕ МЕНЮ)
+  // ============================================================
+  async function switchNavTabTo(filterName) {
+    // Клик по вкладке шапки всегда ведёт на неё, даже если открыт профиль/пост (как клик по логотипу).
+    const isOnSubPage = postPageEl.style.display !== 'none' || profilePageEl.style.display !== 'none' || rulesPageEl.style.display !== 'none' || streakPageEl.style.display !== 'none' || document.getElementById('suggestPage').style.display !== 'none';
+    if (isOnSubPage) {
+      showMainFeed();
+      history.pushState(null, '', '/');
+    }
+
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    const tabBtn = document.querySelector(`.nav-tab[data-filter="${filterName}"]`);
+    if (tabBtn) tabBtn.classList.add('active');
+    currentFeedFilter = filterName;
+    feedTagFilterSet.clear();
+    feedSubscriptionsOnly = false;
+    feedSortValue = 'new';
+    const sortDropdownResetEl = document.getElementById('sortFilterDropdown');
+    if (sortDropdownResetEl) {
+      sortDropdownResetEl.querySelectorAll('.select-filter-option').forEach(o => o.classList.toggle('active', o.dataset.value === 'new'));
+    }
+    const sortLabelResetEl = document.getElementById('sortFilterLabel');
+    if (sortLabelResetEl) sortLabelResetEl.textContent = 'Сначала новые';
+    feedTimeFilterValue = 'all';
+    const timeDropdownResetEl = document.getElementById('timeFilterDropdown');
+    if (timeDropdownResetEl) {
+      timeDropdownResetEl.querySelectorAll('.select-filter-option').forEach(o => o.classList.toggle('active', o.dataset.value === 'all'));
+    }
+    const timeLabelResetEl = document.getElementById('timeFilterLabel');
+    if (timeLabelResetEl) timeLabelResetEl.textContent = 'За всё время';
+    feedAuthorSearchQuery = '';
+    const authorSearchInputResetEl = document.getElementById('authorSearchInput');
+    if (authorSearchInputResetEl) authorSearchInputResetEl.value = '';
+    await loadFeed();
+  }
+
+  document.getElementById('navTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.nav-tab');
+    if (!tab) return;
+    switchNavTabTo(tab.dataset.filter);
+    closeMobileMenu();
+  });
+
+  // ─── Бургер-меню (мобильная навигация) ────────────────────────────────
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const navTabsEl = document.getElementById('navTabs');
+  function closeMobileMenu() {
+    navTabsEl.classList.remove('open');
+    mobileMenuToggle.setAttribute('aria-expanded', 'false');
+  }
+  function toggleMobileMenu() {
+    const isOpen = navTabsEl.classList.toggle('open');
+    mobileMenuToggle.setAttribute('aria-expanded', String(isOpen));
+  }
+  mobileMenuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMobileMenu();
+  });
+  document.addEventListener('click', (e) => {
+    if (!navTabsEl.classList.contains('open')) return;
+    if (e.target.closest('#navTabs') || e.target.closest('#mobileMenuToggle')) return;
+    closeMobileMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMobileMenu();
+  });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) closeMobileMenu();
+  });
+  // ──────────────────────────────────────────────────────────────────────
+
+  // ─── Блоки главной страницы ("Новое"/"Видео" — переход на нужную вкладку,
+  // клик по тегу — переход на вкладку "Фото" с применённым фильтром тега) ──
+  document.getElementById('homeLayout').addEventListener('click', (e) => {
+    const gotoEl = e.target.closest('[data-home-goto]');
+    if (gotoEl) {
+      switchNavTabTo(gotoEl.dataset.homeGoto);
+      return;
+    }
+    const cardEl = e.target.closest('[data-home-open]');
+    if (cardEl) {
+      // Спойлер-блюр на карточке главной — раньше клик по размытому превью
+      // снимал блюр на месте, теперь это происходит только внутри открытого
+      // лайтбокса/страницы поста (см. применение спойлера ниже), поэтому
+      // здесь клик всегда просто ведёт себя как обычно.
+      switchNavTabTo(cardEl.dataset.homeOpen);
+      return;
+    }
+  });
+
+  // Профили по списку id — отдельным запросом, а не embedding (нужен явный FK, которого может не быть).
+
+  // ============================================================
+  // 13. ЛЕНТА И ЛАЙКИ
+  // ============================================================
+  async function fetchProfilesByIds(ids) {
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (!unique.length) return {};
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?id=in.(${unique.join(',')})&select=id,username,display_name,avatar_url,name_color,role`,
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
+      );
+      if (!res.ok) return {};
+      const rows = await res.json();
+      const map = {};
+      rows.forEach(p => { map[p.id] = p; });
+      return map;
+    } catch (e) {
+      console.error('Не удалось загрузить профили авторов:', e);
+      return {};
+    }
+  }
+
+  // Лайки: батч-проверка для ленты/профиля + точечная для прямых ссылок; результат добавляется в общий Set.
+  function likeKindMeta(kind) {
+    // Раньше isCollection был boolean (true/false) — оставляем обратную
+    // совместимость со старыми вызовами, добавляя новый вид 'post'.
+    const normalized = kind === true ? 'collection' : kind === false ? 'content' : kind;
+    if (normalized === 'collection') return { kind: 'collection', table: 'collection_likes', field: 'collection_id', set: myLikedCollectionIds };
+    if (normalized === 'post') return { kind: 'post', table: 'post_likes', field: 'post_id', set: myLikedPostIds };
+    return { kind: 'content', table: 'content_likes', field: 'content_id', set: myLikedContentIds };
+  }
+
+  async function fetchMyLikedIds(ids, kind) {
+    if (!currentUser || !currentUserToken) return;
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (!unique.length) return;
+    const { table, field, set: targetSet } = likeKindMeta(kind);
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/${table}?user_id=eq.${currentUser.id}&${field}=in.(${unique.join(',')})&select=${field}`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
+      );
+      if (!res.ok) return;
+      const rows = await res.json();
+      rows.forEach(r => targetSet.add(r[field]));
+    } catch (e) {
+      console.error('Не удалось загрузить мои лайки:', e);
+    }
+  }
+
+  async function checkLikedByMe(id, kind) {
+    if (!currentUser || !currentUserToken || !id) return false;
+    const { table, field } = likeKindMeta(kind);
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/${table}?${field}=eq.${id}&user_id=eq.${currentUser.id}&select=${field}`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
+      );
+      if (!res.ok) return false;
+      const rows = await res.json();
+      return rows.length > 0;
+    } catch (e) {
+      console.error('Не удалось проверить лайк:', e);
+      return false;
+    }
+  }
+
+  // Разметка кнопки-сердечка на карточке ленты/профиля — переиспользуется
+  // во всех местах рендера карточек (лента, сборники, посты, профиль).
+  // showComments=false скрывает значок комментариев там, где их нет
+  // (текстовые посты — без комментариев).
+  function renderCardLikeButton(item, kind, showComments) {
+    const { kind: normalizedKind, set } = likeKindMeta(kind);
+    const liked = set.has(item.id);
+    const commentsHtml = showComments === false ? '' : `
+      <span class="card-comment-count" title="Комментарии">
+        <svg width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        ${item.comments_count || 0}
+      </span>`;
+    return `
+      <button type="button" class="card-like-btn${liked ? ' liked' : ''}" data-like-id="${item.id}" data-like-kind="${normalizedKind}" title="${liked ? 'Убрать лайк' : 'Нравится'}">
+        <svg class="like-heart" width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.07 3 11.5 3.68 12 4.5C12.5 3.68 13.93 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z"/></svg>
+        <span class="card-like-count">${item.likes || 0}</span>
+      </button>${commentsHtml}`;
+  }
+
+  // Показывает/скрывает и наполняет кнопку лайка в лайтбоксе/на странице
+  // поста. id === null — сбрасываем (закрытие лайтбокса/поста).
+  function setupPostLikeButton(btnEl, id, isCollection, likes, likedByMe) {
+    if (!btnEl) return;
+    if (!id) {
+      btnEl.style.display = 'none';
+      btnEl.disabled = false;
+      delete btnEl.dataset.likeId;
+      return;
+    }
+    btnEl.style.display = 'flex';
+    btnEl.disabled = false;
+    btnEl.dataset.likeId = id;
+    btnEl.dataset.likeKind = isCollection ? 'collection' : 'content';
+    btnEl.classList.toggle('liked', !!likedByMe);
+    btnEl.title = likedByMe ? 'Убрать лайк' : 'Нравится';
+    const countEl = btnEl.querySelector('.post-like-count');
+    if (countEl) countEl.textContent = String(likes || 0);
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async function loadFeed() {
+    const feedEl = document.getElementById('feed');
+    const pinnedEl = document.getElementById('pinnedSlot');
+    const filtersBarEl = document.getElementById('feedFiltersBar');
+    const contentOnlyFiltersEl = document.getElementById('feedFiltersContentOnly');
+    const toolbarEl = document.querySelector('main .toolbar');
+    const homeLayoutEl = document.getElementById('homeLayout');
+    const homePageLayoutEl = document.getElementById('homePageLayout');
+    const homeReviewsBlockEl = document.getElementById('homeReviewsBlock');
+    const feedLayoutWrapEl = document.getElementById('feedLayoutWrap');
+    feedEl.innerHTML = skeletonCardsHtml(6);
+    pinnedEl.innerHTML = '';
+
+    // Вкладка «Сборник» — своя таблица (без фильтров контента); «Главная» — отдельная раскладка (#homePageLayout).
+    if (currentFeedFilter === 'home') {
+      if (filtersBarEl) filtersBarEl.style.display = 'none';
+      if (toolbarEl) toolbarEl.style.display = 'none';
+      if (feedLayoutWrapEl) feedLayoutWrapEl.style.display = 'none';
+      if (homePageLayoutEl) homePageLayoutEl.style.display = '';
+      if (homeLayoutEl) homeLayoutEl.style.display = '';
+      if (homeReviewsBlockEl) homeReviewsBlockEl.style.display = '';
+      document.body.classList.add('is-home-page');
+      await loadHomeSection();
+      return;
+    }
+
+    document.body.classList.remove('is-home-page');
+    if (toolbarEl) toolbarEl.style.display = '';
+    if (homePageLayoutEl) homePageLayoutEl.style.display = 'none';
+    if (homeLayoutEl) homeLayoutEl.style.display = 'none';
+    if (homeReviewsBlockEl) homeReviewsBlockEl.style.display = 'none';
+    if (feedLayoutWrapEl) feedLayoutWrapEl.style.display = '';
+    if (filtersBarEl) filtersBarEl.style.display = '';
+    const subsTypeFilterWrapEl = document.getElementById('subsTypeFilterWrap');
+    if (currentFeedFilter === 'subscriptions') {
+      if (contentOnlyFiltersEl) contentOnlyFiltersEl.style.display = 'none';
+      if (subsTypeFilterWrapEl) subsTypeFilterWrapEl.style.display = '';
+      await loadSubscriptionsFeed();
+      return;
+    }
+    if (subsTypeFilterWrapEl) subsTypeFilterWrapEl.style.display = 'none';
+    if (contentOnlyFiltersEl) contentOnlyFiltersEl.style.display = 'contents';
+
+    // Поиск по нику автора — только на вкладках "Фото" и "Видео"; на
+    // остальных (фанфики) скрываем и сбрасываем, чтобы фильтр не остался
+    // "залипшим" при возврате на эти вкладки.
+    const authorSearchWrapEl = document.getElementById('authorSearchWrap');
+    const authorSearchInputEl = document.getElementById('authorSearchInput');
+    const showAuthorSearch = currentFeedFilter === 'art' || currentFeedFilter === 'video';
+    if (authorSearchWrapEl) {
+      authorSearchWrapEl.style.display = showAuthorSearch ? 'flex' : 'none';
+      filtersBarEl.classList.toggle('has-author-search', showAuthorSearch);
+    }
+    if (!showAuthorSearch) {
+      feedAuthorSearchQuery = '';
+      if (authorSearchInputEl) authorSearchInputEl.value = '';
+      if (authorSearchWrapEl) authorSearchWrapEl.classList.remove('open');
+      const authorSearchBtnResetEl = document.getElementById('authorSearchBtn');
+      if (authorSearchBtnResetEl) { authorSearchBtnResetEl.classList.remove('active'); authorSearchBtnResetEl.setAttribute('aria-expanded', 'false'); }
+    }
+
+    let data;
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=eq.${currentFeedFilter}&order=published_at.desc.nullslast,created_at.desc&select=*`,
+        {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`
+          }
+        }
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      data = await res.json();
+    } catch (e) {
+      console.error('Ошибка загрузки ленты:', e);
+      feedEl.innerHTML = `<p class="empty">Пусто</p>`;
+      return;
+    }
+
+    // Сборники (создаются только модераторами) показываются прямо во
+    // вкладке "Фото" как обычные посты — отдельной вкладки "Сборник"
+    // в навигации больше нет.
+    if (currentFeedFilter === 'art') {
+      try {
+        const collRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/collections?status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
+          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+        );
+        const collRows = collRes.ok ? await collRes.json() : [];
+        const collAsArt = collRows.map(c => ({
+          id: c.id,
+          content_type: 'art',
+          is_collection: true,
+          item_count: c.item_count,
+          title: c.title,
+          description: c.description,
+          cover_image_url: c.cover_url,
+          tags: c.tags || [],
+          submitted_by: c.submitted_by,
+          created_at: c.created_at,
+          published_at: c.published_at,
+          likes: c.likes || 0,
+          views: c.views || 0
+        }));
+        data = [...data, ...collAsArt];
+      } catch (e) {
+        console.error('Не удалось загрузить сборники для вкладки "Фото":', e);
+      }
+    }
+
+    // закреплённая карточка нарезки канала — отдельная колонка слева от
+    // ленты (#pinnedSlot), не часть сетки #feed; видна только на вкладке
+    // "Видео", на остальных вкладках слот остаётся пустым и скрывается
+    // через CSS (.pinned-slot:empty)
+    if (currentFeedFilter === 'video') {
+      const video = await getLatestRockstarVideo();
+      pinnedEl.innerHTML = renderRockstarVideoCard(video);
+    }
+
+    const authorProfilesById = await fetchProfilesByIds(data.map(it => it.submitted_by));
+    data.forEach(item => { item.profiles = authorProfilesById[item.submitted_by] || null; });
+    if (currentUser) {
+      await Promise.all([
+        fetchMyLikedIds(data.filter(it => !it.is_collection).map(it => it.id), false),
+        fetchMyLikedIds(data.filter(it => it.is_collection).map(it => it.id), true)
+      ]);
+    }
+
+    currentFeedRawData = data;
+    buildTagFilterOptions(data);
+    renderFilteredFeed();
+  }
+
+  // ─── Фильтры ленты: по времени загрузки и по тегам. Работают на уже
+  // загруженных данных (currentFeedRawData), без повторного запроса к API —
+  // тегов/диапазонов мало, фильтрация на клиенте дешевле, чем лишний fetch
+  // при каждом клике по чекбоксу. ───────────────────────────────────────────
+  function buildTagFilterOptions(data) {
+    const dropdownEl = document.getElementById('tagFilterDropdown');
+    if (!dropdownEl) return;
+
+    // показываем полный список тегов из формы загрузки (PRESET_TAGS), а не
+    // только те, что встретились в уже загруженных постах — так фильтр не
+    // "мигает" при переключении вкладок и сразу видны все варианты
+    const allTags = [...PRESET_TAGS, OTHER_TAG];
+
+    if (!allTags.length) {
+      dropdownEl.innerHTML = `<p class="empty" style="margin:0;padding:8px 4px;">Нет тегов</p>`;
+      updateTagFilterCount();
+      return;
+    }
+
+    dropdownEl.innerHTML = `
+      <div class="tag-filter-options">
+        ${allTags.map(t => `
+          <button type="button" class="tag-filter-option${feedTagFilterSet.has(t) ? ' active' : ''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>
+        `).join('')}
+      </div>
+      <button type="button" class="tag-filter-clear" id="tagFilterClearBtn">Сбросить теги</button>
+    `;
+
+    updateTagFilterCount();
+  }
+
+  function updateTagFilterCount() {
+    const countEl = document.getElementById('tagFilterCount');
+    if (countEl) countEl.textContent = feedTagFilterSet.size ? `(${feedTagFilterSet.size})` : '';
+  }
+
+  // Загружает id авторов, на которых подписан текущий пользователь (один
+  // раз, кэшируется в mySubscriptionIds — сбрасывается при переключении
+  // вкладок/аккаунта).
+  async function fetchMySubscriptionIds() {
+    if (!currentUser) return new Set();
+    if (mySubscriptionIds) return mySubscriptionIds;
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/subscriptions?follower_id=eq.${currentUser.id}&select=following_id`,
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
+      );
+      const rows = res.ok ? await res.json() : [];
+      mySubscriptionIds = new Set(rows.map(r => r.following_id));
+    } catch (e) {
+      console.error('Не удалось загрузить подписки:', e);
+      mySubscriptionIds = new Set();
+    }
+    return mySubscriptionIds;
+  }
+
+
+  function feedItemPassesTimeFilter(item) {
+    if (feedTimeFilterValue === 'all') return true;
+    const created = new Date(item.published_at || item.created_at).getTime();
+    if (Number.isNaN(created)) return true;
+    const now = Date.now();
+    const ranges = { day: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000, month: 30 * 24 * 60 * 60 * 1000 };
+    const ms = ranges[feedTimeFilterValue];
+    return ms ? (now - created) <= ms : true;
+  }
+
+  function feedItemPassesTagFilter(item) {
+    if (!feedTagFilterSet.size) return true;
+    const itemTags = item.tags || [];
+    return [...feedTagFilterSet].every(t => itemTags.includes(t));
+  }
+
+  // Поиск по нику автора (вкладки "Фото"/"Видео") — сравниваем и username,
+  // и display_name, без учёта регистра, частичным совпадением.
+  function feedItemPassesAuthorFilter(item) {
+    const query = feedAuthorSearchQuery.trim().toLowerCase();
+    if (!query) return true;
+    const profile = item.profiles || {};
+    const username = (profile.username || '').toLowerCase();
+    const displayName = (profile.display_name || '').toLowerCase();
+    return username.includes(query) || displayName.includes(query);
+  }
+
+  // Сортировка ленты — на уже загруженных данных, без лишнего запроса; общая для постов и сборников.
+  function sortFeedItems(arr) {
+    const sorted = [...arr];
+    if (feedSortValue === 'views') {
+      sorted.sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0));
+    } else if (feedSortValue === 'comments') {
+      sorted.sort((a, b) => (Number(b.comments_count) || 0) - (Number(a.comments_count) || 0));
+    } else if (feedSortValue === 'likes') {
+      sorted.sort((a, b) => (Number(b.likes) || 0) - (Number(a.likes) || 0));
+    } else {
+      sorted.sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
+    }
+    return sorted;
+  }
+
+  function feedItemPassesSubscriptionFilter(item) {
+    if (!feedSubscriptionsOnly) return true;
+    if (!mySubscriptionIds) return true; // ещё грузится — не режем ленту в пустоту
+    return mySubscriptionIds.has(item.submitted_by);
+  }
+
+  function renderFilteredFeed() {
+    const filtered = currentFeedRawData.filter(item =>
+      feedItemPassesTimeFilter(item) && feedItemPassesTagFilter(item) && feedItemPassesAuthorFilter(item) && feedItemPassesSubscriptionFilter(item)
+    );
+    renderFeedCards(sortFeedItems(filtered));
+  }
+
+
+  // Skeleton-заглушка на время загрузки — карточки той же формы, что и
+  // реальные .card, чтобы не было "прыжка" разметки после подгрузки данных.
+  function skeletonCardsHtml(count) {
+    const card = `
+      <div class="skeleton-card">
+        <div class="skeleton-img"></div>
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line tiny"></div>
+      </div>
+    `;
+    return card.repeat(count);
+  }
+
+  function renderFeedCards(data) {
+    const feedEl = document.getElementById('feed');
+
+    if (!data || data.length === 0) {
+      feedEl.innerHTML = `<p class="empty">Пусто</p>`;
+      feedItemsById = {};
+      return;
+    }
+
+    feedItemsById = {};
+    data.forEach(item => { feedItemsById[item.id] = item; });
+
+    feedEl.innerHTML = data.map(item => {
+      const mediaUrl = item.cover_image_url || item.source_url || '';
+      let mediaHtml = '';
+
+      if (item.content_type === 'art' && mediaUrl) {
+        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
+      } else if (item.content_type === 'video') {
+        const ytId = getYoutubeId(mediaUrl);
+        if (isOwnUploadedMediaUrl(mediaUrl)) {
+          // Загруженный файл — показываем превью с плеером
+          mediaHtml = `<div class="card-video-thumb" data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
+            <video class="card-video" src="${mediaUrl}" preload="metadata" tabindex="-1"></video>
+            <div class="card-video-play">▶</div>
+          </div>`;
+        } else if (ytId) {
+          // YouTube — превью ведёт прямо на youtube.com в новой вкладке
+          const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+          const watchUrl = `https://www.youtube.com/watch?v=${ytId}`;
+          mediaHtml = `<a class="card-video-thumb" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">
+            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+            <div class="card-video-play">▶</div>
+          </a>`;
+        }
+      } else if (item.content_type === 'fanfic' && item.cover_image_url) {
+        // Обложка у фанфика необязательная — просто картинка-превью, без
+        // лайтбокса (сам текст фанфика хранится не у нас, открывать внутри
+        // сайта нечего). Клик по обложке ведёт по той же ссылке, что и
+        // "Читать оригинал" ниже.
+        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
+      }
+
+      const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl) && !getYoutubeId(mediaUrl));
+      // Просмотры считаются только для своих файлов (B2) — для внешних видео и фанфиков счётчик не показываем.
+      const canTrackViews = item.content_type !== 'fanfic' && !(item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl));
+      // Никнейм автора — теперь у всех типов постов в ленте (раньше видно
+      // было только внутри самого поста после открытия).
+      const authorName = (item.profiles && (item.profiles.display_name || item.profiles.username)) || 'аноним';
+      const isPost = item.content_type === 'post';
+      const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
+      const isOwnPost = currentUser && item.submitted_by === currentUser.id;
+      const menuHtml = (isModerator || isOwnPost) ? `
+        <div class="card-menu" data-card-menu>
+          <button class="card-menu-btn" type="button">⋮</button>
+          <div class="card-menu-dropdown">
+            ${(!isPost && !item.is_collection && isModerator) ? `<button type="button" class="card-edit-btn" data-id="${item.id}">Редактировать</button>` : ''}
+            ${(item.is_collection && isModerator) ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">Редактировать</button>` : ''}
+            ${(isPost && isModerator) ? `<button type="button" class="card-edit-textpost-btn" data-id="${item.id}">Редактировать</button>` : ''}
+            ${isPost
+              ? `<button type="button" class="card-delete-textpost-btn" data-id="${item.id}">Удалить пост</button>`
+              : (item.is_collection
+                  ? `<button type="button" class="card-delete-collection-btn" data-id="${item.id}">Удалить пост</button>`
+                  : `<button type="button" class="card-delete-btn" data-id="${item.id}">Удалить пост</button>`)}
+          </div>
+        </div>` : '';
+      // не рисуем пустые <p>/<div.tags> — у видео их обычно нет вовсе,
+      // и пустой блок просто тянул бы margin-bottom, создавая лишний
+      // зазор перед футером карточки
+      const descHtml = item.description ? `<p>${escapeHtml(item.description)}</p>` : '';
+      const tagsHtml = (item.tags && item.tags.length)
+        ? `<div class="tags">${item.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`
+        : '';
+      // У фанфиков описание+теги кладём в отдельный скроллящийся блок —
+      // см. .card-fanfic-scroll (фикс. высота карточки одинакова у всех
+      // фанфиков, с обложкой и без).
+      const bodyHtml = item.content_type === 'fanfic'
+        ? `<div class="card-fanfic-scroll">${descHtml}${tagsHtml}</div>`
+        : `${descHtml}${tagsHtml}`;
+
+      // Текстовый пост (вкладка "Подписки") — вместо медиа декоративный
+      // блок с кавычкой (той же высоты, что обложка фото/видео, чтобы
+      // карточка не "проваливалась" пустотой при растяжении по сетке),
+      // ниже текст, автор, лайк и меню удаления (себе/модератору).
+      if (isPost) {
+        return `
+        <div class="card card-type-post">
+          ${item.pinned ? `<span class="card-post-pinned-badge" title="Закреплено">📌</span>` : ''}
+          <div class="card-post-visual"><span class="card-post-quote${item.emoji ? ' card-post-emoji' : ''}">${item.emoji || '”'}</span></div>
+          <div class="meta">пост · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
+          ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
+          ${descHtml}
+          <div class="card-footer">
+            <div class="card-footer-left">
+              ${renderCardLikeButton(item, 'post', false)}
+            </div>
+            ${menuHtml}
+          </div>
+        </div>
+      `;
+      }
+
+      return `
+      <div class="card card-type-${item.content_type}">
+        ${mediaHtml}
+        <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.is_collection ? 'сборник' : item.content_type}${item.content_type === 'fanfic' ? ` · <span class="age-badge${item.age_rating === '18+' ? ' age-badge-18' : ''}">${item.age_rating === '18+' ? '18+' : 'PG-13'}</span>` : ''}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
+        ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
+        <h3>${escapeHtml(item.title)}</h3>
+        ${bodyHtml}
+        <div class="card-footer">
+          <div class="card-footer-left">
+            ${renderCardLikeButton(item, !!item.is_collection)}
+            ${isExternalLink ? `<a class="go" href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer">Читать оригинал →</a>` : ''}
+          </div>
+          ${menuHtml}
+        </div>
+      </div>
+    `;
+    }).join('');
+  }
+
+  // ─── Главная страница: "Новое" (арт), "Теги", "Видео" ──────────────────
+  async function loadHomeSection() {
+    const artGridEl = document.getElementById('homeArtGrid');
+    const videoGridEl = document.getElementById('homeVideoGrid');
+    const tagsPanelEl = document.getElementById('homeTagsPanel');
+    const streamersPanelEl = document.getElementById('homeStreamersPanel');
+    const respectPlusPanelEl = document.getElementById('homeRespectPlusPanel');
+    const sponsorPanelEl = document.getElementById('homeSponsorPanel');
+    const moderatorsPanelEl = document.getElementById('homeModeratorsPanel');
+
+    tagsPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    artGridEl.innerHTML = skeletonCardsHtml(2);
+    videoGridEl.innerHTML = skeletonCardsHtml(2);
+    streamersPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    respectPlusPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    sponsorPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+    moderatorsPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
+
+    const reviewTrackElInit = document.getElementById('reviewTrack');
+    if (reviewTrackElInit) reviewTrackElInit.innerHTML = skeletonCardsHtml(3);
+    updateReviewWriteBtnVisibility();
+
+    const [artData, videoData, streamersData, respectPlusData, sponsorData, moderatorsData, reviewsData, streaksData] = await Promise.all([
+      fetchHomeContent('art', 2),
+      fetchHomeContent('video', 2),
+      fetchStreamers(),
+      fetchRespectPlus(),
+      fetchSponsors(),
+      fetchModerators(),
+      loadReviews(),
+      fetchHomeStreaks()
+    ]);
+
+    renderHomeCardGrid(artGridEl, artData, 'art');
+    renderHomeCardGrid(videoGridEl, videoData, 'video');
+    renderHomeTags(tagsPanelEl, streaksData);
+    renderHomeStreakMeRow(streaksData);
+    // Дубль топа по стрикам под "Отзывы" (мобильная версия) — та же
+    // выборка, просто отрисовывается ещё и во второй набор элементов.
+    const mobileTagsPanelEl = document.getElementById('homeMobileTagsPanel');
+    if (mobileTagsPanelEl) renderHomeTags(mobileTagsPanelEl, streaksData);
+    renderHomeStreakMeRow(streaksData, 'homeMobileStreakMeRow');
+    renderHomeStreamers(streamersPanelEl, streamersData);
+    renderHomeStreamers(respectPlusPanelEl, respectPlusData);
+    renderHomeStreamers(sponsorPanelEl, sponsorData);
+    document.getElementById('homeSponsorSection').style.display = (sponsorData && sponsorData.length) ? '' : 'none';
+    // Тот же список спонсоров дублируем в мобильный блок (см. #homeColMobileSponsors) —
+    // на мобильном/планшете виден он вместо колонки "Теги", а не сайдбар.
+    const mobileSponsorPanelEl = document.getElementById('homeMobileSponsorPanel');
+    if (mobileSponsorPanelEl) {
+      renderHomeStreamers(mobileSponsorPanelEl, sponsorData);
+      document.getElementById('homeColMobileSponsors').classList.toggle('mobile-sponsors-empty', !(sponsorData && sponsorData.length));
+    }
+    renderHomeModerators(moderatorsPanelEl, moderatorsData);
+    // ждём кадр отрисовки, чтобы карточки/кнопки уже имели финальную
+    // высоту (aspect-ratio у превью считается сразу, но на всякий
+    // случай — после rAF геометрия точно готова)
+    requestAnimationFrame(syncHomeTagsHeight);
+    requestAnimationFrame(syncSponsorRespectAlignment);
+  }
+
+  // Высота панели "Теги" подгоняется под фактическую высоту соседней
+  // колонки "Фото" (карточка + кнопка "Смотреть больше"), чтобы низ
+  // панели совпадал с низом кнопок — вместо разворачивания список
+  // тегов прокручивается внутри этой высоты.
+  function syncHomeTagsHeight() {
+    const artColEl = document.getElementById('homeColArt');
+    const tagsPanelEl = document.getElementById('homeTagsPanel');
+    if (!artColEl || !tagsPanelEl) return;
+    // На узких экранах колонки идут друг под другом (grid-template-columns:
+    // 1fr) — подгонка высоты там не нужна и мешала бы читать список.
+    if (window.innerWidth <= 900) {
+      tagsPanelEl.style.maxHeight = '';
+      return;
+    }
+    const artBottom = artColEl.getBoundingClientRect().bottom;
+    const panelTop = tagsPanelEl.getBoundingClientRect().top;
+    const targetHeight = Math.round(artBottom - panelTop);
+    if (targetHeight > 80) {
+      tagsPanelEl.style.maxHeight = targetHeight + 'px';
+    }
+  }
+  window.addEventListener('resize', () => {
+    if (document.getElementById('homePageLayout')?.style.display !== 'none') {
+      syncHomeTagsHeight();
+      syncSponsorRespectAlignment();
+    }
+  });
+
+  // Подгоняет нижнюю границу КНОПКИ "Стать спонсором" (левый сайдбар) под
+  // нижнюю границу панели "Респект+" (правый сайдбар) — особенно заметно,
+  // когда "Модераторы" свёрнуты и левый сайдбар короче. Минимум — высота
+  // панели под ~5 карточек (см. #homeSponsorPanel в CSS), меньше не сжимаем.
+  function syncSponsorRespectAlignment() {
+    const respectPanelEl = document.getElementById('homeRespectPlusPanel');
+    const sponsorSectionEl = document.getElementById('homeSponsorSection');
+    const sponsorPanelEl = document.getElementById('homeSponsorPanel');
+    const sponsorCtaBtnEl = document.getElementById('homeSponsorCtaBtn');
+    if (!respectPanelEl || !sponsorSectionEl || !sponsorPanelEl || !sponsorCtaBtnEl) return;
+    if (sponsorSectionEl.style.display === 'none') return;
+    if (window.innerWidth <= 1200) { sponsorPanelEl.style.maxHeight = ''; return; }
+    const minHeight = 320; // ~5 карточек
+    const respectBottom = respectPanelEl.getBoundingClientRect().bottom;
+    const sponsorTop = sponsorPanelEl.getBoundingClientRect().top;
+    // Кнопка идёт вплотную под панелью (без отступа) — вычитаем её текущую
+    // высоту, чтобы выровнять именно НИЖНЮЮ ЛИНИЮ КНОПКИ, а не панели.
+    const btnHeight = sponsorCtaBtnEl.getBoundingClientRect().height;
+    const targetHeight = Math.round(respectBottom - btnHeight - sponsorTop);
+    sponsorPanelEl.style.maxHeight = Math.max(targetHeight, minHeight) + 'px';
+  }
+
+  // Список пользователей по роли (стример / респект+) для сайдбара на
+  // главной. Клик по нику/аватару открывает профиль (data-open-profile —
+  // тот же делегированный обработчик, что и у комментариев/шапки поста).
+  async function fetchProfilesByRole(role) {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?role=eq.${role}&order=username.asc&select=id,username,display_name,avatar_url,name_color`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      return await res.json();
+    } catch (e) {
+      console.error(`Не удалось загрузить список профилей роли "${role}":`, e);
+      return [];
+    }
+  }
+
+  function fetchStreamers() {
+    return fetchProfilesByRole('streamer');
+  }
+
+  function fetchRespectPlus() {
+    return fetchProfilesByRole('respect_plus');
+  }
+
+  function fetchSponsors() {
+    return fetchProfilesByRole('sponsor');
+  }
+
+  // Модераторы: сначала gl_moder, затем moderator — порядок задан порядком fetch, роль проставляется вручную.
+  async function fetchModerators() {
+    const [glModer, moder] = await Promise.all([
+      fetchProfilesByRole('gl_moder'),
+      fetchProfilesByRole('moderator')
+    ]);
+    glModer.forEach(p => { p._moderatorRole = 'gl_moder'; });
+    moder.forEach(p => { p._moderatorRole = 'moderator'; });
+    return [...glModer, ...moder];
+  }
+
+  function renderHomeModerators(el, data) {
+    if (!data || !data.length) {
+      el.innerHTML = `<p class="home-empty">Пока никого нет</p>`;
+      return;
+    }
+    el.innerHTML = data.map(profile => {
+      const avatar = profile.avatar_url || presetToDataUrl('p0');
+      const nameAttrs = nameColorAttrs(profile.name_color);
+      return `
+        <div class="home-streamer-item" data-open-profile="${profile.id}">
+          <img class="home-streamer-avatar" src="${escapeHtml(avatar)}" alt="">
+          <span class="home-streamer-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(profile.display_name || profile.username || 'без имени')}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderHomeStreamers(el, data) {
+    if (!data || !data.length) {
+      el.innerHTML = `<p class="home-empty">Пока никого нет</p>`;
+      return;
+    }
+    el.innerHTML = data.map(profile => {
+      const avatar = profile.avatar_url || presetToDataUrl('p0');
+      const nameAttrs = nameColorAttrs(profile.name_color);
+      return `
+        <div class="home-streamer-item" data-open-profile="${profile.id}">
+          <img class="home-streamer-avatar" src="${escapeHtml(avatar)}" alt="">
+          <span class="home-streamer-name${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(profile.display_name || profile.username || 'без имени')}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function fetchHomeContent(type, limit) {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=eq.${type}&order=published_at.desc.nullslast,created_at.desc&limit=${limit}&select=*`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      const data = await res.json();
+      const authorProfilesById = await fetchProfilesByIds(data.map(it => it.submitted_by));
+      data.forEach(item => { item.profiles = authorProfilesById[item.submitted_by] || null; });
+      return data;
+    } catch (e) {
+      console.error(`Не удалось загрузить контент для главной (${type}):`, e);
+      return [];
+    }
+  }
+
+  function renderHomeCardGrid(el, data, type) {
+    if (!data || !data.length) {
+      el.innerHTML = `<p class="home-empty">Пока пусто</p>`;
+      return;
+    }
+    const RECENT_MS = 3 * 24 * 60 * 60 * 1000; // метка "Новое" — если пост младше 3 дней
+    el.innerHTML = data.map(item => {
+      const mediaUrl = item.cover_image_url || item.source_url || '';
+      let thumbHtml = '';
+      if (type === 'art') {
+        thumbHtml = mediaUrl ? `<img class="${spoilerBlurClass(item).trim()}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item)}` : '';
+      } else {
+        const ytId = getYoutubeId(mediaUrl);
+        if (ytId) {
+          const thumbSrc = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+          thumbHtml = `<img src="${thumbSrc}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`;
+        } else if (isOwnUploadedMediaUrl(mediaUrl)) {
+          // Превью для загруженного видео — первый кадр через <video preload=metadata>, а не <img src=mp4>.
+          thumbHtml = mediaUrl
+            ? `<video src="${mediaUrl}" preload="metadata" muted tabindex="-1"></video><div class="home-card-play">▶</div>`
+            : '';
+        } else {
+          thumbHtml = mediaUrl
+            ? `<img src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`
+            : '';
+        }
+      }
+      const created = new Date(item.published_at || item.created_at).getTime();
+      const isRecent = !Number.isNaN(created) && (Date.now() - created) < RECENT_MS;
+      const authorName = (item.profiles && (item.profiles.display_name || item.profiles.username)) || 'аноним';
+      // см. комментарий в renderFeedCards — просмотры не растут для видео
+      // по внешней ссылке (не хранится у нас), поэтому не показываем счётчик
+      const canTrackViews = !(type === 'video' && !isOwnUploadedMediaUrl(mediaUrl));
+      return `
+        <div class="home-card" data-home-open="${type}" data-content-id="${item.id}">
+          <div class="home-card-thumb-wrap">
+            ${isRecent ? `<span class="home-card-badge">Новое</span>` : ''}
+            ${thumbHtml}
+          </div>
+          <div class="home-card-body">
+            <p class="home-card-title">${escapeHtml(item.title)}</p>
+            <span class="home-card-author">${escapeHtml(authorName)}</span>
+            <div class="home-card-stats">
+              ${canTrackViews ? `<span>👁 ${formatViews(item.views)}</span>` : ''}
+              <span>♥ ${item.likes || 0}</span>
+              <span>💬 ${item.comments_count || 0}</span>
+              <span class="home-card-date">${timeAgo(item.published_at || item.created_at)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Колонка стриков растягивается по высоте (align-items:stretch) и скроллится сама.
+  // Список всех, у кого стрик >= 2, отсортирован по убыванию.
+  async function fetchHomeStreaks() {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?select=id,username,display_name,avatar_url,streak_count,last_visit_date&streak_count=gt.0&order=streak_count.desc.nullslast`,
+        { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }
+      );
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      return await res.json();
+    } catch (e) {
+      console.error('Не удалось загрузить список стриков:', e);
+      return [];
+    }
+  }
+
+  function renderHomeTags(el, data) {
+    if (!data || !data.length) {
+      el.innerHTML = `<p class="home-empty">Пока ни у кого нет стрика</p>`;
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    el.innerHTML = data.map((p, i) => {
+      const name = p.display_name || p.username || 'без имени';
+      const avatar = p.avatar_url || presetToDataUrl('p0');
+      const isStale = p.last_visit_date !== today;
+      const tier = streakTier(p.streak_count || 0);
+      return `
+        <div class="streak-item" data-open-profile="${p.id}">
+          <span class="streak-item-rank">${i + 1}</span>
+          <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
+          <span class="streak-item-name">${escapeHtml(name)}</span>
+          <span class="streak-item-count ${tier.cls}${isStale ? ' stale' : ''}">${STREAK_FIRE_SVG} ${p.streak_count || 0}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // Пин текущего пользователя под списком стриков на главной — виден всегда,
+  // даже если он не входит в верхнюю видимую часть прокручиваемого списка.
+  // fetchHomeStreaks() возвращает полный список (без limit), поэтому ранг
+  // можно посчитать прямо по индексу в data, без дополнительного запроса.
+  function renderHomeStreakMeRow(data, rowId = 'homeStreakMeRow') {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    if (!currentUser) { row.style.display = 'none'; return; }
+    const list = data || [];
+    const idx = list.findIndex(p => String(p.id) === String(currentUser.id));
+    const rank = idx >= 0 ? idx + 1 : 0;
+    const avatar = currentUser.avatar_url || presetToDataUrl('p0');
+    row.style.display = 'flex';
+    row.dataset.openProfile = currentUser.id;
+    row.innerHTML = `
+      <span class="streak-item-rank">${rank || '—'}</span>
+      <img class="streak-item-avatar" src="${escapeHtml(avatar)}" alt="">
+      <span class="streak-item-name">${escapeHtml(currentUser.display_name || currentUser.username || 'без имени')}</span>
+      <span class="streak-me-rank">#${rank || '?'}</span>
+    `;
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Лента вкладки "Подписки" ────────────────────────────────────────────
+  // Показывает фото/видео и текстовые посты авторов, на которых подписан
+  // текущий пользователь. Текстовые посты (таблица posts) видны только
+  // подписчикам автора и создаются ролями выше обычного пользователя.
+  let currentSubscriptionsFeedData = [];
+
+  async function loadSubscriptionsFeed() {
+    const feedEl = document.getElementById('feed');
+
+    if (!currentUser) {
+      feedEl.innerHTML = `<p class="empty">Войди в аккаунт, чтобы видеть публикации авторов, на которых ты подписан(а).</p>`;
+      currentSubscriptionsFeedData = [];
+      return;
+    }
+
+    const subIdsSet = await fetchMySubscriptionIds();
+    const subIds = [...subIdsSet];
+    // Автор своего текстового поста должен видеть его сам, даже если он
+    // ни на кого не подписан — поэтому в список авторов для постов
+    // дополнительно всегда добавляем currentUser.id.
+    const postAuthorIds = [...new Set([...subIds, currentUser.id])];
+
+    let contentRows = [];
+    let postRows = [];
+    let publicPostRows = [];
+    try {
+      const nowIso = new Date().toISOString();
+      const fetches = [
+        subIds.length
+          ? fetch(`${SUPABASE_URL}/rest/v1/content?status=eq.published&content_type=in.(art,video)&submitted_by=in.(${subIds.join(',')})&order=published_at.desc.nullslast,created_at.desc&select=*`,
+              { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } })
+          : Promise.resolve(null),
+        fetch(`${SUPABASE_URL}/rest/v1/posts?author_id=in.(${postAuthorIds.join(',')})&order=created_at.desc&select=*`,
+          { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } }),
+        // Публичные посты модераторов/гл.модератора — видны абсолютно всем,
+        // независимо от подписки (переключатель "Показать всем" при создании).
+        fetch(`${SUPABASE_URL}/rest/v1/posts?is_public=eq.true&order=created_at.desc&select=*`,
+          { headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY } })
+      ];
+      const [contentRes, postsRes, publicPostsRes] = await Promise.all(fetches);
+      contentRows = (contentRes && contentRes.ok) ? await contentRes.json() : [];
+      postRows = postsRes.ok ? await postsRes.json() : [];
+      publicPostRows = publicPostsRes.ok ? await publicPostsRes.json() : [];
+      // На случай, если запланированное удаление просроченных постов ещё не
+      // отработало на сервере — прячем их и на фронтенде тоже.
+      const notExpired = row => !row.expires_at || row.expires_at > nowIso;
+      postRows = postRows.filter(notExpired);
+      publicPostRows = publicPostRows.filter(notExpired);
+      // Дедуп: пост может попасть и в "мои/подписки", и в "публичные" одновременно.
+      const seenPostIds = new Set(postRows.map(p => p.id));
+      publicPostRows.forEach(p => { if (!seenPostIds.has(p.id)) { postRows.push(p); seenPostIds.add(p.id); } });
+    } catch (e) {
+      console.error('Не удалось загрузить ленту подписок:', e);
+    }
+
+    // Текстовые посты приводим к форме, ожидаемой renderFeedCards (как
+    // у content-элементов), с content_type='post' — своя ветка рендера.
+    const postItems = postRows.map(p => ({
+      id: p.id,
+      content_type: 'post',
+      title: '',
+      description: p.text,
+      emoji: p.emoji || null,
+      pinned: !!p.pinned,
+      is_public: !!p.is_public,
+      expires_at: p.expires_at || null,
+      tags: [],
+      submitted_by: p.author_id,
+      created_at: p.created_at,
+      published_at: p.created_at,
+      likes: p.likes || 0,
+      views: 0
+    }));
+
+    const merged = [...contentRows, ...postItems];
+
+    if (!merged.length) {
+      feedEl.innerHTML = subIds.length
+        ? `<p class="empty">У авторов, на которых ты подписан(а), пока нет публикаций.</p>`
+        : `<p class="empty">Ты пока ни на кого не подписан(а). Подпишись на авторов, чтобы видеть их фото, видео и посты здесь.</p>`;
+      currentSubscriptionsFeedData = [];
+      return;
+    }
+
+    const authorProfilesById = await fetchProfilesByIds(merged.map(it => it.submitted_by));
+    merged.forEach(item => { item.profiles = authorProfilesById[item.submitted_by] || null; });
+    if (contentRows.length) await fetchMyLikedIds(contentRows.map(it => it.id), false);
+    if (postItems.length) await fetchMyLikedIds(postItems.map(it => it.id), 'post');
+
+    currentSubscriptionsFeedData = merged;
+    renderFilteredSubscriptionsFeed();
+  }
+
+  function renderFilteredSubscriptionsFeed() {
+    const filtered = feedSubscriptionsTypeFilter === 'all'
+      ? currentSubscriptionsFeedData
+      : currentSubscriptionsFeedData.filter(item => item.content_type === feedSubscriptionsTypeFilter);
+    const sorted = sortFeedItems(filtered);
+    // Закреплённый пост (модератор/гл.модератор) — всегда первым, независимо
+    // от выбранной сортировки.
+    const pinned = sorted.filter(it => it.pinned);
+    const rest = sorted.filter(it => !it.pinned);
+    renderFeedCards([...pinned, ...rest]);
+  }
+
+  // ─── Вкладка "Пост" в модалке "Добавить контент" ───────────────────────────
+  // Видна только ролям выше user (canWriteTextPost); публикуется сразу, без
+  // очереди модерации. Опционально — один из 5 смайлов вместо кавычки-плейсхолдера
+  // на декоративном блоке карточки поста.
+  const POST_MOOD_EMOJIS = ['🥰', '😂', '😔', '😡', '🤫']; // для справки — совпадают со значениями data-emoji в HTML-пикере
+  let selectedPostEmoji = null;
+
+  function updateContentPostTabVisibility() {
+    const tabEl = document.getElementById('contentTabPost');
+    if (!tabEl) return;
+    tabEl.style.display = (currentUser && canWriteTextPost(currentUser.role)) ? '' : 'none';
+    const modSectionEl = document.getElementById('postModOptionsSection');
+    if (modSectionEl) modSectionEl.style.display = (currentUser && isModeratorOrHigher(currentUser.role)) ? 'block' : 'none';
+  }
+
+  document.getElementById('postEmojiPicker').addEventListener('click', (e) => {
+    const btn = e.target.closest('.post-emoji-option');
+    if (!btn) return;
+    const emoji = btn.dataset.emoji;
+    const alreadyActive = btn.classList.contains('active');
+    document.querySelectorAll('#postEmojiPicker .post-emoji-option').forEach(b => b.classList.remove('active'));
+    if (alreadyActive) {
+      // Повторный клик по уже выбранному смайлу — снимаем выбор (вернётся кавычка).
+      selectedPostEmoji = null;
+    } else {
+      selectedPostEmoji = emoji;
+      btn.classList.add('active');
+    }
+  });
+
+  document.getElementById('postSubmitBtn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('postStatus');
+    const btnEl = document.getElementById('postSubmitBtn');
+    const text = document.getElementById('post-text-body').value.trim();
+    if (!text) {
+      statusEl.textContent = 'Текст поста не может быть пустым';
+      statusEl.className = 'err';
+      return;
+    }
+    if (!currentUser || !canWriteTextPost(currentUser.role)) return;
+
+    btnEl.disabled = true;
+    btnEl.textContent = 'Публикуем...';
+    statusEl.textContent = '';
+    statusEl.className = '';
+
+    // Настройки публичности/закрепления/автоудаления — только moderator/gl_moder.
+    const isModPoster = isModeratorOrHigher(currentUser.role);
+    const isPublic = isModPoster ? document.getElementById('post-is-public').checked : false;
+    const pinned = isModPoster ? document.getElementById('post-pinned').checked : false;
+    const deleteAfterRaw = isModPoster ? document.getElementById('post-delete-after').value : '';
+    const deleteAfterDays = deleteAfterRaw ? parseInt(deleteAfterRaw, 10) : null;
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/posts`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          author_id: currentUser.id,
+          text,
+          emoji: selectedPostEmoji || null,
+          is_public: isPublic,
+          pinned: pinned,
+          delete_after_days: deleteAfterDays
+        })
+      });
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+
+      statusEl.textContent = 'Опубликовано!';
+      statusEl.className = 'ok';
+      setTimeout(() => closeOverlay('contentOverlay'), 600);
+      if (currentFeedFilter === 'subscriptions') loadSubscriptionsFeed();
+    } catch (e) {
+      statusEl.textContent = 'Ошибка: ' + e.message;
+      statusEl.className = 'err';
+    } finally {
+      btnEl.disabled = false;
+      btnEl.textContent = 'Опубликовать';
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Редактирование текстового поста (только moderator/gl_moder, любой пост) ─
+  let editingTextPostId = null;
+  let selectedEditPostEmoji = null;
+
+  function canManageAnyTextPost(role) {
+    return isModeratorOrHigher(role);
+  }
+
+  async function openEditTextPostModal(postId) {
+    if (!currentUser || !canManageAnyTextPost(currentUser.role)) return;
+    let post = null;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/posts?id=eq.${postId}&select=*`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` }
+      });
+      const rows = res.ok ? await res.json() : [];
+      post = rows && rows[0];
+    } catch (e) { console.error('Не удалось загрузить пост для редактирования:', e); }
+    if (!post) { alert('Не удалось загрузить пост.'); return; }
+
+    editingTextPostId = postId;
+    selectedEditPostEmoji = post.emoji || null;
+
+    document.getElementById('edit-post-text-body').value = post.text || '';
+    document.querySelectorAll('#editPostEmojiPicker .post-emoji-option').forEach(b => {
+      b.classList.toggle('active', b.dataset.emoji === selectedEditPostEmoji);
+    });
+    document.getElementById('edit-post-is-public').checked = !!post.is_public;
+    document.getElementById('edit-post-pinned').checked = !!post.pinned;
+    document.getElementById('edit-post-delete-after').value = post.delete_after_days ? String(post.delete_after_days) : '';
+    document.getElementById('editTextPostStatus').textContent = '';
+    document.getElementById('editTextPostStatus').className = '';
+
+    openOverlay('editTextPostOverlay');
+  }
+
+  document.getElementById('editPostEmojiPicker').addEventListener('click', (e) => {
+    const btn = e.target.closest('.post-emoji-option');
+    if (!btn) return;
+    const emoji = btn.dataset.emoji;
+    const alreadyActive = btn.classList.contains('active');
+    document.querySelectorAll('#editPostEmojiPicker .post-emoji-option').forEach(b => b.classList.remove('active'));
+    if (alreadyActive) {
+      selectedEditPostEmoji = null;
+    } else {
+      selectedEditPostEmoji = emoji;
+      btn.classList.add('active');
+    }
+  });
+
+  document.getElementById('editTextPostSaveBtn').addEventListener('click', async () => {
+    if (!editingTextPostId || !currentUser || !canManageAnyTextPost(currentUser.role)) return;
+    const statusEl = document.getElementById('editTextPostStatus');
+    const btnEl = document.getElementById('editTextPostSaveBtn');
+    const text = document.getElementById('edit-post-text-body').value.trim();
+    if (!text) {
+      statusEl.textContent = 'Текст поста не может быть пустым';
+      statusEl.className = 'err';
+      return;
+    }
+
+    const isPublic = document.getElementById('edit-post-is-public').checked;
+    const pinned = document.getElementById('edit-post-pinned').checked;
+    const deleteAfterRaw = document.getElementById('edit-post-delete-after').value;
+    const deleteAfterDays = deleteAfterRaw ? parseInt(deleteAfterRaw, 10) : null;
+
+    btnEl.disabled = true;
+    btnEl.textContent = 'Сохраняем...';
+    statusEl.textContent = '';
+    statusEl.className = '';
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/posts?id=eq.${editingTextPostId}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          text,
+          emoji: selectedEditPostEmoji || null,
+          is_public: isPublic,
+          pinned: pinned,
+          delete_after_days: deleteAfterDays
+        })
+      });
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+
+      statusEl.textContent = 'Сохранено!';
+      statusEl.className = 'ok';
+      setTimeout(() => closeOverlay('editTextPostOverlay'), 600);
+      if (currentFeedFilter === 'subscriptions') loadSubscriptionsFeed();
+    } catch (e) {
+      statusEl.textContent = 'Ошибка: ' + e.message;
+      statusEl.className = 'err';
+    } finally {
+      btnEl.disabled = false;
+      btnEl.textContent = 'Сохранить';
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+
+  // ─── Лента вкладки "Сборник" (не используется в навигации, оставлена для
+  // ссылок/данных существующих сборников) ─────────────────────────────────
+  async function loadCollectionsFeed() {
+    const feedEl = document.getElementById('feed');
+    let data;
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/collections?status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=*`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      data = await res.json();
+    } catch (e) {
+      console.error('Ошибка загрузки сборников:', e);
+      feedEl.innerHTML = `<p class="empty">Пусто</p>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      feedEl.innerHTML = `<p class="empty">Пусто</p>`;
+      return;
+    }
+
+    const collAuthorProfilesById = await fetchProfilesByIds(data.map(it => it.submitted_by));
+    data.forEach(item => { item.profiles = collAuthorProfilesById[item.submitted_by] || null; });
+    if (currentUser) await fetchMyLikedIds(data.map(it => it.id), true);
+    data = sortFeedItems(data);
+
+    collectionsById = {};
+    data.forEach(item => { collectionsById[item.id] = item; });
+
+    feedEl.innerHTML = data.map(item => {
+      const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
+      const isOwnCollection = currentUser && item.submitted_by === currentUser.id;
+      const menuHtml = (isModerator || isOwnCollection) ? `
+        <div class="card-menu" data-card-menu>
+          <button class="card-menu-btn" type="button">⋮</button>
+          <div class="card-menu-dropdown">
+            ${isModerator ? `<button type="button" class="card-edit-collection-btn" data-id="${item.id}">Редактировать</button>` : ''}
+            <button type="button" class="card-delete-collection-btn" data-id="${item.id}">Удалить пост</button>
+          </div>
+        </div>` : '';
+      const descHtml = item.description ? `<p>${escapeHtml(item.description)}</p>` : '';
+
+      // См. комментарий в loadModerationQueue — пустой src="" у img/video
+      // засоряет консоль ошибками "Некорректный URI", просто не рисуем тег.
+      const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
+        ? `<video src="${item.cover_url}" muted preload="metadata"></video>`
+        : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy">`);
+
+      return `
+      <div class="card card-type-collection">
+        <div class="card-collection-thumb" data-open-collection="${item.id}" data-title="${escapeHtml(item.title)}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
+          ${coverTag}
+          <span class="card-collection-badge">🖼️ ${item.item_count || 0}</span>
+        </div>
+        <div class="meta">сборник · <span class="card-views">👁 ${formatViews(item.views)}</span> · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
+        <h3>${escapeHtml(item.title)}</h3>
+        ${descHtml}
+        <div class="card-footer">
+          <div class="card-footer-left">
+            ${renderCardLikeButton(item, true)}
+          </div>
+          ${menuHtml}
+        </div>
+      </div>
+    `;
+    }).join('');
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
+
+
+  // ============================================================
+  // 14. УТИЛИТЫ И ПРОСМОТРЫ
+  // ============================================================
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Рендер тегов под заголовком в открытом посте (лайтбокс / страница поста) —
+  // тот же вид, что и на карточке в ленте (.tag внутри .tags).
+  function renderTagsBlock(el, tags) {
+    if (!el) return;
+    if (tags && tags.length) {
+      el.innerHTML = tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+      el.style.display = 'flex';
+    } else {
+      el.innerHTML = '';
+      el.style.display = 'none';
+    }
+  }
+
+  // escapeHtml/safeUrl: разрешены только http/https и относительные пути — защита от javascript:/data: URI.
+  function safeUrl(url) {
+    if (!url) return '#';
+    const trimmed = String(url).trim();
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (/^\/(?!\/)/.test(trimmed)) return trimmed; // относительный путь на своём же домене
+    return '#';
+  }
+
+  // Просмотры — через RPC increment_*_views (security definer), не чаще 1 раза с браузера (localStorage).
+  function formatViews(n) {
+    n = Number(n) || 0;
+    if (n < 1000) return String(n);
+    if (n < 1000000) return (n / 1000).toFixed(n % 1000 >= 100 ? 1 : 0).replace(/\.0$/, '') + 'K';
+    return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  }
+
+  function renderViewsLine(el, views) {
+    if (!el) return;
+    el.textContent = `👁 ${formatViews(views)} ${pluralizeViews(views)}`;
+  }
+
+  function pluralizeViews(n) {
+    n = Math.abs(Number(n) || 0) % 100;
+    const n1 = n % 10;
+    if (n > 10 && n < 20) return 'просмотров';
+    if (n1 === 1) return 'просмотр';
+    if (n1 >= 2 && n1 <= 4) return 'просмотра';
+    return 'просмотров';
+  }
+
+  function shouldCountView(id) {
+    try {
+      const key = 'fh_viewed_ids';
+      const raw = localStorage.getItem(key);
+      const viewed = raw ? JSON.parse(raw) : [];
+      if (viewed.includes(id)) return false;
+      viewed.push(id);
+      localStorage.setItem(key, JSON.stringify(viewed));
+      return true;
+    } catch (e) {
+      // localStorage недоступен (приватный режим и т.п.) — считаем как есть
+      return true;
+    }
+  }
+
+  // viewsEl — необязательный DOM-элемент строки просмотров, который надо
+  // обновить локально сразу после успешного инкремента (без перезагрузки ленты)
+  async function incrementViews(id, isCollection, currentValue, viewsEl) {
+    if (!id) return;
+    if (viewsEl) renderViewsLine(viewsEl, currentValue || 0);
+    if (!shouldCountView(`${isCollection ? 'c' : 'p'}:${id}`)) return;
+
+    const rpcName = isCollection ? 'increment_collection_views' : 'increment_content_views';
+    const paramName = isCollection ? 'collection_id' : 'content_id';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${rpcName}`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ [paramName]: id })
+      });
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      if (viewsEl) renderViewsLine(viewsEl, (Number(currentValue) || 0) + 1);
+      const store = isCollection ? collectionsById : feedItemsById;
+      if (store && store[id]) store[id].views = (Number(store[id].views) || 0) + 1;
+    } catch (e) {
+      console.error('Не удалось обновить счётчик просмотров:', e);
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
+
+  // Делегированные обработчики на document.body — меню «⋮» и лайки работают одинаково в ленте/профиле/лайтбоксе.
+  document.body.addEventListener('click', async (e) => {
+    const likeBtn = e.target.closest('.card-like-btn, .post-like-btn');
+    if (!likeBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!currentUser) {
+      alert('Чтобы поставить лайк, нужно войти в аккаунт.');
+      return;
+    }
+    if (currentUser.is_banned) {
+      alert('Лайки недоступны — аккаунт ограничен.');
+      return;
+    }
+
+    const id = likeBtn.dataset.likeId;
+    const kind = likeBtn.dataset.likeKind; // 'content' | 'collection' | 'post'
+    if (!id || likeBtn.disabled) return;
+
+    const matchingBtns = [...document.querySelectorAll(
+      `[data-like-id="${id}"][data-like-kind="${kind}"]`
+    )];
+    matchingBtns.forEach(b => { b.disabled = true; });
+
+    const wasLiked = likeBtn.classList.contains('liked');
+    const countNowEl = likeBtn.querySelector('.card-like-count, .post-like-count');
+    const countNow = Number(countNowEl ? countNowEl.textContent : 0) || 0;
+    const optimisticLiked = !wasLiked;
+    const optimisticCount = Math.max(0, countNow + (optimisticLiked ? 1 : -1));
+
+    matchingBtns.forEach(b => {
+      b.classList.toggle('liked', optimisticLiked);
+      b.title = optimisticLiked ? 'Убрать лайк' : 'Нравится';
+      const c = b.querySelector('.card-like-count, .post-like-count');
+      if (c) c.textContent = String(optimisticCount);
+    });
+
+    try {
+      const rpcName = kind === 'collection' ? 'toggle_collection_like' : kind === 'post' ? 'toggle_post_like' : 'toggle_content_like';
+      const paramName = kind === 'collection' ? 'p_collection_id' : kind === 'post' ? 'p_post_id' : 'p_content_id';
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${rpcName}`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ [paramName]: id })
+      });
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      const liked = await res.json();
+
+      matchingBtns.forEach(b => {
+        b.classList.toggle('liked', !!liked);
+        b.title = liked ? 'Убрать лайк' : 'Нравится';
+      });
+
+      const likedSet = kind === 'collection' ? myLikedCollectionIds : kind === 'post' ? myLikedPostIds : myLikedContentIds;
+      if (liked) likedSet.add(id); else likedSet.delete(id);
+
+      const store = kind === 'collection' ? collectionsById : feedItemsById;
+      if (store && store[id]) store[id].likes = optimisticCount;
+    } catch (err) {
+      matchingBtns.forEach(b => {
+        b.classList.toggle('liked', wasLiked);
+        b.title = wasLiked ? 'Убрать лайк' : 'Нравится';
+        const c = b.querySelector('.card-like-count, .post-like-count');
+        if (c) c.textContent = String(countNow);
+      });
+      alert('Не удалось поставить лайк: ' + err.message);
+    } finally {
+      matchingBtns.forEach(b => { b.disabled = false; });
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Подписка на автора (кнопка на странице профиля) ───────────────────────
+  // Toggle идёт через RPC toggle_subscription (см. SQL-миграцию) — она сама
+  // решает, подписывать или отписывать, и возвращает итоговое состояние.
+  // Обновляем оптимистично счётчик и текст кнопки, откатываем при ошибке.
+  document.body.addEventListener('click', async (e) => {
+    const subBtn = e.target.closest('#profileSubscribeBtn');
+    if (!subBtn) return;
+
+    if (!currentUser) {
+      document.getElementById('authModalHint').textContent = 'Войди, чтобы подписываться на авторов.';
+      openOverlay('authOverlay');
+      return;
+    }
+    if (currentUser.is_banned) {
+      alert('Действие недоступно — аккаунт ограничен.');
+      return;
+    }
+
+    const targetUserId = subBtn.dataset.userId;
+    if (!targetUserId || subBtn.disabled) return;
+    subBtn.disabled = true;
+
+    const wasSubscribed = subBtn.classList.contains('subscribed');
+    const countEl = document.getElementById('profileSubscriberCount');
+    const countNow = Number(countEl ? countEl.textContent : 0) || 0;
+    const optimisticSubscribed = !wasSubscribed;
+    const optimisticCount = Math.max(0, countNow + (optimisticSubscribed ? 1 : -1));
+
+    subBtn.classList.toggle('subscribed', optimisticSubscribed);
+    subBtn.textContent = optimisticSubscribed ? '✓ Вы подписаны' : '+ Подписаться';
+    if (countEl) countEl.textContent = String(optimisticCount);
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/toggle_subscription`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${currentUserToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ p_following_id: targetUserId })
+      });
+      if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+      const subscribed = await res.json();
+      subBtn.classList.toggle('subscribed', !!subscribed);
+      subBtn.textContent = subscribed ? '✓ Вы подписаны' : '+ Подписаться';
+    } catch (err) {
+      subBtn.classList.toggle('subscribed', wasSubscribed);
+      subBtn.textContent = wasSubscribed ? '✓ Вы подписаны' : '+ Подписаться';
+      if (countEl) countEl.textContent = String(countNow);
+      alert('Не удалось изменить подписку: ' + err.message);
+    } finally {
+      subBtn.disabled = false;
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+  document.body.addEventListener('click', async (e) => {
+    const menuBtn = e.target.closest('.card-menu-btn');
+    const deleteBtn = e.target.closest('.card-delete-btn');
+    const deleteCollectionBtn = e.target.closest('.card-delete-collection-btn');
+    const deleteTextPostBtn = e.target.closest('.card-delete-textpost-btn');
+    const editTextPostBtn = e.target.closest('.card-edit-textpost-btn');
+    const editBtn = e.target.closest('.card-edit-btn');
+    const editCollectionBtn = e.target.closest('.card-edit-collection-btn');
+
+    if (menuBtn) {
+      const dropdown = menuBtn.nextElementSibling;
+      const wasOpen = dropdown.classList.contains('open');
+      document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+      if (!wasOpen) dropdown.classList.add('open');
+      e.stopPropagation();
+      return;
+    }
+
+    if (editTextPostBtn) {
+      e.stopPropagation();
+      document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+      openEditTextPostModal(editTextPostBtn.dataset.id);
+      return;
+    }
+
+    if (editBtn || editCollectionBtn) {
+      e.stopPropagation();
+      document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+      const id = (editBtn || editCollectionBtn).dataset.id;
+      openEditPostModal(id, !!editCollectionBtn);
+      return;
+    }
+
+    if (deleteCollectionBtn) {
+      e.stopPropagation();
+      const collectionId = deleteCollectionBtn.dataset.id;
+      const sure = confirm('Точно удалить этот сборник? Действие нельзя отменить.');
+      if (!sure) return;
+
+      deleteCollectionBtn.disabled = true;
+      deleteCollectionBtn.textContent = 'Удаляем...';
+
+      try {
+        // Сначала просим воркер удалить из B2 файлы, принадлежащие именно
+        // этому сборнику (переиспользуемые файлы из других постов он
+        // не трогает — это его внутренняя логика). Если шаг не удался —
+        // всё равно продолжаем удалять сборник из базы.
+        try {
+          await fetch(`${B2_WORKER_URL}/user-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUserToken}` },
+            body: JSON.stringify({ collectionId })
+          });
+        } catch (b2err) {
+          console.error('Не удалось очистить файлы сборника в B2:', b2err);
+        }
+
+        // Обнуляем collection_id во всех зависимых таблицах перед удалением сборника
+        await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/moderation_log?collection_id=eq.${collectionId}`, {
+            method: 'PATCH',
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            body: JSON.stringify({ collection_id: null })
+          }),
+          fetch(`${SUPABASE_URL}/rest/v1/comments?collection_id=eq.${collectionId}`, {
+            method: 'PATCH',
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            body: JSON.stringify({ collection_id: null })
+          })
+        ]);
+        // collection_items удалятся автоматически (on delete cascade)
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/collections?id=eq.${collectionId}`, {
+          method: 'DELETE',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'return=minimal' }
+        });
+        if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+        const card = deleteCollectionBtn.closest('.card');
+        if (card) card.remove();
+      } catch (err) {
+        alert('Не удалось удалить сборник: ' + err.message);
+        deleteCollectionBtn.disabled = false;
+        deleteCollectionBtn.textContent = 'Удалить пост';
+      }
+      return;
+    }
+
+    if (deleteTextPostBtn) {
+      e.stopPropagation();
+      const postId = deleteTextPostBtn.dataset.id;
+      const sure = confirm('Точно удалить этот пост? Действие нельзя отменить.');
+      if (!sure) return;
+
+      deleteTextPostBtn.disabled = true;
+      deleteTextPostBtn.textContent = 'Удаляем...';
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/posts?id=eq.${postId}`, {
+          method: 'DELETE',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, Prefer: 'return=minimal' }
+        });
+        if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
+        const card = deleteTextPostBtn.closest('.card');
+        if (card) card.remove();
+      } catch (err) {
+        alert('Не удалось удалить пост: ' + err.message);
+        deleteTextPostBtn.disabled = false;
+        deleteTextPostBtn.textContent = 'Удалить пост';
+      }
+      return;
+    }
+
+    if (deleteBtn) {
+      e.stopPropagation();
+      const contentId = deleteBtn.dataset.id;
+      const sure = confirm('Точно удалить этот пост? Действие нельзя отменить.');
+      if (!sure) return;
+
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = 'Удаляем...';
+
+      try {
+        // Удаление файла из B2 через воркер (проверяет права); при неудаче всё равно чистим запись в базе.
+        try {
+          await fetch(`${B2_WORKER_URL}/user-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUserToken}` },
+            body: JSON.stringify({ contentId })
+          });
+        } catch (b2err) {
+          console.error('Не удалось очистить файл в B2:', b2err);
+        }
+
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/content?id=eq.${contentId}`, {
+          method: 'DELETE',
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${currentUserToken}`,
+            Prefer: 'return=minimal'
+          }
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          let parsed = null;
+          try { parsed = JSON.parse(text); } catch (e) {}
+          if (parsed && parsed.message === 'JWT expired') {
+            throw new Error('Сессия истекла — выйди и войди снова, потом повтори удаление.');
+          }
+          throw new Error((parsed && parsed.message) || text);
+        }
+        const card = deleteBtn.closest('.card');
+        if (card) card.remove();
+      } catch (err) {
+        alert('Не удалось удалить пост: ' + err.message);
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'Удалить пост';
+      }
+      return;
+    }
+
+    // клик не по меню/кнопке — закрываем все открытые дропдауны
+    document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+  });
+
+  // Закрытие меню при клике вне ленты
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#feed')) return;
+    document.querySelectorAll('.card-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Дропдаун профиля в шапке (Профиль / Выйти) ───────────────────────────
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.header-user-wrap')) return;
+    document.querySelectorAll('.header-user-dropdown.open').forEach(d => d.classList.remove('open'));
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.header-user-dropdown.open').forEach(d => d.classList.remove('open'));
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // Инициализация: проверяем сохранённую сессию и грузим ленту независимо от логина
+  try {
+    const saved = localStorage.getItem('fh_session');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      currentUser = parsed.user;
+      currentUserToken = parsed.token;
+      currentRefreshToken = parsed.refreshToken || null;
+
+      // Если access_token уже протух (например, вкладка была закрыта больше
+      // часа — время жизни токена Supabase по умолчанию), сперва обновляем
+      // его через refresh_token, и только потом лезем за профилем. Иначе
+      // loadProfileIntoCurrentUser() бьёт по API старым токеном, получает
+      // 401 и профиль просто не подгружается — выглядит как "надо перелогиниться".
+      const expiresAt = decodeJwtExpiry(currentUserToken);
+      const needsRefresh = !expiresAt || expiresAt - Date.now() < 60000;
+
+      (needsRefresh ? refreshTokenIfNeeded() : Promise.resolve(true)).then(() => {
+        if (!currentUser) { renderAuthArea(); loadFeed(); resolveAndOpenFromUrl(); return; } // сессия мертва — уже разлогинили
+        scheduleTokenRefresh();
+        loadProfileIntoCurrentUser().then(() => {
+          renderAuthArea();
+          loadFeed();
+          resolveAndOpenFromUrl();
+          updateStreak();
+        });
+      });
+    } else {
+      resolveAndOpenFromUrl();
+    }
+  } catch (e) {
+    console.error('Ошибка восстановления сессии:', e);
+  }
+  renderAuthArea();
+  loadFeed();
+  handleOAuthCallback();
+  loadSevenTVEmotes();
+
+  window.addEventListener('error', (e) => {
+    const feedEl = document.getElementById('feed');
+    if (feedEl && feedEl.innerHTML.includes('Загрузка')) {
+      feedEl.innerHTML = `<p class="empty">Ошибка скрипта: ${e.message}</p>`;
+    }
+  });
+
+  // PWA: регистрируем service worker (нужен для установки на телефон —
+  // см. /service-worker.js, он не кэширует ничего динамического, только
+  // пару статичных иконок про запас на случай отсутствия сети).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js').catch((e) => {
+        console.warn('Не удалось зарегистрировать service worker:', e);
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
