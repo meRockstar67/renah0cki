@@ -1768,6 +1768,70 @@
     }
     .gg-final-actions { flex-direction: row-reverse; }
   }
+  /* Рейтинг мини-игры */
+  .gg-message { overflow-y: auto; justify-content: safe center; }
+  .gg-rating-slot { width: 100%; max-width: 420px; margin-top: 8px; }
+  .gg-rating-slot:empty { display: none; }
+  .gg-rating {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 16px;
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .gg-rating-loading {
+    min-height: 220px;
+    background: linear-gradient(100deg, var(--panel) 30%, var(--panel-2) 50%, var(--panel) 70%);
+    background-size: 200% 100%;
+    animation: ggShimmer 1.2s linear infinite;
+  }
+  .gg-rating-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .gg-rating-title-second { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .gg-rating-note { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .gg-rating-list { list-style: none; margin: 0; padding: 0; }
+  .gg-rating-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    font-size: 16px;
+    color: var(--text);
+  }
+  .gg-rating-row.is-me .gg-rating-name { color: var(--accent-hover); }
+  .gg-rating-place {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #17120d;
+    background: var(--muted);
+  }
+  .gg-place-1 { background: #e8b84a; }
+  .gg-place-2 { background: #c9c3b8; }
+  .gg-place-3 { background: #c98a54; }
+  .gg-place-author { background: var(--accent); }
+  .gg-rating-name { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gg-rating-score { flex: 0 0 auto; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent-hover); }
+  .gg-rating .gg-rating-empty, .gg-message .gg-hint { margin: 4px 0; font-size: 14px; color: var(--muted); max-width: none; }
+  @media (prefers-reduced-motion: reduce) { .gg-rating-loading { animation: none; } }
   @media (min-width: 769px) { #guessGameBtn { order: 5; } }
   @media (prefers-reduced-motion: reduce) {
     .gg-stage:not(.loaded)::before { animation: none; }
@@ -12746,6 +12810,12 @@
     let answered = false;
     let lastFocusEl = null;
     let gameToken = 0;
+    let finalShown = false;
+    // Рейтинг: несохранённые угадывания по авторам + последний отправленный счёт
+    let pendingGuessed = {};
+    let reportedScore = 0;
+    let answersSinceFlush = 0;
+    const FLUSH_EVERY = 10;
 
     function shuffle(arr) {
       const a = [...arr];
@@ -12805,11 +12875,115 @@
       authors = Object.values(byName);
     }
 
+    let poolPromise = null;
+    function loadPoolOnce() {
+      if (pool) return Promise.resolve();
+      if (!poolPromise) poolPromise = loadPool().finally(() => { poolPromise = null; });
+      return poolPromise;
+    }
+
     function readBest() {
       try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch (_) { return 0; }
     }
     function saveBest(v) {
       try { localStorage.setItem(BEST_KEY, String(v)); } catch (_) {}
+    }
+
+    // ─── Рейтинг (таблицы guess_game_scores / guess_game_author_stats, запись
+    // только через RPC gg_report). Если таблиц нет или гость — игра работает
+    // как раньше, просто без рейтинга. ─────────────────────────────────────
+    function flushReport() {
+      if (typeof currentUser === 'undefined' || !currentUser || !currentUserToken) return Promise.resolve();
+      const hasGuessed = Object.keys(pendingGuessed).length > 0;
+      if (!hasGuessed && score <= reportedScore) return Promise.resolve();
+      const payload = { p_score: score, p_guessed: pendingGuessed };
+      pendingGuessed = {};
+      reportedScore = Math.max(reportedScore, score);
+      answersSinceFlush = 0;
+      return fetch(`${SUPABASE_URL}/rest/v1/rpc/gg_report`, {
+        method: 'POST',
+        keepalive: true,
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(e => { console.warn('Мини-игра: не удалось сохранить результат:', e); });
+    }
+
+    async function fetchRating() {
+      const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+      const [scoresRes, authorRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/guess_game_scores?select=user_id,best_score&best_score=gt.0&order=best_score.desc,updated_at.asc&limit=3`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/guess_game_author_stats?select=author_id,guessed&guessed=gt.0&order=guessed.desc&limit=1`, { headers })
+      ]);
+      if (!scoresRes.ok || !authorRes.ok) throw new Error('rating unavailable');
+      const top = await scoresRes.json();
+      const author = (await authorRes.json())[0] || null;
+      const profiles = await fetchProfilesByIds([...top.map(r => r.user_id), author && author.author_id]);
+      const nameOf = id => { const p = profiles[id]; return (p && (p.display_name || p.username)) || 'аноним'; };
+      return {
+        top: top.map(r => ({ name: nameOf(r.user_id), score: r.best_score, isMe: typeof currentUser !== 'undefined' && currentUser && currentUser.id === r.user_id })),
+        author: author ? { name: nameOf(author.author_id), guessed: author.guessed } : null
+      };
+    }
+
+    function ratingHtml(data) {
+      if (!data.top.length && !data.author) {
+        return `<div class="gg-rating"><div class="gg-rating-title">Топ игроков</div><p class="gg-rating-empty">Пока никто не играл — будь первым.</p></div>`;
+      }
+      const rows = data.top.map((r, i) => `
+        <li class="gg-rating-row${r.isMe ? ' is-me' : ''}">
+          <span class="gg-rating-place gg-place-${i + 1}" aria-hidden="true">${i + 1}</span>
+          <span class="gg-rating-name">${escapeHtml(r.name)}</span>
+          <span class="gg-rating-score" title="Угадано артов за одну игру">${r.score}</span>
+        </li>`).join('');
+      const authorHtml = data.author ? `
+        <div class="gg-rating-title gg-rating-title-second">Самый узнаваемый художник</div>
+        <div class="gg-rating-row">
+          <span class="gg-rating-place gg-place-author" aria-hidden="true">★</span>
+          <span class="gg-rating-name">${escapeHtml(data.author.name)}</span>
+          <span class="gg-rating-score" title="Сколько раз угадали его работы">${data.author.guessed}</span>
+        </div>` : '';
+      return `<div class="gg-rating">
+        <div class="gg-rating-title">Топ игроков <span class="gg-rating-note">угадано за игру</span></div>
+        ${rows ? `<ol class="gg-rating-list">${rows}</ol>` : '<p class="gg-rating-empty">Пока пусто.</p>'}
+        ${authorHtml}
+      </div>`;
+    }
+
+    // Вставляет рейтинг в #ggRatingSlot (если экран ещё тот же).
+    async function fillRating() {
+      const token = gameToken;
+      const slot = document.getElementById('ggRatingSlot');
+      if (!slot) return;
+      try {
+        const data = await fetchRating();
+        const liveSlot = document.getElementById('ggRatingSlot');
+        if (token !== gameToken || !liveSlot) return;
+        liveSlot.innerHTML = ratingHtml(data);
+      } catch (_) {
+        const liveSlot = document.getElementById('ggRatingSlot');
+        if (liveSlot) liveSlot.innerHTML = '';
+      }
+    }
+
+    const RATING_SLOT_HTML = '<div id="ggRatingSlot" class="gg-rating-slot"><div class="gg-rating gg-rating-loading" aria-hidden="true"></div></div>';
+    function loginHintHtml() {
+      const loggedIn = typeof currentUser !== 'undefined' && currentUser && currentUserToken;
+      return loggedIn ? '' : '<p class="gg-hint">Войди через Twitch, чтобы попасть в рейтинг.</p>';
+    }
+
+    function renderStart() {
+      gameToken++;
+      queue = []; current = null; answered = false; finalShown = false; played = 0; score = 0; streak = 0;
+      updateStats();
+      showMessage(`
+        <p>Смотри на арт и выбирай, кто его нарисовал. Арты не повторяются.</p>
+        ${RATING_SLOT_HTML}
+        ${loginHintHtml()}`,
+        '<button type="button" class="gg-primary" data-gg="restart">Играть</button>');
+      fillRating();
+      loadPoolOnce().catch(() => {});
+      const playBtn = bodyEl.querySelector('[data-gg="restart"]');
+      if (playBtn) playBtn.focus({ preventScroll: true });
     }
 
     function updateStats() {
@@ -12826,11 +13000,12 @@
     async function startGame() {
       const token = ++gameToken;
       queue = []; roundIdx = 0; played = 0; score = 0; streak = 0; bestStreak = 0; current = null; answered = false;
+      finalShown = false; pendingGuessed = {}; reportedScore = 0; answersSinceFlush = 0;
       updateStats();
       if (!pool) {
         showMessage('<p>Собираю арты…</p>');
         try {
-          await loadPool();
+          await loadPoolOnce();
         } catch (e) {
           console.error('Мини-игра: не удалось загрузить арты:', e);
           if (token !== gameToken) return;
@@ -12885,7 +13060,11 @@
       answered = true;
       played++;
       const isRight = btn.dataset.ggName === current.name;
-      if (isRight) { score++; streak++; bestStreak = Math.max(bestStreak, streak); } else { streak = 0; }
+      if (isRight) {
+        score++; streak++; bestStreak = Math.max(bestStreak, streak);
+        pendingGuessed[current.authorId] = (pendingGuessed[current.authorId] || 0) + 1;
+      } else { streak = 0; }
+      if (++answersSinceFlush >= FLUSH_EVERY) flushReport();
       bodyEl.querySelectorAll('.gg-option').forEach(b => {
         b.disabled = true;
         if (b.dataset.ggName === current.name) b.classList.add('is-correct');
@@ -12902,34 +13081,48 @@
     }
 
     function renderFinal() {
+      const finishedAll = roundIdx >= queue.length;
       current = null;
+      finalShown = true;
       const total = played;
       const pct = total ? Math.round((score / total) * 100) : 0;
       const prevBest = readBest();
       const isRecord = score > prevBest;
       if (isRecord) saveBest(score);
       const title = pct >= 90 ? 'Знаешь всех в лицо' : pct >= 60 ? 'Хороший глаз' : pct >= 30 ? 'Неплохо' : 'Есть куда расти';
-      statsEl.textContent = 'Арты закончились';
-      barEl.style.width = '100%';
+      statsEl.textContent = finishedAll ? 'Арты закончились' : 'Игра окончена';
+      if (finishedAll) barEl.style.width = '100%';
       showMessage(`
         <div class="gg-score-big">${score}/${total}</div>
         <div class="gg-score-title">${title}</div>
         <p>Угадано ${pct}% · лучшая серия: ${bestStreak}</p>
-        <p>${isRecord ? 'Новый рекорд!' : `Твой рекорд: ${prevBest}`}</p>`,
+        <p>${isRecord ? 'Новый личный рекорд!' : `Твой рекорд: ${prevBest}`}</p>
+        ${RATING_SLOT_HTML}
+        ${loginHintHtml()}`,
         '<button type="button" class="gg-primary" data-gg="restart">Сыграть ещё</button><button type="button" class="gg-secondary" data-gg="close">Закрыть</button>');
       const again = bodyEl.querySelector('[data-gg="restart"]');
       if (again) again.focus({ preventScroll: true });
+      // сначала сохраняем результат, потом тянем рейтинг — чтобы он был уже с ним
+      flushReport().then(fillRating);
+    }
+
+    // Крестик посреди игры сначала показывает итог (и сохраняет результат),
+    // второй раз — закрывает окно.
+    function requestClose() {
+      if (queue.length && played > 0 && !finalShown) { renderFinal(); return; }
+      closeGame();
     }
 
     function openGame() {
       lastFocusEl = document.activeElement;
       overlayEl.classList.add('open');
       document.body.classList.add('gg-lock');
-      closeBtn.focus({ preventScroll: true });
-      startGame();
+      renderStart();
     }
     function closeGame() {
+      flushReport();
       gameToken++;
+      queue = []; current = null;
       overlayEl.classList.remove('open');
       document.body.classList.remove('gg-lock');
       bodyEl.innerHTML = '';
@@ -12937,8 +13130,9 @@
     }
 
     openBtn.addEventListener('click', openGame);
-    closeBtn.addEventListener('click', closeGame);
-    overlayEl.addEventListener('click', e => { if (e.target === overlayEl) closeGame(); });
+    closeBtn.addEventListener('click', requestClose);
+    overlayEl.addEventListener('click', e => { if (e.target === overlayEl) requestClose(); });
+    window.addEventListener('pagehide', () => { if (overlayEl.classList.contains('open')) flushReport(); });
     bodyEl.addEventListener('click', e => {
       const optBtn = e.target.closest('.gg-option');
       if (optBtn) { answer(optBtn); return; }
@@ -12950,7 +13144,7 @@
     });
     document.addEventListener('keydown', e => {
       if (!overlayEl.classList.contains('open')) return;
-      if (e.key === 'Escape') { e.stopPropagation(); closeGame(); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); requestClose(); return; }
       if (!answered && current && /^[1-9]$/.test(e.key)) {
         const btn = bodyEl.querySelectorAll('.gg-option')[Number(e.key) - 1];
         if (btn) { e.preventDefault(); answer(btn); }
