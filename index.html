@@ -5583,7 +5583,7 @@
     #homeMobileSponsorPanel { max-height: 240px; }
     /* Топ по стрикам, продублированный под блоком "Отзывы" — см.
        #homeMobileStreakBlock в разметке ниже .home-channel-reel. */
-    #homeMobileStreakBlock { display: flex; }
+    body.is-home-page #homeMobileStreakBlock { display: flex; }
   }
 
   #homeColMobileSponsors { display: none; }
@@ -6664,13 +6664,179 @@
   .sg-grid .card-video{transform:scale(1.14);transform-origin:50% 20%}
   .sg-grid .card .sg-del{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:50%;width:26px;height:26px;line-height:1;cursor:pointer;font-size:16px;padding:0;z-index:3}
   @media (max-width:768px){.sg-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}}
+
+  /* ============================================================ */
+  /* ГЛАВНАЯ (ПК, от 1201px): один экран, без прокрутки страницы.
+     Слева колонка: Стрики / Спонсоры / Респект+. По центру: Фото и
+     Видео (по 3 карточки, две линии). Справа: Отзывы вертикальной
+     лентой. Внизу: Модераторы (со стрелкой вправо) и Стримеры по
+     центру. Длинные списки прокручиваются внутри блоков. DOM почти не
+     менялся: контейнеры сайдбаров растворены через display:contents,
+     дети раскладываются по сетке. На мобильном/планшете (<=1200px) —
+     как раньше. */
+  .home-mod-arrow { display: none; }
+  @media (max-width: 1200px) {
+    .home-card-grid .home-card:nth-child(3) { display: none; }
+  }
+  /* планшет/телефон: меньше пустоты между секциями; на планшете в портрете (600–900px) — 3 карточки в ряд */
+  @media (max-width: 1200px) {
+    #homePageLayout { gap: 28px; }
+  }
+  @media (min-width: 600px) and (max-width: 900px) {
+    .home-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .home-card-grid .home-card:nth-child(3) { display: flex; }
+  }
+  @media (min-width: 1201px) {
+    body.is-home-page main { max-width: none; }
+    #homePageLayout {
+      display: grid;
+      grid-template-columns: 270px minmax(0, 1.3fr) minmax(0, 1fr) 290px;
+      justify-content: space-between;
+      grid-template-rows: repeat(6, minmax(0, 1fr)) 46px;
+      gap: 14px 22px;
+      height: var(--home-h, max(640px, min(calc(100dvh - 125px), 840px)));
+    }
+    /* масштаб главной под ширину экрана (JS задаёт --home-z): на 1920px выглядит как при 110% */
+    body.is-home-page header,
+    body.is-home-page main { zoom: var(--home-z, 1); }
+    #homePageLayout[style*="display: none"] { display: none !important; }
+    @media (max-width: 1500px) {
+      #homePageLayout { grid-template-columns: 240px minmax(0, 1.3fr) minmax(0, 1fr) 260px; column-gap: 18px; }
+    }
+    .home-top-row,
+    .home-layout,
+    .home-moderators-sidebar,
+    .home-streamers-sidebar { display: contents; }
+
+    /* левая колонка */
+    #homeColTags          { grid-column: 1; grid-row: 1 / 3; min-height: 0; gap: 10px; }
+    #homeSponsorSection   { grid-column: 1; grid-row: 3 / 5; display: flex; flex-direction: column; min-height: 0; }
+    #homeSponsorSection[style*="display: none"] { display: none !important; }
+    #homeRespectPlusPanel { grid-column: 1; grid-row: 5 / 8; max-height: none; min-height: 0; }
+    #homeColMobileSponsors { display: none !important; }
+    /* центр */
+    #homeColArt   { grid-column: 2 / 4; grid-row: 1 / 4; min-height: 0; gap: 10px; position: relative; }
+    #homeColVideo { grid-column: 2 / 4; grid-row: 4 / 7; min-height: 0; gap: 10px; position: relative; }
+    /* правая колонка: отзывы */
+    #homeReviewsBlock { grid-column: 4; grid-row: 1 / 8; margin: 0; max-width: none; min-height: 0; gap: 10px; }
+    /* низ */
+    #homeModeratorsPanel { grid-column: 2; grid-row: 7; justify-self: end; width: min(450px, 100%); }
+    #homeStreamersPanel  { grid-column: 3; grid-row: 7; justify-self: start; width: fit-content; max-width: 100%; }
+
+    /* Фото и Видео: 3 карточки в ряд, «смотреть больше» — в строке заголовка */
+    #homeColArt .home-col-header,
+    #homeColVideo .home-col-header { padding-right: 150px; }
+    #homeColArt .home-see-more,
+    #homeColVideo .home-see-more {
+      position: absolute; top: -3px; right: 0; width: auto;
+      padding: 4px 10px; font-size: 12px; border: none; color: var(--accent);
+    }
+    #homeColArt .home-see-more-icon,
+    #homeColVideo .home-see-more-icon { display: none; }
+    .home-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; flex: 1; min-height: 0; }
+    .home-card-grid .home-card { min-height: 0; }
+    .home-card:hover { transform: none; }
+    .home-card-thumb-wrap { aspect-ratio: auto; flex: 1; min-height: 0; }
+    .home-card-body { padding: 8px 11px 9px; gap: 2px; }
+    .home-card-title { font-size: 13px; }
+    .home-card-author, .home-card-stats { font-size: 11.5px; }
+    .home-card-date { display: none; }
+
+    /* заголовки Модераторов/Стримеров/Респект+ — внутри самих панелей */
+    #homeColModerators > .home-col-header,
+    #homeColStreamers > .home-col-header { display: none; }
+    #homeModeratorsPanel::before,
+    #homeStreamersPanel::before,
+    #homeRespectPlusPanel::before {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--muted); flex: none;
+    }
+    #homeModeratorsPanel::before { display: none; }
+    #homeStreamersPanel::before  { content: "Стримеры"; }
+    #homeRespectPlusPanel::before { content: "Респект+"; padding: 2px 8px 6px; }
+
+    /* нижняя полоска: горизонтальная прокрутка */
+    #homeModeratorsPanel,
+    #homeStreamersPanel {
+      flex-direction: row; align-items: center; gap: 14px;
+      padding: 0 14px; max-height: none; height: 100%;
+      overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+    }
+    #homeModeratorsPanel::-webkit-scrollbar,
+    #homeStreamersPanel::-webkit-scrollbar { display: none; }
+    #homeModeratorsPanel { position: relative; padding-left: 150px; padding-right: 52px; scroll-behavior: smooth; }
+    #homeModeratorsPanel .home-streamer-item,
+    #homeStreamersPanel .home-streamer-item { flex: none; padding: 4px 6px; gap: 8px; }
+    #homeModeratorsPanel .home-streamer-avatar,
+    #homeStreamersPanel .home-streamer-avatar { width: 26px; height: 26px; }
+    #homeModeratorsPanel .home-streamer-name,
+    #homeStreamersPanel .home-streamer-name { font-size: 14px; white-space: nowrap; }
+    #homeModeratorsPanel .home-empty,
+    #homeStreamersPanel .home-empty { margin: 0; }
+    /* стрелки у Модераторов — на всю высоту панели: «влево» у левого края, «вправо» у правого */
+    .home-mod-arrow {
+      grid-column: 2; grid-row: 7; justify-self: end; align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; margin: 1px 1px 1px 0; z-index: 2; padding: 0;
+      border: none; border-radius: 0 11px 11px 0;
+      background: var(--panel); color: var(--text);
+      font-size: 22px; line-height: 1; cursor: pointer;
+    }
+    /* закреплённый блок слева: надпись + стрелка «влево»; список заезжает под него */
+    .home-mod-left {
+      grid-column: 2; grid-row: 7; justify-self: start; align-self: stretch;
+      margin: 1px 0 1px calc(100% - min(450px, 100%) + 1px);
+      display: flex; align-items: stretch; z-index: 2;
+      background: var(--panel); border-radius: 11px 0 0 11px;
+    }
+    .home-mod-label {
+      display: flex; align-items: center; padding: 0 6px 0 16px; white-space: nowrap;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    /* «влево» выезжает вплотную справа от блока с надписью и не занимает места, пока скрыта */
+    .home-mod-left { position: relative; }
+    .home-mod-left .home-mod-arrow-prev {
+      position: absolute; left: 100%; top: 0; bottom: 0; width: 34px;
+      grid-column: auto; grid-row: auto; justify-self: auto; align-self: auto;
+      margin: 0; border: none; border-radius: 0;
+    }
+    .home-mod-arrow:hover { color: var(--accent); }
+    .home-mod-arrow.is-end { opacity: 0.35; pointer-events: none; }
+    .home-mod-left .home-mod-arrow-prev.is-end { opacity: 1; visibility: hidden; }
+
+    /* Отзывы: вертикальная лента с прокруткой */
+    #homeReviewsBlock .home-col-header { margin: 0; }
+    #homeReviewsBlock .reel-wrap { flex: 1; min-height: 0; }
+    #homeReviewsBlock .reel-arrow { display: none; }
+    #homeReviewsBlock .review-track {
+      flex-direction: column; height: 100%; padding: 0 4px 0 0; gap: 12px;
+      overflow-x: hidden; overflow-y: auto; align-items: stretch;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+    #homeReviewsBlock .review-card { flex: none; height: auto; min-height: 110px; padding: 14px 16px; gap: 8px; }
+    #homeReviewsBlock .review-text { flex: none; overflow: visible; max-height: none; min-height: 0; }
+
+    /* Стрики: прокрутка внутри, «ты» поверх нижней строки */
+    #homeTagsPanel { flex: 1; min-height: 0; max-height: none !important; padding: 0; gap: 0; }
+    #homeTagsPanel .streak-item { padding: 9px 14px; flex: none; }
+    #homeColTags .home-streak-me-row { padding: 9px 14px; margin: 0; border-radius: 0 0 12px 12px; }
+
+    /* Спонсоры и Респект+ — прокрутка внутри */
+    #homeSponsorSection .home-col-header { margin-bottom: 10px; }
+    #homeSponsorPanel { flex: 1; min-height: 0; max-height: none !important; }
+    #homeSponsorPanel .home-streamer-item,
+    #homeRespectPlusPanel .home-streamer-item { padding: 6px 8px; flex: none; }
+    #homeSponsorPanel .home-streamer-avatar,
+    #homeRespectPlusPanel .home-streamer-avatar { width: 32px; height: 32px; }
+    #homeSponsorCtaBtn { padding: 10px; flex: none; }
+  }
 </style>
 </head>
 <body>
 
 <header>
   <h1 id="siteLogo" style="cursor:pointer;"><img class="site-logo-icon" src="https://i.postimg.cc/QtmsVpyj/Resurs-134x-8.png" alt="">rena<span class="logo-highlight">h0cki</span></h1>
-  <div class="header-slogan">Сперма льется через туз<br>Ренахоки точка хуз</div>
   <button type="button" id="suggestBtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Предложка</button>
   <nav class="nav-tabs" id="navTabs">
     <button class="nav-tab" data-filter="art"><span class="nav-tab-icon nav-tab-icon-art"></span>Фото</button>
@@ -6831,6 +6997,48 @@
     <div class="home-streamers-panel" id="homeModeratorsPanel">
       <p class="home-empty">Загрузка...</p>
     </div>
+    <div class="home-mod-left" id="homeModLeft">
+      <span class="home-mod-label">Модераторы</span>
+      <button type="button" class="home-mod-arrow home-mod-arrow-prev" id="homeModArrowPrev" aria-label="Прокрутить модераторов влево">‹</button>
+    </div>
+    <button type="button" class="home-mod-arrow" id="homeModArrow" aria-label="Прокрутить модераторов вправо">›</button>
+    <script>
+      (function () {
+        var panel = document.getElementById('homeModeratorsPanel');
+        var left = document.getElementById('homeModLeft');
+        var next = document.getElementById('homeModArrow');
+        var prev = document.getElementById('homeModArrowPrev');
+        if (!panel || !left || !next || !prev) return;
+        function items() { return Array.prototype.slice.call(panel.querySelectorAll('.home-streamer-item')); }
+        var AW = 34; // ширина стрелки «влево»
+        // в начале список стоит вплотную к надписи (как у «Стримеры»); после прокрутки
+        // выезжает стрелка «влево», и аватарка встаёт рядом с ней
+        function pad0() { return left.offsetWidth + 3; }
+        function pad1() { return left.offsetWidth + AW + 3; }
+        function sync() {
+          if (left.offsetWidth) panel.style.paddingLeft = pad0() + 'px';
+          next.classList.toggle('is-end', panel.scrollLeft + panel.clientWidth >= panel.scrollWidth - 4);
+          prev.classList.toggle('is-end', panel.scrollLeft <= 4);
+        }
+        // листаем ровно по одному модератору
+        next.addEventListener('click', function () {
+          var list = items(), i;
+          for (i = 0; i < list.length; i++) { if (list[i].offsetLeft >= panel.scrollLeft + left.offsetWidth + 2) break; }
+          var nxt = list[i + 1];
+          if (nxt) panel.scrollTo({ left: nxt.offsetLeft - pad1(), behavior: 'smooth' });
+        });
+        prev.addEventListener('click', function () {
+          var list = items(), j = -1;
+          for (var k = 0; k < list.length; k++) { if (list[k].offsetLeft < panel.scrollLeft + pad1() - 6) j = k; }
+          if (j >= 0) panel.scrollTo({ left: Math.max(0, list[j].offsetLeft - pad1()), behavior: 'smooth' });
+        });
+        panel.addEventListener('scroll', sync);
+        new MutationObserver(sync).observe(panel, { childList: true });
+        window.addEventListener('resize', sync);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(sync);
+        sync();
+      })();
+    </script>
     <div id="homeSponsorSection" style="display:none;">
       <div class="home-col-header" id="homeSponsorHeader">
         <h3>Спонсоры</h3>
@@ -6902,7 +7110,6 @@
   </div>
 
   </div>
-  </div>
 
   <div class="home-channel-reel" id="homeReviewsBlock">
     <div class="home-col-header review-block-header">
@@ -6930,6 +7137,7 @@
       <button type="button" class="reel-arrow reel-arrow-right" id="reviewArrowRight" aria-label="Прокрутить вперёд">›</button>
     </div>
   </div>
+  </div>
 
   <!-- Мобильный дубль колонки "Стрики" с главной для ПК — виден только
        на телефоне/планшете (см. .home-mobile-streaks-block), под блоком
@@ -6951,6 +7159,31 @@
     </div>
   </div>
 </main>
+
+<script>
+// Масштаб главной на ПК: 1.0 на ~1745px и уже, дальше растёт пропорционально ширине (на 1920px = 1.1, максимум 1.5).
+// Высоту сетки подгоняем под остаток экрана, чтобы страница не прокручивалась.
+(function () {
+  var raf = 0;
+  function apply() {
+    raf = 0;
+    var root = document.documentElement;
+    var layout = document.getElementById('homePageLayout');
+    var on = document.body.classList.contains('is-home-page') && window.innerWidth >= 1201;
+    var z = on ? Math.min(1.5, Math.max(1, window.innerWidth / 1745)) : 1;
+    root.style.setProperty('--home-z', String(z));
+    if (!layout) return;
+    if (!on) { layout.style.removeProperty('--home-h'); return; }
+    var top = layout.getBoundingClientRect().top + window.scrollY;
+    var h = (window.innerHeight - top - 36 * z) / z;
+    layout.style.setProperty('--home-h', Math.round(Math.min(900, Math.max(600, h))) + 'px');
+  }
+  function schedule() { if (!raf) raf = requestAnimationFrame(apply); }
+  window.addEventListener('resize', schedule);
+  new MutationObserver(schedule).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  schedule();
+})();
+</script>
 
 <main id="postPage" style="display:none;">
   <div class="post-page-back">
@@ -7684,7 +7917,7 @@
 
   // Файл считается «своим» (Backblaze B2 или cdn.renah0cki.xyz), а не внешней ссылкой.
   function isOwnUploadedMediaUrl(url) {
-    return !!url && /^https:\/\/(?:[a-z0-9-]+\.)*backblazeb2\.com\//i.test(url) || /^https:\/\/cdn\.renah0cki\.xyz\//i.test(String(url||''));
+    return !!url && (url.includes('backblazeb2.com') || url.includes('cdn.renah0cki.xyz'));
   }
 
   // Спойлер-блюр арта: превью всегда размыто, снять можно только внутри открытого поста.
@@ -8918,7 +9151,7 @@
     return `<div class="emoji-picker-grid">${
       SEVENTV_EMOTES.map(em =>
         `<button type="button" class="emoji-item" data-emote-name="${escapeHtml(em.name)}" title="${escapeHtml(em.name)}">
-          <img src="${escapeHtml(em.url)}" alt="${escapeHtml(em.name)}" loading="lazy">
+          <img src="${em.url}" alt="${escapeHtml(em.name)}" loading="lazy">
         </button>`
       ).join('')
     }</div>`;
@@ -8948,7 +9181,7 @@
     return escaped.split(/(\s+)/).map(token => {
       const emote = SEVENTV_EMOTE_MAP.get(token);
       return emote
-        ? `<img class="chat-emote" src="${escapeHtml(emote.url)}" alt="${token}" title="${token}" loading="lazy">`
+        ? `<img class="chat-emote" src="${emote.url}" alt="${token}" title="${token}" loading="lazy">`
         : token;
     }).join('');
   }
@@ -9973,7 +10206,7 @@
       const replyAvatar = currentUser?.avatar_url || presetToDataUrl('p0');
       slot.innerHTML = `
         <div class="reply-form">
-          ${currentUser ? `<img class="comment-avatar" src="${escapeHtml(replyAvatar)}" alt="" style="width:28px;height:28px;flex-shrink:0;margin-top:2px;">` : ''}
+          ${currentUser ? `<img class="comment-avatar" src="${replyAvatar}" alt="" style="width:28px;height:28px;flex-shrink:0;margin-top:2px;">` : ''}
           <div class="reply-form-inner">
             <textarea placeholder="Ответить..." maxlength="2000" rows="1"></textarea>
             ${currentUser && canSendVoice(currentUser.role) ? renderVoiceControlsHtml() : ''}
@@ -11482,16 +11715,16 @@
     let linkHtml = '';
 
     if (item.content_type === 'art' && mediaUrl) {
-      mediaHtml = `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${escapeHtml(mediaUrl)}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}">`;
+      mediaHtml = `<img src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}">`;
     } else if (item.content_type === 'video') {
       const ytId = getYoutubeId(mediaUrl);
       if (isOwnUploadedMediaUrl(mediaUrl)) {
         // загруженный в B2 файл — превью прямо из видео, кликабельно (лайтбокс)
-        mediaHtml = `<video src="${escapeHtml(mediaUrl)}" preload="metadata" muted data-lightbox="${escapeHtml(mediaUrl)}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}"></video>`;
+        mediaHtml = `<video src="${mediaUrl}" preload="metadata" muted data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}"></video>`;
       } else if (ytId) {
         // YouTube — показываем превью-картинку с канала + кликабельную ссылку
         const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-        mediaHtml = `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(item.title)}" loading="lazy">`;
+        mediaHtml = `<img src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy">`;
         linkHtml = `<a class="mod-link" href="https://www.youtube.com/watch?v=${ytId}" target="_blank" rel="noopener noreferrer">▶ Открыть на YouTube</a>`;
       } else if (mediaUrl) {
         // прочая внешняя ссылка на видео — хотя бы текстовая ссылка
@@ -11572,8 +11805,8 @@
         // "Некорректный URI" в консоли, если у сборника почему-то нет обложки.
         // Просто не рисуем тег вовсе, если cover_url пустой.
         const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
-          ? `<video src="${escapeHtml(item.cover_url)}" muted preload="metadata" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы"></video>`
-          : `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" loading="lazy" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы">`);
+          ? `<video src="${item.cover_url}" muted preload="metadata" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы"></video>`
+          : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы">`);
         return `
         <div class="mod-card" data-kind="collection" data-id="${item.id}" data-author="${item.submitted_by}">
           <div class="mod-collection-preview" data-preview-collection="${item.id}" data-title="${escapeHtml(item.title)}" style="position:relative;">
@@ -12206,7 +12439,7 @@
     const showHeader = currentUser && isModeratorOrHigher(currentUser.role) && ownerInfo.id !== currentUser.id;
     headerEl.innerHTML = showHeader ? `
       <div class="support-chat-header-user">
-        <img src="${escapeHtml(ownerInfo.avatar_url || presetToDataUrl('p0'))}" alt="">
+        <img src="${ownerInfo.avatar_url || presetToDataUrl('p0')}" alt="">
         <span>${escapeHtml(ownerInfo.display_name || ownerInfo.username || 'без имени')}</span>
       </div>
     ` : '';
@@ -13324,23 +13557,23 @@
       const mediaUrl = item.cover_image_url || item.source_url || '';
       let mediaHtml = '';
       if (item.content_type === 'art' && mediaUrl) {
-        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${escapeHtml(mediaUrl)}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
+        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
       } else if (item.content_type === 'video') {
         const ytId = getYoutubeId(mediaUrl);
         if (isOwnUploadedMediaUrl(mediaUrl)) {
-          mediaHtml = `<div class="card-video-thumb" data-lightbox="${escapeHtml(mediaUrl)}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
-            <video class="card-video" src="${escapeHtml(mediaUrl)}" preload="metadata" tabindex="-1"></video>
+          mediaHtml = `<div class="card-video-thumb" data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
+            <video class="card-video" src="${mediaUrl}" preload="metadata" tabindex="-1"></video>
             <div class="card-video-play">▶</div>
           </div>`;
         } else if (ytId) {
           const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
           mediaHtml = `<a class="card-video-thumb" href="https://www.youtube.com/watch?v=${ytId}" target="_blank" rel="noopener noreferrer">
-            <img class="card-video" src="${escapeHtml(thumb)}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
             <div class="card-video-play">▶</div>
           </a>`;
         }
       } else if (item.content_type === 'fanfic' && item.cover_image_url) {
-        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${escapeHtml(item.cover_image_url)}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
+        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
       }
       const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl) && !getYoutubeId(mediaUrl));
       // см. комментарий в renderFeedCards — счётчик просмотров не растёт для
@@ -13374,8 +13607,8 @@
       // См. комментарий в loadModerationQueue — пустой src="" у img/video
       // засоряет консоль ошибками "Некорректный URI", просто не рисуем тег.
       const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
-        ? `<video src="${escapeHtml(item.cover_url)}" muted preload="metadata"></video>`
-        : `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" loading="lazy">`);
+        ? `<video src="${item.cover_url}" muted preload="metadata"></video>`
+        : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy">`);
       const menuHtml = canManageThisProfile ? `
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
@@ -14779,8 +15012,8 @@
       }
       const src = item.kind === 'upload' ? item._previewUrl : item.mediaUrl;
       const mediaTag = isVideo
-        ? `<video src="${escapeHtml(src)}" muted preload="metadata"></video><span class="cf-video-badge">▶</span>`
-        : `<img src="${escapeHtml(src)}" alt="">`;
+        ? `<video src="${src}" muted preload="metadata"></video><span class="cf-video-badge">▶</span>`
+        : `<img src="${src}" alt="">`;
       return `
         <div class="collection-file-item" data-idx="${idx}">
           ${mediaTag}
@@ -14887,8 +15120,8 @@
       const alreadyPicked = collectionItems.some(ci => ci.kind === 'existing' && ci.sourceContentId === item.id);
       const thumbUrl = isYoutube ? `https://img.youtube.com/vi/${getYoutubeId(mediaUrl)}/hqdefault.jpg` : mediaUrl;
       const tag = (isVideoFile)
-        ? `<video src="${escapeHtml(thumbUrl)}" muted preload="metadata"></video>`
-        : `<img src="${escapeHtml(thumbUrl)}" alt="">`;
+        ? `<video src="${thumbUrl}" muted preload="metadata"></video>`
+        : `<img src="${thumbUrl}" alt="">`;
       return `
         <div class="existing-picker-item ${alreadyPicked ? 'picked' : ''}" data-content-id="${item.id}" data-media-url="${escapeHtml(isYoutube ? thumbUrl : mediaUrl)}" data-media-type="${item.content_type === 'video' ? 'video' : 'photo'}" data-youtube="${isYoutube ? '1' : '0'}" title="${escapeHtml(item.title)}">
           ${tag}
@@ -15235,14 +15468,14 @@
     const watchUrl = `https://www.youtube.com/watch?v=${video.id}`;
     return `
       <div class="card pinned-video-card">
-        <a class="card-video-thumb" href="${escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
-          <img class="card-video" src="${escapeHtml(video.thumb)}" alt="${escapeHtml(video.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+        <a class="card-video-thumb" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
+          <img class="card-video" src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
           <div class="card-video-play">▶</div>
         </a>
         <div class="meta">📌 НОВОЕ НА КАНАЛЕ</div>
         <h3>${escapeHtml(video.title)}</h3>
         <div class="card-footer">
-          <a class="go" href="${escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer">Смотреть на YouTube →</a>
+          <a class="go" href="${watchUrl}" target="_blank" rel="noopener noreferrer">Смотреть на YouTube →</a>
           <span></span>
         </div>
       </div>
@@ -15384,9 +15617,9 @@
     trackEl.innerHTML = videos.map(video => {
       const watchUrl = `https://www.youtube.com/watch?v=${video.id}`;
       return `
-        <a class="reel-item" href="${escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
+        <a class="reel-item" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
           <div class="reel-thumb-wrap">
-            <img src="${escapeHtml(video.thumb)}" alt="${escapeHtml(video.title)}" loading="lazy">
+            <img src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy">
             <div class="reel-play">▶</div>
           </div>
           <p class="reel-item-title">${escapeHtml(video.title)}</p>
@@ -16309,21 +16542,21 @@
       let mediaHtml = '';
 
       if (item.content_type === 'art' && mediaUrl) {
-        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${escapeHtml(mediaUrl)}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
+        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
       } else if (item.content_type === 'video') {
         const ytId = getYoutubeId(mediaUrl);
         if (isOwnUploadedMediaUrl(mediaUrl)) {
           // Загруженный файл — показываем превью с плеером
-          mediaHtml = `<div class="card-video-thumb" data-lightbox="${escapeHtml(mediaUrl)}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
-            <video class="card-video" src="${escapeHtml(mediaUrl)}" preload="metadata" tabindex="-1"></video>
+          mediaHtml = `<div class="card-video-thumb" data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
+            <video class="card-video" src="${mediaUrl}" preload="metadata" tabindex="-1"></video>
             <div class="card-video-play">▶</div>
           </div>`;
         } else if (ytId) {
           // YouTube — превью ведёт прямо на youtube.com в новой вкладке
           const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
           const watchUrl = `https://www.youtube.com/watch?v=${ytId}`;
-          mediaHtml = `<a class="card-video-thumb" href="${escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">
-            <img class="card-video" src="${escapeHtml(thumb)}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+          mediaHtml = `<a class="card-video-thumb" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">
+            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
             <div class="card-video-play">▶</div>
           </a>`;
         }
@@ -16332,7 +16565,7 @@
         // лайтбокса (сам текст фанфика хранится не у нас, открывать внутри
         // сайта нечего). Клик по обложке ведёт по той же ссылке, что и
         // "Читать оригинал" ниже.
-        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${escapeHtml(item.cover_image_url)}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
+        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
       }
 
       const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl) && !getYoutubeId(mediaUrl));
@@ -16426,8 +16659,8 @@
     const moderatorsPanelEl = document.getElementById('homeModeratorsPanel');
 
     tagsPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
-    artGridEl.innerHTML = skeletonCardsHtml(2);
-    videoGridEl.innerHTML = skeletonCardsHtml(2);
+    artGridEl.innerHTML = skeletonCardsHtml(3);
+    videoGridEl.innerHTML = skeletonCardsHtml(3);
     streamersPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     respectPlusPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     sponsorPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
@@ -16438,8 +16671,8 @@
     updateReviewWriteBtnVisibility();
 
     const [artData, videoData, streamersData, respectPlusData, sponsorData, moderatorsData, reviewsData, streaksData] = await Promise.all([
-      fetchHomeContent('art', 2),
-      fetchHomeContent('video', 2),
+      fetchHomeContent('art', 3),
+      fetchHomeContent('video', 3),
       fetchStreamers(),
       fetchRespectPlus(),
       fetchSponsors(),
@@ -16627,20 +16860,20 @@
       const mediaUrl = item.cover_image_url || item.source_url || '';
       let thumbHtml = '';
       if (type === 'art') {
-        thumbHtml = mediaUrl ? `<img class="${spoilerBlurClass(item).trim()}" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item)}` : '';
+        thumbHtml = mediaUrl ? `<img class="${spoilerBlurClass(item).trim()}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item)}` : '';
       } else {
         const ytId = getYoutubeId(mediaUrl);
         if (ytId) {
           const thumbSrc = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-          thumbHtml = `<img src="${escapeHtml(thumbSrc)}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`;
+          thumbHtml = `<img src="${thumbSrc}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`;
         } else if (isOwnUploadedMediaUrl(mediaUrl)) {
           // Превью для загруженного видео — первый кадр через <video preload=metadata>, а не <img src=mp4>.
           thumbHtml = mediaUrl
-            ? `<video src="${escapeHtml(mediaUrl)}" preload="metadata" muted tabindex="-1"></video><div class="home-card-play">▶</div>`
+            ? `<video src="${mediaUrl}" preload="metadata" muted tabindex="-1"></video><div class="home-card-play">▶</div>`
             : '';
         } else {
           thumbHtml = mediaUrl
-            ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`
+            ? `<img src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`
             : '';
         }
       }
@@ -17075,8 +17308,8 @@
       // См. комментарий в loadModerationQueue — пустой src="" у img/video
       // засоряет консоль ошибками "Некорректный URI", просто не рисуем тег.
       const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
-        ? `<video src="${escapeHtml(item.cover_url)}" muted preload="metadata"></video>`
-        : `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" loading="lazy">`);
+        ? `<video src="${item.cover_url}" muted preload="metadata"></video>`
+        : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy">`);
 
       return `
       <div class="card card-type-collection">
@@ -17556,7 +17789,7 @@
   window.addEventListener('error', (e) => {
     const feedEl = document.getElementById('feed');
     if (feedEl && feedEl.innerHTML.includes('Загрузка')) {
-      feedEl.innerHTML = `<p class="empty">Ошибка скрипта: ${escapeHtml(e.message)}</p>`;
+      feedEl.innerHTML = `<p class="empty">Ошибка скрипта: ${e.message}</p>`;
     }
   });
 
