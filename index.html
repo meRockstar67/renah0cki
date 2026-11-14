@@ -7684,7 +7684,7 @@
 
   // Файл считается «своим» (Backblaze B2 или cdn.renah0cki.xyz), а не внешней ссылкой.
   function isOwnUploadedMediaUrl(url) {
-    return !!url && (url.includes('backblazeb2.com') || url.includes('cdn.renah0cki.xyz'));
+    return !!url && /^https:\/\/(?:[a-z0-9-]+\.)*backblazeb2\.com\//i.test(url) || /^https:\/\/cdn\.renah0cki\.xyz\//i.test(String(url||''));
   }
 
   // Спойлер-блюр арта: превью всегда размыто, снять можно только внутри открытого поста.
@@ -8918,7 +8918,7 @@
     return `<div class="emoji-picker-grid">${
       SEVENTV_EMOTES.map(em =>
         `<button type="button" class="emoji-item" data-emote-name="${escapeHtml(em.name)}" title="${escapeHtml(em.name)}">
-          <img src="${em.url}" alt="${escapeHtml(em.name)}" loading="lazy">
+          <img src="${escapeHtml(em.url)}" alt="${escapeHtml(em.name)}" loading="lazy">
         </button>`
       ).join('')
     }</div>`;
@@ -8948,7 +8948,7 @@
     return escaped.split(/(\s+)/).map(token => {
       const emote = SEVENTV_EMOTE_MAP.get(token);
       return emote
-        ? `<img class="chat-emote" src="${emote.url}" alt="${token}" title="${token}" loading="lazy">`
+        ? `<img class="chat-emote" src="${escapeHtml(emote.url)}" alt="${token}" title="${token}" loading="lazy">`
         : token;
     }).join('');
   }
@@ -9973,7 +9973,7 @@
       const replyAvatar = currentUser?.avatar_url || presetToDataUrl('p0');
       slot.innerHTML = `
         <div class="reply-form">
-          ${currentUser ? `<img class="comment-avatar" src="${replyAvatar}" alt="" style="width:28px;height:28px;flex-shrink:0;margin-top:2px;">` : ''}
+          ${currentUser ? `<img class="comment-avatar" src="${escapeHtml(replyAvatar)}" alt="" style="width:28px;height:28px;flex-shrink:0;margin-top:2px;">` : ''}
           <div class="reply-form-inner">
             <textarea placeholder="Ответить..." maxlength="2000" rows="1"></textarea>
             ${currentUser && canSendVoice(currentUser.role) ? renderVoiceControlsHtml() : ''}
@@ -11482,16 +11482,16 @@
     let linkHtml = '';
 
     if (item.content_type === 'art' && mediaUrl) {
-      mediaHtml = `<img src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}">`;
+      mediaHtml = `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${escapeHtml(mediaUrl)}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}">`;
     } else if (item.content_type === 'video') {
       const ytId = getYoutubeId(mediaUrl);
       if (isOwnUploadedMediaUrl(mediaUrl)) {
         // загруженный в B2 файл — превью прямо из видео, кликабельно (лайтбокс)
-        mediaHtml = `<video src="${mediaUrl}" preload="metadata" muted data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}"></video>`;
+        mediaHtml = `<video src="${escapeHtml(mediaUrl)}" preload="metadata" muted data-lightbox="${escapeHtml(mediaUrl)}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}"></video>`;
       } else if (ytId) {
         // YouTube — показываем превью-картинку с канала + кликабельную ссылку
         const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-        mediaHtml = `<img src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy">`;
+        mediaHtml = `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(item.title)}" loading="lazy">`;
         linkHtml = `<a class="mod-link" href="https://www.youtube.com/watch?v=${ytId}" target="_blank" rel="noopener noreferrer">▶ Открыть на YouTube</a>`;
       } else if (mediaUrl) {
         // прочая внешняя ссылка на видео — хотя бы текстовая ссылка
@@ -11572,8 +11572,8 @@
         // "Некорректный URI" в консоли, если у сборника почему-то нет обложки.
         // Просто не рисуем тег вовсе, если cover_url пустой.
         const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
-          ? `<video src="${item.cover_url}" muted preload="metadata" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы"></video>`
-          : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы">`);
+          ? `<video src="${escapeHtml(item.cover_url)}" muted preload="metadata" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы"></video>`
+          : `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" loading="lazy" style="cursor:pointer;" title="Нажми, чтобы посмотреть все файлы">`);
         return `
         <div class="mod-card" data-kind="collection" data-id="${item.id}" data-author="${item.submitted_by}">
           <div class="mod-collection-preview" data-preview-collection="${item.id}" data-title="${escapeHtml(item.title)}" style="position:relative;">
@@ -12206,7 +12206,7 @@
     const showHeader = currentUser && isModeratorOrHigher(currentUser.role) && ownerInfo.id !== currentUser.id;
     headerEl.innerHTML = showHeader ? `
       <div class="support-chat-header-user">
-        <img src="${ownerInfo.avatar_url || presetToDataUrl('p0')}" alt="">
+        <img src="${escapeHtml(ownerInfo.avatar_url || presetToDataUrl('p0'))}" alt="">
         <span>${escapeHtml(ownerInfo.display_name || ownerInfo.username || 'без имени')}</span>
       </div>
     ` : '';
@@ -13324,23 +13324,23 @@
       const mediaUrl = item.cover_image_url || item.source_url || '';
       let mediaHtml = '';
       if (item.content_type === 'art' && mediaUrl) {
-        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
+        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${escapeHtml(mediaUrl)}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
       } else if (item.content_type === 'video') {
         const ytId = getYoutubeId(mediaUrl);
         if (isOwnUploadedMediaUrl(mediaUrl)) {
-          mediaHtml = `<div class="card-video-thumb" data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
-            <video class="card-video" src="${mediaUrl}" preload="metadata" tabindex="-1"></video>
+          mediaHtml = `<div class="card-video-thumb" data-lightbox="${escapeHtml(mediaUrl)}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
+            <video class="card-video" src="${escapeHtml(mediaUrl)}" preload="metadata" tabindex="-1"></video>
             <div class="card-video-play">▶</div>
           </div>`;
         } else if (ytId) {
           const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
           mediaHtml = `<a class="card-video-thumb" href="https://www.youtube.com/watch?v=${ytId}" target="_blank" rel="noopener noreferrer">
-            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+            <img class="card-video" src="${escapeHtml(thumb)}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
             <div class="card-video-play">▶</div>
           </a>`;
         }
       } else if (item.content_type === 'fanfic' && item.cover_image_url) {
-        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
+        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${escapeHtml(item.cover_image_url)}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
       }
       const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl) && !getYoutubeId(mediaUrl));
       // см. комментарий в renderFeedCards — счётчик просмотров не растёт для
@@ -13374,8 +13374,8 @@
       // См. комментарий в loadModerationQueue — пустой src="" у img/video
       // засоряет консоль ошибками "Некорректный URI", просто не рисуем тег.
       const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
-        ? `<video src="${item.cover_url}" muted preload="metadata"></video>`
-        : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy">`);
+        ? `<video src="${escapeHtml(item.cover_url)}" muted preload="metadata"></video>`
+        : `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" loading="lazy">`);
       const menuHtml = canManageThisProfile ? `
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
@@ -14779,8 +14779,8 @@
       }
       const src = item.kind === 'upload' ? item._previewUrl : item.mediaUrl;
       const mediaTag = isVideo
-        ? `<video src="${src}" muted preload="metadata"></video><span class="cf-video-badge">▶</span>`
-        : `<img src="${src}" alt="">`;
+        ? `<video src="${escapeHtml(src)}" muted preload="metadata"></video><span class="cf-video-badge">▶</span>`
+        : `<img src="${escapeHtml(src)}" alt="">`;
       return `
         <div class="collection-file-item" data-idx="${idx}">
           ${mediaTag}
@@ -14887,8 +14887,8 @@
       const alreadyPicked = collectionItems.some(ci => ci.kind === 'existing' && ci.sourceContentId === item.id);
       const thumbUrl = isYoutube ? `https://img.youtube.com/vi/${getYoutubeId(mediaUrl)}/hqdefault.jpg` : mediaUrl;
       const tag = (isVideoFile)
-        ? `<video src="${thumbUrl}" muted preload="metadata"></video>`
-        : `<img src="${thumbUrl}" alt="">`;
+        ? `<video src="${escapeHtml(thumbUrl)}" muted preload="metadata"></video>`
+        : `<img src="${escapeHtml(thumbUrl)}" alt="">`;
       return `
         <div class="existing-picker-item ${alreadyPicked ? 'picked' : ''}" data-content-id="${item.id}" data-media-url="${escapeHtml(isYoutube ? thumbUrl : mediaUrl)}" data-media-type="${item.content_type === 'video' ? 'video' : 'photo'}" data-youtube="${isYoutube ? '1' : '0'}" title="${escapeHtml(item.title)}">
           ${tag}
@@ -15235,14 +15235,14 @@
     const watchUrl = `https://www.youtube.com/watch?v=${video.id}`;
     return `
       <div class="card pinned-video-card">
-        <a class="card-video-thumb" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
-          <img class="card-video" src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+        <a class="card-video-thumb" href="${escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
+          <img class="card-video" src="${escapeHtml(video.thumb)}" alt="${escapeHtml(video.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
           <div class="card-video-play">▶</div>
         </a>
         <div class="meta">📌 НОВОЕ НА КАНАЛЕ</div>
         <h3>${escapeHtml(video.title)}</h3>
         <div class="card-footer">
-          <a class="go" href="${watchUrl}" target="_blank" rel="noopener noreferrer">Смотреть на YouTube →</a>
+          <a class="go" href="${escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer">Смотреть на YouTube →</a>
           <span></span>
         </div>
       </div>
@@ -15384,9 +15384,9 @@
     trackEl.innerHTML = videos.map(video => {
       const watchUrl = `https://www.youtube.com/watch?v=${video.id}`;
       return `
-        <a class="reel-item" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
+        <a class="reel-item" href="${escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(video.title)}">
           <div class="reel-thumb-wrap">
-            <img src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy">
+            <img src="${escapeHtml(video.thumb)}" alt="${escapeHtml(video.title)}" loading="lazy">
             <div class="reel-play">▶</div>
           </div>
           <p class="reel-item-title">${escapeHtml(video.title)}</p>
@@ -16309,21 +16309,21 @@
       let mediaHtml = '';
 
       if (item.content_type === 'art' && mediaUrl) {
-        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${mediaUrl}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
+        mediaHtml = `<img class="card-img${spoilerBlurClass(item)}" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" data-lightbox="${escapeHtml(mediaUrl)}" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item, 'card-spoiler-hint')}`;
       } else if (item.content_type === 'video') {
         const ytId = getYoutubeId(mediaUrl);
         if (isOwnUploadedMediaUrl(mediaUrl)) {
           // Загруженный файл — показываем превью с плеером
-          mediaHtml = `<div class="card-video-thumb" data-lightbox="${mediaUrl}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
-            <video class="card-video" src="${mediaUrl}" preload="metadata" tabindex="-1"></video>
+          mediaHtml = `<div class="card-video-thumb" data-lightbox="${escapeHtml(mediaUrl)}" data-type="video" data-title="${escapeHtml(item.title)}" data-content-id="${item.id}" data-desc="${escapeHtml(item.description || '')}" data-likes="${item.likes || 0}">
+            <video class="card-video" src="${escapeHtml(mediaUrl)}" preload="metadata" tabindex="-1"></video>
             <div class="card-video-play">▶</div>
           </div>`;
         } else if (ytId) {
           // YouTube — превью ведёт прямо на youtube.com в новой вкладке
           const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
           const watchUrl = `https://www.youtube.com/watch?v=${ytId}`;
-          mediaHtml = `<a class="card-video-thumb" href="${watchUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">
-            <img class="card-video" src="${thumb}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
+          mediaHtml = `<a class="card-video-thumb" href="${escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">
+            <img class="card-video" src="${escapeHtml(thumb)}" alt="${escapeHtml(item.title)}" loading="lazy" style="object-fit:cover;pointer-events:none;">
             <div class="card-video-play">▶</div>
           </a>`;
         }
@@ -16332,7 +16332,7 @@
         // лайтбокса (сам текст фанфика хранится не у нас, открывать внутри
         // сайта нечего). Клик по обложке ведёт по той же ссылке, что и
         // "Читать оригинал" ниже.
-        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${item.cover_image_url}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
+        mediaHtml = `<a href="${safeUrl(item.source_url)}" target="_blank" rel="noopener noreferrer"><img class="card-img" src="${escapeHtml(item.cover_image_url)}" alt="${escapeHtml(item.title)}" loading="lazy"></a>`;
       }
 
       const isExternalLink = item.content_type === 'fanfic' || (item.content_type === 'video' && !isOwnUploadedMediaUrl(mediaUrl) && !getYoutubeId(mediaUrl));
@@ -16627,20 +16627,20 @@
       const mediaUrl = item.cover_image_url || item.source_url || '';
       let thumbHtml = '';
       if (type === 'art') {
-        thumbHtml = mediaUrl ? `<img class="${spoilerBlurClass(item).trim()}" src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item)}` : '';
+        thumbHtml = mediaUrl ? `<img class="${spoilerBlurClass(item).trim()}" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" data-blurred="${item.is_blurred ? '1' : '0'}">${spoilerHintHtml(item)}` : '';
       } else {
         const ytId = getYoutubeId(mediaUrl);
         if (ytId) {
           const thumbSrc = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-          thumbHtml = `<img src="${thumbSrc}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`;
+          thumbHtml = `<img src="${escapeHtml(thumbSrc)}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`;
         } else if (isOwnUploadedMediaUrl(mediaUrl)) {
           // Превью для загруженного видео — первый кадр через <video preload=metadata>, а не <img src=mp4>.
           thumbHtml = mediaUrl
-            ? `<video src="${mediaUrl}" preload="metadata" muted tabindex="-1"></video><div class="home-card-play">▶</div>`
+            ? `<video src="${escapeHtml(mediaUrl)}" preload="metadata" muted tabindex="-1"></video><div class="home-card-play">▶</div>`
             : '';
         } else {
           thumbHtml = mediaUrl
-            ? `<img src="${mediaUrl}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`
+            ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(item.title)}" loading="lazy"><div class="home-card-play">▶</div>`
             : '';
         }
       }
@@ -17075,8 +17075,8 @@
       // См. комментарий в loadModerationQueue — пустой src="" у img/video
       // засоряет консоль ошибками "Некорректный URI", просто не рисуем тег.
       const coverTag = !item.cover_url ? '' : (item.cover_type === 'video'
-        ? `<video src="${item.cover_url}" muted preload="metadata"></video>`
-        : `<img src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy">`);
+        ? `<video src="${escapeHtml(item.cover_url)}" muted preload="metadata"></video>`
+        : `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" loading="lazy">`);
 
       return `
       <div class="card card-type-collection">
@@ -17556,7 +17556,7 @@
   window.addEventListener('error', (e) => {
     const feedEl = document.getElementById('feed');
     if (feedEl && feedEl.innerHTML.includes('Загрузка')) {
-      feedEl.innerHTML = `<p class="empty">Ошибка скрипта: ${e.message}</p>`;
+      feedEl.innerHTML = `<p class="empty">Ошибка скрипта: ${escapeHtml(e.message)}</p>`;
     }
   });
 
