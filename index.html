@@ -5621,7 +5621,8 @@
   .home-center-cols > .home-col { padding: 0 18px; }
   .home-center-cols > .home-col:first-child { padding-left: 0; }
   .home-center-cols > .home-col:last-child { padding-right: 0; }
-  .home-center-cols > .home-col + .home-col { border-left: 2px solid rgba(243, 230, 210, 0.22); }
+  .home-center-cols .home-see-more { display: none !important; }
+  .home-center-cols .home-col-header { padding-right: 0 !important; }
   .home-center-cols .home-card-grid { grid-template-columns: minmax(0, 1fr); }
   @media (max-width: 1200px) {
     .home-layout { grid-template-columns: 1fr; }
@@ -5629,7 +5630,7 @@
   @media (max-width: 900px) {
     .home-center-cols { grid-template-columns: 1fr; }
     .home-center-cols > .home-col { padding: 0; }
-    .home-center-cols > .home-col + .home-col { border-left: 0; border-top: 2px solid rgba(243, 230, 210, 0.22); padding-top: 18px; margin-top: 18px; }
+    .home-center-cols > .home-col + .home-col { margin-top: 22px; }
     .home-center-cols .home-card-grid { grid-template-columns: 1fr 1fr; }
   }
   .home-streamers-sidebar {
