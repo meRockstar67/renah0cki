@@ -13564,7 +13564,9 @@
     const profileRoles = rolesOf(profile).filter(r => roleLabel(r) && r !== 'user');
     const badgeHtml = profileRoles.length
       ? `<div class="profile-role-badges">${profileRoles.map(r => `<span class="profile-role-badge ${roleBadgeClass(r)}">${roleIcon(r)} ${roleLabel(r)}</span>`).join('')}</div>`
-      : `<span class="role-icon" title="Пользователь">${icon}</span><br>`;
+      : (label
+        ? `<span class="profile-role-badge ${roleBadgeClass(effectiveRole)}">${icon} ${label}</span><br>`
+        : `<span class="role-icon" title="Пользователь">${icon}</span><br>`);
 
     const totalCount = userContent.length + userCollections.length + userPosts.length;
 
