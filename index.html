@@ -11345,7 +11345,7 @@
       }
     } catch (e) {}
   })();
-  // Звук при входе для отдельных пользователей: до 2 раз в сутки, громкость 45%.
+  // Звук при входе для отдельных пользователей: без дневного лимита, играет после каждой перезагрузки, громкость 45%.
   // Браузер разрешает звук только после действия пользователя, поэтому играем на первом клике/тапе/клавише.
   const WELCOME_SOUND_USERS = ['meowh0cki', 'merockstar'];
   function welcomeSound() {
@@ -11353,17 +11353,12 @@
       const u = currentUser && String(currentUser.username || '').toLowerCase();
       if (!u || !WELCOME_SOUND_USERS.includes(u) || window.__welcomeArmed) return;
       window.__welcomeArmed = true;
-      const key = 'fh_welcome_' + u + '_' + new Date().toLocaleDateString('sv');
-      const count = () => { try { return parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch { return 0; } };
-      if (count() >= 2) return;
       const evs = ['pointerdown', 'keydown', 'touchstart'];
       const go = () => {
         evs.forEach(e => window.removeEventListener(e, go, true));
-        const c = count();
-        if (c >= 2) return;
         const a = new Audio('welcome-sound.mp3');
         a.volume = 0.45;
-        a.play().then(() => { try { localStorage.setItem(key, String(c + 1)); } catch {} }).catch(() => {});
+        a.play().catch(() => {});
       };
       evs.forEach(e => window.addEventListener(e, go, true));
     } catch (e) { console.warn('welcomeSound', e); }
