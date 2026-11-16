@@ -11348,7 +11348,7 @@
       }
     } catch (e) {}
   })();
-  // Звук при входе для отдельных пользователей: до 2 раз в сутки, громкость 65%.
+  // Звук при входе для отдельных пользователей: до 2 раз в сутки, громкость 45%.
   // Браузер разрешает звук только после действия пользователя, поэтому играем на первом клике/тапе/клавише.
   const WELCOME_SOUND_USERS = ['meowh0cki', 'merockstar'];
   function welcomeSound() {
@@ -11365,7 +11365,7 @@
         const c = count();
         if (c >= 2) return;
         const a = new Audio('welcome-sound.mp3');
-        a.volume = 0.65;
+        a.volume = 0.45;
         a.play().then(() => { try { localStorage.setItem(key, String(c + 1)); } catch {} }).catch(() => {});
       };
       evs.forEach(e => window.addEventListener(e, go, true));
