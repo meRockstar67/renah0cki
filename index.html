@@ -6697,8 +6697,8 @@
       height: var(--home-h, max(640px, min(calc(100dvh - 125px), 840px)));
     }
     /* масштаб главной под ширину экрана (JS задаёт --home-z): на 1920px выглядит как при 110% */
-    body.is-home-page header,
     body.is-home-page main { zoom: var(--home-z, 1); }
+    header { zoom: var(--hdr-z, 1); }
     #homePageLayout[style*="display: none"] { display: none !important; }
     @media (max-width: 1500px) {
       #homePageLayout { grid-template-columns: 240px minmax(0, 1.3fr) minmax(0, 1fr) 260px; column-gap: 18px; }
@@ -6715,6 +6715,7 @@
     #homeRespectPlusPanel { grid-column: 1; grid-row: 5 / 8; max-height: none; min-height: 0; }
     #homeColMobileSponsors { display: none !important; }
     /* центр */
+    #homeColArt, #homeColVideo { width: 100%; max-width: 960px; justify-self: center; }
     #homeColArt   { grid-column: 2 / 4; grid-row: 1 / 4; min-height: 0; gap: 10px; position: relative; }
     #homeColVideo { grid-column: 2 / 4; grid-row: 4 / 7; min-height: 0; gap: 10px; position: relative; }
     /* правая колонка: отзывы */
@@ -7169,9 +7170,12 @@
     raf = 0;
     var root = document.documentElement;
     var layout = document.getElementById('homePageLayout');
-    var on = document.body.classList.contains('is-home-page') && window.innerWidth >= 1201;
-    var z = on ? Math.min(1.5, Math.max(1, window.innerWidth / 1745)) : 1;
+    var wide = window.innerWidth >= 1201;
+    var on = document.body.classList.contains('is-home-page') && wide;
+    var zz = wide ? Math.min(1.5, Math.max(1, window.innerWidth / 1745)) : 1;
+    var z = on ? zz : 1;
     root.style.setProperty('--home-z', String(z));
+    root.style.setProperty('--hdr-z', String(zz));
     if (!layout) return;
     if (!on) { layout.style.removeProperty('--home-h'); return; }
     var top = layout.getBoundingClientRect().top + window.scrollY;
@@ -12977,7 +12981,7 @@
       const navW = inNav ? nav.offsetWidth - btnW : nav.offsetWidth;
       const navLeft = (header.clientWidth - navW) / 2;
       const needed = 430 + btnW + 24;
-      const tooNarrow = window.innerWidth <= 900 || navLeft < needed;
+      const tooNarrow = true; // всегда в начале вкладок: шапка одинаковая и без наложений
       if (tooNarrow) { if (!inNav) nav.insertBefore(btn, nav.firstChild); }
       else if (inNav) header.insertBefore(btn, nav);
     }
@@ -16456,7 +16460,7 @@
   // автоматически закреплён первым во вкладке «Фото» первые WEEKLY_TOP_PIN_DAYS
   // дней новой недели. Считается на клиенте из уже загруженной ленты —
   // без крона, без новых таблиц и запросов. ─────────────────────────────────
-  const WEEKLY_TOP_PIN_DAYS = 2;
+  const WEEKLY_TOP_PIN_DAYS = 3;
   let weeklyTopArtId = null;
 
   // Начало текущей недели (понедельник 00:00 по Киеву) в обычных ms.
