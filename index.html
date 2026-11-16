@@ -4925,6 +4925,8 @@
     margin-bottom: 8px;
   }
 
+  .profile-role-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .profile-role-badges .profile-role-badge { margin: 0; }
   .role-option-row { display: flex; align-items: center; gap: 4px; }
   .role-option-row .role-option-btn { flex: 1; }
   .role-main-btn { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px 8px; }
@@ -13526,8 +13528,9 @@
     const icon = roleIcon(effectiveRole);
     const privileged = isPrivileged(profile);
 
-    const badgeHtml = label
-      ? `<span class="profile-role-badge ${roleBadgeClass(effectiveRole)}">${icon} ${label}</span><br>`
+    const profileRoles = rolesOf(profile).filter(r => roleLabel(r) && r !== 'user');
+    const badgeHtml = profileRoles.length
+      ? `<div class="profile-role-badges">${profileRoles.map(r => `<span class="profile-role-badge ${roleBadgeClass(r)}">${roleIcon(r)} ${roleLabel(r)}</span>`).join('')}</div>`
       : `<span class="role-icon" title="Пользователь">${icon}</span><br>`;
 
     const totalCount = userContent.length + userCollections.length + userPosts.length;
