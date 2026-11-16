@@ -433,6 +433,16 @@
   .news-spoiler.open { background: transparent; color: inherit; }
   .news-hr { border: 0; border-top: 1px solid var(--border); margin: 1.6em 0; }
 
+
+  .news-chan-link, .news-by { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; }
+  .news-chan-link:hover .news-author { color: var(--accent-hover); text-decoration: underline; }
+  .news-chan { z-index: 192; }
+  .nch-head { display: flex; align-items: center; gap: 18px; margin: 8px 0 24px; flex-wrap: wrap; }
+  .nch-ava { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; background: var(--panel-2); border: 2px solid var(--accent); }
+  .nch-ava-l { display: inline-flex; align-items: center; justify-content: center; background: var(--accent); color: #1b1209; font-size: 40px; font-weight: 800; text-transform: uppercase; }
+  .nch-info { flex: 1; min-width: 200px; }
+  .nch-info h1 { margin: 0 0 6px; font-size: clamp(24px, 5vw, 32px); }
+
   .nc { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
   .nc h3 { margin: 0 0 14px; font-size: 20px; }
   .nc-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
@@ -10684,6 +10694,7 @@
     await openPostFromUrl();
     await openProfileFromUrl();
     await openNewsFromUrl();
+    await openNewsChanFromUrl();
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -10778,7 +10789,11 @@
 
   let newsLiked = new Set();
   const newsAva = (item) => {
-    if (item.channel_name) return `<span class="news-ava news-ava-ch">${escapeHtml(Array.from(item.channel_name)[0] || '📰')}</span>`;
+    if (item.channel_name) {
+      const cav = item.channel_id && newsChanCache[item.channel_id] && newsChanCache[item.channel_id].avatar_url;
+      if (cav) return `<img class="news-ava" src="${escapeHtml(cav)}" alt="">`;
+      return `<span class="news-ava news-ava-ch">${escapeHtml(Array.from(item.channel_name)[0] || '📰')}</span>`;
+    }
     const a = item.author;
     const src = (a && a.avatar_url) || presetToDataUrl('p0');
     return `<img class="news-ava" src="${escapeHtml(src)}" alt="">`;
@@ -10807,6 +10822,7 @@
       return;
     }
     newsCache = rows;
+    await loadNewsChannels(rows);
     await loadNewsLiked(rows.map(x => x.id));
     renderNewsFeed();
   }
@@ -10851,7 +10867,7 @@
       return `<article class="news-card${n.pinned ? ' pinned' : ''}" data-news-id="${n.id}">
         ${cover ? `<div class="news-cover-wrap"><img class="news-cover" src="${escapeHtml(cover)}" alt="" loading="lazy">${n.pinned ? '<span class="news-badge">📌 Закреплено</span>' : ''}</div>` : (n.pinned ? '<div class="news-pin-row">📌 Закреплено</div>' : '')}
         <div class="news-card-body">
-          <div class="news-meta">${newsAva(n)}<span class="news-author">${escapeHtml(newsAuthor(n))}</span><span class="news-dot">·</span><span>${timeAgo(n.created_at)}</span></div>
+          <div class="news-meta">${newsByline(n)}<span class="news-dot">·</span><span>${timeAgo(n.created_at)}</span></div>
           <h3>${escapeHtml(n.title)}</h3>
           <p class="news-excerpt">${escapeHtml(newsPlain(n.body).slice(0, 320))}</p>
           <div class="news-foot">
@@ -10871,6 +10887,8 @@
       ${cards || '<p class="news-empty">Пока новостей нет.</p>'}
     </div>`;
     document.getElementById('newsRoot').addEventListener('click', async (e) => {
+      const chl = e.target.closest('[data-news-chan]');
+      if (chl) { e.preventDefault(); e.stopPropagation(); openNewsChan(chl.dataset.newsChan); return; }
       const act = e.target.closest('[data-news-act]');
       const card = e.target.closest('[data-news-id]');
       const id = card && card.dataset.newsId;
@@ -10918,6 +10936,8 @@
       <div class="news-article" id="newsArticle"></div>`;
     document.body.appendChild(v);
     v.addEventListener('click', async (e) => {
+      const chl = e.target.closest('[data-news-chan]');
+      if (chl) { e.preventDefault(); openNewsChan(chl.dataset.newsChan); return; }
       const like = e.target.closest('[data-news-act="like"]');
       if (like) { newsToggleLike(v.dataset.id); return; }
       const cm = e.target.closest('[data-news-act="comments"]');
@@ -10983,7 +11003,7 @@
     document.getElementById('newsArticle').innerHTML = `
       ${cover ? `<img class="news-cover" src="${escapeHtml(cover)}" alt="">` : ''}
       <h1>${escapeHtml(item.title)}</h1>
-      <div class="news-meta">${newsAva(item)}<span class="news-author">${escapeHtml(newsAuthor(item))}</span><span class="news-dot">·</span><span>${new Date(item.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
+      <div class="news-meta">${newsByline(item)}<span class="news-dot">·</span><span>${new Date(item.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
       <div class="news-body">${renderNewsBody(item.body)}</div>
       ${newsStatsHtml(item, true)}
       <section class="nc" id="newsComments">
@@ -11013,6 +11033,7 @@
         newsRefreshStats(id);
       }
     } catch (e) {}
+    await loadNewsChannels([item]);
     const v = ensureNewsView();
     renderNewsArticle(item);
     v.hidden = false;
@@ -11036,12 +11057,141 @@
     hideNewsView();
     history.replaceState(null, '', '/');
   }
+  // ── Каналы новостей: страница канала, смена аватарки владельцем ──
+  let newsChanCache = {};
+  async function loadNewsChannels(items) {
+    const ids = [...new Set(items.map(x => x.channel_id).filter(i => i && !newsChanCache[i]))];
+    if (!ids.length) return;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/news_channels?id=in.(${ids.join(',')})&select=id,name,avatar_url,owner_id`, { headers: newsHeaders() });
+      if (r.ok) (await r.json()).forEach(c => { newsChanCache[c.id] = c; });
+    } catch (e) {}
+  }
+  function newsByline(item) {
+    const inner = `${newsAva(item)}<span class="news-author">${escapeHtml(newsAuthor(item))}</span>`;
+    return item.channel_id ? `<a href="#" class="news-chan-link" data-news-chan="${item.channel_id}">${inner}</a>` : `<span class="news-by">${inner}</span>`;
+  }
+  let newsChanPushed = false;
+  function ensureNewsChan() {
+    let v = document.getElementById('newsChan');
+    if (v) return v;
+    v = document.createElement('div');
+    v.id = 'newsChan';
+    v.className = 'news-view news-chan';
+    v.hidden = true;
+    v.innerHTML = `<div class="news-bar"><button type="button" class="news-btn ghost" data-nch="close">← Назад</button><span></span></div>
+      <div class="news-article" id="newsChanBody"></div>
+      <input type="file" id="nchFile" accept="image/*" hidden>`;
+    document.body.appendChild(v);
+    v.addEventListener('click', async (e) => {
+      e.target.closest('a') && e.preventDefault();
+      const b = e.target.closest('[data-nch]');
+      if (b) {
+        const a = b.dataset.nch, id = v.dataset.id, ch = newsChanCache[id];
+        if (a === 'close') closeNewsChan();
+        else if (a === 'ava') document.getElementById('nchFile').click();
+        else if (a === 'rename' && ch) {
+          const nm = (prompt('Новое название канала', ch.name) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+          if (!nm || nm === ch.name) return;
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/news_channels?id=eq.${id}`, { method: 'PATCH', headers: { ...newsHeaders(true), Prefer: 'return=minimal' }, body: JSON.stringify({ name: nm }) });
+          if (!r.ok) { alert('Не удалось переименовать'); return; }
+          ch.name = nm; newsCache.forEach(n => { if (n.channel_id === id) n.channel_name = nm; });
+          openNewsChan(id, { noPush: true }); if (currentFeedFilter === 'news') renderNewsFeed();
+        }
+        return;
+      }
+      const card = e.target.closest('[data-news-id]');
+      if (card) { hideNewsChan(); openNews(card.dataset.newsId); }
+    });
+    v.querySelector('#nchFile').addEventListener('change', async (e) => {
+      const f = e.target.files[0]; e.target.value = '';
+      const id = v.dataset.id, ch = newsChanCache[id];
+      if (!f || !ch) return;
+      if (!/^image\//.test(f.type)) { alert('Нужна картинка'); return; }
+      if (f.size > 5 * 1048576) { alert('Картинка больше 5 МБ'); return; }
+      try {
+        const up = await uploadToB2(f, currentUser.id);
+        if (up.error) throw new Error(up.error);
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/news_channels?id=eq.${id}`, { method: 'PATCH', headers: { ...newsHeaders(true), Prefer: 'return=minimal' }, body: JSON.stringify({ avatar_url: up.url }) });
+        if (!r.ok) throw new Error('save');
+        ch.avatar_url = up.url;
+        openNewsChan(id, { noPush: true });
+        if (currentFeedFilter === 'news') renderNewsFeed();
+      } catch (err) { alert('Не удалось сменить аватарку: ' + err.message); }
+    });
+    return v;
+  }
+  async function openNewsChan(id, opts = {}) {
+    if (!/^[0-9a-f-]{36}$/i.test(id || '')) return;
+    let ch;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/news_channels?id=eq.${id}&select=id,name,avatar_url,owner_id,owner:profiles!news_channels_owner_id_fkey(username,display_name)`, { headers: newsHeaders() });
+      ch = (await r.json())[0];
+    } catch (e) {}
+    if (!ch) { if (opts.fromUrl) history.replaceState(null, '', '/'); return; }
+    newsChanCache[id] = { id: ch.id, name: ch.name, avatar_url: ch.avatar_url, owner_id: ch.owner_id };
+    let rows = [];
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/news?channel_id=eq.${id}&select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)&order=pinned.desc,created_at.desc&limit=60`, { headers: newsHeaders() });
+      if (r.ok) rows = await r.json();
+    } catch (e) {}
+    rows.forEach(n => { const i = newsCache.findIndex(x => x.id === n.id); if (i >= 0) newsCache[i] = n; else newsCache.push(n); });
+    await loadNewsLiked(rows.map(x => x.id));
+    const v = ensureNewsChan();
+    v.dataset.id = id;
+    const mine = !!currentUser && currentUser.id === ch.owner_id;
+    const ava = ch.avatar_url ? `<img class="nch-ava" src="${escapeHtml(ch.avatar_url)}" alt="">` : `<span class="nch-ava nch-ava-l">${escapeHtml(Array.from(ch.name)[0] || '📰')}</span>`;
+    const owner = ch.owner && (ch.owner.display_name || ch.owner.username);
+    document.getElementById('newsChanBody').innerHTML = `
+      <div class="nch-head">${ava}
+        <div class="nch-info"><h1>${escapeHtml(ch.name)}</h1>
+          <div class="news-meta" style="margin:0;"><span>Канал новостей</span>${owner ? `<span class="news-dot">·</span><span>Автор: ${escapeHtml(owner)}</span>` : ''}<span class="news-dot">·</span><span>Новостей: ${rows.length}</span></div>
+          ${mine ? `<div class="news-actions"><button type="button" data-nch="ava">🖼 Сменить аватарку</button><button type="button" data-nch="rename">✏️ Название</button></div>` : ''}
+        </div></div>
+      ${rows.map(n => {
+        const cover = newsCover(n);
+        return `<article class="news-card${n.pinned ? ' pinned' : ''}" data-news-id="${n.id}">
+          ${cover ? `<div class="news-cover-wrap"><img class="news-cover" src="${escapeHtml(cover)}" alt="" loading="lazy">${n.pinned ? '<span class="news-badge">📌 Закреплено</span>' : ''}</div>` : ''}
+          <div class="news-card-body"><div class="news-meta"><span>${timeAgo(n.created_at)}</span></div>
+            <h3>${escapeHtml(n.title)}</h3><p class="news-excerpt">${escapeHtml(newsPlain(n.body).slice(0, 320))}</p>
+            <div class="news-foot"><div class="news-stats"><span class="news-stat static"><span class="ic">${newsLiked.has(n.id) ? '❤️' : '🤍'}</span><b>${newsNum(n.likes_count)}</b></span><span class="news-stat static"><span class="ic">💬</span><b>${newsNum(n.comments_count)}</b></span><span class="news-stat static"><span class="ic">👁</span><b>${newsNum(n.views)}</b></span></div><span class="news-more">Читать →</span></div>
+          </div></article>`;
+      }).join('') || '<p class="news-empty">В этом канале пока нет новостей.</p>'}`;
+    v.hidden = false;
+    v.scrollTop = 0;
+    document.body.style.overflow = 'hidden';
+    if (opts.noPush) return;
+    if (opts.fromUrl) { newsChanPushed = false; history.replaceState({ chan: id }, '', `/?channel=${id}`); }
+    else { history.pushState({ chan: id }, '', `/?channel=${id}`); newsChanPushed = true; }
+  }
+  function hideNewsChan() {
+    const v = document.getElementById('newsChan'); if (v) v.hidden = true;
+    const nv = document.getElementById('newsView');
+    if (!nv || nv.hidden) document.body.style.overflow = '';
+  }
+  function closeNewsChan() {
+    const v = document.getElementById('newsChan');
+    if (!v || v.hidden) return;
+    if (newsChanPushed) { newsChanPushed = false; history.back(); return; }
+    hideNewsChan();
+    history.replaceState(null, '', '/');
+  }
+  async function openNewsChanFromUrl() {
+    const id = new URLSearchParams(location.search).get('channel');
+    if (id) await openNewsChan(id, { fromUrl: true });
+  }
+
   async function openNewsFromUrl() {
     const id = new URLSearchParams(location.search).get('news');
     if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return;
     await openNews(id, { fromUrl: true });
   }
-  window.addEventListener('popstate', () => { if (!(history.state && history.state.news)) hideNewsView(); });
+  window.addEventListener('popstate', () => {
+    const st = history.state || {};
+    if (!st.news) hideNewsView();
+    if (st.chan) { const cv = document.getElementById('newsChan'); if (!cv || cv.hidden) openNewsChan(st.chan, { noPush: true }); }
+    else hideNewsChan();
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const ed = document.getElementById('newsEditor');
@@ -12049,6 +12199,7 @@
   // Браузер разрешает звук только после действия пользователя, поэтому играем на первом клике/тапе/клавише.
   const WELCOME_SOUND_USERS = ['meowh0cki', 'merockstar'];
   function welcomeSound() {
+    return; // звук приветствия отключён
     try {
       const u = currentUser && String(currentUser.username || '').toLowerCase();
       if (!u || !WELCOME_SOUND_USERS.includes(u) || window.__welcomeArmed) return;
