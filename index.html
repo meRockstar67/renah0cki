@@ -10795,7 +10795,7 @@
     feedEl.innerHTML = `<p class="news-empty">Загрузка...</p>`;
     let rows = [];
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/news?select=*,author:profiles(username,display_name,avatar_url)&order=pinned.desc,created_at.desc&limit=60`, { headers: newsHeaders() });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/news?select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)&order=pinned.desc,created_at.desc&limit=60`, { headers: newsHeaders() });
       if (!r.ok) throw new Error(await r.text());
       rows = await r.json();
     } catch (e) {
@@ -10994,7 +10994,7 @@
     let item = newsCache.find(x => x.id === id);
     if (!item) {
       try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/news?id=eq.${id}&select=*,author:profiles(username,display_name,avatar_url)`, { headers: newsHeaders() });
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/news?id=eq.${id}&select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)`, { headers: newsHeaders() });
         item = (await r.json())[0];
         if (item) { newsCache.push(item); await loadNewsLiked([item.id]); if (newsLiked.size === 0) {} }
       } catch (e) {}
@@ -11188,7 +11188,7 @@
           const vw = document.getElementById('newsView');
           if (editedId && vw && !vw.hidden && vw.dataset.id === editedId) {
             try {
-              const rr = await fetch(`${SUPABASE_URL}/rest/v1/news?id=eq.${editedId}&select=*,author:profiles(username,display_name,avatar_url)`, { headers: newsHeaders() });
+              const rr = await fetch(`${SUPABASE_URL}/rest/v1/news?id=eq.${editedId}&select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)`, { headers: newsHeaders() });
               const fresh = (await rr.json())[0];
               if (fresh) { const i = newsCache.findIndex(x => x.id === editedId); if (i >= 0) newsCache[i] = fresh; else newsCache.push(fresh); renderNewsArticle(fresh); }
             } catch (e) {}
@@ -12366,7 +12366,7 @@
     listEl.innerHTML = '<p class="empty">Загрузка...</p>';
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/comment_reports?status=eq.pending&order=created_at.desc&select=id,reason,details,created_at,comment_id,reporter:profiles(username,display_name),comment:comments(id,body,voice_url,is_deleted,author:profiles(username,display_name))`,
+        `${SUPABASE_URL}/rest/v1/comment_reports?status=eq.pending&order=created_at.desc&select=id,reason,details,created_at,comment_id,reporter:profiles(username,display_name),comment:comments(id,body,voice_url,is_deleted,author:profiles!news_author_id_fkey(username,display_name))`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } }
       );
       if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
