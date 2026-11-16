@@ -7175,7 +7175,7 @@
     var zz = wide ? Math.min(1.5, Math.max(1, window.innerWidth / 1745)) : 1;
     var z = on ? zz : 1;
     root.style.setProperty('--home-z', String(z));
-    root.style.setProperty('--hdr-z', String(zz));
+    root.style.setProperty('--hdr-z', String(Math.round(zz * 0.96 * 1000) / 1000));
     if (!layout) return;
     if (!on) { layout.style.removeProperty('--home-h'); return; }
     var top = layout.getBoundingClientRect().top + window.scrollY;
