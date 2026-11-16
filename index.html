@@ -4177,6 +4177,14 @@
   .card h3 {
     margin: 0 0 8px;
     font-size: 16px;
+    /* длинное название обрезается до 2 строк с многоточием */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
   }
 
   /* видео-карточки: жирный капс заголовка, как в макете ленты "Видео" */
@@ -11345,7 +11353,7 @@
       }
     } catch (e) {}
   })();
-  // Звук при входе для отдельных пользователей: без дневного лимита, играет после каждой перезагрузки, громкость 45%.
+  // Звук при входе для отдельных пользователей: без дневного лимита, играет после каждой перезагрузки, громкость 22%.
   // Браузер разрешает звук только после действия пользователя, поэтому играем на первом клике/тапе/клавише.
   const WELCOME_SOUND_USERS = ['meowh0cki', 'merockstar'];
   function welcomeSound() {
@@ -11357,7 +11365,7 @@
       const go = () => {
         evs.forEach(e => window.removeEventListener(e, go, true));
         const a = new Audio('welcome-sound.mp3');
-        a.volume = 0.45;
+        a.volume = 0.22;
         a.play().catch(() => {});
       };
       evs.forEach(e => window.addEventListener(e, go, true));
@@ -16728,7 +16736,7 @@
         ${mediaHtml}
         <div class="meta">${item.fandom ? escapeHtml(item.fandom) + ' · ' : ''}${item.is_collection ? 'сборник' : item.content_type}${item.content_type === 'fanfic' ? ` · <span class="age-badge${item.age_rating === '18+' ? ' age-badge-18' : ''}">${item.age_rating === '18+' ? '18+' : 'PG-13'}</span>` : ''}${canTrackViews ? ` · <span class="card-views">👁 ${formatViews(item.views)}</span>` : ''} · <span class="card-upload-date">${timeAgo(item.published_at || item.created_at)}</span></div>
         ${authorName ? `<span class="card-author">${escapeHtml(authorName)}</span>` : ''}
-        <h3>${escapeHtml(item.title)}</h3>
+        <h3 title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
         ${bodyHtml}
         <div class="card-footer">
           <div class="card-footer-left">
