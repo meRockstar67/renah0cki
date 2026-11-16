@@ -11179,7 +11179,7 @@
     await loadNewsLiked(rows.map(x => x.id));
     const v = ensureNewsChan();
     v.dataset.id = id;
-    const mine = !!currentUser && currentUser.id === ch.owner_id;
+    const mine = !!currentUser && (currentUser.id === ch.owner_id || hasRole(currentUser, 'gl_moder') || hasRole(currentUser, 'admin'));
     const ava = ch.avatar_url ? `<img class="nch-ava" src="${escapeHtml(ch.avatar_url)}" alt="">` : `<span class="nch-ava nch-ava-l">${escapeHtml(Array.from(ch.name)[0] || '📰')}</span>`;
     const owner = ch.owner && (ch.owner.display_name || ch.owner.username);
     document.getElementById('newsChanBody').innerHTML = `
