@@ -10654,17 +10654,20 @@
     if (!SHORT_CODE_RE.test(path)) return;
 
     try {
-      const [contentRes, collRes] = await Promise.all([
+      const [contentRes, collRes, newsRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/content?short_code=eq.${path}&select=id`, { headers }),
-        fetch(`${SUPABASE_URL}/rest/v1/collections?short_code=eq.${path}&select=id`, { headers })
+        fetch(`${SUPABASE_URL}/rest/v1/collections?short_code=eq.${path}&select=id`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/news?short_code=eq.${path}&select=id`, { headers })
       ]);
-      const [contentRows, collRows] = await Promise.all([
+      const [contentRows, collRows, newsRows] = await Promise.all([
         contentRes.json().catch(() => []),
-        collRes.json().catch(() => [])
+        collRes.json().catch(() => []),
+        newsRes.json().catch(() => [])
       ]);
       let newSearch = '';
       if (contentRows && contentRows[0]) newSearch = `?post=${contentRows[0].id}`;
       else if (collRows && collRows[0]) newSearch = `?collection=${collRows[0].id}`;
+      else if (Array.isArray(newsRows) && newsRows[0]) newSearch = `?news=${newsRows[0].id}`;
       // Временно подставляем ?post=/?collection=, чтобы использовать openPostFromUrl(); он сам заменит адрес.
       history.replaceState(null, '', newSearch ? `/${newSearch}` : '/');
     } catch (e) {
@@ -10948,7 +10951,8 @@
       if (b.dataset.nv === 'edit') { const it = newsCache.find(x => x.id === v.dataset.id); if (it) openNewsEditor(it); }
       if (b.dataset.nv === 'copy') {
         const id = v.dataset.id;
-        const url = `${location.origin}/?news=${id}`;
+        const it0 = newsCache.find(x => x.id === id);
+        const url = location.origin + buildSharePath('news', id, it0 && it0.short_code);
         (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => { b.textContent = '✅ Скопировано'; setTimeout(() => { b.textContent = '🔗 Ссылка'; }, 1500); }).catch(() => prompt('Ссылка на новость:', url));
       }
     });
@@ -11015,8 +11019,9 @@
     v.scrollTop = 0;
     document.body.style.overflow = 'hidden';
     if (opts.scrollComments) setTimeout(() => { const c = document.getElementById('newsComments'); if (c) c.scrollIntoView(); }, 50);
-    if (opts.fromUrl) { newsOpenedByPush = false; }
-    else { history.pushState({ news: item.id }, '', `/?news=${item.id}`); newsOpenedByPush = true; }
+    const sharePath = buildSharePath('news', item.id, item.short_code);
+    if (opts.fromUrl) { newsOpenedByPush = false; history.replaceState({ news: item.id }, '', sharePath); }
+    else { history.pushState({ news: item.id }, '', sharePath); newsOpenedByPush = true; }
   }
   function hideNewsView() {
     const v = document.getElementById('newsView');
@@ -11027,16 +11032,16 @@
   function closeNewsView() {
     const v = document.getElementById('newsView');
     if (!v || v.hidden) return;
-    if (newsOpenedByPush && location.search.includes('news=')) { newsOpenedByPush = false; history.back(); return; }
+    if (newsOpenedByPush) { newsOpenedByPush = false; history.back(); return; }
     hideNewsView();
-    if (location.search.includes('news=')) history.replaceState(null, '', '/');
+    history.replaceState(null, '', '/');
   }
   async function openNewsFromUrl() {
     const id = new URLSearchParams(location.search).get('news');
     if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return;
     await openNews(id, { fromUrl: true });
   }
-  window.addEventListener('popstate', () => { if (!location.search.includes('news=')) hideNewsView(); });
+  window.addEventListener('popstate', () => { if (!(history.state && history.state.news)) hideNewsView(); });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const ed = document.getElementById('newsEditor');
