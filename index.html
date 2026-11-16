@@ -10725,6 +10725,7 @@
     return m ? m[1] : '';
   }
   function newsAuthor(item) {
+    if (item.channel_name) return item.channel_name;
     const a = item.author;
     return (a && (a.display_name || a.username)) || 'Редакция';
   }
