@@ -348,79 +348,122 @@
     mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5h13a1 1 0 0 1 1 1v13H6a2 2 0 0 1-2-2z'/><path d='M18 9h2v8a2 2 0 0 1-2 2'/><path d='M7 9h7M7 12h7M7 15h4'/></svg>") center/contain no-repeat;
   }
   #feed.news-mode { display: block; max-width: 760px; margin: 0 auto; }
-  .news-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  .news-head h2 { margin: 0; font-size: 22px; }
+  .news-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .news-head h2 { margin: 0; font-size: clamp(22px, 4vw, 28px); }
   .news-btn {
-    background: var(--accent); color: #1b1209; border: 0; border-radius: 10px;
-    padding: 10px 16px; font-weight: 700; font-size: 15px; cursor: pointer; min-height: 44px;
+    background: var(--accent); color: #1b1209; border: 0; border-radius: 12px;
+    padding: 10px 18px; font-weight: 700; font-size: 15px; cursor: pointer; min-height: 44px; font-family: inherit;
+    transition: background .15s, transform .1s;
   }
   .news-btn:hover { background: var(--accent-hover); }
+  .news-btn:active { transform: scale(.97); }
+  .news-btn:disabled { opacity: .6; cursor: default; }
   .news-btn.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
-  .news-btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .news-btn.ghost:hover { border-color: var(--accent); }
   .news-card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-    overflow: hidden; margin-bottom: 16px; cursor: pointer; transition: border-color .15s;
+    background: linear-gradient(180deg, var(--panel) 0%, #1c150e 100%);
+    border: 1px solid var(--border); border-radius: 18px; overflow: hidden; margin-bottom: 20px; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(0,0,0,.25);
+    transition: border-color .2s, transform .2s, box-shadow .2s;
   }
-  .news-card:hover { border-color: var(--accent); }
-  .news-card.pinned { border-color: var(--accent); }
+  @media (hover: hover) { .news-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.35); } }
+  .news-card.pinned { border-color: rgba(214,140,62,.7); }
+  .news-cover-wrap { position: relative; }
+  .news-cover-wrap::after { content: ''; position: absolute; inset: auto 0 0 0; height: 40%; background: linear-gradient(180deg, transparent, rgba(23,18,13,.65)); pointer-events: none; }
   .news-cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--panel-2); }
-  .news-card-body { padding: 14px 16px 16px; }
-  .news-meta { color: var(--muted); font-size: 13px; margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 6px 10px; }
-  .news-pin { color: var(--accent); font-weight: 700; }
-  .news-card h3 { margin: 0 0 8px; font-size: 20px; overflow-wrap: anywhere; }
-  .news-excerpt { color: var(--text); opacity: .85; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere;
+  .news-badge { position: absolute; top: 12px; left: 12px; z-index: 1; background: rgba(23,18,13,.82); backdrop-filter: blur(6px);
+    color: var(--accent-hover); font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(214,140,62,.5); }
+  .news-pin-row { padding: 12px 18px 0; color: var(--accent-hover); font-size: 13px; font-weight: 700; }
+  .news-card-body { padding: 16px 18px 18px; }
+  .news-meta { color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 10px; }
+  .news-author { color: var(--text); font-weight: 600; }
+  .news-dot { opacity: .6; }
+  .news-ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; background: var(--panel-2); }
+  .news-ava-ch { display: inline-flex; align-items: center; justify-content: center; background: var(--accent); color: #1b1209; font-weight: 800; font-size: 14px; text-transform: uppercase; }
+  .news-card h3 { margin: 0 0 8px; font-size: clamp(19px, 3.6vw, 23px); line-height: 1.25; overflow-wrap: anywhere; }
+  .news-excerpt { margin: 0; color: var(--text); opacity: .8; font-size: 15px; line-height: 1.55; overflow-wrap: anywhere;
     display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .news-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(74,56,38,.6); }
+  .news-more { color: var(--accent); font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .news-stats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .news-stat { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid transparent; color: var(--muted);
+    border-radius: 999px; padding: 0 10px; min-height: 40px; font-size: 14px; font-family: inherit; cursor: pointer; }
+  .news-stat b { font-weight: 700; color: var(--text); }
+  .news-stat.static { cursor: default; }
+  button.news-stat:hover { background: var(--panel-2); border-color: var(--border); }
+  .news-like.on { background: rgba(226,98,74,.14); border-color: rgba(226,98,74,.5); }
+  .news-stats.big .news-stat { min-height: 44px; font-size: 15px; border-color: var(--border); background: var(--panel-2); }
   .news-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .news-actions button { background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-    border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; min-height: 40px; }
+    border-radius: 10px; padding: 8px 12px; font-size: 14px; cursor: pointer; min-height: 40px; font-family: inherit; }
   .news-actions button:hover { border-color: var(--accent); }
   .news-empty { color: var(--muted); text-align: center; padding: 40px 0; }
 
   .news-view, .news-editor {
-    position: fixed; inset: 0; z-index: 210; background: var(--bg); overflow-y: auto;
+    position: fixed; inset: 0; background: var(--bg); overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
   }
+  .news-view { z-index: 190; }
+  .news-editor { z-index: 195; }
   .news-view[hidden], .news-editor[hidden] { display: none; }
   .news-bar {
     position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px;
     padding: 10px 14px; background: rgba(23,18,13,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
   }
+  .news-bar-r { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .news-article { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
-  .news-article h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.2; margin: 14px 0 10px; overflow-wrap: anywhere; }
-  .news-article .news-cover { border-radius: 14px; }
-  .news-body { font-size: 17px; line-height: 1.65; overflow-wrap: anywhere; }
+  .news-article h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.2; margin: 16px 0 12px; overflow-wrap: anywhere; }
+  .news-article > .news-cover { border-radius: 16px; }
+  .news-article .news-meta { margin-bottom: 18px; }
+  .news-article .news-stats { margin: 24px 0 8px; }
+  .news-body { font-size: 17px; line-height: 1.7; overflow-wrap: anywhere; }
   .news-body p { margin: 0 0 1em; }
   .news-body h3, .news-body h4 { margin: 1.4em 0 .5em; line-height: 1.25; }
   .news-body h3 { font-size: 24px; } .news-body h4 { font-size: 19px; }
-  .news-body blockquote { margin: 1em 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
+  .news-body blockquote { margin: 1em 0; padding: 6px 0 6px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
   .news-body ul, .news-body ol { margin: 0 0 1em; padding-left: 24px; }
   .news-body a { color: var(--accent); text-decoration: underline; }
   .news-body code { background: var(--panel-2); padding: 2px 6px; border-radius: 6px; font-size: .92em; }
   .news-body figure { margin: 1.2em 0; }
-  .news-body figure img { display: block; max-width: 100%; height: auto; border-radius: 12px; margin: 0 auto; }
+  .news-body figure img { display: block; max-width: 100%; height: auto; border-radius: 14px; margin: 0 auto; }
   .news-body figcaption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 6px; }
   .news-body .news-embed { position: relative; aspect-ratio: 16 / 9; margin: 1.2em 0; }
-  .news-body .news-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 12px; }
+  .news-body .news-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 14px; }
   .news-spoiler { background: var(--muted); color: transparent; border-radius: 4px; cursor: pointer; padding: 0 3px; }
   .news-spoiler.open { background: transparent; color: inherit; }
   .news-hr { border: 0; border-top: 1px solid var(--border); margin: 1.6em 0; }
 
+  .nc { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .nc h3 { margin: 0 0 14px; font-size: 20px; }
+  .nc-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+  .nc-form textarea { width: 100%; box-sizing: border-box; background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px; font-size: 16px; font-family: inherit; resize: vertical; min-height: 64px; }
+  .nc-form .news-btn { align-self: flex-end; }
+  .nc-item { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid rgba(74,56,38,.5); }
+  .nc-item .news-ava { width: 34px; height: 34px; }
+  .nc-main { flex: 1; min-width: 0; }
+  .nc-head { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  .nc-head b { color: var(--text); }
+  .nc-del { margin-left: auto; background: none; border: 0; cursor: pointer; font-size: 16px; min-width: 40px; min-height: 40px; opacity: .7; }
+  .nc-del:hover { opacity: 1; }
+  .nc-text { margin-top: 4px; font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
+
   .news-editor-wrap { max-width: 760px; margin: 0 auto; padding: 16px 16px 80px; display: flex; flex-direction: column; gap: 12px; }
-  .news-editor input[type=text], .news-editor textarea {
+  .news-editor input[type=text], .news-editor textarea, .news-editor select {
     width: 100%; box-sizing: border-box; background: var(--panel); color: var(--text);
-    border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 16px; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-size: 16px; font-family: inherit;
   }
   .news-editor textarea { min-height: 320px; resize: vertical; line-height: 1.55; }
+  .news-editor label.lbl { color: var(--muted); font-size: 13px; margin-bottom: -6px; }
   .news-toolbar { display: flex; flex-wrap: wrap; gap: 6px; }
   .news-toolbar button { background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-    border-radius: 8px; min-width: 44px; min-height: 44px; padding: 0 10px; font-size: 15px; cursor: pointer; }
+    border-radius: 10px; min-width: 44px; min-height: 44px; padding: 0 10px; font-size: 15px; cursor: pointer; }
   .news-toolbar button:hover { border-color: var(--accent); }
   .news-cover-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .news-cover-row img { width: 120px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; }
+  .news-cover-row img { width: 120px; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; }
   .news-check { display: flex; align-items: center; gap: 8px; font-size: 15px; }
   .news-editor-status { color: var(--muted); font-size: 14px; min-height: 20px; }
-  .news-preview { border: 1px dashed var(--border); border-radius: 12px; padding: 14px; }
-  @media (hover: none) { .news-card:hover { border-color: var(--border); } }
+  .news-preview { border: 1px dashed var(--border); border-radius: 14px; padding: 14px; }
 
   .header-right-outer {
     display: flex;
@@ -10730,13 +10773,29 @@
     return (a && (a.display_name || a.username)) || 'Редакция';
   }
 
+  let newsLiked = new Set();
+  const newsAva = (item) => {
+    if (item.channel_name) return `<span class="news-ava news-ava-ch">${escapeHtml(Array.from(item.channel_name)[0] || '📰')}</span>`;
+    const a = item.author;
+    const src = (a && a.avatar_url) || presetToDataUrl('p0');
+    return `<img class="news-ava" src="${escapeHtml(src)}" alt="">`;
+  };
+  const newsNum = (n) => { n = Number(n) || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.0', '') + 'K' : String(n); };
+  async function loadNewsLiked(ids) {
+    newsLiked = new Set();
+    if (!currentUser || !ids.length) return;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/news_likes?user_id=eq.${currentUser.id}&news_id=in.(${ids.join(',')})&select=news_id`, { headers: newsHeaders() });
+      if (r.ok) (await r.json()).forEach(x => newsLiked.add(x.news_id));
+    } catch (e) {}
+  }
   async function loadNewsFeed() {
     const feedEl = document.getElementById('feed');
     feedEl.classList.add('news-mode');
     feedEl.innerHTML = `<p class="news-empty">Загрузка...</p>`;
     let rows = [];
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/news?select=*,author:profiles(username,display_name)&order=pinned.desc,created_at.desc&limit=60`, { headers: newsHeaders() });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/news?select=*,author:profiles(username,display_name,avatar_url)&order=pinned.desc,created_at.desc&limit=60`, { headers: newsHeaders() });
       if (!r.ok) throw new Error(await r.text());
       rows = await r.json();
     } catch (e) {
@@ -10745,7 +10804,40 @@
       return;
     }
     newsCache = rows;
+    await loadNewsLiked(rows.map(x => x.id));
     renderNewsFeed();
+  }
+  function newsStatsHtml(n, big) {
+    const liked = newsLiked.has(n.id);
+    return `<div class="news-stats${big ? ' big' : ''}">
+      <button type="button" class="news-stat news-like${liked ? ' on' : ''}" data-news-act="like" aria-label="Лайк"><span class="ic">${liked ? '❤️' : '🤍'}</span><b>${newsNum(n.likes_count)}</b></button>
+      <button type="button" class="news-stat" data-news-act="comments" aria-label="Комментарии"><span class="ic">💬</span><b>${newsNum(n.comments_count)}</b></button>
+      <span class="news-stat static" title="Просмотры"><span class="ic">👁</span><b>${newsNum(n.views)}</b></span>
+    </div>`;
+  }
+  async function newsToggleLike(id) {
+    if (!currentUser) { openOverlay('authOverlay'); return; }
+    const item = newsCache.find(x => x.id === id); if (!item) return;
+    const was = newsLiked.has(id);
+    was ? newsLiked.delete(id) : newsLiked.add(id);
+    item.likes_count = Math.max(0, (item.likes_count || 0) + (was ? -1 : 1));
+    newsRefreshStats(id);
+    try {
+      const r = was
+        ? await fetch(`${SUPABASE_URL}/rest/v1/news_likes?news_id=eq.${id}&user_id=eq.${currentUser.id}`, { method: 'DELETE', headers: newsHeaders() })
+        : await fetch(`${SUPABASE_URL}/rest/v1/news_likes`, { method: 'POST', headers: { ...newsHeaders(true), Prefer: 'return=minimal' }, body: JSON.stringify({ news_id: id, user_id: currentUser.id }) });
+      if (!r.ok && r.status !== 409) throw new Error('like');
+    } catch (e) {
+      was ? newsLiked.add(id) : newsLiked.delete(id);
+      item.likes_count = Math.max(0, (item.likes_count || 0) + (was ? 1 : -1));
+      newsRefreshStats(id);
+    }
+  }
+  function newsRefreshStats(id) {
+    const item = newsCache.find(x => x.id === id); if (!item) return;
+    document.querySelectorAll(`[data-news-id="${id}"] .news-stats, #newsView[data-id="${id}"] .news-stats`).forEach(el => {
+      el.outerHTML = newsStatsHtml(item, el.classList.contains('big'));
+    });
   }
 
   function renderNewsFeed() {
@@ -10754,11 +10846,15 @@
     const cards = newsCache.map(n => {
       const cover = newsCover(n);
       return `<article class="news-card${n.pinned ? ' pinned' : ''}" data-news-id="${n.id}">
-        ${cover ? `<img class="news-cover" src="${escapeHtml(cover)}" alt="" loading="lazy">` : ''}
+        ${cover ? `<div class="news-cover-wrap"><img class="news-cover" src="${escapeHtml(cover)}" alt="" loading="lazy">${n.pinned ? '<span class="news-badge">📌 Закреплено</span>' : ''}</div>` : (n.pinned ? '<div class="news-pin-row">📌 Закреплено</div>' : '')}
         <div class="news-card-body">
-          <div class="news-meta">${n.pinned ? '<span class="news-pin">📌 Закреплено</span>' : ''}<span>${escapeHtml(newsAuthor(n))}</span><span>${timeAgo(n.created_at)}</span></div>
+          <div class="news-meta">${newsAva(n)}<span class="news-author">${escapeHtml(newsAuthor(n))}</span><span class="news-dot">·</span><span>${timeAgo(n.created_at)}</span></div>
           <h3>${escapeHtml(n.title)}</h3>
           <p class="news-excerpt">${escapeHtml(newsPlain(n.body).slice(0, 320))}</p>
+          <div class="news-foot">
+            ${newsStatsHtml(n)}
+            <span class="news-more">Читать →</span>
+          </div>
           ${canEdit ? `<div class="news-actions">
             <button type="button" data-news-act="edit">✏️ Изменить</button>
             <button type="button" data-news-act="pin">${n.pinned ? 'Открепить' : '📌 Закрепить'}</button>
@@ -10779,6 +10875,8 @@
         e.stopPropagation();
         const a = act.dataset.newsAct;
         if (a === 'write') return openNewsEditor(null);
+        if (a === 'like') return newsToggleLike(id);
+        if (a === 'comments') return openNews(id, { scrollComments: true });
         const item = newsCache.find(x => x.id === id);
         if (!item) return;
         if (a === 'edit') return openNewsEditor(item);
@@ -10809,14 +10907,45 @@
     v.hidden = true;
     v.innerHTML = `<div class="news-bar">
         <button type="button" class="news-btn ghost" data-nv="close">← Назад</button>
-        <button type="button" class="news-btn ghost" data-nv="copy">🔗 Ссылка</button>
+        <div class="news-bar-r">
+          <button type="button" class="news-btn ghost" data-nv="edit" id="nvEdit" style="display:none;">✏️ Изменить</button>
+          <button type="button" class="news-btn ghost" data-nv="copy">🔗 Ссылка</button>
+        </div>
       </div>
       <div class="news-article" id="newsArticle"></div>`;
     document.body.appendChild(v);
-    v.addEventListener('click', (e) => {
+    v.addEventListener('click', async (e) => {
+      const like = e.target.closest('[data-news-act="like"]');
+      if (like) { newsToggleLike(v.dataset.id); return; }
+      const cm = e.target.closest('[data-news-act="comments"]');
+      if (cm) { const c = document.getElementById('newsComments'); if (c) c.scrollIntoView({ behavior: 'smooth' }); return; }
+      const dc = e.target.closest('[data-nc-del]');
+      if (dc) {
+        if (!confirm('Удалить комментарий?')) return;
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/news_comments?id=eq.${dc.dataset.ncDel}`, { method: 'DELETE', headers: newsHeaders() });
+        if (r.ok) { const it = newsCache.find(x => x.id === v.dataset.id); if (it) it.comments_count = Math.max(0, (it.comments_count || 0) - 1); loadNewsComments(v.dataset.id); newsRefreshStats(v.dataset.id); }
+        return;
+      }
+      const send = e.target.closest('#ncSend');
+      if (send) {
+        const ta = document.getElementById('ncText'); const body = ta.value.trim();
+        if (!body) return;
+        send.disabled = true;
+        try {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/news_comments`, { method: 'POST', headers: { ...newsHeaders(true), Prefer: 'return=minimal' }, body: JSON.stringify({ news_id: v.dataset.id, user_id: currentUser.id, body }) });
+          if (!r.ok) throw new Error('send');
+          ta.value = '';
+          const it = newsCache.find(x => x.id === v.dataset.id); if (it) it.comments_count = (it.comments_count || 0) + 1;
+          await loadNewsComments(v.dataset.id); newsRefreshStats(v.dataset.id);
+        } catch (err) { alert('Не удалось отправить комментарий'); }
+        send.disabled = false;
+        return;
+      }
+      if (e.target.closest('#ncLogin')) { openOverlay('authOverlay'); return; }
       const b = e.target.closest('[data-nv]');
       if (!b) return;
       if (b.dataset.nv === 'close') closeNewsView();
+      if (b.dataset.nv === 'edit') { const it = newsCache.find(x => x.id === v.dataset.id); if (it) openNewsEditor(it); }
       if (b.dataset.nv === 'copy') {
         const id = v.dataset.id;
         const url = `${location.origin}/?news=${id}`;
@@ -10825,26 +10954,67 @@
     });
     return v;
   }
+  async function loadNewsComments(id) {
+    const box = document.getElementById('ncList'); if (!box) return;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/news_comments?news_id=eq.${id}&select=id,user_id,body,created_at,profiles(username,display_name,avatar_url)&order=created_at.asc&limit=200`, { headers: newsHeaders() });
+      if (!r.ok) throw new Error('c');
+      const rows = await r.json();
+      const canDel = newsCanEdit();
+      box.innerHTML = rows.length ? rows.map(c => {
+        const p = c.profiles || {};
+        const own = currentUser && c.user_id === currentUser.id;
+        return `<div class="nc-item"><img class="news-ava" src="${escapeHtml(p.avatar_url || presetToDataUrl('p0'))}" alt="">
+          <div class="nc-main"><div class="nc-head"><b>${escapeHtml(p.display_name || p.username || 'Аноним')}</b><span>${timeAgo(c.created_at)}</span>${(own || canDel) ? `<button type="button" class="nc-del" data-nc-del="${c.id}" title="Удалить">🗑</button>` : ''}</div>
+          <div class="nc-text">${escapeHtml(c.body).replace(/\n/g, '<br>')}</div></div></div>`;
+      }).join('') : '<p class="news-empty" style="padding:16px 0;">Комментариев пока нет. Напиши первым!</p>';
+    } catch (e) { box.innerHTML = '<p class="news-empty">Не удалось загрузить комментарии.</p>'; }
+  }
+  function renderNewsArticle(item) {
+    const v = ensureNewsView();
+    v.dataset.id = item.id;
+    const cover = item.cover_url;
+    document.getElementById('nvEdit').style.display = newsCanEdit() ? '' : 'none';
+    const logged = !!currentUser && !currentUser.is_banned;
+    document.getElementById('newsArticle').innerHTML = `
+      ${cover ? `<img class="news-cover" src="${escapeHtml(cover)}" alt="">` : ''}
+      <h1>${escapeHtml(item.title)}</h1>
+      <div class="news-meta">${newsAva(item)}<span class="news-author">${escapeHtml(newsAuthor(item))}</span><span class="news-dot">·</span><span>${new Date(item.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
+      <div class="news-body">${renderNewsBody(item.body)}</div>
+      ${newsStatsHtml(item, true)}
+      <section class="nc" id="newsComments">
+        <h3>Комментарии</h3>
+        ${logged ? `<div class="nc-form"><textarea id="ncText" rows="2" maxlength="1000" placeholder="Написать комментарий..."></textarea><button type="button" class="news-btn" id="ncSend">Отправить</button></div>`
+                 : `<p class="news-empty" style="padding:8px 0;"><button type="button" class="news-btn ghost" id="ncLogin">Войти, чтобы комментировать</button></p>`}
+        <div id="ncList"><p class="news-empty" style="padding:16px 0;">Загрузка...</p></div>
+      </section>`;
+    loadNewsComments(item.id);
+  }
   async function openNews(id, opts = {}) {
     let item = newsCache.find(x => x.id === id);
     if (!item) {
       try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/news?id=eq.${id}&select=*,author:profiles(username,display_name)`, { headers: newsHeaders() });
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/news?id=eq.${id}&select=*,author:profiles(username,display_name,avatar_url)`, { headers: newsHeaders() });
         item = (await r.json())[0];
+        if (item) { newsCache.push(item); await loadNewsLiked([item.id]); if (newsLiked.size === 0) {} }
       } catch (e) {}
     }
     if (!item) { if (opts.fromUrl) history.replaceState(null, '', '/'); return; }
+    // просмотр считаем один раз за сессию на новость
+    try {
+      if (!sessionStorage.getItem('nv_' + id)) {
+        sessionStorage.setItem('nv_' + id, '1');
+        item.views = (item.views || 0) + 1;
+        fetch(`${SUPABASE_URL}/rest/v1/rpc/news_view`, { method: 'POST', headers: newsHeaders(true), body: JSON.stringify({ p_id: id }) }).catch(() => {});
+        newsRefreshStats(id);
+      }
+    } catch (e) {}
     const v = ensureNewsView();
-    v.dataset.id = item.id;
-    const cover = item.cover_url;
-    document.getElementById('newsArticle').innerHTML = `
-      ${cover ? `<img class="news-cover" src="${escapeHtml(cover)}" alt="">` : ''}
-      <h1>${escapeHtml(item.title)}</h1>
-      <div class="news-meta"><span>${escapeHtml(newsAuthor(item))}</span><span>${new Date(item.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
-      <div class="news-body">${renderNewsBody(item.body)}</div>`;
+    renderNewsArticle(item);
     v.hidden = false;
     v.scrollTop = 0;
     document.body.style.overflow = 'hidden';
+    if (opts.scrollComments) setTimeout(() => { const c = document.getElementById('newsComments'); if (c) c.scrollIntoView(); }, 50);
     if (opts.fromUrl) { newsOpenedByPush = false; }
     else { history.pushState({ news: item.id }, '', `/?news=${item.id}`); newsOpenedByPush = true; }
   }
@@ -10888,6 +11058,8 @@
       </div>
       <div class="news-editor-wrap">
         <input type="text" id="neTitle" maxlength="200" placeholder="Заголовок">
+        <label class="lbl" for="neChan">Публиковать от имени</label>
+        <select id="neChan"><option value="">Моё имя</option></select>
         <div class="news-cover-row">
           <button type="button" class="news-btn ghost" data-ne="cover">🖼 Обложка</button>
           <button type="button" class="news-btn ghost" data-ne="cover-del" id="neCoverDel" style="display:none;">Убрать</button>
@@ -10998,7 +11170,11 @@
         if (!body && !ed.__state.cover) { status('Напиши текст или добавь картинку'); return; }
         b.disabled = true; status('Сохраняю...');
         try {
+          const chSel = $('neChan'), chOpt = chSel.options[chSel.selectedIndex];
           const payload = { title, body, cover_url: ed.__state.cover || null, pinned: $('nePinned').checked };
+          if (chSel.value === '__keep__') { /* оставляем как есть */ }
+          else if (chSel.value) { payload.channel_id = chSel.value; payload.channel_name = chOpt.textContent; }
+          else { payload.channel_id = null; payload.channel_name = null; }
           let r;
           if (ed.__state.id) {
             r = await fetch(`${SUPABASE_URL}/rest/v1/news?id=eq.${ed.__state.id}`, { method: 'PATCH', headers: { ...newsHeaders(true), Prefer: 'return=minimal' }, body: JSON.stringify({ ...payload, updated_at: new Date().toISOString() }) });
@@ -11006,8 +11182,17 @@
             r = await fetch(`${SUPABASE_URL}/rest/v1/news`, { method: 'POST', headers: { ...newsHeaders(true), Prefer: 'return=minimal' }, body: JSON.stringify({ ...payload, author_id: currentUser.id }) });
           }
           if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+          const editedId = ed.__state.id;
           closeNewsEditor();
-          await loadNewsFeed();
+          if (currentFeedFilter === 'news') await loadNewsFeed();
+          const vw = document.getElementById('newsView');
+          if (editedId && vw && !vw.hidden && vw.dataset.id === editedId) {
+            try {
+              const rr = await fetch(`${SUPABASE_URL}/rest/v1/news?id=eq.${editedId}&select=*,author:profiles(username,display_name,avatar_url)`, { headers: newsHeaders() });
+              const fresh = (await rr.json())[0];
+              if (fresh) { const i = newsCache.findIndex(x => x.id === editedId); if (i >= 0) newsCache[i] = fresh; else newsCache.push(fresh); renderNewsArticle(fresh); }
+            } catch (e) {}
+          }
         } catch (err) { status('Не удалось сохранить: ' + err.message); }
         b.disabled = false;
       }
@@ -11034,6 +11219,20 @@
     $('neBody').style.display = '';
     $('neStatus').textContent = '';
     ed.__setCover(item ? item.cover_url : '');
+    (async () => {
+      const sel = $('neChan');
+      sel.innerHTML = '<option value="">Моё имя</option>';
+      let chans = [];
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/news_channels?owner_id=eq.${currentUser.id}&select=id,name&order=created_at.asc`, { headers: newsHeaders() });
+        if (r.ok) chans = await r.json();
+      } catch (e) {}
+      chans.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
+      if (item && item.channel_name) {
+        if (item.channel_id && chans.some(c => c.id === item.channel_id)) sel.value = item.channel_id;
+        else { const o = document.createElement('option'); o.value = '__keep__'; o.textContent = item.channel_name + ' (как было)'; sel.appendChild(o); sel.value = '__keep__'; }
+      }
+    })();
     ed.querySelector('[data-ne="save"]').textContent = item ? 'Сохранить' : 'Опубликовать';
     ed.hidden = false;
     ed.scrollTop = 0;
