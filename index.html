@@ -11100,7 +11100,7 @@
   }
   function newsByline(item) {
     const inner = `${newsAva(item)}<span class="news-author">${escapeHtml(newsAuthor(item))}</span>`;
-    return item.channel_id ? `<a href="#" class="news-chan-link" data-news-chan="${item.channel_id}">${inner}</a>` : `<span class="news-by">${inner}</span>`;
+    return item.channel_id ? `<a href="/?channel=${item.channel_id}" class="news-chan-link" data-news-chan="${item.channel_id}">${inner}</a>` : `<span class="news-by">${inner}</span>`;
   }
   let newsChanPushed = false;
   function ensureNewsChan() {
@@ -11157,9 +11157,18 @@
     let ch;
     try {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/news_channels?id=eq.${id}&select=id,name,avatar_url,owner_id,owner:profiles!news_channels_owner_id_fkey(username,display_name)`, { headers: newsHeaders() });
-      ch = (await r.json())[0];
+      if (r.ok) ch = (await r.json())[0];
+      if (!ch) {
+        // запасной запрос без аватарки/автора (если на сервере ещё не применён step18)
+        const r2 = await fetch(`${SUPABASE_URL}/rest/v1/news_channels?id=eq.${id}&select=id,name,owner_id`, { headers: newsHeaders() });
+        if (r2.ok) ch = (await r2.json())[0];
+      }
     } catch (e) {}
-    if (!ch) { if (opts.fromUrl) history.replaceState(null, '', '/'); return; }
+    if (!ch) {
+      if (opts.fromUrl) history.replaceState(null, '', '/');
+      else alert('Не удалось открыть канал. Возможно, на сервере не применён step18.sh, либо канал удалён.');
+      return;
+    }
     newsChanCache[id] = { id: ch.id, name: ch.name, avatar_url: ch.avatar_url, owner_id: ch.owner_id };
     let rows = [];
     try {
