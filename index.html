@@ -11353,7 +11353,7 @@
       }
     } catch (e) {}
   })();
-  // Звук при входе для отдельных пользователей: без дневного лимита, играет после каждой перезагрузки, громкость 22%.
+  // Звук при входе для отдельных пользователей: без дневного лимита, играет после каждой перезагрузки, громкость 5%.
   // Браузер разрешает звук только после действия пользователя, поэтому играем на первом клике/тапе/клавише.
   const WELCOME_SOUND_USERS = ['meowh0cki', 'merockstar'];
   function welcomeSound() {
@@ -11365,7 +11365,7 @@
       const go = () => {
         evs.forEach(e => window.removeEventListener(e, go, true));
         const a = new Audio('welcome-sound.mp3');
-        a.volume = 0.22;
+        a.volume = 0.05;
         a.play().catch(() => {});
       };
       evs.forEach(e => window.addEventListener(e, go, true));
