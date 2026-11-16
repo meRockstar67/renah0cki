@@ -5616,6 +5616,22 @@
     gap: 24px;
     align-items: start;
   }
+  /* Центр главной: три вертикальные колонки — Арты | Новости | Видео */
+  .home-center-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; align-items: stretch; grid-column: 1 / -1; }
+  .home-center-cols > .home-col { padding: 0 18px; }
+  .home-center-cols > .home-col:first-child { padding-left: 0; }
+  .home-center-cols > .home-col:last-child { padding-right: 0; }
+  .home-center-cols > .home-col + .home-col { border-left: 2px solid rgba(243, 230, 210, 0.22); }
+  .home-center-cols .home-card-grid { grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 1200px) {
+    .home-layout { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 900px) {
+    .home-center-cols { grid-template-columns: 1fr; }
+    .home-center-cols > .home-col { padding: 0; }
+    .home-center-cols > .home-col + .home-col { border-left: 0; border-top: 2px solid rgba(243, 230, 210, 0.22); padding-top: 18px; margin-top: 18px; }
+    .home-center-cols .home-card-grid { grid-template-columns: 1fr 1fr; }
+  }
   .home-streamers-sidebar {
     position: fixed;
     top: 96px;
@@ -6858,8 +6874,7 @@
     #homePageLayout { gap: 28px; }
   }
   @media (min-width: 600px) and (max-width: 900px) {
-    .home-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-    .home-card-grid .home-card:nth-child(3) { display: flex; }
+    .home-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   }
   @media (min-width: 1201px) {
     body.is-home-page main { max-width: none; }
@@ -6890,9 +6905,9 @@
     #homeRespectPlusPanel { grid-column: 1; grid-row: 5 / 8; max-height: none; min-height: 0; }
     #homeColMobileSponsors { display: none !important; }
     /* центр */
-    #homeColArt, #homeColVideo { width: 100%; max-width: 960px; justify-self: center; }
-    #homeColArt   { grid-column: 2 / 4; grid-row: 1 / 4; min-height: 0; gap: 10px; position: relative; }
-    #homeColVideo { grid-column: 2 / 4; grid-row: 4 / 7; min-height: 0; gap: 10px; position: relative; }
+    #homeCenterCols { grid-column: 2 / 4; grid-row: 1 / 7; min-height: 0; width: 100%; max-width: 1040px; justify-self: center; }
+    #homeColArt, #homeColNews, #homeColVideo { min-height: 0; gap: 10px; position: relative; }
+    #homeColTags .home-tags-panel { flex: 1; min-height: 0; overflow-y: auto; }
     /* правая колонка: отзывы */
     #homeReviewsBlock { grid-column: 4; grid-row: 1 / 8; margin: 0; max-width: none; min-height: 0; gap: 10px; }
     /* низ */
@@ -6901,15 +6916,17 @@
 
     /* Фото и Видео: 3 карточки в ряд, «смотреть больше» — в строке заголовка */
     #homeColArt .home-col-header,
-    #homeColVideo .home-col-header { padding-right: 150px; }
+    #homeColNews .home-col-header,
+    #homeColVideo .home-col-header { padding-right: 110px; }
     #homeColArt .home-see-more,
+    #homeColNews .home-see-more,
     #homeColVideo .home-see-more {
       position: absolute; top: -3px; right: 0; width: auto;
       padding: 4px 10px; font-size: 12px; border: none; color: var(--accent);
     }
     #homeColArt .home-see-more-icon,
     #homeColVideo .home-see-more-icon { display: none; }
-    .home-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; flex: 1; min-height: 0; }
+    .home-card-grid { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 14px; flex: 1; min-height: 0; }
     .home-card-grid .home-card { min-height: 0; }
     .home-card:hover { transform: none; }
     .home-card-thumb-wrap { aspect-ratio: auto; flex: 1; min-height: 0; }
@@ -7226,14 +7243,36 @@
     </div>
   </div>
   <div class="home-layout" id="homeLayout">
+    <div class="home-center-cols" id="homeCenterCols">
     <div class="home-col" id="homeColArt">
       <div class="home-col-header" data-home-goto="art">
-        <h3>Фото</h3>
+        <h3>Арты</h3>
       </div>
       <div class="home-card-grid" id="homeArtGrid">
         <p class="home-empty">Загрузка...</p>
       </div>
       <button type="button" class="home-see-more" data-home-goto="art"><img class="home-see-more-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALIAAACyCAMAAADRVGVaAAAAM1BMVEVMaXH////////////////////////////////////////////////////////////////x7/yuAAAAEXRSTlMAkUNwLQuoslmGFiKcZXtOOKGmROUAAAAJcEhZcwAALEoAACxKAXd6dE0AAAfjSURBVHic7Z3ruqMqDIY9Fzzf/9XO03aAgCBJQGXv6fdvrap9G0OAILH6/2rsxCLl6yLVshX7mNF447bOV8FCDes2ZeEV9R24SvOSSt3cyvvVvPVs3l4M9wO/NbQ8v34M+KOWYenmSeC3pQUReLwsnuE1dxTi7WjiQYqmyxKDPAbqduGLowvaO/qDidctZ5wPaGxa11I10kaTc6Js+EGHqr117u2OuYDT7pjxhq3RCVSIVtgwvSmfnOjaxi68WC58s4WV+oXADI/F+dE1mmosM/SK9QGfAFpwzJB4u5/S1g48egkdNAGnIPU81wg6R+P/ht78rOGibo6mvo4BmT6vftaNtQDz7EMS5icVQmwxr8dPp9hNeESA+RhyzWcFEVfVOATv/RZrnE+pC0U6Ey08PvOsTBuzhw/6/96W+ax0JJN+IxfQhbgavXCiWLeoIB0wszby8NBoMyI9LTR4OlxQJ+I3SQ/XzJBO/Ypyuj1HB8CpcCMDM6tOQ4+my/TkCph5DfxdoHTQ+HqG9gv6XG9qxCqllKtAxPNOtO9jpdjowX+0PUP9goF4md1K7kQSrM5Mf6WOZNSo7RszpPUXVs0xh3aS9DgmfgdBCk8qDn/t6rZGjHbv4kkohXZM8n2+nTIj1t47wj/wv7pffQjB2UEfWr2QhBClbNSAmFejz57CCyi+Hj9ITJoAKSsJ0PrQruxmRi15fnjolmijoaQwJWh92K7vlNhzme70cDSzuswMkJHBcrSI53brum5fTGs8jFPAR8vedd222I6C9A0dmUHAwJ1qOWZrzjHTHScOGCObRaZxAb8bO+D1IONOBNk9u73rkYvjzTotb802YcyRFUrqbnVEZOCYblTVP8b2DPVNLhhYLMC5s2Qiy/D39C9zzdh/K6sZ44bpTOQmTGyuaZlf3RbPAMYwo4IVE1mefYnwfaaQfQ67k8zMQ9Z9u7enJCObTgbjzTxk3fq9MZyOrGM8ZrDAQx7Ovp+BTJrCsZB1hPNPXxjIuktDjENZyIppPv+YgKy9GTHtZCGrkwLrQxxkFTURkzgW8rlfsJC1Z8RHOBzkLnIkB9mabORHVjPGUERiIau4GVyMTEKOXZ2FvEU+T0NW54TuIQs55m1pyC9zTj5kfdVoZ8JAHmMH8pBrQ5IdWX15cDzAQ159Z2VCjjYUHrI6KxoyGMheonTkJnZAArJ30pGOHPW3DMjBdsJDjrbqBOT5GmSOybCnRI9jIqt5Q2xgdCWyXKSWUL18GBmbYKMjq6lqeGRrclwePYEcv8NMZNWXxOZSBSFH4/2/hKx6qfDEsjjk+JX/HWQ13IrlBa5DnqUQ7/WFjxqxyCGCHG8kFyLXreg8OcxxF3IoE/lU4XRsschh/ZCBfshGP2SgH7LRDxnoh2wUH9UWh3z94DOebifqOmS14Ix8egKvJ+d+P2RXBSFjc+J85MBqMF/XZYuIj03h9R9Exq7vJCDnfvode10GMnq1iyjs9ycsPGTe6jxdiKyS25kHGejgmbCIlnmQgV53ZyCjF+hoUk9EXbG6il/TJyn2/EEKMvGpYaxehiQ/sopyWbfuX/s8hgoZWfclKVeOP4/IQdaP1ebcYqfWbK95tsjZp5RFhP1ZrOfklDNnDHPK2a56tE/vF83mGfoZcsSmFhZyfs/QK0KIgQvvYWDlGfi9SefSO5MxUx0esvaMTANQbWTMUIuHrF0vj5m1o134LL55sj1LD6gfxb9yx4PuXnNsi6dteEjfCpPuGiNtWwkb2ZRXoe10PcrsD0Pusecig21dicG5pV6IjdxTd2NFibHdPxvZNJokZkOMbsh8ZLjjj+vPcJMzOseQgAzKBb0ka4A0zZxfnYIM94Jyas6ZekOkCnApyPYeYWrZuQnufKcU+0pCtplJZU97q8IkqTxZGrLlja/XjA0dbvkG0g1KRHY33Q8CEaomp4YnMd6kIjt3+FPx4tRm4+ZWFqAOBkGyWF2COjY7lg6WgVok/b4cKiHM5JwT4GSnuq22r7Fb0Zkr9e/6ub7CDYySp8Ab0Hm8ozwFhFGilSn+Cu6OVh0wJ2988GiMyMWgP4K5YvxeMJ9GKjSxxouWsmybIW88Hqomn4hfjR3mXcO7/rHqsaXoV/7SkE2pvi9lEWTcosXHI4E7Ip12/RymvCRxdbrflyB2KGLjZW/20POMDCsKnwpXYACS630Tev72t89U18/+DE4+NY5ZVdaGWoTrRimXU857KDBXnKaDI1Bypo9I91e6WbSFm1mnSOXxX4Wa2VetRAfUxyuI+9T5LJo1CZtds8fIwMwFlnQUPiPDJGxxLTCIpoNGSWW53+q1W7gDepOELaVc+1+ZodbBliZTlv0RyRSZSY9nBGR+TuqaQkYZQ/rKb4P8fDHM4KUT3iYGasUVwgzSuoE+DmyLfPjNH1+1CBuCY+rHu0FYi/AkiiXm53MK5oPP4q6Vg33iVUFacO/uee9mMc+PGbqr0cRurls+UtnfTprF39jlZAbvh3ayfKjxg/USp9ervvH9YlW1O0V5ke/525284NDeRL0fMpLoWdJ4TAvWy37pqPS9v/zwpaTUub8+wCylXERuSSn970glRtnnX6NY0xu+v8L5XRp4EzpPHfmbNDNXJ96WfsQ96rQp8yhuNvWQ/Ebe95jKE34uUr3k62w7/yJpRtWr2PN3WP27OHv2sCyarvMVL/Grqqo/ptHwUoZrSC8AAAAASUVORK5CYII=" alt=""> Смотреть больше ›</button>
+    </div>
+
+    <div class="home-col" id="homeColNews">
+      <div class="home-col-header" data-home-goto="news">
+        <h3>Новости</h3>
+      </div>
+      <div class="home-card-grid" id="homeNewsGrid">
+        <p class="home-empty">Загрузка...</p>
+      </div>
+      <button type="button" class="home-see-more" data-home-goto="news">Смотреть больше ›</button>
+    </div>
+
+    <div class="home-col" id="homeColVideo">
+      <div class="home-col-header" data-home-goto="video">
+        <h3>Видео</h3>
+      </div>
+      <div class="home-card-grid" id="homeVideoGrid">
+        <p class="home-empty">Загрузка...</p>
+      </div>
+      <button type="button" class="home-see-more" data-home-goto="video"><img class="home-see-more-icon" src="data:image/png;base64,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" alt=""> Смотреть больше ›</button>
+    </div>
     </div>
 
     <div class="home-col" id="homeColTags" style="position:relative;">
@@ -7259,15 +7298,6 @@
       <a class="home-sponsor-cta" href="https://dalink.to/merockstar_" target="_blank" rel="noopener noreferrer">Стать спонсором</a>
     </div>
 
-    <div class="home-col" id="homeColVideo">
-      <div class="home-col-header" data-home-goto="video">
-        <h3>Видео</h3>
-      </div>
-      <div class="home-card-grid" id="homeVideoGrid">
-        <p class="home-empty">Загрузка...</p>
-      </div>
-      <button type="button" class="home-see-more" data-home-goto="video"><img class="home-see-more-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALEAAACyCAMAAAA6Y95ZAAAAM1BMVEVMaXH////////////////////////////////////////////////////////////////x7/yuAAAAEXRSTlMAQ5wiWagLsi2GcBaRZU44e2ups6wAAAAJcEhZcwAALEoAACxKAXd6dE0AAAZRSURBVHic7Z1pl+woCIbNWpr9///aOVU1bphUNILSc+b9dPv29rRBIECM+M9KNr1S7YtGrVL9JhGXbl8XIlRfy7qP+bRjcxSh1TqaPOhuGoryvjVM3WNeqYrjfqX2v8X71pK+D+ey5htKzWnAfXn7DdQn8HYn3myZeikRnM+ZpNzWExtcordgAxe4XTHd+yV36Pa3uO+cIO5zb5OquQdh9Yi4qqP/h6qmCKrV7pvHcovsm7AqYQ1Qvlsdbq5w55rwUHp9tfY2GtkDXok8Q4TGNRJ5dICHGgZhJdsYZHfT3Vs8sUYn6LZXMI7FT5V533IsY7n9ikjPTazmZgV3+/laPgKq+Ynk7DouwC7yEKZy1tDXKnDnssgKft7aBIdNZ2WTHLC3rE1Ud2tAxuMOPlgfE2CqyK6ld/FnZn7NlbVXd/MZawnsm4GOk0WeT/8MLrJ2YelMtEu5GSynPlhk80cMzPyElsnjNF/De4kdQO0XFPMltovcfj80+45TePZlLPkbLTbOjuKr0V9UbRQcfbGW9smf1N7w80kyQ+2uHZgP2O47uKy9u+Bspc1idcyYqzP+anPWVQe8Z5X8UpLaLBwLeWTGcutxO3GXsh5Zww/pP2Q2naiDHlrfi0gTs5O98ejVmVPbFsnSW683riL1hrSDLV/iwmIfECe6ii5s7Qykd1x2ZddHxONpp/pBFy5aOtAp447TnNt6BvzegmTmLAPipOWZL4Df14qqg5ZHbJe4XQ9g0S1NRpVJbPzEZ7PtwG2Q9HvyiE2c1NsVNoUnfHPOIzZx0tjsCNqWA3pehUPsxkk43NAiZ1b4xEI00JxRi44UxGIMzBnR05EQh3MkiIGbiFgICcJ3i+XpyIjD6QykPJSQWIy9j4wTuCmJhZiBp8MYIqAl9hvhL5Q8lJpYiA2Yc24eSk98ErizzLkAsRAdDNw55lyEGDUPLUR8koc+NY1ixGJGykPLEWPloSWJcfLQssRh4E4vIBUmRshDixNn56EViDMDdxVif7jxlZaH1iHOyUNrET/PQ+sRPy0g1SR+VkCqShzmocv9MlcmDvLQ+6G16sSwgHQ5YsyHGOahxx8gBnnoDQAPYq+AdLPIXIjdwP3bktkQO2NKvwkYEZse+e84wok4rs/8P3GOjr9G3Omd9ztV5kPcnUwX//6ddYmdxPNmeo0JsZsN3dw/sSD2Ms42+ndWIwY3qXcJcnViWAi4vaeuTQyLLfdFgLrEQQUgotZZk/hZ0bAe8dPCbDXix13rSsQZDYYqxFlNnArEmRMu5YmDZmRi96Y0cX7DtywxRlO9KDHKxGFBYqThkGLEaAM4hYhzmktViDEnb0oQ4w7r0RNjD0RSEyM0+8sSEwz2khKTDE8TEmMNBhUjppqapiKme9CChhh1iLAAMfKgJj0x9jAsCbFTj8QfOEYlNo+O6W+iGOpGJTZPLH+HDPBDMj6x2WPDKnd4tizNQ7KZxPJ1KbQHQHCJhboApns61hLrC5wW/U8e5X0hP8h0Sfzw6ePmhBf3YTEgPSJwPCUOkbEfyAOynJo9vbLqGQb+Q49A1nq1faQfuOEWKwkeLAWyz3WbRvaTH7OvSik1ZZ4WHiWNKb1/MtbsLKyuKvA72c2V3uitY9J3I3J15VJq+geHhBRU61iCsRDOR8cY//AJUhqf17GVvlbPEMxHjA9t8lc1crSopnZgueC8N4ZSnlE452dwDSLmBkJvNeMtuJ7wZu4fTDpritM8HZwMV9T8F09LNt0JxzWYZed4ZNp2tp723pjb0bxCzMPJEjuLzO8kvQs0E0XYHbpp603A99qBOV6R7/q07tHWJjmZsq2LhFmP3XyMDsZ2CjknoWLlh+xc+NNUeOGG7Kzw+Qnu1vHVftXGVw7w1RJaF8fBY7jTh5f5jltLIyxTxshrXP1YPheZqnQdJe8FQT+vt1exrPaiG39Y58ZAPWTyguUFw5AADL+83YqvM5jNiHABoGEwrCWP955X8NujIsMI2zLLViaizBs8dzTiOeqvYEfx9WqPjepVdB+NcpvCd48mZL5nL9B73xkqNfXYmpQ677Ulutf6LylM9lNwWqKwHjVW4IhSQT1uBEFfU0ZDXuOq8Etu819z+3kzb7FX3Q4IuP+qa1ZFiz2otcGPU52U7/PnsSWljGYVQvwDvqTVgDu2AM8AAAAASUVORK5CYII=" alt=""> Смотреть больше ›</button>
-    </div>
   </div>
 
   <div class="home-streamers-sidebar" id="homeColStreamers">
@@ -17067,6 +17097,8 @@
       switchNavTabTo(gotoEl.dataset.homeGoto);
       return;
     }
+    const newsEl = e.target.closest('[data-home-news]');
+    if (newsEl) { openNews(newsEl.dataset.homeNews); return; }
     const cardEl = e.target.closest('[data-home-open]');
     if (cardEl) {
       // Спойлер-блюр на карточке главной — раньше клик по размытому превью
@@ -17644,8 +17676,10 @@
     const moderatorsPanelEl = document.getElementById('homeModeratorsPanel');
 
     tagsPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
-    artGridEl.innerHTML = skeletonCardsHtml(3);
-    videoGridEl.innerHTML = skeletonCardsHtml(3);
+    artGridEl.innerHTML = skeletonCardsHtml(2);
+    videoGridEl.innerHTML = skeletonCardsHtml(2);
+    const newsGridEl = document.getElementById('homeNewsGrid');
+    if (newsGridEl) newsGridEl.innerHTML = skeletonCardsHtml(2);
     streamersPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     respectPlusPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
     sponsorPanelEl.innerHTML = `<p class="home-empty">Загрузка...</p>`;
@@ -17655,9 +17689,10 @@
     if (reviewTrackElInit) reviewTrackElInit.innerHTML = skeletonCardsHtml(3);
     updateReviewWriteBtnVisibility();
 
-    const [artData, videoData, streamersData, respectPlusData, sponsorData, moderatorsData, reviewsData, streaksData] = await Promise.all([
-      fetchHomeContent('art', 3),
-      fetchHomeContent('video', 3),
+    const [artData, videoData, newsData, streamersData, respectPlusData, sponsorData, moderatorsData, reviewsData, streaksData] = await Promise.all([
+      fetchHomeContent('art', 2),
+      fetchHomeContent('video', 2),
+      fetchHomeNews(2),
       fetchStreamers(),
       fetchRespectPlus(),
       fetchSponsors(),
@@ -17668,6 +17703,7 @@
 
     renderHomeCardGrid(artGridEl, artData, 'art');
     renderHomeCardGrid(videoGridEl, videoData, 'video');
+    renderHomeNews(newsGridEl, newsData);
     renderHomeTags(tagsPanelEl, streaksData);
     renderHomeStreakMeRow(streaksData);
     // Дубль топа по стрикам под "Отзывы" (мобильная версия) — та же
@@ -17704,10 +17740,11 @@
     if (!artColEl || !tagsPanelEl) return;
     // На узких экранах колонки идут друг под другом (grid-template-columns:
     // 1fr) — подгонка высоты там не нужна и мешала бы читать список.
-    if (window.innerWidth <= 900) {
+    if (window.innerWidth <= 1200) {
       tagsPanelEl.style.maxHeight = '';
       return;
     }
+    if (window.innerWidth > 1200) { tagsPanelEl.style.maxHeight = ''; return; }
     const artBottom = artColEl.getBoundingClientRect().bottom;
     const panelTop = tagsPanelEl.getBoundingClientRect().top;
     const targetHeight = Math.round(artBottom - panelTop);
@@ -17833,6 +17870,40 @@
       console.error(`Не удалось загрузить контент для главной (${type}):`, e);
       return [];
     }
+  }
+
+  async function fetchHomeNews(limit) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/news?order=pinned.desc,created_at.desc&limit=${limit}&select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)`, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken || SUPABASE_KEY}` } });
+      if (!res.ok) throw new Error(await res.text());
+      return await res.json();
+    } catch (e) { console.error('Не удалось загрузить новости для главной:', e); return []; }
+  }
+  function renderHomeNews(el, data) {
+    if (!el) return;
+    if (!data || !data.length) { el.innerHTML = `<p class="home-empty">Пока пусто</p>`; return; }
+    const RECENT_MS = 3 * 24 * 60 * 60 * 1000;
+    el.innerHTML = data.map(n => {
+      const cover = newsCover(n);
+      const created = new Date(n.created_at).getTime();
+      const isRecent = !Number.isNaN(created) && (Date.now() - created) < RECENT_MS;
+      return `<div class="home-card" data-home-news="${n.id}">
+        <div class="home-card-thumb-wrap">
+          ${isRecent ? `<span class="home-card-badge">Новое</span>` : ''}
+          ${cover ? `<img src="${escapeHtml(cover)}" alt="" loading="lazy">` : '<div class="news-cover-ph" style="width:100%;height:100%;min-height:90px;">📰</div>'}
+        </div>
+        <div class="home-card-body">
+          <p class="home-card-title">${escapeHtml(n.title)}</p>
+          <span class="home-card-author">${escapeHtml(newsAuthor(n))}</span>
+          <div class="home-card-stats">
+            <span>👁 ${formatViews(n.views || 0)}</span>
+            <span>♥ ${n.likes_count || 0}</span>
+            <span>💬 ${n.comments_count || 0}</span>
+            <span class="home-card-date">${timeAgo(n.created_at)}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   function renderHomeCardGrid(el, data, type) {
