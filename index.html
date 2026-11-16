@@ -4925,6 +4925,10 @@
     margin-bottom: 8px;
   }
 
+  .role-option-row { display: flex; align-items: center; gap: 4px; }
+  .role-option-row .role-option-btn { flex: 1; }
+  .role-main-btn { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px 8px; }
+  .role-main-btn.is-main { color: #e9c341; }
   .role-badge-user      { background: rgba(155,147,173,0.15); color: var(--muted);   border: 1px solid rgba(155,147,173,0.4); }
   .role-badge-moderator  { background: rgba(122,207,58,0.15);  color: #7acf3a;        border: 1px solid rgba(122,207,58,0.4); }
   .role-badge-sponsor    { background: rgba(233,218,65,0.15);  color: #e9da41;        border: 1px solid rgba(233,218,65,0.4); }
@@ -9317,7 +9321,7 @@
   const VOICE_WARMUP_MS = 150;
 
   function canSendVoice(role) {
-    return VOICE_MESSAGE_ROLES.includes(role);
+    return rolesOf(role).some(r => VOICE_MESSAGE_ROLES.includes(r));
   }
 
   function formatVoiceTime(totalSeconds) {
@@ -9672,7 +9676,7 @@
   document.addEventListener('pointerdown', (e) => {
     const micBtn = e.target.closest('.voice-toggle-btn');
     if (!micBtn) return;
-    if (!currentUser || !canSendVoice(currentUser.role)) return;
+    if (!currentUser || !canSendVoice(currentUser)) return;
     if (voiceRecState || voicePressActive) return;
     e.preventDefault();
     voicePressActive = true;
@@ -9892,7 +9896,7 @@
         <img class="comment-input-avatar" src="${escapeHtml(avatar)}" alt="">
         <div class="comment-input-wrap">
           <textarea placeholder="${placeholder}" maxlength="2000" rows="1"></textarea>
-          ${canSendVoice(currentUser.role) ? renderVoiceControlsHtml() : ''}
+          ${canSendVoice(currentUser) ? renderVoiceControlsHtml() : ''}
           <button type="button" class="emoji-toggle-btn" title="Смайлики">
               <img class="emoji-toggle-icon" src="${EMOJI_ICON_SRC}" alt="">
             </button>
@@ -9926,7 +9930,7 @@
     const name = profile.display_name || profile.username || 'без имени';
     const nameColor = profile.name_color || null;
     const nameAttrs = nameColorAttrs(nameColor);
-    const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
+    const isModerator = currentUser && isModeratorOrHigher(currentUser);
     const isOwn = currentUser && currentUser.id === node.author_id;
     const canDelete = isModerator || isOwn;
     const liked = isLiked(node.id);
@@ -10213,7 +10217,7 @@
           ${currentUser ? `<img class="comment-avatar" src="${replyAvatar}" alt="" style="width:28px;height:28px;flex-shrink:0;margin-top:2px;">` : ''}
           <div class="reply-form-inner">
             <textarea placeholder="Ответить..." maxlength="2000" rows="1"></textarea>
-            ${currentUser && canSendVoice(currentUser.role) ? renderVoiceControlsHtml() : ''}
+            ${currentUser && canSendVoice(currentUser) ? renderVoiceControlsHtml() : ''}
             <button type="button" class="emoji-toggle-btn" title="Смайлики">
               <img class="emoji-toggle-icon" src="${EMOJI_ICON_SRC}" alt="">
             </button>
@@ -10909,7 +10913,7 @@
         // Пуш о новых работах на проверку имеет смысл только для модераторов —
         // обычные пользователи эту очередь вообще не видят.
         const submissionRow = document.getElementById('notifSettingSubmissionRow');
-        if (isModeratorOrHigher(currentUser.role)) {
+        if (isModeratorOrHigher(currentUser)) {
           submissionRow.style.display = '';
           document.getElementById('notifSettingNewSubmission').checked = currentUser.notify_new_submission === true;
         } else {
@@ -11417,7 +11421,7 @@
 
   async function loadProfileIntoCurrentUser() {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}&select=username,display_name,avatar_url,role,is_banned,name_color,stream_twitch_url,stream_donate_url,stream_social_url,bio,notify_likes,notify_comments,notify_new_followers,notify_new_submission`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}&select=username,display_name,avatar_url,role,extra_roles,is_banned,name_color,stream_twitch_url,stream_donate_url,stream_social_url,bio,notify_likes,notify_comments,notify_new_followers,notify_new_submission`, {
         headers: {
           apikey: SUPABASE_KEY,
           Authorization: `Bearer ${currentUserToken}`
@@ -11429,6 +11433,7 @@
         currentUser.display_name = rows[0].display_name || null;
         currentUser.avatar_url = rows[0].avatar_url;
         currentUser.role = rows[0].role;
+        currentUser.extra_roles = rows[0].extra_roles || [];
         currentUser.is_banned = rows[0].is_banned;
         currentUser.name_color = rows[0].name_color || null;
         currentUser.stream_twitch_url = rows[0].stream_twitch_url || null;
@@ -11463,7 +11468,7 @@
     const collBtn = document.getElementById('addCollectionBtn');
     const reportsBtn = document.getElementById('commentReportsBtn');
     const usersBtn = document.getElementById('allUsersBtn');
-    if (currentUser && isModeratorOrHigher(currentUser.role)) {
+    if (currentUser && isModeratorOrHigher(currentUser)) {
       btn.style.display = 'flex';
       collBtn.style.display = 'flex';
       reportsBtn.style.display = 'flex';
@@ -11543,7 +11548,7 @@
 
   // Живой счётчик «На проверке»: Supabase Realtime + опрос раз в 20 сек как подстраховка.
   function moderationLiveRefresh() {
-    if (!currentUser || !isModeratorOrHigher(currentUser.role)) return;
+    if (!currentUser || !isModeratorOrHigher(currentUser)) return;
     refreshModerationCount();
     if (document.getElementById('moderationOverlay').classList.contains('open')) {
       loadModerationQueue();
@@ -11553,7 +11558,7 @@
   // То же самое, но для очереди жалоб на комментарии — отдельная функция,
   // т.к. у неё своя модалка/список и своя таблица (comment_reports).
   function commentReportsLiveRefresh() {
-    if (!currentUser || !isModeratorOrHigher(currentUser.role)) return;
+    if (!currentUser || !isModeratorOrHigher(currentUser)) return;
     refreshCommentReportsCount();
     if (document.getElementById('commentReportsOverlay').classList.contains('open')) {
       loadCommentReportsQueue();
@@ -12130,7 +12135,7 @@
     clearSupportUnread();
     if (!supportContentLoaded) {
       supportContentLoaded = true;
-      if (currentUser && isModeratorOrHigher(currentUser.role)) {
+      if (currentUser && isModeratorOrHigher(currentUser)) {
         document.getElementById('supportModalHint').textContent = 'Обращения пользователей. Отвечает тот, кто ответил первым.';
         document.getElementById('supportInbox').style.display = 'block';
         document.getElementById('supportChatView').style.display = 'none';
@@ -12159,7 +12164,7 @@
     if (!widget.classList.contains('open')) {
       widget.classList.add('open', 'minimized');
     }
-    const isModerator = isModeratorOrHigher(currentUser.role);
+    const isModerator = isModeratorOrHigher(currentUser);
     if (bannedListBtn) bannedListBtn.style.display = isModerator ? 'inline-block' : 'none';
     if (isModerator) {
       refreshSupportModCount();
@@ -12440,7 +12445,7 @@
     supportCurrentThreadId = threadId;
     supportCurrentThreadUser = ownerInfo;
     const headerEl = document.getElementById('supportChatHeader');
-    const showHeader = currentUser && isModeratorOrHigher(currentUser.role) && ownerInfo.id !== currentUser.id;
+    const showHeader = currentUser && isModeratorOrHigher(currentUser) && ownerInfo.id !== currentUser.id;
     headerEl.innerHTML = showHeader ? `
       <div class="support-chat-header-user">
         <img src="${ownerInfo.avatar_url || presetToDataUrl('p0')}" alt="">
@@ -12469,7 +12474,7 @@
     const formEl = document.getElementById('supportMessageForm');
     if (!meta || !currentUser) { actionsEl.innerHTML = ''; return; }
 
-    const isMod = isModeratorOrHigher(currentUser.role);
+    const isMod = isModeratorOrHigher(currentUser);
     const isOwner = currentUser.id === meta.user_id;
     const statusBtnLabel = meta.status === 'resolved' ? 'Вернуть в работу' : 'Отметить решённым';
     const nextStatus = meta.status === 'resolved' ? 'in_progress' : 'resolved';
@@ -12525,7 +12530,7 @@
       profiles.forEach(p => { profileById[p.id] = p; });
 
       const wasNearBottom = boxEl.scrollTop + boxEl.clientHeight >= boxEl.scrollHeight - 40;
-      const canDeleteMessages = isModeratorOrHigher(currentUser && currentUser.role);
+      const canDeleteMessages = isModeratorOrHigher(currentUser);
 
       boxEl.innerHTML = messages.map(m => {
         const sender = profileById[m.sender_id] || {};
@@ -12570,7 +12575,7 @@
   document.getElementById('supportThreadBox').addEventListener('click', async (e) => {
     const delBtn = e.target.closest('.support-msg-delete-btn');
     if (!delBtn) return;
-    if (!currentUser || !isModeratorOrHigher(currentUser.role)) return;
+    if (!currentUser || !isModeratorOrHigher(currentUser)) return;
 
     const messageId = delBtn.dataset.messageId;
     const sure = confirm('Удалить это сообщение?');
@@ -12636,7 +12641,7 @@
       input.value = '';
       autoResizeSupportInput();
       await loadSupportMessages();
-      if (isModeratorOrHigher(currentUser.role)) refreshSupportModCount();
+      if (isModeratorOrHigher(currentUser)) refreshSupportModCount();
     } catch (err) {
       console.error('Не удалось отправить сообщение поддержки:', err);
       alert('Не удалось отправить сообщение: ' + err.message);
@@ -12657,7 +12662,7 @@
         });
         if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
         await loadSupportMessages();
-        if (isModeratorOrHigher(currentUser.role)) refreshSupportModCount();
+        if (isModeratorOrHigher(currentUser)) refreshSupportModCount();
       } catch (err) {
         console.error('Не удалось изменить статус обращения:', err);
         alert('Не удалось изменить статус: ' + err.message);
@@ -12706,7 +12711,7 @@
         display_name: displayName,
         avatar_url: avatarUrl,
         bio: bio || null,
-        ...(canUseNameColor(currentUser.role) ? { name_color: selectedNameColor || null } : {}),
+        ...(canUseNameColor(currentUser) ? { name_color: selectedNameColor || null } : {}),
         ...(streamerLinks ? streamerLinks : {})
       })
     });
@@ -12731,44 +12736,57 @@
   // Все роли, которые существуют в системе и доступны для выдачи в панели gl_moder
   const ALL_ROLES = ['user', 'respect_plus', 'sponsor', 'streamer', 'moderator', 'gl_moder'];
 
-  function isPrivileged(role) {
-    return PRIVILEGED_ROLES.includes(role);
+  // Роли человека: основная (role, она показывается значком) + дополнительные
+  // (extra_roles). Функции прав принимают либо строку роли, либо профиль/currentUser —
+  // для профиля учитываются ВСЕ его роли.
+  function rolesOf(x) {
+    if (!x) return [];
+    if (typeof x === 'string') return [x];
+    const out = [];
+    if (x.role) out.push(x.role);
+    if (Array.isArray(x.extra_roles)) x.extra_roles.forEach(r => { if (r && !out.includes(r)) out.push(r); });
+    return out;
+  }
+  function hasRole(x, r) { return rolesOf(x).includes(r); }
+
+  function isPrivileged(x) {
+    return rolesOf(x).some(r => PRIVILEGED_ROLES.includes(r));
   }
 
   // gl_moder автоматически получает все обычные права модератора
   // (панель модерации, бан, выбор цвета/краски ника) + свою уникальную
   // панель выдачи ролей (см. openUserProfile).
-  function isModeratorOrHigher(role) {
-    return role === 'moderator' || role === 'gl_moder';
+  function isModeratorOrHigher(x) {
+    return rolesOf(x).some(r => r === 'moderator' || r === 'gl_moder');
   }
 
-  function isStreamer(role) {
-    return role === 'streamer';
+  function isStreamer(x) {
+    return hasRole(x, 'streamer');
   }
 
   // Модератор и главный модератор могут, как и стример, указать ссылку на
   // свой Telegram-канал в профиле, но БЕЗ полей Twitch и приватного доната —
   // им доступно только поле Telegram. Respect+ и Спонсор имеют ту же
   // возможность (только Telegram, без Twitch/доната), как и модераторы.
-  function canEditTelegramOnly(role) {
-    return (isModeratorOrHigher(role) && !isStreamer(role)) || role === 'respect_plus' || role === 'sponsor';
+  function canEditTelegramOnly(x) {
+    return (isModeratorOrHigher(x) && !isStreamer(x)) || hasRole(x, 'respect_plus') || hasRole(x, 'sponsor');
   }
 
   // Роли выше обычного пользователя — им доступна публикация текстовых
   // постов, видимых только подписчикам (вкладка "Подписки").
-  function canWriteTextPost(role) {
-    return isPrivileged(role);
+  function canWriteTextPost(x) {
+    return isPrivileged(x);
   }
 
   // Любая роль, которой доступно редактирование ссылки на Telegram
   // (полный набор ссылок у стримера, только Telegram у модераторов).
-  function canEditStreamerLinks(role) {
-    return isStreamer(role) || canEditTelegramOnly(role);
+  function canEditStreamerLinks(x) {
+    return isStreamer(x) || canEditTelegramOnly(x);
   }
 
   // Краска/цвет ника доступны модераторам (и выше) и стримерам.
-  function canUseNameColor(role) {
-    return isModeratorOrHigher(role) || isStreamer(role) || role === 'sponsor';
+  function canUseNameColor(x) {
+    return isModeratorOrHigher(x) || isStreamer(x) || hasRole(x, 'sponsor');
   }
 
 
@@ -12861,11 +12879,11 @@
         if (vr.ok) (await vr.json()).items.forEach(it => { sgViews[it.id] = it.statistics && it.statistics.viewCount; sgPub[it.id] = it.snippet && it.snippet.publishedAt; sgDur[it.id] = it.contentDetails && it.contentDetails.duration; });
       } catch (e) {}
       list.innerHTML = rows.map(r => {
-        const can = currentUser && (currentUser.id === r.user_id || isModeratorOrHigher(currentUser.role));
+        const can = currentUser && (currentUser.id === r.user_id || isModeratorOrHigher(currentUser));
         const id = encodeURIComponent(r.video_id);
         const t = escapeHtml(r.title || 'Видео');
         const pending = r.status !== 'approved';
-        const isMod = currentUser && isModeratorOrHigher(currentUser.role);
+        const isMod = currentUser && isModeratorOrHigher(currentUser);
         return `<div class="card card-type-video">
           <a class="card-video-thumb" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" title="${t}">
             <img class="card-video" src="https://img.youtube.com/vi/${id}/mqdefault.jpg" alt="${t}" loading="lazy" style="width:100%;height:100%;object-fit:cover;pointer-events:none;">
@@ -12939,13 +12957,13 @@
     const res = await fetch(`${SUPABASE_URL}/rest/v1/suggestions`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ user_id: currentUser.id, video_id: id, title: title || 'Видео', author_name: currentUser.display_name || currentUser.username || '', status: isModeratorOrHigher(currentUser.role) ? 'approved' : 'pending', approved_at: isModeratorOrHigher(currentUser.role) ? new Date().toISOString() : null })
+      body: JSON.stringify({ user_id: currentUser.id, video_id: id, title: title || 'Видео', author_name: currentUser.display_name || currentUser.username || '', status: isModeratorOrHigher(currentUser) ? 'approved' : 'pending', approved_at: isModeratorOrHigher(currentUser) ? new Date().toISOString() : null })
     });
     if (!res.ok) { sgMsg.textContent = 'Ошибка: ' + (await res.text()).slice(0, 120); return; }
     input.value = '';
     sgMsg.textContent = '';
     closeOverlay('sgOverlay');
-    if (!isModeratorOrHigher(currentUser.role)) alert('Видео отправлено на модерацию и появится после проверки');
+    if (!isModeratorOrHigher(currentUser)) alert('Видео отправлено на модерацию и появится после проверки');
     sgLoad();
   });
   document.getElementById('sgList').addEventListener('click', async (e) => {
@@ -13447,7 +13465,7 @@
     // Грузим профиль
     let profile = null;
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,display_name,avatar_url,role,name_color,stream_twitch_url,stream_donate_url,stream_social_url,short_code,bio`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,display_name,avatar_url,role,extra_roles,name_color,stream_twitch_url,stream_donate_url,stream_social_url,short_code,bio`, {
         headers: currentUserToken ? { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}` } : { apikey: SUPABASE_KEY }
       });
       const rows = await res.json();
@@ -13506,7 +13524,7 @@
     const effectiveRole = profile.role || 'user';
     const label = roleLabel(effectiveRole);
     const icon = roleIcon(effectiveRole);
-    const privileged = isPrivileged(profile.role);
+    const privileged = isPrivileged(profile);
 
     const badgeHtml = label
       ? `<span class="profile-role-badge ${roleBadgeClass(effectiveRole)}">${icon} ${label}</span><br>`
@@ -13522,10 +13540,10 @@
 
     // Может ли текущий пользователь удалять посты/сборники этого профиля:
     // модератор — отовсюду, обычный юзер — только из своего профиля
-    const canManageThisProfile = currentUser && (isModeratorOrHigher(currentUser.role) || isOwn);
+    const canManageThisProfile = currentUser && (isModeratorOrHigher(currentUser) || isOwn);
     // А редактировать название/теги — только модератор/гл. модератор, даже
     // на своём собственном профиле (обычным пользователям это не давали).
-    const canEditPosts = currentUser && isModeratorOrHigher(currentUser.role);
+    const canEditPosts = currentUser && isModeratorOrHigher(currentUser);
 
     // Подписка на автора: счётчик через Prefer count=exact, «подписан ли я» — точечный select по паре id.
     let subscriberCount = 0;
@@ -13641,8 +13659,8 @@
     // блок вместо медиа, текст, автор, дата, лайк, меню удаления (себе/модератору),
     // редактирование доступно moderator/gl_moder для любого поста.
     const postCardsHtml = userPosts.map(item => {
-      const canDeletePost = currentUser && (isModeratorOrHigher(currentUser.role) || currentUser.id === item.author_id);
-      const canEditPost = currentUser && isModeratorOrHigher(currentUser.role);
+      const canDeletePost = currentUser && (isModeratorOrHigher(currentUser) || currentUser.id === item.author_id);
+      const canEditPost = currentUser && isModeratorOrHigher(currentUser);
       const menuHtml = (canDeletePost || canEditPost) ? `
         <div class="card-menu" data-card-menu>
           <button class="card-menu-btn" type="button">⋮</button>
@@ -13698,19 +13716,19 @@
     const SPONSOR_LINK_URL = 'https://dalink.to/merockstar_';
     // У стримера — полный набор ссылок (Twitch/Telegram/донат).
     // У модератора и главного модератора — только ссылка на Telegram-канал.
-    const streamerLinks = profile.role === 'streamer'
+    const streamerLinks = isStreamer(profile)
       ? [
           { url: profile.stream_twitch_url, label: 'Twitch', cls: 'streamer-btn-twitch', icon: STREAMER_ICONS.twitch },
           { url: profile.stream_social_url, label: 'Telegram', cls: 'streamer-btn-tg', icon: STREAMER_ICONS.tg },
           { url: profile.stream_donate_url, label: 'Закрытый Telegram (донат)', cls: 'streamer-btn-donate', icon: STREAMER_ICONS.donate }
         ].filter(l => l.url)
-      : (canEditTelegramOnly(profile.role)
+      : (canEditTelegramOnly(profile)
           ? [{ url: profile.stream_social_url, label: 'Telegram', cls: 'streamer-btn-tg', icon: STREAMER_ICONS.tg }].filter(l => l.url)
           : []);
     // Кнопка "Стать спонсором" — только в своём профиле и только если у
     // пользователя ещё нет роли "спонсор"; видна лишь владельцу аккаунта,
     // на чужих профилях не отображается.
-    if (isOwn && profile.role !== 'sponsor') {
+    if (isOwn && !hasRole(profile, 'sponsor')) {
       streamerLinks.push({ url: SPONSOR_LINK_URL, label: 'Стать спонсором', cls: 'streamer-btn-sponsor', icon: STREAMER_ICONS.sponsor });
     }
     const streamerBtnsHtml = streamerLinks.length
@@ -13720,7 +13738,7 @@
       : '';
 
     // Меню смены роли — видно только gl_moder; список ролей берётся из ALL_ROLES.
-    const isGlModer = !!(currentUser && currentUser.role === 'gl_moder');
+    const isGlModer = !!(currentUser && hasRole(currentUser, 'gl_moder'));
     const roleMenuHtml = isGlModer
       ? `<div class="profile-role-menu-wrap" id="profileRoleMenuWrap" data-user-id="${userId}">
           <button type="button" class="profile-role-menu-btn" id="profileRoleMenuBtn" title="Управление ролью">⋮</button>
@@ -13732,9 +13750,11 @@
               </button>
               <div class="profile-role-submenu" id="profileRoleSubmenu">
                 ${ALL_ROLES.map(r => {
-                  const current = profile.role === r || (!profile.role && r === 'user');
+                  const all = rolesOf(profile);
+                  const current = r === 'user' ? !all.length : all.includes(r);
+                  const isMain = r !== 'user' && profile.role === r;
                   const label = r === 'user' ? 'Обычный пользователь' : roleLabel(r);
-                  return `<button type="button" class="role-option-btn${current ? ' active' : ''}" data-role="${r}" ${current ? 'disabled' : ''}>${roleIcon(r) ? roleIcon(r) + ' ' : ''}${label}${current ? ' ✓' : ''}</button>`;
+                  return `<div class="role-option-row"><button type="button" class="role-option-btn${current ? ' active' : ''}" data-role="${r}">${roleIcon(r) ? roleIcon(r) + ' ' : ''}${label}${current ? ' ✓' : ''}</button>${(r !== 'user' && current && all.length > 1) ? `<button type="button" class="role-main-btn${isMain ? ' is-main' : ''}" data-main-role="${r}" title="${isMain ? 'Основная роль (показывается значком)' : 'Сделать основной'}">${isMain ? '★' : '☆'}</button>` : ''}</div>`;
                 }).join('')}
               </div>
             </div>
@@ -13806,10 +13826,24 @@
 
       roleSubmenuEl.addEventListener('click', async (e) => {
         const optionBtn = e.target.closest('.role-option-btn');
-        if (!optionBtn || optionBtn.disabled) return;
+        const mainBtn = e.target.closest('.role-main-btn');
+        if (!optionBtn && !mainBtn) return;
         e.stopPropagation();
-        const newRole = optionBtn.dataset.role;
-        document.querySelectorAll('.profile-role-submenu .role-option-btn').forEach(b => b.disabled = true);
+        // Текущий набор ролей профиля → новый (основная + дополнительные)
+        let all = rolesOf(profile).filter(r => r !== 'user');
+        if (mainBtn) {
+          const r = mainBtn.dataset.mainRole;
+          if (!all.includes(r) || all[0] === r) return;
+          all = [r, ...all.filter(x => x !== r)];
+        } else {
+          const r = optionBtn.dataset.role;
+          if (r === 'user') all = [];
+          else if (all.includes(r)) all = all.filter(x => x !== r);
+          else all = [...all, r];
+        }
+        const newRole = all[0] || null;
+        const newExtra = all.slice(1);
+        document.querySelectorAll('.profile-role-submenu button').forEach(b => b.disabled = true);
         try {
           const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${targetUserId}`, {
             method: 'PATCH',
@@ -13819,20 +13853,21 @@
               'Content-Type': 'application/json',
               Prefer: 'return=minimal'
             },
-            body: JSON.stringify({ role: newRole === 'user' ? null : newRole })
+            body: JSON.stringify({ role: newRole, extra_roles: newExtra })
           });
           if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
-          // Если меняли роль самому себе — обновляем currentUser, чтобы
+          // Если меняли роли самому себе — обновляем currentUser, чтобы
           // привилегии (например, доступ к панели модерации) применились
           // сразу, без перезахода.
           if (currentUser && currentUser.id === targetUserId) {
-            currentUser.role = newRole === 'user' ? null : newRole;
+            currentUser.role = newRole;
+            currentUser.extra_roles = newExtra;
             renderModerationBtn();
           }
           await openUserProfile(targetUserId);
         } catch (err) {
           alert('Не удалось изменить роль: ' + err.message);
-          document.querySelectorAll('.profile-role-submenu .role-option-btn').forEach(b => { if (!b.classList.contains('active')) b.disabled = false; });
+          document.querySelectorAll('.profile-role-submenu button').forEach(b => { b.disabled = false; });
         }
       });
     }
@@ -14142,7 +14177,7 @@
 
     // Показываем палитру цветов модераторам и стримерам
     const colorSection = document.getElementById('nameColorSection');
-    if (canUseNameColor(currentUser.role)) {
+    if (canUseNameColor(currentUser)) {
       colorSection.style.display = 'block';
       initNameColorPalette();
     } else {
@@ -14154,10 +14189,10 @@
     const streamerSection = document.getElementById('streamerLinksSection');
     const twitchGroup = document.getElementById('twitchLinkGroup');
     const donateGroup = document.getElementById('donateLinkGroup');
-    if (canEditStreamerLinks(currentUser.role)) {
+    if (canEditStreamerLinks(currentUser)) {
       streamerSection.style.display = 'block';
       document.getElementById('p-social-url').value = currentUser.stream_social_url || '';
-      if (isStreamer(currentUser.role)) {
+      if (isStreamer(currentUser)) {
         twitchGroup.style.display = 'block';
         donateGroup.style.display = 'block';
         document.getElementById('p-twitch-url').value = currentUser.stream_twitch_url || '';
@@ -14228,11 +14263,11 @@
         avatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`;
       }
 
-      const streamerLinks = isStreamer(currentUser.role) ? {
+      const streamerLinks = isStreamer(currentUser) ? {
         stream_twitch_url: document.getElementById('p-twitch-url').value.trim() || null,
         stream_donate_url: document.getElementById('p-donate-url').value.trim() || null,
         stream_social_url: document.getElementById('p-social-url').value.trim() || null
-      } : (canEditTelegramOnly(currentUser.role) ? {
+      } : (canEditTelegramOnly(currentUser) ? {
         stream_social_url: document.getElementById('p-social-url').value.trim() || null
       } : null);
 
@@ -14243,7 +14278,7 @@
       currentUser.display_name = username;
       currentUser.avatar_url = avatarUrl;
       currentUser.bio = bio || null;
-      if (canUseNameColor(currentUser.role)) currentUser.name_color = selectedNameColor || null;
+      if (canUseNameColor(currentUser)) currentUser.name_color = selectedNameColor || null;
       if (streamerLinks) Object.assign(currentUser, streamerLinks);
       saveSession();
       renderAuthArea();
@@ -14268,7 +14303,7 @@
     const notify_likes = document.getElementById('notifSettingLikes').checked;
     const notify_comments = document.getElementById('notifSettingComments').checked;
     const notify_new_followers = document.getElementById('notifSettingNewFollowers').checked;
-    const isMod = isModeratorOrHigher(currentUser.role);
+    const isMod = isModeratorOrHigher(currentUser);
     let notify_new_submission = currentUser.notify_new_submission === true;
 
     btn.disabled = true;
@@ -15268,7 +15303,7 @@
 
   // Кнопка "+ Сборник" в шапке (видна только модераторам через renderModerationBtn)
   document.getElementById('addCollectionBtn').addEventListener('click', () => {
-    if (!currentUser || !isModeratorOrHigher(currentUser.role)) return;
+    if (!currentUser || !isModeratorOrHigher(currentUser)) return;
     if (currentUser.is_banned) {
       alert('Твой аккаунт заблокирован. Создание сборников недоступно.');
       return;
@@ -15703,7 +15738,7 @@
       updateReviewArrows();
       return;
     }
-    const canModerate = currentUser && isModeratorOrHigher(currentUser.role);
+    const canModerate = currentUser && isModeratorOrHigher(currentUser);
     trackEl.innerHTML = reviews.map(r => {
       const isLiked = likedSet.has(r.id);
       const isOwn = currentUser && currentUser.id === r.user_id;
@@ -16579,7 +16614,7 @@
       // было только внутри самого поста после открытия).
       const authorName = (item.profiles && (item.profiles.display_name || item.profiles.username)) || 'аноним';
       const isPost = item.content_type === 'post';
-      const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
+      const isModerator = currentUser && isModeratorOrHigher(currentUser);
       const isOwnPost = currentUser && item.submitted_by === currentUser.id;
       const menuHtml = (isModerator || isOwnPost) ? `
         <div class="card-menu" data-card-menu>
@@ -16769,7 +16804,7 @@
   async function fetchProfilesByRole(role) {
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/profiles?role=eq.${role}&order=username.asc&select=id,username,display_name,avatar_url,name_color`,
+        `${SUPABASE_URL}/rest/v1/profiles?or=(role.eq.${role},extra_roles.cs.{${role}})&order=username.asc&select=id,username,display_name,avatar_url,name_color`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(friendlySupabaseError(await res.text()));
@@ -17083,9 +17118,9 @@
   function updateContentPostTabVisibility() {
     const tabEl = document.getElementById('contentTabPost');
     if (!tabEl) return;
-    tabEl.style.display = (currentUser && canWriteTextPost(currentUser.role)) ? '' : 'none';
+    tabEl.style.display = (currentUser && canWriteTextPost(currentUser)) ? '' : 'none';
     const modSectionEl = document.getElementById('postModOptionsSection');
-    if (modSectionEl) modSectionEl.style.display = (currentUser && isModeratorOrHigher(currentUser.role)) ? 'block' : 'none';
+    if (modSectionEl) modSectionEl.style.display = (currentUser && isModeratorOrHigher(currentUser)) ? 'block' : 'none';
   }
 
   document.getElementById('postEmojiPicker').addEventListener('click', (e) => {
@@ -17112,7 +17147,7 @@
       statusEl.className = 'err';
       return;
     }
-    if (!currentUser || !canWriteTextPost(currentUser.role)) return;
+    if (!currentUser || !canWriteTextPost(currentUser)) return;
 
     btnEl.disabled = true;
     btnEl.textContent = 'Публикуем...';
@@ -17120,7 +17155,7 @@
     statusEl.className = '';
 
     // Настройки публичности/закрепления/автоудаления — только moderator/gl_moder.
-    const isModPoster = isModeratorOrHigher(currentUser.role);
+    const isModPoster = isModeratorOrHigher(currentUser);
     const isPublic = isModPoster ? document.getElementById('post-is-public').checked : false;
     const pinned = isModPoster ? document.getElementById('post-pinned').checked : false;
     const deleteAfterRaw = isModPoster ? document.getElementById('post-delete-after').value : '';
@@ -17169,7 +17204,7 @@
   }
 
   async function openEditTextPostModal(postId) {
-    if (!currentUser || !canManageAnyTextPost(currentUser.role)) return;
+    if (!currentUser || !canManageAnyTextPost(currentUser)) return;
     let post = null;
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/posts?id=eq.${postId}&select=*`, {
@@ -17211,7 +17246,7 @@
   });
 
   document.getElementById('editTextPostSaveBtn').addEventListener('click', async () => {
-    if (!editingTextPostId || !currentUser || !canManageAnyTextPost(currentUser.role)) return;
+    if (!editingTextPostId || !currentUser || !canManageAnyTextPost(currentUser)) return;
     const statusEl = document.getElementById('editTextPostStatus');
     const btnEl = document.getElementById('editTextPostSaveBtn');
     const text = document.getElementById('edit-post-text-body').value.trim();
@@ -17297,7 +17332,7 @@
     data.forEach(item => { collectionsById[item.id] = item; });
 
     feedEl.innerHTML = data.map(item => {
-      const isModerator = currentUser && isModeratorOrHigher(currentUser.role);
+      const isModerator = currentUser && isModeratorOrHigher(currentUser);
       const isOwnCollection = currentUser && item.submitted_by === currentUser.id;
       const menuHtml = (isModerator || isOwnCollection) ? `
         <div class="card-menu" data-card-menu>
