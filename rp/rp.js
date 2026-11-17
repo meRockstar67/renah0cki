@@ -31,6 +31,12 @@ const I = {
   lock: '<svg class="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
   gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.8-4 3.7-6 7.5-6s6.7 2 7.5 6"/></svg>',
+  mail: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>',
+  link: '<svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>',
+  send: '<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+  sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.9-.3 5 1.4 5.5 4.4"/></svg>',
 };
 
@@ -118,6 +124,18 @@ async function api(path, { method = 'GET', body, prefer } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
+/* ── короткие ссылки ────────────────────────────────────── */
+const isUuid = x => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x || '');
+const keyFilter = k => isUuid(k) ? `id=eq.${k}` : `short_code=eq.${encodeURIComponent(k)}`;
+const roomPath = (rm, sub = '') => `#/r/${rm.short_code || rm.id}${sub}`;
+const postPath = pp => `#/p/${pp.short_code || pp.id}`;
+const charPath = c => `#/c/${c.short_code || c.id}`;
+const userPath = u => `#/u/${encodeURIComponent(u.username || u.user_id)}`;
+async function copyLink(hash, msg = 'Ссылка скопирована') {
+  const url = `${location.origin}/rp/${hash}`;
+  try { await navigator.clipboard.writeText(url); toast(msg); } catch { prompt('Ссылка', url); }
+}
+
 /* ── состояние ──────────────────────────────────────────── */
 const S = {
   uid: null, me: null,            // rp.profiles
@@ -126,6 +144,7 @@ const S = {
   liked: new Set(), reposted: new Map(), // post_id → id репоста
   posts: new Map(),               // кэш постов по id
   view: null, viewArg: null,
+  mySlots: [], userReposted: new Set(), dmAs: null, mineScope: '',
 };
 const rank = () => ROLE_RANK[S.me?.rp_role] ?? 0;
 const isStaff = () => rank() >= 3;
@@ -139,10 +158,11 @@ function actingSlot() {
 }
 
 const SLOT_SEL = 'id,char_name,handle,avatar_url,character_id';
-const P_FIELDS = 'id,room_id,slot_id,body,images,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,created_at';
+const P_FIELDS = 'id,short_code,room_id,slot_id,body,images,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,created_at';
 const P_SEL = `${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),parent:reply_to(id,slot:slots!slot_id(handle)),`
-  + `quoted:quote_of(id,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL})),`
-  + `orig:repost_of(${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),parent:reply_to(id,slot:slots!slot_id(handle)),quoted:quote_of(id,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL})))`;
+  + `quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL})),`
+  + `orig:repost_of(${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),parent:reply_to(id,slot:slots!slot_id(handle)),quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL})))`;
+const P_SEL_ROOM = `${P_SEL},room:room_id(id,title,short_code,image_url)`;
 function cache(p) {
   if (!p) return p;
   S.posts.set(p.id, p);
@@ -151,17 +171,17 @@ function cache(p) {
 }
 
 /* ── загрузка комнаты ───────────────────────────────────── */
-async function loadRoom(id) {
-  if (S.room?.id === id) return S.room;
-  const rows = await api(`rooms?id=eq.${encodeURIComponent(id)}&select=*`);
+async function loadRoom(key) {
+  if (S.room && (S.room.id === key || S.room.short_code === key)) return S.room;
+  const rows = await api(`rooms?${keyFilter(key)}&select=*`);
   if (!rows?.length) throw new Error('Комната не найдена или нет доступа');
-  S.room = rows[0]; S.actSlot = null; S.posts.clear();
-  try { localStorage.setItem(LS_ROOM, id); } catch {}
+  S.room = rows[0]; S.actSlot = null; S.dmAs = null; S.posts.clear();
   await loadSlots();
   await loadMine();
-  subscribeRoom(id);
+  subscribeRoom(S.room.id);
   return S.room;
 }
+async function ensureRoomMine() { if (S.room && S.mineScope !== 'room:' + S.room.id) await loadMine(); }
 async function loadSlots() {
   if (!S.room) return;
   S.slots = await api(`slots?room_id=eq.${S.room.id}&select=*,player:profiles!player_id(nick)&order=created_at.asc`) || [];
@@ -169,7 +189,7 @@ async function loadSlots() {
   updateNav();
 }
 async function loadMine() {
-  S.liked = new Set(); S.reposted = new Map();
+  S.liked = new Set(); S.reposted = new Map(); S.mineScope = S.room ? 'room:' + S.room.id : '';
   const a = actingSlot();
   if (!a || !S.uid) return;
   const [likes, rts] = await Promise.all([
@@ -178,6 +198,29 @@ async function loadMine() {
   ]);
   likes.forEach(l => S.liked.add(l.post_id));
   rts.forEach(r => S.reposted.set(r.repost_of, r.id));
+}
+// все мои персонажи во всех комнатах (для главной и профиля)
+async function loadMySlots() {
+  if (!S.uid) return;
+  S.mySlots = await api(`slots?player_id=eq.${S.uid}&select=id,room_id,char_name,handle,avatar_url,character_id,room:room_id(id,title,short_code,image_url,status)`) || [];
+}
+async function loadUserReposts() {
+  if (!S.uid) return;
+  const rows = await api(`user_reposts?user_id=eq.${S.uid}&select=post_id&limit=5000`);
+  S.userReposted = new Set(rows.map(x => x.post_id));
+}
+async function loadMineAll() {
+  S.liked = new Set(); S.reposted = new Map(); S.mineScope = 'all';
+  if (!S.uid) return;
+  await loadMySlots();
+  const ids = S.mySlots.map(x => x.id);
+  if (!ids.length) return;
+  const [likes, rts] = await Promise.all([
+    api(`likes?slot_id=in.(${ids.join(',')})&select=post_id&limit=5000`),
+    api(`posts?slot_id=in.(${ids.join(',')})&repost_of=not.is.null&select=id,repost_of&limit=5000`),
+  ]);
+  likes.forEach(l => S.liked.add(l.post_id));
+  rts.forEach(x => S.reposted.set(x.repost_of, x.id));
 }
 
 /* ── realtime ───────────────────────────────────────────── */
@@ -195,22 +238,38 @@ async function subscribeRoom(id) {
   chanRoom = id;
   c.realtime.setAuth((await getToken()) || SB_KEY);
   chan = c.channel('rp-room-' + id)
-    .on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'posts', filter: 'room_id=eq.' + id }, p => onPostInsert(p.new))
-    .on('postgres_changes', { event: 'UPDATE', schema: 'rp', table: 'posts', filter: 'room_id=eq.' + id }, p => onPostUpdate(p.new))
-    .on('postgres_changes', { event: 'DELETE', schema: 'rp', table: 'posts' }, p => onPostDelete(p.old))
+    .on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'dms', filter: 'room_id=eq.' + id }, p => onDmInsert(p.new))
     .on('postgres_changes', { event: '*', schema: 'rp', table: 'slots', filter: 'room_id=eq.' + id }, () => onSlotsChange())
     .on('postgres_changes', { event: 'UPDATE', schema: 'rp', table: 'rooms', filter: 'id=eq.' + id }, p => { S.room = { ...S.room, ...p.new }; renderRight(); })
+    .subscribe();
+}
+let gchan = null;
+async function subscribeGlobal() {
+  const c = rtClient(); if (!c || gchan) return;
+  c.realtime.setAuth((await getToken()) || SB_KEY);
+  gchan = c.channel('rp-global')
+    .on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'posts' }, p => onPostInsert(p.new))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'rp', table: 'posts' }, p => onPostUpdate(p.new))
+    .on('postgres_changes', { event: 'DELETE', schema: 'rp', table: 'posts' }, p => onPostDelete(p.old))
     .subscribe();
 }
 setInterval(async () => { if (rt) rt.realtime.setAuth((await getToken()) || SB_KEY); }, 4 * 60e3);
 
 async function onPostInsert(row) {
-  if (!S.room || row.room_id !== S.room.id || S.posts.has(row.id)) return;
+  if (S.posts.has(row.id)) return;
+  const inRoom = S.room && row.room_id === S.room.id && (S.view === 'feed' || S.view === 'thread');
+  const onHome = S.view === 'home' && !row.reply_to;
+  if (!inRoom && !onHome) return;
   let p;
-  try { p = cache((await api(`posts?id=eq.${row.id}&select=${P_SEL}`))[0]); } catch { return; }
+  try { p = cache((await api(`posts?id=eq.${row.id}&select=${P_SEL_ROOM}`))[0]); } catch { return; }
   if (!p) return;
-  if (p.repost_of && p.slot_id === actingSlot()?.id) S.reposted.set(p.repost_of, p.id);
-  if (S.view === 'feed' && !p.reply_to) {
+  if (p.repost_of && (p.slot_id === actingSlot()?.id || S.mySlots.some(x => x.id === p.slot_id))) { S.reposted.set(p.repost_of, p.id); refreshRtState(p.repost_of); }
+  if (onHome) {
+    const list = $('#homeList'); if (!list) return;
+    $('.empty', list)?.remove();
+    list.prepend(renderPost(p, { showRoom: true }));
+    if (window.scrollY > 200) showNewPill();
+  } else if (S.view === 'feed' && !p.reply_to) {
     const list = $('#feedList'); if (!list) return;
     $('.empty', list)?.remove();
     const el = renderPost(p);
@@ -270,8 +329,14 @@ function quoteHtml(q) {
     <div class="post-top">${avatar(q.slot, 'xs')}<span class="name">${esc(q.slot?.char_name)}</span><span class="handle">@${esc(q.slot?.handle)}</span><span class="dot">·</span><time>${ago(q.created_at)}</time></div>
     ${body}</div>`;
 }
+function roomLine(rm) {
+  return rm ? `<a class="post-room" href="${roomPath(rm)}">${roomIcon(rm, 'mini')}<span>${esc(rm.title)}</span></a>` : '';
+}
+function refreshRtState(id) {
+  $$(`[data-cnt="${id}"] .act.rt`).forEach(b => b.classList.toggle('on', S.reposted.has(id) || S.userReposted.has(id)));
+}
 function actionsHtml(p, big = false) {
-  const liked = S.liked.has(p.id), rted = S.reposted.has(p.id);
+  const liked = S.liked.has(p.id), rted = S.reposted.has(p.id) || S.userReposted.has(p.id);
   const n = v => big ? '' : `<span class="n">${fmtN(v)}</span>`;
   return `<div class="actions" data-cnt="${p.id}">
     <button class="act reply" data-act="reply" aria-label="Ответить"><span class="ic">${I.reply}</span>${n(p.reply_count)}</button>
@@ -285,16 +350,26 @@ function bodyHtml(p) {
   return `${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${mediaHtml(p.images)}${quoteHtml(p.quoted)}`;
 }
 function canManage(p) {
-  return !!S.uid && (isOwner() || (mySlot() && mySlot().id === p.slot_id));
+  if (!S.uid) return false;
+  if (isStaff() || S.mySlots.some(x => x.id === p.slot_id)) return true;
+  return !!S.room && S.room.id === p.room_id && (isOwner() || mySlot()?.id === p.slot_id);
 }
-function renderPost(p, { line = false } = {}) {
+function renderPost(p, { line = false, showRoom = false } = {}) {
   const wrap = document.createElement('div');
   if (p.repost_of && p.orig) {
     const o = p.orig;
     wrap.className = 'post-wrap';
     wrap.dataset.post = p.id;
-    wrap.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(p.slot?.char_name)} сделал(а) репост</span></div>`;
+    wrap.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(p.slot?.char_name)} сделал(а) репост</span>${showRoom && p.room ? `<span class="dot">·</span>${roomLine(p.room)}` : ''}</div>`;
     wrap.append(renderPost(o));
+    return wrap;
+  }
+  if (showRoom && p.room) {
+    wrap.className = 'post-wrap';
+    wrap.dataset.post = p.id;
+    wrap.innerHTML = `<div class="post-ctx room-ctx">${roomLine(p.room)}</div>`;
+    const inner = renderPost(p); inner.removeAttribute('data-post');
+    wrap.append(inner);
     return wrap;
   }
   const el = document.createElement('article');
@@ -348,7 +423,7 @@ main.addEventListener('click', async e => {
   }
   if (e.target.closest('a, button, input, textarea, select, label')) return;
   const open = e.target.closest('[data-open]');
-  if (open && S.room && !window.getSelection()?.toString()) location.hash = `#/r/${S.room.id}/p/${open.dataset.open}`;
+  if (open && !window.getSelection()?.toString()) { const pp = S.posts.get(open.dataset.open); location.hash = pp ? postPath(pp) : `#/p/${open.dataset.open}`; }
 });
 
 function needLogin() {
@@ -360,20 +435,28 @@ function needSlot() {
   if (needLogin()) return true;
   if (S.room?.status !== 'active') { toast('Комната в архиве', true); return true; }
   toast('Сначала выберите персонажа', true);
-  location.hash = `#/r/${S.room.id}/chars`;
+  location.hash = roomPath(S.room, '/chars');
   return true;
 }
 
+const inRoomCtx = p => !!S.room && S.room.id === p.room_id && (S.view === 'feed' || S.view === 'thread');
+// от какого персонажа действовать с этим постом: в комнате — текущий, вне её — мой персонаж в той комнате
+function slotFor(p) {
+  if (inRoomCtx(p)) return canWrite() ? actingSlot() : null;
+  return S.mySlots.find(x => x.room_id === p.room_id && x.room?.status !== 'archived') || null;
+}
 async function postAction(act, p, btn) {
-  if (act === 'share') {
-    const url = `${location.origin}/rp/#/r/${p.room_id}/p/${p.id}`;
-    try { await navigator.clipboard.writeText(url); toast('Ссылка скопирована'); } catch { prompt('Ссылка на пост', url); }
-    return;
-  }
+  if (act === 'share') return copyLink(postPath(p), 'Ссылка на пост скопирована');
   if (act === 'more') return postMenu(p, btn);
-  if (needSlot()) return;
-  const a = actingSlot();
-  if (act === 'reply') return openComposer({ replyTo: p });
+  if (act === 'rt') return repostMenu(p, btn);
+  if (needLogin()) return;
+  if (act === 'reply') {
+    if (!inRoomCtx(p)) { location.hash = postPath(p); return; }
+    if (needSlot()) return;
+    return openComposer({ replyTo: p });
+  }
+  const a = slotFor(p);
+  if (!a) { if (inRoomCtx(p)) return needSlot(); return toast('Чтобы ставить лайки, займите персонажа в этой комнате', true); }
   if (act === 'like') {
     const on = S.liked.has(p.id);
     const box = btn.closest('.actions');
@@ -412,23 +495,34 @@ function menu(anchor, items) {
 function closeMenu() { $$('.menu').forEach(m => m.remove()); }
 
 function repostMenu(p, btn) {
-  const mine = S.reposted.get(p.id);
-  menu(btn, [
-    mine
-      ? { icon: I.rt, label: 'Отменить репост', run: async () => {
-          try { await rpc('delete_post', { p_post: mine }); S.reposted.delete(p.id); onPostDelete({ id: mine }); $$(`[data-cnt="${p.id}"] .act.rt`).forEach(b => b.classList.remove('on')); }
-          catch (e) { toast(errText(e), true); }
-        } }
-      : { icon: I.rt, label: 'Сделать репост', run: async () => {
-          try {
-            const [r] = await api('posts', { method: 'POST', body: { room_id: p.room_id, slot_id: actingSlot().id, repost_of: p.id }, prefer: 'return=representation' });
-            S.reposted.set(p.id, r.id);
-            $$(`[data-cnt="${p.id}"] .act.rt`).forEach(b => b.classList.add('on'));
-            toast('Репост сделан');
-          } catch (e) { toast(errText(e), true); }
-        } },
-    { icon: I.quote, label: 'Цитировать', run: () => openComposer({ quoteOf: p }) },
-  ]);
+  if (needLogin()) return;
+  const items = [];
+  const a = slotFor(p), mine = S.reposted.get(p.id);
+  if (mine) items.push({ icon: I.rt, label: 'Отменить репост персонажа', run: async () => {
+    try { await rpc('delete_post', { p_post: mine }); S.reposted.delete(p.id); onPostDelete({ id: mine }); refreshRtState(p.id); }
+    catch (e) { toast(errText(e), true); }
+  } });
+  else if (a) items.push({ icon: I.rt, label: `Репост от ${a.char_name}`, run: async () => {
+    try {
+      const [x] = await api('posts', { method: 'POST', body: { room_id: p.room_id, slot_id: a.id, repost_of: p.id }, prefer: 'return=representation' });
+      S.reposted.set(p.id, x.id); refreshRtState(p.id); toast('Репост сделан');
+    } catch (e) { toast(errText(e), true); }
+  } });
+  const onPage = S.userReposted.has(p.id);
+  items.push({ icon: I.user, label: onPage ? 'Убрать со своей страницы' : 'Репост к себе на страницу', run: () => toggleUserRepost(p) });
+  if (a && inRoomCtx(p)) items.push({ icon: I.quote, label: 'Цитировать', run: () => openComposer({ quoteOf: p }) });
+  menu(btn, items);
+}
+async function toggleUserRepost(p) {
+  const on = S.userReposted.has(p.id);
+  try {
+    if (on) await api(`user_reposts?user_id=eq.${S.uid}&post_id=eq.${p.id}`, { method: 'DELETE' });
+    else await api('user_reposts', { method: 'POST', body: { user_id: S.uid, post_id: p.id }, prefer: 'return=minimal' });
+    on ? S.userReposted.delete(p.id) : S.userReposted.add(p.id);
+    refreshRtState(p.id);
+    if (on) $$(`[data-post="ur-${p.id}"]`).forEach(el => el.remove());
+    toast(on ? 'Убрано с вашей страницы' : 'Репост на вашу страницу');
+  } catch (e) { toast(errText(e), true); }
 }
 function postMenu(p, btn) {
   menu(btn, [
@@ -556,7 +650,7 @@ function composerHint() {
   if (!S.uid) d.innerHTML = `<span>Вы смотрите как гость.</span><a class="btn small blue" href="/">Войти</a>`;
   else if (S.room?.status !== 'active') d.innerHTML = '<span>Комната в архиве — только чтение.</span>';
   else if (S.room?.read_only && !isOwner()) d.innerHTML = '<span>Комната в режиме «только чтение».</span>';
-  else d.innerHTML = `<span>Выберите персонажа, чтобы писать.</span><a class="btn small blue" href="#/r/${S.room.id}/chars">Персонажи</a>`;
+  else d.innerHTML = `<span>Выберите персонажа, чтобы писать.</span><a class="btn small blue" href="${roomPath(S.room, '/chars')}">Персонажи</a>`;
   return d;
 }
 function openComposer(opts = {}) {
@@ -590,37 +684,50 @@ function head(title, { back = false, sub = '', extra = '' } = {}) {
     <div class="head-title"><h1>${esc(title)}</h1>${sub ? `<div class="head-sub">${sub}</div>` : ''}</div>${extra}
   </div></div>`;
 }
-main.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : (location.hash = S.room ? `#/r/${S.room.id}` : '#/'); } });
+main.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : (location.hash = S.room ? roomPath(S.room) : '#/'); } });
 const loader = () => '<div class="loading-row"><div class="spinner" role="status" aria-label="Загрузка"></div></div>';
 function errorView(msg) {
   main.innerHTML = head('RP', { back: true }) + `<div class="empty"><h2>Не получилось</h2><p>${esc(msg)}</p><a class="btn blue" href="#/rooms">К комнатам</a></div>`;
 }
 function updateNav() {
-  const r = S.room ? `#/r/${S.room.id}/chars` : '#/rooms';
-  void r; $('#navChars').href = '#/chars'; $('#bottomChars').href = '#/chars';
+  $('#navChars').href = '#/chars'; $('#bottomChars').href = '#/chars';
+  const dmHref = S.room ? roomPath(S.room, '/dm') : '#/dm';
+  $('#navDm').href = dmHref; $('#bottomDm').href = dmHref;
+  const meHref = S.me ? userPath(S.me) : '/';
+  $('#navMe').href = meHref; $('#bottomMe').href = meHref;
   $$('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === navKey()));
   $('#fab').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
+  $('#sidePost').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
   $('#navNew').classList.toggle('hidden', !(S.uid && rank() >= 1));
   renderMe();
 }
-function navKey() { return S.view === 'create' ? 'new' : S.view === 'rooms' ? 'rooms' : S.view === 'lib' || S.view === 'char' ? 'chars' : 'home'; }
+function navKey() {
+  const v = S.view;
+  if (v === 'create') return 'new';
+  if (v === 'rooms' || v === 'feed' || v === 'thread' || v === 'chars') return 'rooms';
+  if (v === 'lib' || v === 'char') return 'chars';
+  if (v === 'dms' || v === 'dm' || v === 'dmhub') return 'dm';
+  if (v === 'user') return S.viewArg === S.uid ? 'me' : '';
+  return 'home';
+}
 function renderMe() {
   const box = $('#meCard');
   if (!S.uid) { box.innerHTML = '<a class="btn blue small" href="/">Войти</a>'; return; }
   const a = S.room ? (mySlot() || null) : null;
+  box.href = S.me ? userPath(S.me) : '/';
   box.innerHTML = a
     ? `${avatar(a)}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.char_name)}</div><div style="color:var(--muted);font-size:14px">@${esc(a.handle)}</div></div>`
     : `${avatar({ char_name: S.me?.nick || '?', handle: S.me?.nick, avatar_url: S.me?.avatar_url })}<div class="me-text"><div style="font-weight:700">${esc(S.me?.nick || '')}</div><div style="color:var(--muted);font-size:14px">${ROLE_NAME[S.me?.rp_role] || ''}</div></div>`;
 }
 
 /* главная: лента комнаты */
-async function viewFeed(roomId) {
-  S.view = 'feed'; main.innerHTML = head('Главная') + loader(); updateNav();
-  try { await loadRoom(roomId); } catch (e) { return errorView(errText(e)); }
+async function viewFeed(roomKey) {
+  S.view = 'feed'; main.innerHTML = head('Комната') + loader(); updateNav();
+  try { await loadRoom(roomKey); await ensureRoomMine(); } catch (e) { return errorView(errText(e)); }
   updateNav();
   const r = S.room;
   main.innerHTML = head(r.title, { sub: r.status === 'archived' ? 'Архив · только чтение' : `${S.slots.filter(s => s.player_id).length}/${S.slots.length} персонажей в игре`,
-    extra: `<a class="icon-btn" href="#/r/${r.id}/chars" aria-label="Персонажи">${I.users}</a>${isOwner() ? `<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : ''}` })
+    back: true, extra: `<a class="icon-btn" href="${roomPath(r, '/dm')}" aria-label="Сообщения" style="margin:0">${I.mail}</a><a class="icon-btn" href="${roomPath(r, '/chars')}" aria-label="Персонажи" style="margin:0">${I.users}</a><button class="icon-btn" data-copy="${roomPath(r)}" aria-label="Скопировать ссылку на комнату" style="margin:0">${I.link}</button>${isOwner() ? `<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : ''}` })
     + `<div id="composerSlot"></div><div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="feedList">${loader()}</div><div id="feedMore"></div>`;
   $('#newPill button').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); $('#newPill').classList.add('hidden'); };
   if (matchMedia('(min-width: 640px)').matches) refreshComposer();
@@ -646,14 +753,14 @@ async function loadFeedPage(before) {
 }
 
 /* тред */
-async function viewThread(roomId, postId) {
+async function viewThread(postKey) {
   S.view = 'thread'; main.innerHTML = head('Пост', { back: true }) + loader(); updateNav();
-  try { await loadRoom(roomId); } catch (e) { return errorView(errText(e)); }
-  renderRight();
   let p;
-  try { p = cache((await api(`posts?id=eq.${encodeURIComponent(postId)}&room_id=eq.${roomId}&select=${P_SEL}`))[0]); } catch (e) { return errorView(errText(e)); }
-  if (!p) return errorView('Пост не найден');
-  if (p.repost_of && p.orig) { location.replace(`#/r/${roomId}/p/${p.orig.id}`); return; }
+  try { p = (await api(`posts?${keyFilter(postKey)}&select=${P_SEL}`))[0]; } catch (e) { return errorView(errText(e)); }
+  if (!p) return errorView('Пост не найден или нет доступа');
+  if (p.repost_of && p.orig) { location.replace(postPath(p.orig)); return; }
+  try { await loadRoom(p.room_id); await ensureRoomMine(); } catch (e) { return errorView(errText(e)); }
+  cache(p); updateNav(); renderRight();
   // предки
   const chain = []; let cur = p;
   for (let i = 0; i < 12 && cur.reply_to; i++) {
@@ -668,7 +775,7 @@ async function viewThread(roomId, postId) {
     level = rows.map(r => r.id);
   }
   if (S.view !== 'thread') return;
-  main.innerHTML = head('Пост', { back: true });
+  main.innerHTML = head('Пост', { back: true, sub: `в комнате <a href="${roomPath(S.room)}" class="sub-link">${esc(S.room.title)}</a>` });
   chain.forEach(c => main.append(renderPost(c, { line: true })));
   main.append(renderBigPost(p));
   const cs = document.createElement('div'); cs.id = 'composerSlot'; main.append(cs);
@@ -803,7 +910,7 @@ function characterEditor(c, onSaved) {
     <div class="ce-head">
       <label class="ce-banner"${c?.banner_url ? ` style="background-image:url('${esc(c.banner_url)}')"` : ''} title="Шапка">
         <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку"></label>
-      <label class="ce-av" title="Аватар">${c?.avatar_url ? `<img class="av ce-av-img" src="${esc(c.avatar_url)}" alt="">` : '<span class="av ce-av-img" style="background:#333639"></span>'}
+      <label class="ce-av" title="Аватар">${c?.avatar_url ? `<img class="av ce-av-img" src="${esc(c.avatar_url)}" alt="">` : '<span class="av ce-av-img" style="background:var(--placeholder)"></span>'}
         <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар"></label>
     </div>
     <div class="ce-note">Нажмите на шапку или аватар, чтобы загрузить и обрезать картинку.</div>
@@ -855,7 +962,7 @@ function characterEditor(c, onSaved) {
 let libQ = '';
 function charRow(c, extra = '') {
   const n = c.slots ? new Set(c.slots.map(s => s.room_id)).size : null;
-  return `<a class="char lib-item" href="#/c/${c.id}">${avatar(c)}<div class="char-main"><div class="name">${esc(c.char_name)}</div><div class="handle">@${esc(c.handle)}</div>
+  return `<a class="char lib-item" href="${charPath(c)}">${avatar(c)}<div class="char-main"><div class="name">${esc(c.char_name)}</div><div class="handle">@${esc(c.handle)}</div>
     ${c.bio ? `<div class="bio clamp2">${esc(c.bio)}</div>` : ''}${n !== null ? `<div class="st">${n ? `В ${n} ${plural(n, 'комнате', 'комнатах', 'комнатах')}` : 'Пока ни в одной комнате'}</div>` : ''}</div>${extra}</a>`;
 }
 function plural(n, one, few, many) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; }
@@ -874,7 +981,7 @@ async function loadLibrary() {
   const list = $('#libList'); if (!list) return;
   const q = libQ ? `&or=(char_name.ilike.*${likeQ(libQ)}*,handle.ilike.*${likeQ(libQ)}*)` : '';
   let rows;
-  try { rows = await api(`characters?select=id,char_name,handle,avatar_url,bio,owner_id,slots(room_id)&order=created_at.desc&limit=500${q}`); }
+  try { rows = await api(`characters?select=id,short_code,char_name,handle,avatar_url,bio,owner_id,slots(room_id)&order=created_at.desc&limit=500${q}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (S.view !== 'lib') return;
   list.innerHTML = rows.length ? rows.map(c => charRow(c)).join('')
@@ -882,32 +989,34 @@ async function loadLibrary() {
 }
 
 /* ── страница персонажа ─────────────────────────────────── */
-async function viewCharacter(id) {
+async function viewCharacter(key) {
   S.view = 'char'; updateNav(); renderRight();
   main.innerHTML = head('Персонаж', { back: true }) + loader();
-  let c, rooms;
+  let c, rooms, id;
   try {
-    [[c], rooms] = await Promise.all([
-      api(`characters?id=eq.${id}&select=*`),
-      api(`rooms?select=id,title,description,is_private,status,image_url,slots!inner(id,character_id,player_id)&slots.character_id=eq.${id}&order=status.asc,created_at.desc`),
+    [c] = await api(`characters?${keyFilter(key)}&select=*`);
+    if (!c) return errorView('Персонаж не найден');
+    id = c.id;
+    [rooms] = await Promise.all([
+      api(`rooms?select=id,title,short_code,description,is_private,status,image_url,slots!inner(id,character_id,player_id)&slots.character_id=eq.${id}&order=status.asc,created_at.desc`),
     ]);
   } catch (e) { return errorView(errText(e)); }
   if (!c) return errorView('Персонаж не найден');
   if (S.view !== 'char') return;
   main.innerHTML = head(c.char_name, { back: true, sub: `${rooms.length} ${plural(rooms.length, 'комната', 'комнаты', 'комнат')}` })
     + `<div class="cp-banner"${c.banner_url ? ` style="background-image:url('${esc(c.banner_url)}')"` : ''}></div>
-    <div class="cp-top">${avatar(c, 'xl')}${canEditChar(c) ? '<button class="btn ghost" data-edit-char>Изменить</button>' : ''}</div>
+    <div class="cp-top">${avatar(c, 'xl')}<div class="cp-acts"><button class="icon-btn bordered" data-copy="${charPath(c)}" aria-label="Скопировать ссылку">${I.link}</button>${canEditChar(c) ? '<button class="btn ghost" data-edit-char>Изменить</button>' : ''}</div></div>
     <div class="cp-info"><div class="cp-name">${esc(c.char_name)}</div><div class="cp-handle">@${esc(c.handle)}</div>${c.bio ? `<div class="cp-bio">${richText(c.bio)}</div>` : ''}</div>
     <div class="tabs" style="border-bottom:1px solid var(--border)"><span class="active" style="flex:1;text-align:center;padding:16px 8px;font-weight:700;position:relative">Комнаты</span></div>
     ${rooms.length ? rooms.map(r => {
       const free = r.slots.some(s => !s.player_id);
-      return `<a class="room-item" href="#/r/${r.id}/chars">${roomIcon(r)}
+      return `<a class="room-item" href="${roomPath(r, '/chars')}">${roomIcon(r)}
         <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? '<span class="badge">Архив</span>' : ''}</div>
         ${r.description ? `<div class="d">${esc(r.description)}</div>` : ''}
         <div class="m">${r.status !== 'active' ? 'Только чтение' : free ? '<span class="free">Свободен — можно играть</span>' : 'Занят игроком'}</div></div></a>`;
     }).join('') : '<div class="empty"><h2>Пока ни в одной комнате</h2><p>Владелец комнаты может добавить этого персонажа в разделе «Персонажи комнаты».</p></div>'}`;
   const ed = $('[data-edit-char]', main);
-  if (ed) ed.onclick = () => characterEditor(c, () => viewCharacter(id));
+  if (ed) ed.onclick = () => characterEditor(c, () => viewCharacter(key));
 }
 
 /* ── выбор персонажей из библиотеки ─────────────────────── */
@@ -998,8 +1107,8 @@ main.addEventListener('click', async e => {
     if (t.dataset.take) {
       t.disabled = true;
       await rpc('take_slot', { p_slot: t.dataset.take });
-      S.actSlot = null; await loadSlots(); await loadMine();
-      toast('Вы в игре!'); location.hash = `#/r/${S.room.id}`;
+      S.actSlot = null; await loadSlots(); await loadMine(); loadMySlots();
+      toast('Вы в игре!'); location.hash = roomPath(S.room);
     } else if (t.hasAttribute('data-leave')) {
       await rpc('leave_slot', { p_room: S.room.id }); await loadSlots(); await loadMine(); renderChars(); renderRight(); toast('Слот освобождён');
     } else if (t.dataset.kick) {
@@ -1116,12 +1225,12 @@ async function loadRooms() {
   const list = $('#roomList'); if (!list) return;
   const q = roomsQ ? `&or=(title.ilike.*${likeQ(roomsQ)}*,description.ilike.*${likeQ(roomsQ)}*)` : '';
   let rows;
-  try { rows = await api(`rooms?select=id,title,description,is_private,status,image_url,max_slots,owner_id,created_at,slots(player_id)&order=status.asc,created_at.desc&limit=100${q}`); }
+  try { rows = await api(`rooms?select=id,title,short_code,description,is_private,status,image_url,max_slots,owner_id,created_at,slots(player_id)&order=status.asc,created_at.desc&limit=100${q}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (!rows.length) { list.innerHTML = `<div class="empty"><h2>${roomsQ ? 'Ничего не найдено' : 'Комнат пока нет'}</h2><p>${roomsQ ? 'Попробуйте другой запрос.' : 'Создайте первую комнату.'}</p>${!roomsQ && S.uid && rank() >= 1 ? `<a class="btn blue" href="#/new" style="margin-top:16px">${I.plus} Создать комнату</a>` : ''}</div>`; return; }
   list.innerHTML = rows.map(r => {
     const taken = r.slots.filter(s => s.player_id).length;
-    return `<a class="room-item" href="#/r/${r.id}">${roomIcon(r)}
+    return `<a class="room-item" href="${roomPath(r)}">${roomIcon(r)}
       <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? '<span class="badge">Архив</span>' : ''} ${r.owner_id === S.uid ? '<span class="badge blue">Ваша</span>' : ''}</div>
       ${r.description ? `<div class="d">${esc(r.description)}</div>` : ''}
       <div class="m">${taken}/${r.slots.length} в игре</div></div></a>`;
@@ -1159,27 +1268,293 @@ function viewCreate() {
       const [room] = await api('rooms', { method: 'POST', body: { ...body, owner_id: S.uid }, prefer: 'return=representation' });
       if (chars.length) {
         try { await api('slots', { method: 'POST', body: chars.map(c => ({ room_id: room.id, character_id: c.id, char_name: c.char_name, handle: c.handle })), prefer: 'return=minimal' }); }
-        catch (e2) { toast('Комната создана, но персонажи не добавились: ' + errText(e2), true); location.hash = `#/r/${room.id}/chars`; return; }
+        catch (e2) { toast('Комната создана, но персонажи не добавились: ' + errText(e2), true); location.hash = roomPath(room, '/chars'); return; }
       }
       toast('Комната создана');
-      location.hash = `#/r/${room.id}/chars`;
+      location.hash = roomPath(room, '/chars');
     } catch (e2) { err.textContent = errText(e2); btn.disabled = false; }
   };
+}
+
+/* ── главная: последние посты из всех комнат ────────────── */
+async function viewHome() {
+  S.view = 'home'; updateNav(); renderRight();
+  main.innerHTML = head('Главная', { sub: 'Новые посты из всех комнат' })
+    + `<div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="homeList">${loader()}</div><div id="homeMore"></div>`;
+  $('#newPill button').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); $('#newPill').classList.add('hidden'); };
+  try { await loadMineAll(); } catch {}
+  renderRight();
+  await loadHomePage();
+}
+async function loadHomePage(before) {
+  const list = $('#homeList'); if (!list) return;
+  let rows;
+  try { rows = await api(`posts?reply_to=is.null&select=${P_SEL_ROOM}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
+  catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
+  if (S.view !== 'home') return;
+  if (!before) list.innerHTML = '';
+  rows.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true })); });
+  if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Постов ещё нет. Зайдите в комнату и напишите первый.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>`;
+  const more = $('#homeMore');
+  more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';
+  const btn = $('button', more);
+  if (btn) btn.onclick = () => { btn.disabled = true; loadHomePage(rows[rows.length - 1].created_at); };
+}
+
+/* ── страница пользователя (данные с renah0cki) ─────────── */
+const MONTHS_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+const safeColor = c => /^#[0-9a-f]{3,8}$/i.test(c || '') ? c : '';
+async function viewUser(key) {
+  S.view = 'user'; updateNav(); renderRight();
+  main.innerHTML = head('Профиль', { back: true }) + loader();
+  let u, reposts, roles;
+  try {
+    [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%_*]/g, ''))}`}&select=user_id,nick,avatar_url,username,bio,name_color,rp_role,created_at`);
+    if (!u) return errorView('Профиль не найден');
+    S.viewArg = u.user_id; updateNav();
+    [reposts, roles] = await Promise.all([
+      api(`user_reposts?user_id=eq.${u.user_id}&select=created_at,post:post_id(${P_SEL_ROOM})&order=created_at.desc&limit=60`),
+      api(`slots?player_id=eq.${u.user_id}&select=id,char_name,handle,avatar_url,character_id,room:room_id(id,title,short_code,image_url)`),
+    ]);
+  } catch (e) { return errorView(errText(e)); }
+  if (S.view !== 'user') return;
+  if (u.user_id === S.uid) { try { await loadMineAll(); } catch {} }
+  const isMe = u.user_id === S.uid, color = safeColor(u.name_color), d = new Date(u.created_at);
+  const uav = { char_name: u.nick, handle: u.username || u.nick, avatar_url: u.avatar_url };
+  reposts = reposts.filter(x => x.post);
+  main.innerHTML = head(u.nick, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}` })
+    + `<div class="cp-banner" style="background:${color ? `linear-gradient(135deg, ${color}, var(--placeholder))` : 'var(--placeholder)'}"></div>
+    <div class="cp-top">${avatar(uav, 'xl')}<div class="cp-acts">
+      <button class="icon-btn bordered" data-copy="${userPath(u)}" aria-label="Скопировать ссылку">${I.link}</button>
+      ${isMe ? `<button class="btn ghost" data-theme-toggle>${I.sun}<span data-theme-label>${themeLabel()}</span></button>` : ''}
+      ${u.username ? `<a class="btn ghost" href="/${encodeURIComponent(u.username)}">На renah0cki</a>` : ''}</div></div>
+    <div class="cp-info"><div class="cp-name"${color ? ` style="color:${color}"` : ''}>${esc(u.nick)} ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
+      ${u.username ? `<div class="cp-handle">@${esc(u.username)}</div>` : ''}
+      ${u.bio ? `<div class="cp-bio">${richText(u.bio)}</div>` : ''}
+      <div class="cp-meta">${I.calendar}<span>В RP с ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} г.</span></div>
+      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span></div></div>
+    <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
+    <div id="uList"></div>`;
+  const list = $('#uList');
+  const drawRt = () => {
+    list.innerHTML = '';
+    if (!reposts.length) { list.innerHTML = `<div class="empty"><h2>Пока нет репостов</h2><p>${isMe ? 'Нажмите ↻ под любым постом → «Репост к себе на страницу».' : 'Здесь появятся посты, которые человек сохранил к себе.'}</p></div>`; return; }
+    reposts.forEach(x => {
+      const pp = cache(x.post);
+      const w = document.createElement('div');
+      w.className = 'post-wrap'; w.dataset.post = 'ur-' + pp.id;
+      w.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(u.nick)} сделал(а) репост</span>${pp.room ? `<span class="dot">·</span>${roomLine(pp.room)}` : ''}</div>`;
+      const inner = renderPost(pp.repost_of && pp.orig ? pp.orig : pp); inner.removeAttribute('data-post');
+      w.append(inner); list.append(w);
+    });
+  };
+  const drawRoles = () => {
+    list.innerHTML = roles.length ? roles.map(x => `<a class="char lib-item" href="${x.room ? roomPath(x.room) : '#/rooms'}">${avatar(x)}<div class="char-main"><div class="name">${esc(x.char_name)}</div><div class="handle">@${esc(x.handle)}</div><div class="st">в комнате ${x.room ? esc(x.room.title) : '—'}</div></div></a>`).join('')
+      : '<div class="empty"><h2>Сейчас без ролей</h2><p>Занятые персонажи появятся здесь.</p></div>';
+  };
+  $$('[data-utab]', main).forEach(b => b.onclick = () => {
+    $$('[data-utab]', main).forEach(x => x.classList.toggle('active', x === b));
+    b.dataset.utab === 'rt' ? drawRt() : drawRoles();
+  });
+  drawRt();
+}
+
+/* ── тема ───────────────────────────────────────────────── */
+const curTheme = () => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+const themeLabel = () => curTheme() === 'light' ? 'Тёмная тема' : 'Светлая тема';
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('rp_theme', t); } catch {}
+  const m = $('meta[name="theme-color"]'); if (m) m.content = t === 'light' ? '#ffffff' : '#000000';
+  $$('[data-theme-label]').forEach(el => { el.textContent = themeLabel(); });
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-theme-toggle]')) setTheme(curTheme() === 'light' ? 'dark' : 'light'); });
+$$('[data-theme-label]').forEach(el => { el.textContent = themeLabel(); });
+
+/* ── ЛС ─────────────────────────────────────────────────── */
+// от кого писать: свой слот; владелец/staff — ещё и свободные (NPC) слоты
+function dmOptions() { if (!S.room || !S.uid) return []; return S.slots.filter(x => x.player_id === S.uid || (!x.player_id && isOwner())); }
+function dmSlot() { const o = dmOptions(); return o.find(x => x.id === S.dmAs) || o.find(x => x.player_id === S.uid) || o[0] || null; }
+function dmAsSelect() {
+  const o = dmOptions(); if (o.length < 2) return '';
+  return `<select class="as-select" data-dm-as aria-label="Писать от имени">${o.map(x => `<option value="${x.id}"${x.id === dmSlot()?.id ? ' selected' : ''}>${esc(x.char_name)}${x.player_id ? '' : ' (NPC)'}</option>`).join('')}</select>`;
+}
+main.addEventListener('change', e => {
+  const sel = e.target.closest('[data-dm-as]'); if (!sel) return;
+  S.dmAs = sel.value; route();
+});
+function chatTime(ts) {
+  const d = new Date(ts), now = new Date(), t = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = (day(now) - day(d)) / 864e5;
+  if (diff === 0) return 'Сегодня ' + t;
+  if (diff === 1) return 'Вчера ' + t;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : ''} ${t}`;
+}
+
+async function viewDmHub() {
+  S.view = 'dmhub'; updateNav(); renderRight();
+  if (S.room) { location.replace(roomPath(S.room, '/dm')); return; }
+  main.innerHTML = head('Сообщения') + loader();
+  try { await loadMySlots(); } catch {}
+  const mine = S.mySlots.filter(x => x.room);
+  if (mine.length === 1) { location.replace(roomPath(mine[0].room, '/dm')); return; }
+  main.innerHTML = head('Сообщения', { sub: 'Переписка идёт внутри комнат' }) + (mine.length
+    ? mine.map(x => `<a class="room-item" href="${roomPath(x.room, '/dm')}">${roomIcon(x.room)}<div style="min-width:0;flex:1"><div class="t">${esc(x.room.title)}</div><div class="m">вы играете за ${esc(x.char_name)}</div></div></a>`).join('')
+    : '<div class="empty"><h2>Пока нет переписок</h2><p>Займите персонажа в комнате, чтобы писать другим персонажам.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>');
+}
+
+async function viewDmList(roomKey) {
+  S.view = 'dms'; main.innerHTML = head('Сообщения', { back: true }) + loader(); updateNav();
+  try { await loadRoom(roomKey); } catch (e) { return errorView(errText(e)); }
+  updateNav(); renderRight();
+  const me = dmSlot();
+  const h = head('Сообщения', { back: true, sub: esc(S.room.title), extra: me ? `<button class="btn small blue" data-dm-new>${I.mail} Написать</button>` : '' });
+  if (!S.uid) { main.innerHTML = h + `<div class="composer-hint"><span>Войдите, чтобы переписываться.</span><a class="btn small blue" href="/">Войти</a></div>`; return; }
+  if (!me) { main.innerHTML = h + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в этой комнате, чтобы писать другим.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>`; return; }
+  let rows;
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(from_slot.eq.${me.id},to_slot.eq.${me.id})&select=id,from_slot,to_slot,body,images,created_at&order=created_at.desc&limit=1000`); }
+  catch (e) { return errorView(errText(e)); }
+  if (S.view !== 'dms') return;
+  const last = new Map();
+  rows.forEach(m => { const peer = m.from_slot === me.id ? m.to_slot : m.from_slot; if (!last.has(peer)) last.set(peer, m); });
+  const items = [...last.entries()].filter(([pid]) => S.slotMap.has(pid));
+  main.innerHTML = h + (dmAsSelect() ? `<div class="composer-hint" style="font-size:14px"><span>Вы пишете как</span>${dmAsSelect()}</div>` : '')
+    + (items.length ? items.map(([pid, m]) => {
+      const peer = S.slotMap.get(pid);
+      const txt = m.body || (m.images?.length ? 'Фото' : '');
+      return `<a class="dm-row" href="${roomPath(S.room, '/dm/' + pid)}">${avatar(peer)}<div class="dm-main"><div class="dm-top"><b>${esc(peer.char_name)}</b><span class="handle">@${esc(peer.handle)}</span><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
+        <div class="dm-last">${m.from_slot === me.id ? 'Вы: ' : ''}${esc(txt)}</div></div></a>`;
+    }).join('')
+    : `<div class="empty"><h2>Нет сообщений</h2><p>Напишите любому персонажу этой комнаты — переписку увидите только вы двое.</p><button class="btn blue" data-dm-new style="margin-top:16px">${I.mail} Написать</button></div>`);
+}
+main.addEventListener('click', e => {
+  if (!e.target.closest('[data-dm-new]') || !S.room) return;
+  const me = dmSlot(); if (!me) return;
+  const others = S.slots.filter(x => x.id !== me.id);
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="Новое сообщение"><div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="Закрыть">${I.close}</button><div class="head-title"><h1>Кому написать</h1></div></div></div>
+    ${others.length ? others.map(x => `<a class="char lib-item" href="${roomPath(S.room, '/dm/' + x.id)}">${avatar(x)}<div class="char-main"><div class="name">${esc(x.char_name)}</div><div class="handle">@${esc(x.handle)}</div><div class="st">${x.player_id ? 'играет ' + esc(x.player?.nick || 'игрок') : 'свободен'}</div></div></a>`).join('') : '<div class="empty">В комнате больше нет персонажей.</div>'}</div>`;
+  ov.addEventListener('click', ev => { if (ev.target === ov || ev.target.closest('[data-close]') || ev.target.closest('a')) { ov.remove(); document.body.style.overflow = ''; } });
+  document.body.append(ov); document.body.style.overflow = 'hidden';
+});
+
+const chat = { msgs: [], me: null, peer: null, ids: new Set() };
+async function viewDmChat(roomKey, peerId) {
+  S.view = 'dm'; document.body.classList.add('chat-mode');
+  main.innerHTML = head('Сообщения', { back: true }) + loader(); updateNav();
+  try { await loadRoom(roomKey); } catch (e) { return errorView(errText(e)); }
+  updateNav(); renderRight();
+  const me = dmSlot(), peer = S.slotMap.get(peerId);
+  if (!peer) return errorView('Персонаж не найден в этой комнате');
+  if (!me) { main.innerHTML = head(peer.char_name, { back: true }) + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в комнате, чтобы писать.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>`; return; }
+  if (me.id === peer.id) { location.replace(roomPath(S.room, '/dm')); return; }
+  Object.assign(chat, { msgs: [], me: me.id, peer: peer.id, ids: new Set() });
+  main.innerHTML = `<div class="head chat-head"><div class="head-row">
+      <button class="icon-btn" data-back aria-label="Назад">${I.back}</button>
+      <a class="chat-peer" href="${peer.character_id ? `#/c/${peer.character_id}` : roomPath(S.room, '/chars')}">${avatar(peer, 'sm')}<span class="chat-peer-name">${esc(peer.char_name)}</span></a>
+      <span class="chat-spacer"></span></div>
+      ${dmAsSelect() ? `<div class="chat-as"><span>Вы пишете как</span>${dmAsSelect()}</div>` : ''}</div>
+    <div class="chat" id="chat">${loader()}</div>
+    <form class="chat-bar" id="chatBar" autocomplete="off">
+      <label class="chat-tool" aria-label="Добавить фото">${I.image}<input type="file" accept="image/*" multiple hidden></label>
+      <div class="chat-input"><div class="thumbs hidden"></div><textarea rows="1" maxlength="1000" placeholder="Сообщение" aria-label="Сообщение"></textarea></div>
+      <button class="chat-send" type="submit" disabled aria-label="Отправить">${I.send}</button>
+    </form>`;
+  let rows;
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${me.id},to_slot.eq.${peer.id}),and(from_slot.eq.${peer.id},to_slot.eq.${me.id}))&select=id,from_slot,to_slot,body,images,created_at&order=created_at.asc&limit=1000`); }
+  catch (e) { return errorView(errText(e)); }
+  if (S.view !== 'dm') return;
+  rows.forEach(m => { chat.msgs.push(m); chat.ids.add(m.id); });
+  drawChat(true);
+  wireChatBar();
+}
+function drawChat(jump = false) {
+  const box = $('#chat'); if (!box) return;
+  const nearBottom = innerHeight + scrollY >= document.body.scrollHeight - 160;
+  if (!chat.msgs.length) { box.innerHTML = `<div class="chat-empty">${avatar(S.slotMap.get(chat.peer), 'lg')}<b>${esc(S.slotMap.get(chat.peer)?.char_name || '')}</b><span>Начните переписку — её видите только вы двое.</span></div>`; return; }
+  let html = '', prev = null;
+  const HOUR = 60 * 60e3;
+  chat.msgs.forEach((m, i) => {
+    const next = chat.msgs[i + 1], t = new Date(m.created_at);
+    if (!prev || t - new Date(prev.created_at) > HOUR) html += `<div class="chat-time">${chatTime(m.created_at)}</div>`;
+    const mine = m.from_slot === chat.me;
+    const tail = !next || next.from_slot !== m.from_slot || new Date(next.created_at) - t > HOUR;
+    const first = !prev || prev.from_slot !== m.from_slot || t - new Date(prev.created_at) > HOUR;
+    html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}"><div class="bub${tail ? ' tail' : ''}" title="${esc(fullDate(m.created_at))}">`
+      + (m.images?.length ? `<div class="bub-imgs n${m.images.length}">${m.images.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-zoom>`).join('')}</div>` : '')
+      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + '</div></div>';
+    prev = m;
+  });
+  box.innerHTML = html;
+  if (jump || nearBottom) requestAnimationFrame(() => scrollTo({ top: document.body.scrollHeight, behavior: jump ? 'auto' : 'smooth' }));
+}
+function wireChatBar() {
+  const bar = $('#chatBar'), ta = $('textarea', bar), send = $('.chat-send', bar), file = $('input[type=file]', bar), thumbs = $('.thumbs', bar);
+  const imgs = [];
+  const update = () => {
+    ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+    send.disabled = imgs.some(i => i.loading) || (!ta.value.trim() && !imgs.some(i => i.url));
+  };
+  const drawThumbs = () => {
+    thumbs.classList.toggle('hidden', !imgs.length);
+    thumbs.innerHTML = imgs.map((im, i) => `<div class="thumb${im.loading ? ' loading' : ''}"><img src="${esc(im.preview)}" alt=""><button type="button" data-rm="${i}" aria-label="Убрать">${I.close}</button></div>`).join('');
+    update();
+  };
+  thumbs.onclick = e => { const b = e.target.closest('[data-rm]'); if (!b) return; imgs.splice(+b.dataset.rm, 1); drawThumbs(); };
+  file.onchange = async () => {
+    const files = [...file.files].slice(0, MAX_IMG - imgs.length); file.value = '';
+    if (!files.length) return toast(`Не больше ${MAX_IMG} картинок`, true);
+    const added = files.map(f => ({ url: null, preview: URL.createObjectURL(f), loading: true, f }));
+    imgs.push(...added); drawThumbs();
+    await Promise.all(added.map(async im => {
+      try { im.url = await uploadImage(im.f); } catch (e) { toast(errText(e), true); imgs.splice(imgs.indexOf(im), 1); }
+      im.loading = false; drawThumbs();
+    }));
+  };
+  ta.oninput = update;
+  ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer: fine)').matches) { e.preventDefault(); if (!send.disabled) bar.requestSubmit(); } };
+  bar.onsubmit = async e => {
+    e.preventDefault();
+    if (send.disabled) return;
+    send.disabled = true;
+    const body = { room_id: S.room.id, from_slot: chat.me, to_slot: chat.peer, body: ta.value.trim(), images: imgs.filter(i => i.url).map(i => i.url) };
+    try {
+      const [row] = await api('dms', { method: 'POST', body, prefer: 'return=representation' });
+      ta.value = ''; imgs.length = 0; drawThumbs();
+      addChatMsg(row);
+      ta.focus();
+    } catch (err) { toast(errText(err), true); update(); }
+  };
+  if (matchMedia('(pointer: fine)').matches) ta.focus();
+}
+function addChatMsg(m) {
+  if (chat.ids.has(m.id)) return;
+  chat.ids.add(m.id); chat.msgs.push(m); drawChat();
+}
+let dmListT;
+function onDmInsert(row) {
+  if (S.view === 'dm' && ((row.from_slot === chat.me && row.to_slot === chat.peer) || (row.from_slot === chat.peer && row.to_slot === chat.me))) addChatMsg(row);
+  else if (S.view === 'dms') { clearTimeout(dmListT); dmListT = setTimeout(() => { if (S.view === 'dms') viewDmList(S.room.short_code || S.room.id); }, 300); }
 }
 
 /* правая колонка */
 function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
-  if (!S.room || ['rooms', 'create', 'lib', 'char'].includes(S.view)) {
-    right.innerHTML = `<div class="panel"><h2>RP</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки. Все в комнате видят ленту.</p></div>`;
+  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub'].includes(S.view)) {
+    const mine = S.mySlots.filter(x => x.room);
+    right.innerHTML = `<div class="panel"><h2>RP</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
+      ${mine.length ? `<div class="panel"><h2>Ваши роли</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
+      <div class="panel"><a class="link" href="#/rooms">Все комнаты</a></div>`;
     return;
   }
   const r = S.room;
   right.innerHTML = `<div class="panel"><div class="panel-room">${roomIcon(r, 'big')}<h2>${esc(r.title)} ${r.is_private ? I.lock : ''}</h2></div>${r.description ? `<p>${esc(r.description)}</p>` : ''}
     ${r.status === 'archived' ? '<p><span class="badge">Архив · только чтение</span></p>' : ''}</div>
     <div class="panel"><h2>Персонажи</h2>
-      ${S.slots.slice(0, 8).map(s => `<a class="row" href="#/r/${r.id}/chars">${avatar(s, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(s.char_name)}</div><div class="h">@${esc(s.handle)}</div></div>${s.player_id ? '' : '<span class="free">свободен</span>'}</a>`).join('')}
-      <a class="link" href="#/r/${r.id}/chars">Все персонажи</a></div>
+      ${S.slots.slice(0, 8).map(s => `<a class="row" href="${roomPath(r, '/chars')}">${avatar(s, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(s.char_name)}</div><div class="h">@${esc(s.handle)}</div></div>${s.player_id ? '' : '<span class="free">свободен</span>'}</a>`).join('')}
+      <a class="link" href="${roomPath(r, '/chars')}">Все персонажи</a></div>
     <div class="panel"><a class="link" href="#/rooms">Другие комнаты</a></div>`;
 }
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderRight, 200); });
@@ -1188,23 +1563,30 @@ let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(ren
 function route() {
   closeMenu();
   $$('.overlay, .lightbox').forEach(o => o.remove()); document.body.style.overflow = '';
-  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  document.body.classList.remove('chat-mode');
+  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   window.scrollTo(0, 0);
-  const guard = id => /^[0-9a-f-]{36}$/i.test(id || '');
-  if (parts[0] === 'r' && guard(parts[1])) {
-    if (parts[2] === 'p' && guard(parts[3])) return viewThread(parts[1], parts[3]);
+  S.viewArg = null;
+  const ok = k => /^[A-Za-z0-9-]{4,40}$/.test(k || '');
+  if (parts[0] === 'p' && ok(parts[1])) return viewThread(parts[1]);
+  if (parts[0] === 'r' && ok(parts[1])) {
+    if (parts[2] === 'p' && ok(parts[3])) return viewThread(parts[3]);
     if (parts[2] === 'chars') return viewChars(parts[1]);
+    if (parts[2] === 'dm') return ok(parts[3]) ? viewDmChat(parts[1], parts[3]) : viewDmList(parts[1]);
     return viewFeed(parts[1]);
   }
   if (parts[0] === 'new') return viewCreate();
   if (parts[0] === 'chars') return viewLibrary();
-  if (parts[0] === 'c' && guard(parts[1])) return viewCharacter(parts[1]);
+  if (parts[0] === 'c' && ok(parts[1])) return viewCharacter(parts[1]);
+  if (parts[0] === 'u' && parts[1]) return viewUser(parts[1]);
+  if (parts[0] === 'dm') return viewDmHub();
   if (parts[0] === 'rooms') return viewRooms();
-  // главная: последняя комната или каталог
-  let last = null; try { last = localStorage.getItem(LS_ROOM); } catch {}
-  if (guard(last)) return viewFeed(last).then(() => { if (!S.room) { try { localStorage.removeItem(LS_ROOM); } catch {} location.replace('#/rooms'); } });
-  location.replace('#/rooms');
+  return viewHome();
 }
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-copy]');
+  if (c) { e.preventDefault(); copyLink(c.dataset.copy); }
+});
 
 /* ── старт ──────────────────────────────────────────────── */
 const DEV_UIDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba']; // на время разработки RP виден только этим аккаунтам
@@ -1220,6 +1602,7 @@ async function init() {
   if (token && sess?.user?.id) {
     S.uid = sess.user.id;
     try { S.me = await rpc('ensure_profile'); } catch (e) { console.warn('rp profile', e); }
+    try { await Promise.all([loadMySlots(), loadUserReposts()]); } catch (e) { console.warn('rp mine', e); }
   } else {
     document.body.classList.add('guest');
     document.body.insertAdjacentHTML('beforeend', '<div class="guest-bar"><span>Смотрите как гость. Войдите, чтобы играть.</span><a class="btn small" href="/">Войти</a></div>');
@@ -1227,6 +1610,7 @@ async function init() {
   renderMe();
   addEventListener('hashchange', route);
   route();
+  subscribeGlobal();
 }
 addEventListener('storage', e => { if (e.key === LS_SESSION && !e.newValue) location.reload(); });
 init();
