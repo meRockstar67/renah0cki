@@ -7039,9 +7039,9 @@
     <button class="nav-tab" data-filter="fanfic"><span class="nav-tab-icon nav-tab-icon-fanfic"></span>Фанфики</button>
     <button class="nav-tab" data-filter="news"><span class="nav-tab-icon nav-tab-icon-news"></span>Новости</button>
     <a class="nav-tab" id="rpNavLink" href="/rp/" onclick="event.stopPropagation()" style="text-decoration:none;display:none">Y<small class="y-sub">(переписки)</small></a>
-    <script>(function(){var l=document.getElementById('rpNavLink');function c(){var id=null;try{id=(JSON.parse(localStorage.getItem('fh_session'))||{}).user.id}catch(e){}l.style.display=id==='23c6cb47-27b0-45ac-8fd9-c43b84d57aba'?'':'none'}c();setInterval(c,3000)})();</script>
+    <script>(function(){var l=document.getElementById('rpNavLink');var nb=document.querySelector('#navTabs button.nav-tab');if(nb){var cs=getComputedStyle(nb);l.style.fontFamily=cs.fontFamily;l.style.lineHeight=cs.lineHeight}function c(){var id=null;try{id=(JSON.parse(localStorage.getItem('fh_session'))||{}).user.id}catch(e){}l.style.display=id==='23c6cb47-27b0-45ac-8fd9-c43b84d57aba'?'':'none'}c();setInterval(c,3000)})();</script>
     <style>
-      #rpNavLink{font-weight:700}
+      #rpNavLink{font-weight:600}
       #rpNavLink .y-sub{font-size:.78em;font-weight:600;text-transform:none;letter-spacing:0;opacity:.85;margin-left:5px}
       /* модераторские кнопки — одним блоком (у обычных пользователей блока нет) */
       .mod-group{display:flex;align-items:center;order:1;border:1px solid var(--border);border-radius:8px;background:var(--panel)}
@@ -7049,11 +7049,10 @@
       .mod-group .mod-btn.mg-first{border-radius:7px 0 0 7px}
       .mod-group .mod-btn.mg-last{border-radius:0 7px 7px 0}
       .mod-group .mod-btn.mg-first.mg-last{border-radius:7px}
-      .mod-group .mod-btn:not(.mg-first){border-left:1px solid var(--border)}
-      .mod-group .mod-btn:hover{background:var(--panel-2)}
+            .mod-group .mod-btn:hover{background:var(--panel-2)}
       .mod-group .mod-btn.active{background:var(--accent)}
-      /* игра и правила — ближе друг к другу */
-      @media (min-width:769px){#rulesBtn{margin-left:-8px}}
+      /* игра, правила и уведомления — плотной группой */
+      @media (min-width:769px){#rulesBtn,#notifWrap{margin-left:-8px}}
     </style>
     <script>document.addEventListener('DOMContentLoaded',function(){var b=['moderationBtn','commentReportsBtn','addCollectionBtn','allUsersBtn'].map(function(i){return document.getElementById(i)});if(b.some(function(x){return !x}))return;var g=document.createElement('div');g.className='mod-group';b[0].parentNode.insertBefore(g,b[0]);b.forEach(function(x){g.appendChild(x)});function u(){var v=b.filter(function(x){return x.style.display!=='none'});g.style.display=v.length?'':'none';b.forEach(function(x){x.classList.remove('mg-first','mg-last')});if(v.length){v[0].classList.add('mg-first');v[v.length-1].classList.add('mg-last')}}u();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attributes:true,attributeFilter:['style']})})});</script>
   </nav>
