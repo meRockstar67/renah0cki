@@ -36,6 +36,8 @@ const I = {
   link: '<svg viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>',
   send: '<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
   sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>',
+  pin: '<svg viewBox="0 0 24 24"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>',
+  cake: '<svg viewBox="0 0 24 24"><path d="M4 20.5h16M5 20.5v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M5 15.5c1.4 1 2.6 1 4 0s2.6-1 4 0 2.6 1 4 0 1.7-.6 2 0M12 11.5v-3M12 5.5c.9-.8 1-1.8 0-3-1 1.2-.9 2.2 0 3z"/></svg>',
   calendar: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.9-.3 5 1.4 5.5 4.4"/></svg>',
 };
@@ -73,7 +75,7 @@ const ERR = {
   'slot taken': 'Этот персонаж уже занят', 'slot limit reached': 'Достигнут лимит слотов', 'room archived': 'Комната в архиве',
   'no access': 'Нет доступа', 'not authenticated': 'Нужно войти', 'forbidden': 'Нет прав', 'bad image url': 'Неверная картинка',
   'row-level security': 'Нет прав на это действие', 'duplicate key': 'Уже существует', 'slots_room_id_handle_key': 'Такой @ник уже есть в комнате',
-  'posts_one_repost': 'Уже есть репост', 'characters_handle_uq': 'Такой @ник уже занят другим персонажем', 'character not found': 'Персонаж не найден', 'JWT expired': 'Сессия истекла, обновите страницу',
+  'posts_one_repost': 'Уже есть репост', 'characters_handle_uq': 'Такой @ник уже занят другим персонажем', 'character not found': 'Персонаж не найден', 'avatar needs goy': 'Свою аватарку могут ставить ГОЙ и выше', 'website_check': 'Неверная ссылка на сайт', 'JWT expired': 'Сессия истекла, обновите страницу',
 };
 function errText(e) {
   const m = String(e?.message || e);
@@ -717,7 +719,7 @@ function renderMe() {
   box.href = S.me ? userPath(S.me) : '/';
   box.innerHTML = a
     ? `${avatar(a)}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.char_name)}</div><div style="color:var(--muted);font-size:14px">@${esc(a.handle)}</div></div>`
-    : `${avatar({ char_name: S.me?.nick || '?', handle: S.me?.nick, avatar_url: S.me?.avatar_url })}<div class="me-text"><div style="font-weight:700">${esc(S.me?.nick || '')}</div><div style="color:var(--muted);font-size:14px">${ROLE_NAME[S.me?.rp_role] || ''}</div></div>`;
+    : `${avatar(userAv(S.me))}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(yName(S.me))}</div><div style="color:var(--muted);font-size:14px">${ROLE_NAME[S.me?.rp_role] || ''}</div></div>`;
 }
 
 /* главная: лента комнаты */
@@ -1281,7 +1283,7 @@ let homeTab = 'all', homeRooms = null;
 try { if (localStorage.getItem('rp_home_tab') === 'mine') homeTab = 'mine'; } catch {}
 async function viewHome() {
   S.view = 'home'; updateNav(); renderRight();
-  const meAv = S.me ? avatar({ char_name: S.me.nick, handle: S.me.username || S.me.nick, avatar_url: S.me.avatar_url }, 'sm') : '';
+  const meAv = S.me ? avatar(userAv(S.me), 'sm') : '';
   main.innerHTML = `<div class="head home-head">
       <div class="m-top only-m"><a class="m-av" href="${S.me ? userPath(S.me) : '/'}" aria-label="Профиль">${meAv}</a><a class="m-logo" href="#/" aria-label="Y (переписки)">Y</a><span class="m-sp"></span></div>
       <div class="head-row only-d"><div class="head-title"><h1>Главная</h1></div></div>
@@ -1327,15 +1329,35 @@ async function loadHomePage(before) {
   if (btn) btn.onclick = () => { btn.disabled = true; loadHomePage(rows[rows.length - 1].created_at); };
 }
 
-/* ── страница пользователя (данные с renah0cki) ─────────── */
+/* ── страница пользователя (профиль Y, отдельный от renah0cki) ── */
 const MONTHS_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 const safeColor = c => /^#[0-9a-f]{3,8}$/i.test(c || '') ? c : '';
+const safeGrad = c => /^linear-gradient\([#0-9a-zA-Z,.%\s()-]{1,200}\)$/.test(c || '') ? c : '';
+// имя/аватар в Y: свои, если заданы, иначе с renah0cki
+const yName = u => u?.y_name || u?.nick || '';
+const yAvatar = u => u?.y_avatar_url || u?.avatar_url || null;
+const userAv = u => ({ char_name: yName(u), handle: u?.username || yName(u), avatar_url: yAvatar(u) });
+function nameStyle(c) {
+  if (safeColor(c)) return ` style="color:${c}"`;
+  if (safeGrad(c)) return ` style="background:${c};-webkit-background-clip:text;background-clip:text;color:transparent"`;
+  return '';
+}
+function bannerStyle(u) {
+  if (u.banner_url) return `background-image:url('${esc(u.banner_url)}')`;
+  if (safeGrad(u.name_color)) return `background:${u.name_color}`;
+  if (safeColor(u.name_color)) return `background:linear-gradient(135deg, ${u.name_color}, var(--placeholder))`;
+  return 'background:var(--placeholder)';
+}
+const siteHost = url => { try { const x = new URL(url); return (x.host + x.pathname).replace(/\/$/, ''); } catch { return url; } };
+const U_SEL = 'user_id,nick,avatar_url,username,bio,about,banner_url,name_color,rp_role,created_at,y_name,y_avatar_url,location,website,birthday';
+
 async function viewUser(key) {
   S.view = 'user'; updateNav(); renderRight();
   main.innerHTML = head('Профиль', { back: true }) + loader();
   let u, reposts, roles;
   try {
-    [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%_*]/g, ''))}`}&select=user_id,nick,avatar_url,username,bio,about,banner_url,name_color,rp_role,created_at`);
+    [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%_*]/g, ''))}`}&select=${U_SEL}`);
     if (!u) return errorView('Профиль не найден');
     S.viewArg = u.user_id; updateNav();
     [reposts, roles] = await Promise.all([
@@ -1344,23 +1366,28 @@ async function viewUser(key) {
     ]);
   } catch (e) { return errorView(errText(e)); }
   if (S.view !== 'user') return;
-  if (u.user_id === S.uid) { try { await loadMineAll(); } catch {} }
-  const isMe = u.user_id === S.uid, color = safeColor(u.name_color), d = new Date(u.created_at);
-  const uav = { char_name: u.nick, handle: u.username || u.nick, avatar_url: u.avatar_url };
+  const isMe = u.user_id === S.uid;
+  if (isMe) { Object.assign(S.me, u); renderMe(); try { await loadMineAll(); } catch {} }
+  const d = new Date(u.created_at), name = yName(u);
   reposts = reposts.filter(x => x.post);
-  main.innerHTML = head(u.nick, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}` })
-    + `<div class="cp-banner" style="${u.banner_url ? `background-image:url('${esc(u.banner_url)}')` : `background:${color ? `linear-gradient(135deg, ${color}, var(--placeholder))` : 'var(--placeholder)'}`}"></div>
-    <div class="cp-top">${avatar(uav, 'xl')}<div class="cp-acts">
-      <button class="icon-btn bordered" data-copy="${userPath(u)}" aria-label="Скопировать ссылку">${I.link}</button>
+  const meta = [];
+  if (u.location) meta.push(`<span class="cp-meta">${I.pin}<span>${esc(u.location)}</span></span>`);
+  if (u.website) meta.push(`<a class="cp-meta cp-site" href="${esc(u.website)}" target="_blank" rel="noopener noreferrer nofollow">${I.link}<span>${esc(siteHost(u.website))}</span></a>`);
+  if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>Дата рождения: ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
+  meta.push(`<span class="cp-meta">${I.calendar}<span>В Y с ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} г.</span></span>`);
+  main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}` })
+    + `<div class="cp-banner" style="${bannerStyle(u)}"></div>
+    <div class="cp-top">${avatar(userAv(u), 'xl')}<div class="cp-acts">
+      <button class="icon-btn bordered" data-copy="${userPath(u)}" aria-label="Скопировать ссылку" title="Скопировать ссылку">${I.link}</button>
       ${isMe ? `<button class="icon-btn bordered" data-theme-toggle aria-label="Сменить тему" title="Сменить тему">${I.sun}</button><button class="btn ghost" data-edit-profile><span class="t-long">Редактировать профиль</span><span class="t-short">Изменить</span></button>` : ''}</div></div>
-    <div class="cp-info"><div class="cp-name"${color ? ` style="color:${color}"` : ''}>${esc(u.nick)} ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
+    <div class="cp-info"><div class="cp-name"><span${nameStyle(u.name_color)}>${esc(name)}</span> ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
       ${u.username ? `<div class="cp-handle">@${esc(u.username)}</div>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
-      <div class="cp-meta-row">${u.username ? `<a class="cp-meta cp-site" href="/${encodeURIComponent(u.username)}">${I.link}<span>renah0cki.xyz/${esc(u.username)}</span></a>` : ''}
-        <div class="cp-meta">${I.calendar}<span>В Y с ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} г.</span></div></div>
+      <div class="cp-meta-row">${meta.join('')}</div>
       <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span></div></div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
     <div id="uList"></div>`;
+  scrollTo(0, 0);
   const list = $('#uList');
   const drawRt = () => {
     list.innerHTML = '';
@@ -1369,7 +1396,7 @@ async function viewUser(key) {
       const pp = cache(x.post);
       const w = document.createElement('div');
       w.className = 'post-wrap'; w.dataset.post = 'ur-' + pp.id;
-      w.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(u.nick)} сделал(а) репост</span>${pp.room ? `<span class="dot">·</span>${roomLine(pp.room)}` : ''}</div>`;
+      w.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(name)} сделал(а) репост</span>${pp.room ? `<span class="dot">·</span>${roomLine(pp.room)}` : ''}</div>`;
       const inner = renderPost(pp.repost_of && pp.orig ? pp.orig : pp); inner.removeAttribute('data-post');
       w.append(inner); list.append(w);
     });
@@ -1387,41 +1414,58 @@ async function viewUser(key) {
   drawRt();
 }
 
-/* ── редактирование своего профиля ──────────────────────── */
+/* ── редактирование профиля Y (как в X; на renah0cki не влияет) ── */
 function profileEditor(u, onSaved) {
-  const uav = { char_name: u.nick, handle: u.username || u.nick, avatar_url: u.avatar_url };
-  const form = modal('Профиль', `
+  const canAvatar = rank() >= 1;
+  const form = modal('Изменить профиль', `
     <div class="ce-head">
-      <label class="ce-banner"${u.banner_url ? ` style="background-image:url('${esc(u.banner_url)}')"` : ''} title="Шапка">
-        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden aria-label="Загрузить шапку"></label>
-      <div class="ce-av ce-av-static">${avatar(uav)}</div>
+      <label class="ce-banner" style="${bannerStyle(u)}" title="Шапка">
+        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку"></label>
+      <label class="ce-av${canAvatar ? '' : ' ce-av-static'}" title="${canAvatar ? 'Аватар' : 'Менять аватарку могут ГОЙ и выше'}">${avatar(userAv(u), 'ce-av-img')}
+        ${canAvatar ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар">` : ''}</label>
     </div>
-    <div class="ce-note">Нажмите на шапку, чтобы загрузить и обрезать картинку. Ник и аватарка берутся с renah0cki — их меняют там.</div>
+    <div class="ce-note">${canAvatar ? 'Нажмите на шапку или аватар, чтобы загрузить и обрезать картинку.' : 'Нажмите на шапку, чтобы её поменять. Свою аватарку в Y могут ставить ГОЙ и выше.'} Изменения действуют только в Y — на renah0cki ничего не меняется.</div>
     <input type="hidden" name="banner_url" value="${esc(u.banner_url || '')}">
-    ${u.banner_url ? '<button type="button" class="btn ghost small" data-rm-banner>Убрать шапку</button>' : ''}
+    <input type="hidden" name="y_avatar_url" value="${esc(u.y_avatar_url || '')}">
+    <div class="ce-rm-row">${u.banner_url ? '<button type="button" class="btn ghost small" data-rm="banner">Убрать шапку</button>' : ''}${u.y_avatar_url && canAvatar ? '<button type="button" class="btn ghost small" data-rm="avatar">Вернуть аватарку с renah0cki</button>' : ''}</div>
+    <div class="field"><label for="p-name">Имя</label><input id="p-name" name="y_name" maxlength="50" value="${esc(u.y_name || '')}" placeholder="${esc(u.nick || '')}" autocomplete="off"></div>
     <div class="field"><label for="p-about">О себе</label><textarea id="p-about" name="about" rows="3" maxlength="300" placeholder="${esc(u.bio || '')}">${esc(u.about || '')}</textarea></div>
-    <div class="form-note">Если оставить пустым — покажется описание с renah0cki.</div>`, {
+    <div class="field"><label for="p-loc">Местоположение</label><input id="p-loc" name="location" maxlength="30" value="${esc(u.location || '')}" autocomplete="off"></div>
+    <div class="field"><label for="p-web">Сайт</label><input id="p-web" name="website" type="url" inputmode="url" maxlength="200" value="${esc(u.website || '')}" placeholder="https://" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+    <div class="field"><label for="p-bd">Дата рождения</label><input id="p-bd" name="birthday" type="date" min="1900-01-01" max="2099-12-31" value="${esc(u.birthday || '')}"></div>`, {
     onSubmit: async f => {
-      if (f.dataset.busy === '1') throw new Error('Дождитесь загрузки картинки');
-      const body = { banner_url: f.banner_url.value || null, about: f.about.value.trim() };
+      if (+f.dataset.busy) throw new Error('Дождитесь загрузки картинки');
+      let web = f.website.value.trim();
+      if (web && !/^https?:\/\//i.test(web)) web = 'https://' + web;
+      if (web && !/^https?:\/\/\S{1,200}$/.test(web)) throw new Error('Неверная ссылка на сайт');
+      const body = { banner_url: f.banner_url.value || null, about: f.about.value.trim(), y_name: f.y_name.value.trim() || null,
+        location: f.location.value.trim(), website: web, birthday: f.birthday.value || null };
+      if (canAvatar) body.y_avatar_url = f.y_avatar_url.value || null;
       await api(`profiles?user_id=eq.${S.uid}`, { method: 'PATCH', body, prefer: 'return=minimal' });
-      Object.assign(S.me, body); toast('Профиль сохранён'); onSaved?.();
+      Object.assign(S.me, body); renderMe(); toast('Профиль сохранён'); onSaved?.();
     },
   });
   form.dataset.busy = '0';
-  const box = $('.ce-banner', form), inp = $('input[type=file]', box);
-  inp.onchange = async () => {
+  $$('input[type=file]', form).forEach(inp => inp.onchange = async () => {
     const file = inp.files[0]; inp.value = ''; if (!file) return;
+    const isAv = inp.dataset.kind === 'avatar';
     let blob;
-    try { blob = await cropImage(file, { aspect: 3, outW: 1500, round: false, title: 'шапка' }); } catch (e) { return toast(errText(e), true); }
+    try { blob = await cropImage(file, isAv ? { aspect: 1, outW: 400, round: true, title: 'аватар' } : { aspect: 3, outW: 1500, round: false, title: 'шапка' }); }
+    catch (e) { return toast(errText(e), true); }
     if (!blob) return;
-    box.classList.add('loading'); form.dataset.busy = '1';
-    try { const url = await uploadImage(blob); form.banner_url.value = url; box.style.backgroundImage = `url("${url}")`; }
-    catch (e) { toast(errText(e), true); }
-    box.classList.remove('loading'); form.dataset.busy = '0';
-  };
-  const rm = $('[data-rm-banner]', form);
-  if (rm) rm.onclick = () => { form.banner_url.value = ''; box.style.backgroundImage = ''; rm.remove(); };
+    const box = inp.closest('label'); box.classList.add('loading'); form.dataset.busy = +form.dataset.busy + 1;
+    try {
+      const url = await uploadImage(blob);
+      if (isAv) { form.y_avatar_url.value = url; $('.ce-av-img', box).outerHTML = `<img class="av ce-av-img" src="${esc(url)}" alt="">`; }
+      else { form.banner_url.value = url; box.style.background = ''; box.style.backgroundImage = `url("${url}")`; }
+    } catch (e) { toast(errText(e), true); }
+    box.classList.remove('loading'); form.dataset.busy = +form.dataset.busy - 1;
+  });
+  $$('[data-rm]', form).forEach(b => b.onclick = () => {
+    if (b.dataset.rm === 'banner') { form.banner_url.value = ''; $('.ce-banner', form).setAttribute('style', bannerStyle({ ...u, banner_url: null })); }
+    else { form.y_avatar_url.value = ''; $('.ce-av .ce-av-img', form).outerHTML = avatar({ ...userAv(u), avatar_url: u.avatar_url }, 'ce-av-img'); }
+    b.remove();
+  });
 }
 
 /* ── тема ───────────────────────────────────────────────── */
