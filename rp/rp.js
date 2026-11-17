@@ -1740,17 +1740,68 @@ document.addEventListener('click', e => {
   });
 })();
 
+/* ── Telegram Mini App ──────────────────────────────────── */
+// Telegram открывает страницу с #tgWebAppData=... — по этим подписанным данным
+// сервер узнаёт привязанный в боте аккаунт renah0cki и выдаёт сессию.
+const TG = { initData: null, status: '' };
+(function detectTelegram() {
+  try {
+    const h = location.hash;
+    if (h.includes('tgWebAppData=')) {
+      TG.initData = new URLSearchParams(h.slice(1)).get('tgWebAppData');
+      sessionStorage.setItem('rp_tg', TG.initData);
+      history.replaceState(null, '', location.pathname + location.search + '#/');
+    } else TG.initData = sessionStorage.getItem('rp_tg');
+  } catch {}
+  if (!TG.initData) return;
+  document.documentElement.classList.add('in-tg');
+  // SDK грузим только внутри Telegram (на сайте telegram.org не нужен)
+  const sc = document.createElement('script');
+  sc.src = 'https://telegram.org/js/telegram-web-app.js';
+  sc.onload = () => {
+    const w = window.Telegram?.WebApp; if (!w) return;
+    w.ready(); w.expand();
+    try { w.disableVerticalSwipes(); } catch {}
+    let saved = null; try { saved = localStorage.getItem('rp_theme'); } catch {}
+    if (!saved && w.colorScheme === 'light') document.documentElement.dataset.theme = 'light';
+    const bg = getComputedStyle(document.body).backgroundColor;
+    try { w.setHeaderColor(bg); w.setBackgroundColor(bg); } catch {}
+    const upd = () => { const home = !location.hash || location.hash === '#/' || location.hash === '#'; home ? w.BackButton.hide() : w.BackButton.show(); };
+    w.BackButton.onClick(() => history.back());
+    addEventListener('hashchange', upd); upd();
+  };
+  document.head.append(sc);
+})();
+async function tgLogin() {
+  try {
+    const r = await fetch(`${CDN}/tg-auth`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: TG.initData }) });
+    const d = await r.json().catch(() => ({}));
+    if (d.access_token) {
+      localStorage.setItem(LS_SESSION, JSON.stringify({ user: d.user, token: d.access_token, refreshToken: d.refresh_token }));
+      return true;
+    }
+    TG.status = !r.ok ? 'error' : d.linked ? (d.error || 'error') : 'unlinked';
+  } catch { TG.status = 'error'; }
+  return false;
+}
+
 /* ── старт ──────────────────────────────────────────────── */
 async function init() {
+  let token = await getToken();
+  if (!token && TG.initData && await tgLogin()) token = await getToken();
   const sess = readSession();
-  const token = await getToken();
   if (token && sess?.user?.id) {
     S.uid = sess.user.id;
     try { S.me = await rpc('ensure_profile'); } catch (e) { console.warn('rp profile', e); }
     try { await Promise.all([loadMySlots(), loadUserReposts()]); } catch (e) { console.warn('rp mine', e); }
   } else {
     document.body.classList.add('guest');
-    document.body.insertAdjacentHTML('beforeend', '<div class="guest-bar"><span>Смотрите как гость. Войдите, чтобы играть.</span><a class="btn small" href="/">Войти</a></div>');
+    const msg = TG.status === 'unlinked' ? 'Telegram не привязан к renah0cki. Напиши боту /start, войди по ссылке из бота и открой Y снова.'
+      : TG.status === 'no_email' ? 'Не получилось войти через Telegram: у аккаунта нет почты. Войди на сайте.'
+      : TG.status ? 'Не получилось войти через Telegram. Попробуй открыть Y ещё раз.'
+      : 'Смотрите как гость. Войдите, чтобы играть.';
+    document.body.insertAdjacentHTML('beforeend', `<div class="guest-bar"><span>${esc(msg)}</span>${TG.status === 'unlinked' && window.Telegram?.WebApp ? '<button class="btn small" type="button" data-tg-close>Закрыть</button>' : '<a class="btn small" href="/">Войти</a>'}</div>`);
+    const cl = $('[data-tg-close]'); if (cl) cl.onclick = () => window.Telegram?.WebApp?.close();
   }
   renderMe();
   addEventListener('hashchange', route);
