@@ -659,3 +659,6 @@ html, body { overscroll-behavior-y: contain; }
 .rules-lead { color: var(--muted); }
 .side-note { color: var(--muted); font-size: 13px; padding: 12px 4px; margin: 0; }
 .side-note a { color: var(--accent); }
+.rules a { color: var(--accent); }
+.sup-who { width: 100%; color: var(--muted); font-size: 12px; margin: 0 0 2px 12px; }
+.bub-row.them { flex-wrap: wrap; }

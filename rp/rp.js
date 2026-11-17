@@ -114,10 +114,10 @@ async function getToken() {
 }
 
 /* ── REST ───────────────────────────────────────────────── */
-async function api(path, { method = 'GET', body, prefer } = {}) {
+async function api(path, { method = 'GET', body, prefer, schema = 'rp' } = {}) {
   const t = await getToken();
-  const h = { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), 'Accept-Profile': 'rp' };
-  if (method !== 'GET') { h['Content-Profile'] = 'rp'; h['Content-Type'] = 'application/json'; }
+  const h = { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), 'Accept-Profile': schema };
+  if (method !== 'GET') { h['Content-Profile'] = schema; h['Content-Type'] = 'application/json'; }
   if (prefer) h.Prefer = prefer;
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, { method, headers: h, body: body !== undefined ? JSON.stringify(body) : undefined });
   const txt = await r.text(); let d = null;
@@ -1678,6 +1678,54 @@ function onNotifInsert() {
 }
 
 /* ── настройки ──────────────────────────────────────────── */
+/* ── связь с модераторами (техподдержка renah0cki) ───────── */
+const sup = { thread: null, msgs: [], timer: null };
+async function viewSupport() {
+  S.view = 'support'; updateNav(); renderRight();
+  clearInterval(sup.timer);
+  if (!S.uid) { main.innerHTML = head('Связь с модераторами', { back: true }) + '<div class="empty"><h2>Нужно войти</h2><p>Войдите, чтобы написать модераторам.</p></div>'; return; }
+  document.body.classList.add('chat-mode');
+  main.innerHTML = head('Связь с модераторами', { back: true, sub: 'Техподдержка renah0cki' }) + `<div class="chat" id="supChat">${loader()}</div>
+    <form class="chat-bar" id="supBar" autocomplete="off">
+      <div class="chat-input"><textarea rows="1" maxlength="2000" placeholder="Опишите проблему или вопрос" aria-label="Сообщение модераторам"></textarea></div>
+      <button class="chat-send" type="submit" disabled aria-label="Отправить">${I.send}</button></form>`;
+  try { sup.thread = await api('rpc/support_get_or_create_thread', { method: 'POST', body: {}, schema: 'public' }); }
+  catch (e) { return errorView(errText(e)); }
+  await loadSupport(true);
+  const bar = $('#supBar'), ta = $('textarea', bar), send = $('.chat-send', bar);
+  ta.oninput = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; send.disabled = !ta.value.trim(); };
+  ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer: fine)').matches) { e.preventDefault(); if (!send.disabled) bar.requestSubmit(); } };
+  bar.onsubmit = async e => {
+    e.preventDefault(); if (send.disabled) return; send.disabled = true;
+    try {
+      await api('support_messages', { method: 'POST', body: { thread_id: sup.thread, sender_id: S.uid, body: ta.value.trim() }, prefer: 'return=minimal', schema: 'public' });
+      ta.value = ''; ta.oninput(); await loadSupport();
+    } catch (err) { toast(errText(err), true); send.disabled = false; }
+  };
+  sup.timer = setInterval(() => { if (S.view === 'support') loadSupport(); else clearInterval(sup.timer); }, 8000);
+}
+async function loadSupport(jump = false) {
+  let rows;
+  try { rows = await api(`support_messages?thread_id=eq.${sup.thread}&order=created_at.asc&select=id,sender_id,body,created_at`, { schema: 'public' }); } catch { return; }
+  if (S.view !== 'support') return;
+  const box = $('#supChat'); if (!box) return;
+  if (!jump && rows.length === sup.msgs.length) return;
+  sup.msgs = rows;
+  const nearBottom = innerHeight + scrollY >= document.body.scrollHeight - 160;
+  if (!rows.length) { box.innerHTML = '<div class="chat-empty"><b>Напишите модераторам</b><span>Сообщение увидят модераторы renah0cki — на сайте и в Telegram. Ответ придёт сюда и в чат поддержки на сайте.</span></div>'; return; }
+  let html = '', prev = null;
+  rows.forEach((m, i) => {
+    const next = rows[i + 1], t = new Date(m.created_at), mine = m.sender_id === S.uid;
+    if (!prev || t - new Date(prev.created_at) > 3600e3) html += `<div class="chat-time">${chatTime(m.created_at)}</div>`;
+    const tail = !next || next.sender_id !== m.sender_id;
+    const first = !prev || prev.sender_id !== m.sender_id;
+    html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}">${!mine && first ? '<div class="sup-who">Модератор</div>' : ''}<div class="bub${tail ? ' tail' : ''}"><div class="bub-text">${richText(m.body)}</div></div></div>`;
+    prev = m;
+  });
+  box.innerHTML = html;
+  if (jump || nearBottom) setTimeout(() => scrollTo({ top: document.body.scrollHeight }), 0);
+}
+
 /* ── правила и пользовательское соглашение ───────────────── */
 function viewRules() {
   S.view = 'rules'; updateNav(); renderRight();
@@ -1706,7 +1754,10 @@ function viewRules() {
     <p>Любой пост можно отправить модераторам через «⋯ → Пожаловаться». Модераторы могут удалять посты и ответы, освобождать персонажей, закрывать комнаты и блокировать аккаунт. Запрещённые слова автоматически скрываются звёздочками.</p>
 
     <h2>5. Если вас или ваш образ используют</h2>
-    <p>Если вы реальный человек и не хотите, чтобы в Y был персонаж, похожий на вас, — напишите модераторам renah0cki или пожалуйтесь на посты. Такого персонажа уберут.</p>
+    <p>Если вы реальный человек и не хотите, чтобы в Y был персонаж, похожий на вас, — <a href="#/support">напишите модераторам</a> или пожалуйтесь на посты. Такого персонажа уберут.</p>
+
+    <h2>Связь с модераторами</h2>
+    <p>Вопросы, жалобы, просьбы — <a href="#/support">в техподдержку</a>. Сообщение увидят модераторы renah0cki.</p>
 
     <h2>6. Прочее</h2>
     <p>Y работает «как есть»: возможны ошибки и перерывы. Правила могут обновляться — актуальная версия всегда на этой странице.</p>
@@ -1724,6 +1775,7 @@ function viewSettings() {
       </div></div>
     <div class="set-sec"><h2>Аккаунт</h2>
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
+      <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
       <a class="set-row" href="#/rules">${I.flag}<span>Правила и соглашение</span></a>
       <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`;
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
@@ -1918,12 +1970,12 @@ function onDmInsert(row) {
 /* правая колонка */
 function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
-  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs', 'rules'].includes(S.view)) {
+  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs', 'rules', 'support'].includes(S.view)) {
     const mine = S.mySlots.filter(x => x.room);
     right.innerHTML = `<div class="panel"><h2>Y (переписки)</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
       ${mine.length ? `<div class="panel"><h2>Ваши роли</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
       <div class="panel"><a class="link" href="#/rooms">Все комнаты</a></div>
-      <p class="side-note">Все персонажи вымышлены и не связаны с реальными людьми. <a href="#/rules">Правила и соглашение</a></p>`;
+      <p class="side-note">Все персонажи вымышлены и не связаны с реальными людьми. <a href="#/rules">Правила</a> · <a href="#/support">Связь с модераторами</a></p>`;
     return;
   }
   const r = S.room;
@@ -1959,6 +2011,7 @@ function route() {
   if (parts[0] === 'dm') return viewDmHub();
   if (parts[0] === 'settings') return viewSettings();
   if (parts[0] === 'rules') return viewRules();
+  if (parts[0] === 'support') return viewSupport();
   if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'rooms') return viewRooms();
   return viewHome();
