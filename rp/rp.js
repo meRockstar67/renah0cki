@@ -254,8 +254,9 @@ async function subscribeGlobal() {
   gchan = c.channel('rp-global')
     .on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'posts' }, p => onPostInsert(p.new))
     .on('postgres_changes', { event: 'UPDATE', schema: 'rp', table: 'posts' }, p => onPostUpdate(p.new))
-    .on('postgres_changes', { event: 'DELETE', schema: 'rp', table: 'posts' }, p => onPostDelete(p.old))
-    .subscribe();
+    .on('postgres_changes', { event: 'DELETE', schema: 'rp', table: 'posts' }, p => onPostDelete(p.old));
+  if (S.uid) gchan.on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'notifications', filter: 'user_id=eq.' + S.uid }, p => onNotifInsert(p.new));
+  gchan.subscribe();
 }
 setInterval(async () => { if (rt) rt.realtime.setAuth((await getToken()) || SB_KEY); }, 4 * 60e3);
 
@@ -713,6 +714,7 @@ function navKey() {
   if (v === 'dms' || v === 'dm' || v === 'dmhub') return 'dm';
   if (v === 'user') return S.viewArg === S.uid ? 'me' : '';
   if (v === 'settings') return 'settings';
+  if (v === 'notifs') return 'notifs';
   return 'home';
 }
 function renderMe() {
@@ -1354,18 +1356,21 @@ const U_SEL = 'user_id,nick,avatar_url,username,bio,about,banner_url,name_color,
 async function viewUser(key) {
   S.view = 'user'; updateNav(); renderRight();
   main.innerHTML = head('Профиль', { back: true }) + loader();
-  let u, reposts, roles;
+  let u, reposts, roles, followers, following;
   try {
     [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%_*]/g, ''))}`}&select=${U_SEL}`);
     if (!u) return errorView('Профиль не найден');
     S.viewArg = u.user_id; updateNav();
-    [reposts, roles] = await Promise.all([
+    [reposts, roles, followers, following] = await Promise.all([
       api(`user_reposts?user_id=eq.${u.user_id}&select=created_at,post:post_id(${P_SEL_ROOM})&order=created_at.desc&limit=60`),
       api(`slots?player_id=eq.${u.user_id}&select=id,char_name,handle,avatar_url,character_id,room:room_id(id,title,short_code,image_url)`),
+      api(`follows?followee=eq.${u.user_id}&select=follower&limit=10000`),
+      api(`follows?follower=eq.${u.user_id}&select=followee&limit=10000`),
     ]);
   } catch (e) { return errorView(errText(e)); }
   if (S.view !== 'user') return;
   const isMe = u.user_id === S.uid;
+  let iFollow = !!S.uid && followers.some(f => f.follower === S.uid);
   if (isMe) { Object.assign(S.me, u); renderMe(); try { await loadMineAll(); } catch {} }
   const d = new Date(u.created_at), name = yName(u);
   reposts = reposts.filter(x => x.post);
@@ -1374,11 +1379,13 @@ async function viewUser(key) {
   if (u.website) meta.push(`<a class="cp-meta cp-site" href="${esc(u.website)}" target="_blank" rel="noopener noreferrer nofollow">${I.link}<span>${esc(siteHost(u.website))}</span></a>`);
   if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>Дата рождения: ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
   main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="Настройки" style="margin:0">${I.gear}</a>` : '' })
-    + `<div class="cp-top no-banner">${avatar(userAv(u), 'xl')}${isMe ? '<button class="btn ghost small cp-edit-top only-d" data-edit-profile>Изменить</button>' : ''}</div>
+    + `<div class="cp-top no-banner">${avatar(userAv(u), 'xl')}${isMe ? '<button class="btn ghost small cp-edit-top only-d" data-edit-profile>Изменить</button>'
+      : S.uid ? `<button class="btn small cp-follow${iFollow ? ' ghost' : ''}" data-follow>${iFollow ? 'Вы подписаны' : 'Подписаться'}</button>` : ''}</div>
     <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span></div>
       ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="Скопировать ссылку на профиль">@${esc(u.username)}</button>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
+      <div class="cp-stats"><span><b data-fcount>${followers.length}</b> <span data-fword>${plural(followers.length, 'подписчик', 'подписчика', 'подписчиков')}</span></span><span><b>${following.length}</b> ${plural(following.length, 'подписка', 'подписки', 'подписок')}</span></div>
       <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span></div>
       ${isMe ? '<button class="btn ghost cp-edit only-m" data-edit-profile>Редактировать профиль</button>' : ''}</div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
@@ -1402,6 +1409,19 @@ async function viewUser(key) {
       : '<div class="empty"><h2>Сейчас без ролей</h2><p>Занятые персонажи появятся здесь.</p></div>';
   };
   $$('[data-edit-profile]', main).forEach(b => { b.onclick = () => profileEditor(u, () => viewUser(key)); });
+  const fb = $('[data-follow]', main);
+  if (fb) fb.onclick = async () => {
+    fb.disabled = true;
+    try {
+      if (iFollow) await api(`follows?follower=eq.${S.uid}&followee=eq.${u.user_id}`, { method: 'DELETE' });
+      else await api('follows', { method: 'POST', body: { follower: S.uid, followee: u.user_id }, prefer: 'return=minimal' });
+      iFollow = !iFollow;
+      const n = followers.length + (iFollow ? 1 : 0) - (followers.some(f => f.follower === S.uid) ? 1 : 0);
+      $('[data-fcount]', main).textContent = n; $('[data-fword]', main).textContent = plural(n, 'подписчик', 'подписчика', 'подписчиков');
+      fb.textContent = iFollow ? 'Вы подписаны' : 'Подписаться'; fb.classList.toggle('ghost', iFollow);
+    } catch (e) { toast(errText(e), true); }
+    fb.disabled = false;
+  };
   $$('[data-utab]', main).forEach(b => b.onclick = () => {
     $$('[data-utab]', main).forEach(x => x.classList.toggle('active', x === b));
     b.dataset.utab === 'rt' ? drawRt() : drawRoles();
@@ -1458,6 +1478,64 @@ function profileEditor(u, onSaved) {
     else { form.y_avatar_url.value = ''; $('.ce-av .ce-av-img', form).outerHTML = avatar({ ...userAv(u), avatar_url: u.avatar_url }, 'ce-av-img'); }
     b.remove();
   });
+}
+
+/* ── уведомления ────────────────────────────────────────── */
+let unread = 0;
+function setBadge(n) {
+  unread = Math.max(0, n);
+  $$('[data-notif-badge]').forEach(b => { b.textContent = unread > 99 ? '99+' : String(unread); b.classList.toggle('hidden', !unread); });
+  document.title = (unread ? `(${unread > 99 ? '99+' : unread}) ` : '') + 'Y (переписки) · renah0cki';
+}
+async function loadUnread() {
+  if (!S.uid) return;
+  try { const r = await api(`notifications?user_id=eq.${S.uid}&read_at=is.null&select=id&limit=100`); setBadge(r.length); } catch {}
+}
+const NOTIF = {
+  like: { ic: I.like, cls: 'n-like', t: 'оценил(а) ваш пост' },
+  repost: { ic: I.rt, cls: 'n-rt', t: 'сделал(а) репост вашего поста' },
+  page_repost: { ic: I.rt, cls: 'n-rt', t: 'сохранил(а) ваш пост к себе на страницу' },
+  reply: { ic: I.reply, cls: 'n-blue', t: 'ответил(а) вам' },
+  quote: { ic: I.quote, cls: 'n-blue', t: 'процитировал(а) ваш пост' },
+  dm: { ic: I.mail, cls: 'n-blue', t: 'написал(а) вам в ЛС' },
+  follow: { ic: I.user, cls: 'n-blue', t: 'подписался(-ась) на вас' },
+};
+const N_SEL = 'id,kind,snippet,created_at,read_at,post:post_id(id,short_code,room_id),aslot:actor_slot(id,char_name,handle,avatar_url),actor:actor_user(user_id,nick,y_name,avatar_url,y_avatar_url,username),room:room_id(id,short_code,title)';
+function notifHref(n) {
+  if (n.kind === 'follow') return n.actor ? userPath(n.actor) : '#/';
+  if (n.kind === 'dm') return n.room && n.aslot ? roomPath(n.room, '/dm/' + n.aslot.id) : '#/dm';
+  return n.post ? postPath(n.post) : '#/notifications';
+}
+function notifRow(n) {
+  const k = NOTIF[n.kind] || NOTIF.reply;
+  const who = n.aslot ? n.aslot : n.actor ? userAv(n.actor) : { char_name: '?' };
+  const name = n.aslot?.char_name || (n.actor ? yName(n.actor) : 'Кто-то');
+  const snip = n.snippet ? `<div class="n-snip">${esc(n.snippet)}</div>` : '';
+  return `<a class="notif${n.read_at ? '' : ' unread'}" href="${notifHref(n)}">
+    <span class="n-ic ${k.cls}">${k.ic}</span>
+    <div class="n-main"><div class="n-av">${avatar(who, 'sm')}</div>
+      <div class="n-text"><b>${esc(name)}</b> ${k.t}${n.room && n.kind !== 'follow' ? ` <span class="n-room">· ${esc(n.room.title)}</span>` : ''} <span class="n-time">· ${ago(n.created_at)}</span></div>
+      ${snip}</div></a>`;
+}
+async function viewNotifs() {
+  S.view = 'notifs'; updateNav(); renderRight();
+  main.innerHTML = head('Уведомления') + loader();
+  if (!S.uid) { main.innerHTML = head('Уведомления') + '<div class="empty"><h2>Нужно войти</h2><p>Войдите на renah0cki, чтобы получать уведомления.</p><a class="btn blue" href="/" style="margin-top:16px">Войти</a></div>'; return; }
+  let rows;
+  try { rows = await api(`notifications?user_id=eq.${S.uid}&select=${N_SEL}&order=created_at.desc&limit=100`); }
+  catch (e) { return errorView(errText(e)); }
+  if (S.view !== 'notifs') return;
+  main.innerHTML = head('Уведомления') + (rows.length ? rows.map(notifRow).join('')
+    : '<div class="empty"><h2>Пока пусто</h2><p>Здесь появятся лайки, репосты, ответы, сообщения и новые подписчики.</p></div>');
+  if (rows.some(n => !n.read_at)) {
+    try { await api(`notifications?user_id=eq.${S.uid}&read_at=is.null`, { method: 'PATCH', body: { read_at: new Date().toISOString() }, prefer: 'return=minimal' }); } catch {}
+  }
+  setBadge(0);
+}
+let notifT;
+function onNotifInsert() {
+  if (S.view === 'notifs') { clearTimeout(notifT); notifT = setTimeout(viewNotifs, 300); return; }
+  setBadge(unread + 1);
 }
 
 /* ── настройки ──────────────────────────────────────────── */
@@ -1665,7 +1743,7 @@ function onDmInsert(row) {
 /* правая колонка */
 function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
-  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings'].includes(S.view)) {
+  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs'].includes(S.view)) {
     const mine = S.mySlots.filter(x => x.room);
     right.innerHTML = `<div class="panel"><h2>Y (переписки)</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
       ${mine.length ? `<div class="panel"><h2>Ваши роли</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
@@ -1704,6 +1782,7 @@ function route() {
   if (parts[0] === 'u' && parts[1]) return viewUser(parts[1]);
   if (parts[0] === 'dm') return viewDmHub();
   if (parts[0] === 'settings') return viewSettings();
+  if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'rooms') return viewRooms();
   return viewHome();
 }
@@ -1796,6 +1875,7 @@ async function init() {
     S.uid = sess.user.id;
     try { S.me = await rpc('ensure_profile'); } catch (e) { console.warn('rp profile', e); }
     try { await Promise.all([loadMySlots(), loadUserReposts()]); } catch (e) { console.warn('rp mine', e); }
+    loadUnread();
   } else {
     document.body.classList.add('guest');
     const msg = TG.status === 'unlinked' ? 'Telegram не привязан к renah0cki. Напиши боту /start, войди по ссылке из бота и открой Y снова.'
