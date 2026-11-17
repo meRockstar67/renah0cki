@@ -67,7 +67,7 @@ const ERR = {
   'slot taken': 'Этот персонаж уже занят', 'slot limit reached': 'Достигнут лимит слотов', 'room archived': 'Комната в архиве',
   'no access': 'Нет доступа', 'not authenticated': 'Нужно войти', 'forbidden': 'Нет прав', 'bad image url': 'Неверная картинка',
   'row-level security': 'Нет прав на это действие', 'duplicate key': 'Уже существует', 'slots_room_id_handle_key': 'Такой @ник уже есть в комнате',
-  'posts_one_repost': 'Уже есть репост', 'JWT expired': 'Сессия истекла, обновите страницу',
+  'posts_one_repost': 'Уже есть репост', 'characters_handle_uq': 'Такой @ник уже занят другим персонажем', 'character not found': 'Персонаж не найден', 'JWT expired': 'Сессия истекла, обновите страницу',
 };
 function errText(e) {
   const m = String(e?.message || e);
@@ -138,7 +138,7 @@ function actingSlot() {
   return mySlot() || (isOwner() ? S.slots[0] || null : null);
 }
 
-const SLOT_SEL = 'id,char_name,handle,avatar_url';
+const SLOT_SEL = 'id,char_name,handle,avatar_url,character_id';
 const P_FIELDS = 'id,room_id,slot_id,body,images,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,created_at';
 const P_SEL = `${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),parent:reply_to(id,slot:slots!slot_id(handle)),`
   + `quoted:quote_of(id,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL})),`
@@ -301,7 +301,7 @@ function renderPost(p, { line = false } = {}) {
   el.className = 'post' + (line ? ' has-line' : '');
   el.dataset.post = p.id; el.dataset.open = p.id;
   el.innerHTML = `${line ? '<div class="thread-line"></div>' : ''}
-    <a href="#/r/${p.room_id}/chars" class="av-link" aria-label="${esc(p.slot?.char_name)}">${avatar(p.slot)}</a>
+    <a href="${p.slot?.character_id ? `#/c/${p.slot.character_id}` : `#/r/${p.room_id}/chars`}" class="av-link" aria-label="${esc(p.slot?.char_name)}">${avatar(p.slot)}</a>
     <div class="post-main">
       <div class="post-top"><span class="name">${esc(p.slot?.char_name)}</span><span class="handle">@${esc(p.slot?.handle)}</span><span class="dot">·</span><time datetime="${p.created_at}" title="${esc(fullDate(p.created_at))}">${ago(p.created_at)}</time>
         ${!p.is_deleted && canManage(p) ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
@@ -597,12 +597,12 @@ function errorView(msg) {
 }
 function updateNav() {
   const r = S.room ? `#/r/${S.room.id}/chars` : '#/rooms';
-  $('#navChars').href = r; $('#bottomChars').href = r;
+  void r; $('#navChars').href = '#/chars'; $('#bottomChars').href = '#/chars';
   $$('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === navKey()));
   $('#fab').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
   renderMe();
 }
-function navKey() { return S.view === 'rooms' || S.view === 'create' ? 'rooms' : S.view === 'chars' ? 'chars' : 'home'; }
+function navKey() { return S.view === 'rooms' || S.view === 'create' ? 'rooms' : S.view === 'lib' || S.view === 'char' ? 'chars' : 'home'; }
 function renderMe() {
   const box = $('#meCard');
   if (!S.uid) { box.innerHTML = '<a class="btn blue small" href="/">Войти</a>'; return; }
@@ -689,20 +689,274 @@ function renderReplyNode(p, children) {
   return node;
 }
 
-/* персонажи */
+/* ── обрезка картинок (аватар 1:1, шапка 3:1) ───────────── */
+function cropImage(file, { aspect = 1, outW = 400, round = true, title = 'аватар' } = {}) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не удалось открыть картинку')); };
+    img.onload = () => {
+      const ov = document.createElement('div');
+      ov.className = 'overlay crop-ov';
+      ov.innerHTML = `<div class="modal crop-modal" role="dialog" aria-modal="true" aria-label="Обрезать ${esc(title)}">
+        <div class="head"><div class="head-row"><button type="button" class="icon-btn" data-x aria-label="Отмена">${I.back}</button>
+          <div class="head-title"><h1>${esc(title[0].toUpperCase() + title.slice(1))}</h1></div><button type="button" class="btn small" data-ok>Применить</button></div></div>
+        <div class="crop-stage"><div class="crop-frame${round ? ' round' : ''}"><img alt="" draggable="false"></div></div>
+        <div class="crop-zoom"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.5-4.5M8 11h6"/></svg>
+          <input type="range" min="1" max="4" step="0.01" value="1" aria-label="Масштаб">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.5-4.5M8 11h6M11 8v6"/></svg></div>
+        <div class="crop-tip">Двигайте картинку пальцем или мышью, масштаб — ползунком или колёсиком.</div>
+      </div>`;
+      document.body.append(ov); document.body.style.overflow = 'hidden';
+      const stage = $('.crop-stage', ov), frame = $('.crop-frame', ov), im = $('img', frame), range = $('input', ov);
+      im.src = url;
+      const W = img.naturalWidth, H = img.naturalHeight;
+      let fw = 0, fh = 0, base = 1, z = 1, x = 0, y = 0;
+      const sc = () => base * z;
+      const layout = () => {
+        fw = Math.min(stage.clientWidth - 32, 520); fh = fw / aspect;
+        frame.style.width = fw + 'px'; frame.style.height = fh + 'px';
+        base = Math.max(fw / W, fh / H);
+      };
+      const draw = () => {
+        x = Math.min(0, Math.max(fw - W * sc(), x)); y = Math.min(0, Math.max(fh - H * sc(), y));
+        im.style.width = W * sc() + 'px'; im.style.height = H * sc() + 'px'; im.style.transform = `translate(${x}px, ${y}px)`;
+      };
+      layout(); x = (fw - W * sc()) / 2; y = (fh - H * sc()) / 2; draw();
+      const zoomTo = (nz, cx = fw / 2, cy = fh / 2) => {
+        nz = Math.min(4, Math.max(1, nz)); const k = nz / z;
+        x = cx - (cx - x) * k; y = cy - (cy - y) * k; z = nz; range.value = z; draw();
+      };
+      range.oninput = () => zoomTo(+range.value);
+      frame.addEventListener('wheel', e => { e.preventDefault(); const r = frame.getBoundingClientRect(); zoomTo(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+      const pts = new Map(); let pinch = null;
+      frame.onpointerdown = e => { frame.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
+      frame.onpointermove = e => {
+        if (!pts.has(e.pointerId)) return;
+        const prev = pts.get(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 1) { x += e.clientX - prev.x; y += e.clientY - prev.y; draw(); }
+        else if (pts.size === 2) {
+          const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y), r = frame.getBoundingClientRect();
+          if (pinch) zoomTo(z * d / pinch, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+          pinch = d;
+        }
+      };
+      frame.onpointerup = frame.onpointercancel = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+      const onRs = () => { const cx = (fw / 2 - x) / sc(), cy = (fh / 2 - y) / sc(); layout(); x = fw / 2 - cx * sc(); y = fh / 2 - cy * sc(); draw(); };
+      addEventListener('resize', onRs);
+      const done = v => {
+        ov.remove(); URL.revokeObjectURL(url); removeEventListener('resize', onRs);
+        if (!$('.overlay')) document.body.style.overflow = '';
+        resolve(v);
+      };
+      $('[data-x]', ov).onclick = () => done(null);
+      $('[data-ok]', ov).onclick = async () => {
+        const outH = Math.round(outW / aspect);
+        const c = document.createElement('canvas'); c.width = outW; c.height = outH;
+        const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, -x / sc(), -y / sc(), fw / sc(), fh / sc(), 0, 0, outW, outH);
+        let b = await new Promise(r => c.toBlob(r, 'image/webp', 0.9));
+        if (!b || b.type !== 'image/webp') b = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+        done(b);
+      };
+    };
+    img.src = url;
+  });
+}
+
+/* ── @ник из имени ──────────────────────────────────────── */
+const TR = { а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya' };
+function toHandle(name) {
+  return [...name.toLowerCase()].map(c => TR[c] ?? c).join('').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
+}
+function autoHandle(nameInp, handleInp) {
+  handleInp.dataset.auto = handleInp.value ? '' : '1';
+  nameInp.addEventListener('input', () => { if (handleInp.dataset.auto) handleInp.value = toHandle(nameInp.value); });
+  handleInp.addEventListener('input', () => { handleInp.dataset.auto = handleInp.value ? '' : '1'; });
+}
+
+/* ── модалка-форма ──────────────────────────────────────── */
+function modal(title, html, { onSubmit, submitLabel = 'Сохранить' } = {}) {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<form class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}" novalidate>
+    <div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="Закрыть">${I.close}</button><div class="head-title"><h1>${esc(title)}</h1></div><button class="btn small" type="submit">${esc(submitLabel)}</button></div></div>
+    <div class="form">${html}<div class="form-err" role="alert"></div></div></form>`;
+  const form = $('form', ov);
+  const close = () => { ov.remove(); if (!$('.overlay')) document.body.style.overflow = ''; };
+  form.close = close;
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) close(); });
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const btn = $('button[type=submit]', form); btn.disabled = true; $('.form-err', form).textContent = '';
+    try { await onSubmit(form); close(); } catch (err) { $('.form-err', form).textContent = errText(err); btn.disabled = false; }
+  };
+  document.body.append(ov); document.body.style.overflow = 'hidden';
+  return form;
+}
+
+/* ── редактор персонажа (библиотека) ────────────────────── */
+const canEditChar = c => !!S.uid && (c.owner_id === S.uid || isStaff());
+function characterEditor(c, onSaved) {
+  const form = modal(c ? 'Изменить персонажа' : 'Новый персонаж', `
+    <div class="ce-head">
+      <label class="ce-banner"${c?.banner_url ? ` style="background-image:url('${esc(c.banner_url)}')"` : ''} title="Шапка">
+        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку"></label>
+      <label class="ce-av" title="Аватар">${c?.avatar_url ? `<img class="av ce-av-img" src="${esc(c.avatar_url)}" alt="">` : '<span class="av ce-av-img" style="background:#333639"></span>'}
+        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар"></label>
+    </div>
+    <div class="ce-note">Нажмите на шапку или аватар, чтобы загрузить и обрезать картинку.</div>
+    <input type="hidden" name="avatar_url" value="${esc(c?.avatar_url || '')}">
+    <input type="hidden" name="banner_url" value="${esc(c?.banner_url || '')}">
+    <div class="field"><label for="f-name">Имя персонажа</label><input id="f-name" name="char_name" required maxlength="50" value="${esc(c?.char_name || '')}" autocomplete="off"></div>
+    <div class="field"><label for="f-handle">@ник (подставится из имени, можно поменять)</label><input id="f-handle" name="handle" required maxlength="30" value="${esc(c?.handle || '')}" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+    <div class="field"><label for="f-bio">Био</label><textarea id="f-bio" name="bio" rows="3" maxlength="300">${esc(c?.bio || '')}</textarea></div>
+    ${c ? '<button type="button" class="btn danger" data-del-char>Удалить персонажа</button>' : ''}`, {
+    submitLabel: c ? 'Сохранить' : 'Создать',
+    onSubmit: async f => {
+      if (+f.dataset.busy) throw new Error('Дождитесь загрузки картинки');
+      const body = { char_name: f.char_name.value.trim(), handle: f.handle.value.trim().replace(/^@/, ''), bio: f.bio.value.trim(), avatar_url: f.avatar_url.value || null, banner_url: f.banner_url.value || null };
+      if (!body.char_name) throw new Error('Укажите имя');
+      if (!/^[A-Za-z0-9_]{1,30}$/.test(body.handle)) throw new Error('@ник: только латиница, цифры и _');
+      const [row] = c
+        ? await api(`characters?id=eq.${c.id}`, { method: 'PATCH', body, prefer: 'return=representation' })
+        : await api('characters', { method: 'POST', body, prefer: 'return=representation' });
+      toast(c ? 'Сохранено' : 'Персонаж создан');
+      onSaved?.(row);
+    },
+  });
+  form.dataset.busy = '0';
+  autoHandle(form.char_name, form.handle);
+  $$('input[type=file]', form).forEach(inp => inp.onchange = async () => {
+    const f = inp.files[0]; inp.value = ''; if (!f) return;
+    const isAv = inp.dataset.kind === 'avatar';
+    let blob;
+    try { blob = await cropImage(f, isAv ? { aspect: 1, outW: 400, round: true, title: 'аватар' } : { aspect: 3, outW: 1500, round: false, title: 'шапка' }); }
+    catch (e) { return toast(errText(e), true); }
+    if (!blob) return;
+    const box = inp.closest('label'); box.classList.add('loading'); form.dataset.busy = +form.dataset.busy + 1;
+    try {
+      const url = await uploadImage(blob);
+      if (isAv) { form.avatar_url.value = url; $('.ce-av-img', box).outerHTML = `<img class="av ce-av-img" src="${esc(url)}" alt="">`; }
+      else { form.banner_url.value = url; box.style.backgroundImage = `url("${url}")`; }
+    } catch (e) { toast(errText(e), true); }
+    box.classList.remove('loading'); form.dataset.busy = +form.dataset.busy - 1;
+  });
+  const del = $('[data-del-char]', form);
+  if (del) del.onclick = async () => {
+    if (!confirm('Удалить персонажа из библиотеки? В комнатах он останется, но перестанет обновляться.')) return;
+    try { await api(`characters?id=eq.${c.id}`, { method: 'DELETE' }); form.close(); toast('Персонаж удалён'); location.hash = '#/chars'; }
+    catch (e) { toast(errText(e), true); }
+  };
+}
+
+/* ── вкладка «Персонажи»: библиотека ───────────────────── */
+let libQ = '';
+function charRow(c, extra = '') {
+  const n = c.slots ? new Set(c.slots.map(s => s.room_id)).size : null;
+  return `<a class="char lib-item" href="#/c/${c.id}">${avatar(c)}<div class="char-main"><div class="name">${esc(c.char_name)}</div><div class="handle">@${esc(c.handle)}</div>
+    ${c.bio ? `<div class="bio clamp2">${esc(c.bio)}</div>` : ''}${n !== null ? `<div class="st">${n ? `В ${n} ${plural(n, 'комнате', 'комнатах', 'комнатах')}` : 'Пока ни в одной комнате'}</div>` : ''}</div>${extra}</a>`;
+}
+function plural(n, one, few, many) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; }
+const likeQ = q => encodeURIComponent(q.replace(/[*,()]/g, ' '));
+async function viewLibrary() {
+  S.view = 'lib'; updateNav(); renderRight();
+  const canCreate = S.uid && rank() >= 1;
+  main.innerHTML = head('Персонажи', { extra: canCreate ? `<button class="btn small blue" data-new-char>${I.plus} Создать</button>` : '' })
+    + `<div class="search">${I.search}<input type="search" placeholder="Поиск персонажей" aria-label="Поиск персонажей" value="${esc(libQ)}" enterkeyhint="search"></div>
+    <div id="libList">${loader()}</div>`;
+  const inp = $('.search input', main); let t;
+  inp.oninput = () => { clearTimeout(t); t = setTimeout(() => { libQ = inp.value.trim(); loadLibrary(); }, 300); };
+  loadLibrary();
+}
+async function loadLibrary() {
+  const list = $('#libList'); if (!list) return;
+  const q = libQ ? `&or=(char_name.ilike.*${likeQ(libQ)}*,handle.ilike.*${likeQ(libQ)}*)` : '';
+  let rows;
+  try { rows = await api(`characters?select=id,char_name,handle,avatar_url,bio,owner_id,slots(room_id)&order=created_at.desc&limit=500${q}`); }
+  catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
+  if (S.view !== 'lib') return;
+  list.innerHTML = rows.length ? rows.map(c => charRow(c)).join('')
+    : `<div class="empty"><h2>${libQ ? 'Ничего не найдено' : 'Персонажей пока нет'}</h2><p>${libQ ? 'Попробуйте другой запрос.' : 'Создайте первого — потом его можно добавить в комнаты.'}</p></div>`;
+}
+
+/* ── страница персонажа ─────────────────────────────────── */
+async function viewCharacter(id) {
+  S.view = 'char'; updateNav(); renderRight();
+  main.innerHTML = head('Персонаж', { back: true }) + loader();
+  let c, rooms;
+  try {
+    [[c], rooms] = await Promise.all([
+      api(`characters?id=eq.${id}&select=*`),
+      api(`rooms?select=id,title,description,is_private,status,slots!inner(id,character_id,player_id)&slots.character_id=eq.${id}&order=status.asc,created_at.desc`),
+    ]);
+  } catch (e) { return errorView(errText(e)); }
+  if (!c) return errorView('Персонаж не найден');
+  if (S.view !== 'char') return;
+  main.innerHTML = head(c.char_name, { back: true, sub: `${rooms.length} ${plural(rooms.length, 'комната', 'комнаты', 'комнат')}` })
+    + `<div class="cp-banner"${c.banner_url ? ` style="background-image:url('${esc(c.banner_url)}')"` : ''}></div>
+    <div class="cp-top">${avatar(c, 'xl')}${canEditChar(c) ? '<button class="btn ghost" data-edit-char>Изменить</button>' : ''}</div>
+    <div class="cp-info"><div class="cp-name">${esc(c.char_name)}</div><div class="cp-handle">@${esc(c.handle)}</div>${c.bio ? `<div class="cp-bio">${richText(c.bio)}</div>` : ''}</div>
+    <div class="tabs" style="border-bottom:1px solid var(--border)"><span class="active" style="flex:1;text-align:center;padding:16px 8px;font-weight:700;position:relative">Комнаты</span></div>
+    ${rooms.length ? rooms.map(r => {
+      const free = r.slots.some(s => !s.player_id);
+      return `<a class="room-item" href="#/r/${r.id}/chars"><div class="room-ic" style="background:hsl(${hue(r.id)} 40% 22%)">${esc((r.title.trim()[0] || '?').toUpperCase())}</div>
+        <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? '<span class="badge">Архив</span>' : ''}</div>
+        ${r.description ? `<div class="d">${esc(r.description)}</div>` : ''}
+        <div class="m">${r.status !== 'active' ? 'Только чтение' : free ? '<span class="free">Свободен — можно играть</span>' : 'Занят игроком'}</div></div></a>`;
+    }).join('') : '<div class="empty"><h2>Пока ни в одной комнате</h2><p>Владелец комнаты может добавить этого персонажа в разделе «Персонажи комнаты».</p></div>'}`;
+  const ed = $('[data-edit-char]', main);
+  if (ed) ed.onclick = () => characterEditor(c, () => viewCharacter(id));
+}
+
+/* ── выбор персонажей из библиотеки ─────────────────────── */
+function charPicker({ exclude = [] } = {}) {
+  const box = document.createElement('div');
+  box.className = 'picker';
+  const sel = new Map(); let all = [];
+  box.innerHTML = `<div class="search" style="margin:0 0 8px">${I.search}<input type="search" placeholder="Найти персонажа" aria-label="Найти персонажа" enterkeyhint="search"></div>
+    <div class="pick-list">${loader()}</div>
+    ${S.uid && rank() >= 1 ? `<button type="button" class="btn ghost small" data-pick-new style="margin-top:8px">${I.plus} Новый персонаж</button>` : ''}`;
+  const list = $('.pick-list', box), inp = $('input', box);
+  const draw = () => {
+    const q = inp.value.trim().toLowerCase();
+    const rows = all.filter(c => !exclude.includes(c.id) && (!q || c.char_name.toLowerCase().includes(q) || c.handle.toLowerCase().includes(q)));
+    list.innerHTML = rows.length ? rows.map(c => `<label class="pick-item${sel.has(c.id) ? ' on' : ''}"><input type="checkbox" value="${c.id}"${sel.has(c.id) ? ' checked' : ''}>${avatar(c, 'sm')}
+      <span class="pick-text"><b>${esc(c.char_name)}</b><span>@${esc(c.handle)}</span></span><span class="pick-check" aria-hidden="true"></span></label>`).join('')
+      : `<div class="pick-empty">${all.length ? 'Никого не найдено' : 'В библиотеке пока нет персонажей — создайте нового.'}</div>`;
+    box.dispatchEvent(new Event('change'));
+  };
+  list.onchange = e => {
+    const cb = e.target.closest('input[type=checkbox]'); if (!cb) return;
+    const c = all.find(x => x.id === cb.value);
+    cb.checked ? sel.set(c.id, c) : sel.delete(c.id);
+    cb.closest('.pick-item').classList.toggle('on', cb.checked);
+    box.dispatchEvent(new Event('change'));
+  };
+  inp.oninput = draw;
+  inp.onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };
+  const nb = $('[data-pick-new]', box);
+  if (nb) nb.onclick = () => characterEditor(null, row => { all.unshift(row); sel.set(row.id, row); draw(); });
+  api('characters?select=id,char_name,handle,avatar_url,owner_id&order=char_name.asc&limit=1000')
+    .then(rows => { all = rows; draw(); })
+    .catch(e => { list.innerHTML = `<div class="pick-empty">${esc(errText(e))}</div>`; });
+  box.getSelected = () => [...sel.values()];
+  return box;
+}
+
+/* ── персонажи комнаты (слоты) ──────────────────────────── */
 async function viewChars(roomId) {
-  S.view = 'chars'; main.innerHTML = head('Персонажи', { back: true }) + loader(); updateNav();
+  S.view = 'chars'; main.innerHTML = head('Персонажи комнаты', { back: true }) + loader(); updateNav();
   try { await loadRoom(roomId); await loadSlots(); } catch (e) { return errorView(errText(e)); }
   renderRight(); renderChars();
 }
 function renderChars() {
   const r = S.room, own = isOwner(), mine = mySlot();
   const taken = S.slots.filter(s => s.player_id).length;
-  main.innerHTML = head('Персонажи', { back: true, sub: `${esc(r.title)} · ${taken}/${S.slots.length} заняты · лимит ${r.max_slots}`,
-    extra: own ? `${S.slots.length < r.max_slots ? `<button class="btn small blue" data-add>${I.plus} Персонаж</button>` : ''}<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : '' });
-  if (own) main.insertAdjacentHTML('beforeend', '<div class="composer-hint" style="font-size:14px">Вы владелец: нажмите на персонажа, чтобы изменить имя, аватар, шапку и био.</div>');
-  if (!S.uid) main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Войдите, чтобы занять персонажа.</span><a class="btn small blue" href="/">Войти</a></div>`);
-  else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Свободный слот освобождается после ${r.idle_timeout_min} мин без постов.</span>${mine ? '<button class="btn small ghost" data-leave>Покинуть слот</button>' : ''}</div>`);
+  main.innerHTML = head('Персонажи комнаты', { back: true, sub: `${esc(r.title)} · ${taken}/${S.slots.length} заняты · лимит ${r.max_slots}`,
+    extra: own ? `${S.slots.length < r.max_slots ? `<button class="btn small blue" data-add>${I.plus} Добавить</button>` : ''}<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : '' });
+  if (!S.uid) main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Войдите, чтобы выбрать персонажа.</span><a class="btn small blue" href="/">Войти</a></div>`);
+  else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Выберите, за кого играть. Слот освобождается после ${r.idle_timeout_min} мин без постов.</span>${mine ? '<button class="btn small ghost" data-leave>Покинуть слот</button>' : ''}</div>`);
   S.slots.forEach(s => {
     const isMine = mine?.id === s.id;
     const st = isMine ? '<div class="st mine">Вы играете за этого персонажа</div>'
@@ -711,17 +965,36 @@ function renderChars() {
     if (S.uid && r.status === 'active' && !s.player_id) acts.push(`<button class="btn small blue" data-take="${s.id}">Играть</button>`);
     if (own) {
       if (s.player_id && !isMine) acts.push(`<button class="btn small ghost" data-kick="${s.id}">Освободить</button>`);
-      acts.push(`<button class="btn small ghost" data-edit="${s.id}">Изменить</button>`);
+      acts.push(`<button class="btn small ghost" data-rm-slot="${s.id}" aria-label="Убрать из комнаты">Убрать</button>`);
     }
-    main.insertAdjacentHTML('beforeend', `<div class="char${own ? ' editable' : ''}"${own ? ` data-edit="${s.id}"` : ''}>${avatar(s)}<div class="char-main"><div class="name">${esc(s.char_name)}</div><div class="handle">@${esc(s.handle)}</div>${s.bio ? `<div class="bio">${richText(s.bio)}</div>` : ''}${st}</div><div class="char-acts">${acts.join('')}</div></div>`);
+    const link = s.character_id ? ` data-href="#/c/${s.character_id}"` : '';
+    main.insertAdjacentHTML('beforeend', `<div class="char${s.character_id ? ' editable' : ''}"${link}>${avatar(s)}<div class="char-main"><div class="name">${esc(s.char_name)}</div><div class="handle">@${esc(s.handle)}</div>${s.bio ? `<div class="bio">${richText(s.bio)}</div>` : ''}${st}</div><div class="char-acts">${acts.join('')}</div></div>`);
   });
-  if (!S.slots.length) main.insertAdjacentHTML('beforeend', '<div class="empty"><h2>Нет персонажей</h2><p>Владелец комнаты ещё не добавил слоты.</p></div>');
-  if (own && S.slots.length < r.max_slots) main.insertAdjacentHTML('beforeend', `<div class="loading-row"><button class="btn blue" data-add>${I.plus} Добавить персонажа</button></div>`);
+  if (!S.slots.length) main.insertAdjacentHTML('beforeend', `<div class="empty"><h2>Нет персонажей</h2><p>${own ? 'Нажмите «Добавить» и выберите персонажей из библиотеки.' : 'Владелец комнаты ещё не добавил персонажей.'}</p></div>`);
+}
+function addToRoom() {
+  const left = S.room.max_slots - S.slots.length;
+  const picker = charPicker({ exclude: S.slots.map(s => s.character_id).filter(Boolean) });
+  const form = modal('Добавить в комнату', `<div class="form-note">Свободных мест: ${left}. Выберите персонажей из библиотеки или создайте нового.</div><div data-picker></div>`, {
+    submitLabel: 'Добавить',
+    onSubmit: async () => {
+      const chosen = picker.getSelected();
+      if (!chosen.length) throw new Error('Выберите хотя бы одного персонажа');
+      if (chosen.length > left) throw new Error(`Можно добавить ещё только ${left}`);
+      await api('slots', { method: 'POST', body: chosen.map(c => ({ room_id: S.room.id, character_id: c.id, char_name: c.char_name, handle: c.handle })), prefer: 'return=minimal' });
+      await loadSlots(); renderChars(); renderRight(); toast('Добавлено');
+    },
+  });
+  $('[data-picker]', form).replaceWith(picker);
 }
 main.addEventListener('click', async e => {
   if (S.view !== 'chars') return;
-  const t = e.target.closest('[data-take],[data-kick],[data-edit],[data-add],[data-leave],[data-room-settings]');
-  if (!t) return;
+  const t = e.target.closest('[data-take],[data-kick],[data-rm-slot],[data-add],[data-leave],[data-room-settings]');
+  if (!t) {
+    const card = e.target.closest('[data-href]');
+    if (card && !e.target.closest('a,button')) location.hash = card.dataset.href;
+    return;
+  }
   try {
     if (t.dataset.take) {
       t.disabled = true;
@@ -734,117 +1007,19 @@ main.addEventListener('click', async e => {
       if (!confirm('Освободить слот? Игрок потеряет персонажа.')) return;
       await api(`slots?id=eq.${t.dataset.kick}`, { method: 'PATCH', body: { player_id: null }, prefer: 'return=minimal' });
       await loadSlots(); renderChars(); renderRight();
-    } else if (t.dataset.edit) slotEditor(S.slotMap.get(t.dataset.edit));
-    else if (t.hasAttribute('data-add')) slotEditor(null);
+    } else if (t.dataset.rmSlot) {
+      if (!confirm('Убрать персонажа из комнаты? Его посты в этой комнате тоже удалятся. Отменить нельзя.')) return;
+      await api(`slots?id=eq.${t.dataset.rmSlot}`, { method: 'DELETE' });
+      await loadSlots(); renderChars(); renderRight();
+    } else if (t.hasAttribute('data-add')) addToRoom();
     else if (t.hasAttribute('data-room-settings')) roomSettings();
   } catch (err) { toast(errText(err), true); t.disabled = false; }
 });
+main.addEventListener('click', e => {
+  if (S.view !== 'lib') return;
+  if (e.target.closest('[data-new-char]')) characterEditor(null, row => { location.hash = `#/c/${row.id}`; });
+});
 
-function modal(title, html, { onSubmit, submitLabel = 'Сохранить' } = {}) {
-  const ov = document.createElement('div');
-  ov.className = 'overlay';
-  ov.innerHTML = `<form class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}" novalidate>
-    <div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="Закрыть">${I.close}</button><div class="head-title"><h1>${esc(title)}</h1></div><button class="btn small" type="submit">${esc(submitLabel)}</button></div></div>
-    <div class="form">${html}<div class="form-err" role="alert"></div></div></form>`;
-  const form = $('form', ov);
-  const close = () => { ov.remove(); document.body.style.overflow = ''; };
-  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) close(); });
-  form.onsubmit = async e => {
-    e.preventDefault();
-    const btn = $('button[type=submit]', form); btn.disabled = true; $('.form-err', form).textContent = '';
-    try { await onSubmit(form); close(); } catch (err) { $('.form-err', form).textContent = errText(err); btn.disabled = false; }
-  };
-  document.body.append(ov); document.body.style.overflow = 'hidden';
-  return form;
-}
-function imgPicker(form, name, current, isBanner = false) {
-  const wrap = $(`[data-pick="${name}"]`, form);
-  const inp = $('input[type=file]', wrap), hidden = $(`input[name="${name}"]`, form), prev = $('[data-prev]', wrap);
-  inp.onchange = async () => {
-    const f = inp.files[0]; if (!f) return;
-    prev.style.opacity = .5;
-    try {
-      const url = await uploadImage(f); hidden.value = url;
-      if (isBanner) prev.style.backgroundImage = `url("${url}")`; else prev.outerHTML = `<img class="av lg" data-prev src="${esc(url)}" alt="">`;
-    } catch (e) { toast(errText(e), true); }
-    const p2 = $('[data-prev]', wrap); if (p2) p2.style.opacity = 1;
-  };
-  void current;
-}
-const TR = { а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya' };
-function toHandle(name) {
-  return [...name.toLowerCase()].map(c => TR[c] ?? c).join('').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
-}
-// @ник подставляется из имени, пока его не правили руками
-function autoHandle(nameInp, handleInp) {
-  handleInp.dataset.auto = handleInp.value ? '' : '1';
-  nameInp.addEventListener('input', () => { if (handleInp.dataset.auto) handleInp.value = toHandle(nameInp.value); });
-  handleInp.addEventListener('input', () => { handleInp.dataset.auto = handleInp.value ? '' : '1'; });
-}
-// карточка персонажа для формы создания комнаты
-function charCard() {
-  const d = document.createElement('div');
-  d.className = 'char-card';
-  d.innerHTML = `<label class="cc-banner" title="Шапка"><span>Шапка</span><input type="file" accept="image/*" hidden data-f="banner"></label>
-    <div class="cc-row">
-      <label class="cc-av" title="Аватар"><span class="av lg cc-av-img" style="background:#333639">${I.image}</span><input type="file" accept="image/*" hidden data-f="avatar"></label>
-      <div class="cc-fields">
-        <input placeholder="Имя (Тор в прайме)" maxlength="50" aria-label="Имя персонажа" data-n autocomplete="off">
-        <input placeholder="@ник" maxlength="31" aria-label="@ник" autocapitalize="none" spellcheck="false" data-h autocomplete="off">
-      </div>
-      <button type="button" class="cc-rm" aria-label="Убрать персонажа">${I.close}</button>
-    </div>
-    <textarea placeholder="Био (необязательно)" maxlength="300" rows="2" aria-label="Био" data-b></textarea>`;
-  const data = { avatar_url: null, banner_url: null, busy: 0 };
-  autoHandle($('[data-n]', d), $('[data-h]', d));
-  $('.cc-rm', d).onclick = () => d.parentNode && d.parentNode.removeChild(d);
-  $$('input[type=file]', d).forEach(inp => inp.onchange = async () => {
-    const f = inp.files[0]; inp.value = ''; if (!f) return;
-    const kind = inp.dataset.f; data.busy++;
-    const box = kind === 'avatar' ? $('.cc-av', d) : $('.cc-banner', d);
-    box.classList.add('loading');
-    try {
-      const url = await uploadImage(f);
-      data[kind + '_url'] = url;
-      if (kind === 'avatar') $('.cc-av-img', d).outerHTML = `<img class="av lg cc-av-img" src="${esc(url)}" alt="">`;
-      else { box.style.backgroundImage = `url("${url}")`; box.classList.add('has'); }
-    } catch (e) { toast(errText(e), true); }
-    box.classList.remove('loading'); data.busy--;
-  });
-  d.getData = () => ({ char_name: $('[data-n]', d).value.trim(), handle: $('[data-h]', d).value.trim().replace(/^@/, ''), bio: $('[data-b]', d).value.trim(), avatar_url: data.avatar_url, banner_url: data.banner_url });
-  d.isBusy = () => data.busy > 0;
-  return d;
-}
-function slotEditor(s) {
-  const form = modal(s ? 'Персонаж' : 'Новый персонаж', `
-    <div class="av-edit" data-pick="avatar_url">${s?.avatar_url ? `<img class="av lg" data-prev src="${esc(s.avatar_url)}" alt="">` : `<span class="av lg" data-prev style="background:#333639">?</span>`}
-      <label class="btn ghost small">Аватар<input type="file" accept="image/*" hidden></label></div>
-    <input type="hidden" name="avatar_url" value="${esc(s?.avatar_url || '')}">
-    <div data-pick="banner_url"><div class="banner-prev" data-prev style="${s?.banner_url ? `background-image:url('${esc(s.banner_url)}')` : ''}"></div>
-      <label class="btn ghost small" style="margin-top:8px">Шапка<input type="file" accept="image/*" hidden></label></div>
-    <input type="hidden" name="banner_url" value="${esc(s?.banner_url || '')}">
-    <div class="field"><label for="f-name">Имя персонажа</label><input id="f-name" name="char_name" required maxlength="50" value="${esc(s?.char_name || '')}" autocomplete="off"></div>
-    <div class="field"><label for="f-handle">@ник (подставится из имени, можно поменять)</label><input id="f-handle" name="handle" required maxlength="30" pattern="[A-Za-z0-9_]+" value="${esc(s?.handle || '')}" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-    <div class="field"><label for="f-bio">Био</label><textarea id="f-bio" name="bio" rows="3" maxlength="300">${esc(s?.bio || '')}</textarea></div>
-    ${s ? '<button type="button" class="btn danger" data-del-slot>Удалить персонажа</button>' : ''}`, {
-    onSubmit: async f => {
-      const body = { char_name: f.char_name.value.trim(), handle: f.handle.value.trim().replace(/^@/, ''), bio: f.bio.value.trim(), avatar_url: f.avatar_url.value || null, banner_url: f.banner_url.value || null };
-      if (!body.char_name) throw new Error('Укажите имя');
-      if (!/^[A-Za-z0-9_]{1,30}$/.test(body.handle)) throw new Error('@ник: только латиница, цифры и _');
-      if (s) await api(`slots?id=eq.${s.id}`, { method: 'PATCH', body, prefer: 'return=minimal' });
-      else await api('slots', { method: 'POST', body: { ...body, room_id: S.room.id }, prefer: 'return=minimal' });
-      await loadSlots(); renderChars(); renderRight();
-    },
-  });
-  imgPicker(form, 'avatar_url'); imgPicker(form, 'banner_url', null, true);
-  autoHandle(form.char_name, form.handle);
-  const del = $('[data-del-slot]', form);
-  if (del) del.onclick = async () => {
-    if (!confirm('Удалить персонажа и все его посты? Отменить нельзя.')) return;
-    try { await api(`slots?id=eq.${s.id}`, { method: 'DELETE' }); form.closest('.overlay').remove(); document.body.style.overflow = ''; await loadSlots(); renderChars(); renderRight(); }
-    catch (e) { toast(errText(e), true); }
-  };
-}
 function roleOptions(sel) {
   return Object.keys(ROLE_RANK).filter(r => r !== 'user').map(r => `<option value="${r}"${r === sel ? ' selected' : ''}>${ROLE_NAME[r]} и выше</option>`).join('');
 }
@@ -882,7 +1057,7 @@ function roomSettings() {
   $('[data-archive]', form).onclick = async () => {
     const status = r.status === 'active' ? 'archived' : 'active';
     if (status === 'archived' && !confirm('Архив: комната станет только для чтения. Продолжить?')) return;
-    try { await api(`rooms?id=eq.${r.id}`, { method: 'PATCH', body: { status }, prefer: 'return=minimal' }); S.room.status = status; form.closest('.overlay').remove(); document.body.style.overflow = ''; renderChars(); renderRight(); }
+    try { await api(`rooms?id=eq.${r.id}`, { method: 'PATCH', body: { status }, prefer: 'return=minimal' }); S.room.status = status; form.close(); renderChars(); renderRight(); }
     catch (e) { toast(errText(e), true); }
   };
 }
@@ -903,7 +1078,7 @@ async function viewRooms() {
 }
 async function loadRooms() {
   const list = $('#roomList'); if (!list) return;
-  const q = roomsQ ? `&or=(title.ilike.*${encodeURIComponent(roomsQ.replace(/[*,()]/g, ' '))}*,description.ilike.*${encodeURIComponent(roomsQ.replace(/[*,()]/g, ' '))}*)` : '';
+  const q = roomsQ ? `&or=(title.ilike.*${likeQ(roomsQ)}*,description.ilike.*${likeQ(roomsQ)}*)` : '';
   let rows;
   try { rows = await api(`rooms?select=id,title,description,is_private,status,max_slots,owner_id,created_at,slots(player_id)&order=status.asc,created_at.desc&limit=100${q}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
@@ -922,35 +1097,31 @@ function viewCreate() {
   S.view = 'create'; updateNav();
   if (!S.uid || rank() < 1) { main.innerHTML = head('Новая комната', { back: true }) + '<div class="empty"><h2>Нет доступа</h2><p>Создавать комнаты могут ГОЙ и выше.</p></div>'; return; }
   main.innerHTML = head('Новая комната', { back: true }) + `<form class="form" novalidate>${roomFields()}
-    <div><div style="font-weight:700;margin-bottom:8px">Персонажи</div>
-      <div class="char-rows" id="charRows"></div>
-      <button type="button" class="btn ghost small" id="addChar" style="margin-top:12px">${I.plus} Ещё персонаж</button>
-      <div class="form-note" style="margin-top:8px">Нажмите на круг — аватар, на полосу сверху — шапка. Всё можно поменять потом в «Персонажах».</div></div>
+    <div><div style="font-weight:700;margin-bottom:4px">Персонажи <span class="form-note" data-count></span></div>
+      <div class="form-note" style="margin-bottom:8px">Отметьте, кто будет в комнате. Новых можно создать прямо здесь или во вкладке «Персонажи».</div>
+      <div data-picker></div></div>
     <div class="form-err" role="alert"></div>
     <button class="btn blue" type="submit">Создать комнату</button></form>`;
-  const form = $('form', main), rows = $('#charRows');
+  const form = $('form', main);
   wirePrivate(form);
-  const addRow = () => rows.append(charCard());
-  addRow(); addRow();
-  $('#addChar').onclick = addRow;
+  const picker = charPicker();
+  $('[data-picker]', form).replaceWith(picker);
+  const cnt = $('[data-count]', form);
+  picker.addEventListener('change', () => { const n = picker.getSelected().length; cnt.textContent = n ? `· выбрано ${n}` : ''; });
   form.onsubmit = async e => {
     e.preventDefault();
     const err = $('.form-err', form), btn = $('button[type=submit]', form);
     err.textContent = '';
     try {
       const body = roomBody(form);
-      if ($$('.char-card', rows).some(c => c.isBusy())) throw new Error('Дождитесь загрузки картинок');
-      const chars = $$('.char-card', rows).map(c => c.getData()).filter(c => c.char_name || c.handle);
-      for (const c of chars) {
-        if (!c.char_name) throw new Error(`Укажите имя для @${c.handle}`);
-        if (!/^[A-Za-z0-9_]{1,30}$/.test(c.handle)) throw new Error(`@ник для «${c.char_name}»: только латиница, цифры и _`);
-      }
-      if (new Set(chars.map(c => c.handle.toLowerCase())).size !== chars.length) throw new Error('@ники должны быть разными');
-      if (chars.length > body.max_slots) throw new Error('Персонажей больше, чем лимит слотов');
+      const chars = picker.getSelected();
+      if (chars.length > body.max_slots) throw new Error(`Выбрано ${chars.length}, а лимит слотов ${body.max_slots}`);
+      const hs = chars.map(c => c.handle.toLowerCase());
+      if (new Set(hs).size !== hs.length) throw new Error('У выбранных персонажей совпадают @ники');
       btn.disabled = true;
       const [room] = await api('rooms', { method: 'POST', body: { ...body, owner_id: S.uid }, prefer: 'return=representation' });
       if (chars.length) {
-        try { await api('slots', { method: 'POST', body: chars.map(c => ({ ...c, room_id: room.id })), prefer: 'return=minimal' }); }
+        try { await api('slots', { method: 'POST', body: chars.map(c => ({ room_id: room.id, character_id: c.id, char_name: c.char_name, handle: c.handle })), prefer: 'return=minimal' }); }
         catch (e2) { toast('Комната создана, но персонажи не добавились: ' + errText(e2), true); location.hash = `#/r/${room.id}/chars`; return; }
       }
       toast('Комната создана');
@@ -962,7 +1133,7 @@ function viewCreate() {
 /* правая колонка */
 function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
-  if (!S.room || S.view === 'rooms' || S.view === 'create') {
+  if (!S.room || ['rooms', 'create', 'lib', 'char'].includes(S.view)) {
     right.innerHTML = `<div class="panel"><h2>RP</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки. Все в комнате видят ленту.</p></div>`;
     return;
   }
@@ -989,6 +1160,8 @@ function route() {
     return viewFeed(parts[1]);
   }
   if (parts[0] === 'new') return viewCreate();
+  if (parts[0] === 'chars') return viewLibrary();
+  if (parts[0] === 'c' && guard(parts[1])) return viewCharacter(parts[1]);
   if (parts[0] === 'rooms') return viewRooms();
   // главная: последняя комната или каталог
   let last = null; try { last = localStorage.getItem(LS_ROOM); } catch {}

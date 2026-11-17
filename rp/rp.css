@@ -312,3 +312,61 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .cc-banner.loading, .cc-av.loading { opacity: .4; pointer-events: none; }
 .char.editable { cursor: pointer; transition: background .15s; }
 @media (hover: hover) { .char.editable:hover { background: var(--bg-hover); } }
+
+/* ── библиотека персонажей ──────────────────────────── */
+.lib-item { transition: background .15s; }
+@media (hover: hover) { .lib-item:hover { background: var(--bg-hover); } }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.av.xl { width: 134px; height: 134px; font-size: 52px; border: 4px solid var(--bg); }
+@media (max-width: 639px) { .av.xl { width: 88px; height: 88px; font-size: 36px; } }
+
+/* страница персонажа */
+.cp-banner { aspect-ratio: 3 / 1; background: #333639 center/cover; }
+.cp-top { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 16px; margin-top: -67px; min-height: 67px; }
+@media (max-width: 639px) { .cp-top { margin-top: -44px; min-height: 44px; } }
+.cp-top .btn { margin-bottom: 8px; }
+.cp-info { padding: 8px 16px 16px; }
+.cp-name { font-size: 20px; font-weight: 800; overflow-wrap: anywhere; }
+.cp-handle { color: var(--muted); }
+.cp-bio { margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cp-bio .mention { color: var(--accent); }
+
+/* редактор персонажа */
+.ce-head { position: relative; margin: -16px -16px 48px; }
+.ce-banner { display: grid; place-items: center; aspect-ratio: 3 / 1; background: #333639 center/cover; cursor: pointer; position: relative; }
+.ce-av { position: absolute; left: 16px; bottom: -44px; display: grid; place-items: center; cursor: pointer; border-radius: 50%; border: 4px solid var(--bg); }
+.ce-av .av { width: 96px; height: 96px; }
+.ce-av .ce-btn { position: absolute; }
+.ce-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(15,20,25,.75); display: grid; place-items: center; color: #fff; transition: background .15s; }
+@media (hover: hover) { .ce-banner:hover .ce-btn, .ce-av:hover .ce-btn { background: rgba(39,44,48,.75); } }
+.ce-banner.loading, .ce-av.loading { opacity: .5; pointer-events: none; }
+.ce-note { color: var(--muted); font-size: 13px; margin-top: -8px; }
+
+/* обрезка */
+.crop-ov { z-index: 55; }
+.crop-modal { max-width: 600px; }
+.crop-stage { display: grid; place-items: center; padding: 24px 16px; background: #000; }
+.crop-frame { position: relative; overflow: hidden; touch-action: none; cursor: grab; user-select: none; background: #111; }
+.crop-frame:active { cursor: grabbing; }
+.crop-frame img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; }
+.crop-frame::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 2px var(--accent); pointer-events: none; }
+.crop-frame.round::after { border-radius: 50%; box-shadow: 0 0 0 9999px rgba(0,0,0,.55), inset 0 0 0 2px var(--accent); }
+.crop-zoom { display: flex; align-items: center; gap: 12px; padding: 16px 24px 4px; color: var(--muted); }
+.crop-zoom input { flex: 1; accent-color: var(--accent); height: 32px; }
+.crop-tip { color: var(--muted); font-size: 13px; padding: 0 24px 20px; text-align: center; }
+
+/* выбор персонажей */
+.pick-list { border: 1px solid var(--border); border-radius: 12px; max-height: 360px; overflow-y: auto; }
+.pick-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--border); min-height: 56px; transition: background .15s; }
+.pick-item:last-child { border-bottom: 0; }
+.pick-item input { position: absolute; opacity: 0; pointer-events: none; }
+.pick-item.on { background: rgba(29,155,240,.08); }
+@media (hover: hover) { .pick-item:hover { background: var(--bg-hover-2); } }
+.pick-text { flex: 1; min-width: 0; display: grid; }
+.pick-text b, .pick-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-text span { color: var(--muted); font-size: 14px; }
+.pick-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #536471; flex: none; display: grid; place-items: center; }
+.pick-item.on .pick-check { background: var(--accent); border-color: var(--accent); }
+.pick-item.on .pick-check::after { content: ""; width: 6px; height: 11px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.pick-item:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pick-empty { padding: 20px; color: var(--muted); text-align: center; }
