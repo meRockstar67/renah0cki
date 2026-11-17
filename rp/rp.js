@@ -1712,6 +1712,36 @@ document.addEventListener('click', e => {
   if (c) { e.preventDefault(); copyLink(c.dataset.copy); }
 });
 
+/* ── потянуть вниз — обновить (как в X) ─────────────────── */
+(function pullToRefresh() {
+  if (!('ontouchstart' in window)) return;
+  const ind = document.createElement('div');
+  ind.className = 'ptr'; ind.setAttribute('aria-hidden', 'true');
+  ind.innerHTML = '<div class="spinner"></div>';
+  document.body.append(ind);
+  const TRIGGER = 64;
+  let y0 = null, dist = 0, busy = false;
+  const set = d => { ind.style.transform = `translate(-50%, ${d - 56}px) rotate(${d * 4}deg)`; ind.style.opacity = Math.min(1, d / TRIGGER); };
+  const reset = () => { ind.classList.add('back'); set(0); ind.classList.remove('ready', 'loading'); setTimeout(() => ind.classList.remove('back'), 200); };
+  const blocked = () => busy || scrollY > 0 || document.body.classList.contains('chat-mode') || $('.overlay, .lightbox, .menu');
+  addEventListener('touchstart', e => { y0 = (!blocked() && e.touches.length === 1) ? e.touches[0].clientY : null; dist = 0; }, { passive: true });
+  addEventListener('touchmove', e => {
+    if (y0 === null) return;
+    const dy = e.touches[0].clientY - y0;
+    if (dy <= 0 || scrollY > 0) { dist = 0; set(0); return; }
+    dist = Math.min(dy * 0.5, 96);
+    set(dist); ind.classList.toggle('ready', dist >= TRIGGER);
+  }, { passive: true });
+  addEventListener('touchend', async () => {
+    if (y0 === null) return;
+    y0 = null;
+    if (dist < TRIGGER) { reset(); return; }
+    busy = true; ind.classList.add('loading', 'back'); set(TRIGGER);
+    try { await route(); } catch {}
+    setTimeout(() => { reset(); busy = false; }, 250);
+  });
+})();
+
 /* ── старт ──────────────────────────────────────────────── */
 const DEV_UIDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba']; // на время разработки RP виден только этим аккаунтам
 async function init() {
