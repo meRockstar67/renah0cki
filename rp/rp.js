@@ -75,7 +75,7 @@ const ERR = {
   'slot taken': 'Этот персонаж уже занят', 'slot limit reached': 'Достигнут лимит слотов', 'room archived': 'Комната в архиве',
   'no access': 'Нет доступа', 'not authenticated': 'Нужно войти', 'forbidden': 'Нет прав', 'bad image url': 'Неверная картинка',
   'row-level security': 'Нет прав на это действие', 'duplicate key': 'Уже существует', 'slots_room_id_handle_key': 'Такой @ник уже есть в комнате',
-  'posts_one_repost': 'Уже есть репост', 'characters_handle_uq': 'Такой @ник уже занят другим персонажем', 'character not found': 'Персонаж не найден', 'avatar needs goy': 'Свою аватарку могут ставить ГОЙ и выше', 'website_check': 'Неверная ссылка на сайт', 'JWT expired': 'Сессия истекла, обновите страницу',
+  'posts_one_repost': 'Уже есть репост', 'characters_handle_uq': 'Такой @ник уже занят другим персонажем', 'character not found': 'Персонаж не найден', 'avatar needs goy': 'Свою аватарку могут ставить ГОЙ и выше', 'bad word in handle': 'В @нике запрещённое слово', 'website_check': 'Неверная ссылка на сайт', 'JWT expired': 'Сессия истекла, обновите страницу',
 };
 function errText(e) {
   const m = String(e?.message || e);
