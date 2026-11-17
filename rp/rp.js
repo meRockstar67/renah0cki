@@ -700,7 +700,7 @@ function updateNav() {
   $$('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === navKey()));
   $('#fab').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
   $('#sidePost').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
-  $('#navNew').classList.toggle('hidden', !(S.uid && rank() >= 1));
+  $('#navNew').classList.toggle('hidden', !S.uid);
   renderMe();
 }
 function navKey() {
@@ -1211,10 +1211,9 @@ function roomSettings() {
 let roomsQ = '';
 async function viewRooms() {
   S.view = 'rooms'; updateNav();
-  const canCreate = S.uid && rank() >= 1;
+  const canCreate = !!S.uid;
   main.innerHTML = head('Комнаты', { extra: canCreate ? `<a class="btn small blue" href="#/new">${I.plus} Создать комнату</a>` : '' })
     + `<div class="search">${I.search}<input type="search" placeholder="Поиск комнат" aria-label="Поиск комнат" value="${esc(roomsQ)}" enterkeyhint="search"></div>
-    ${S.uid && !canCreate ? '<div class="composer-hint" style="font-size:14px">Создавать комнаты могут ГОЙ и выше.</div>' : ''}
     <div id="roomList">${loader()}</div>`;
   renderRight();
   const inp = $('.search input', main); let t;
@@ -1227,7 +1226,7 @@ async function loadRooms() {
   let rows;
   try { rows = await api(`rooms?select=id,title,short_code,description,is_private,status,image_url,max_slots,owner_id,created_at,slots(player_id)&order=status.asc,created_at.desc&limit=100${q}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
-  if (!rows.length) { list.innerHTML = `<div class="empty"><h2>${roomsQ ? 'Ничего не найдено' : 'Комнат пока нет'}</h2><p>${roomsQ ? 'Попробуйте другой запрос.' : 'Создайте первую комнату.'}</p>${!roomsQ && S.uid && rank() >= 1 ? `<a class="btn blue" href="#/new" style="margin-top:16px">${I.plus} Создать комнату</a>` : ''}</div>`; return; }
+  if (!rows.length) { list.innerHTML = `<div class="empty"><h2>${roomsQ ? 'Ничего не найдено' : 'Комнат пока нет'}</h2><p>${roomsQ ? 'Попробуйте другой запрос.' : 'Создайте первую комнату.'}</p>${!roomsQ && S.uid ? `<a class="btn blue" href="#/new" style="margin-top:16px">${I.plus} Создать комнату</a>` : ''}</div>`; return; }
   list.innerHTML = rows.map(r => {
     const taken = r.slots.filter(s => s.player_id).length;
     return `<a class="room-item" href="${roomPath(r)}">${roomIcon(r)}
@@ -1240,7 +1239,7 @@ async function loadRooms() {
 /* создание комнаты */
 function viewCreate() {
   S.view = 'create'; updateNav();
-  if (!S.uid || rank() < 1) { main.innerHTML = head('Новая комната', { back: true }) + '<div class="empty"><h2>Нет доступа</h2><p>Создавать комнаты могут ГОЙ и выше.</p></div>'; return; }
+  if (!S.uid) { main.innerHTML = head('Новая комната', { back: true }) + '<div class="empty"><h2>Нужно войти</h2><p>Войдите на renah0cki, чтобы создать комнату.</p><a class="btn blue" href="/" style="margin-top:16px">Войти</a></div>'; return; }
   main.innerHTML = head('Новая комната', { back: true }) + `<form class="form" novalidate>${roomFields()}
     <div><div style="font-weight:700;margin-bottom:4px">Персонажи <span class="form-note" data-count></span></div>
       <div class="form-note" style="margin-bottom:8px">Отметьте, кто будет в комнате. Новых можно создать прямо здесь или во вкладке «Персонажи».</div>
