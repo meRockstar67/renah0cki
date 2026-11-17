@@ -910,13 +910,11 @@ function modal(title, html, { onSubmit, submitLabel = 'Сохранить' } = {
 const canEditChar = c => !!S.uid && (c.owner_id === S.uid || isStaff());
 function characterEditor(c, onSaved) {
   const form = modal(c ? 'Изменить персонажа' : 'Новый персонаж', `
-    <div class="ce-head">
-      <label class="ce-banner"${c?.banner_url ? ` style="background-image:url('${esc(c.banner_url)}')"` : ''} title="Шапка">
-        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку"></label>
+    <div class="ce-head no-banner">
       <label class="ce-av" title="Аватар">${c?.avatar_url ? `<img class="av ce-av-img" src="${esc(c.avatar_url)}" alt="">` : '<span class="av ce-av-img" style="background:var(--placeholder)"></span>'}
         <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар"></label>
     </div>
-    <div class="ce-note">Нажмите на шапку или аватар, чтобы загрузить и обрезать картинку.</div>
+    <div class="ce-note">Нажмите на аватар, чтобы загрузить и обрезать картинку.</div>
     <input type="hidden" name="avatar_url" value="${esc(c?.avatar_url || '')}">
     <input type="hidden" name="banner_url" value="${esc(c?.banner_url || '')}">
     <div class="field"><label for="f-name">Имя персонажа</label><input id="f-name" name="char_name" required maxlength="50" value="${esc(c?.char_name || '')}" autocomplete="off"></div>
@@ -1007,8 +1005,7 @@ async function viewCharacter(key) {
   if (!c) return errorView('Персонаж не найден');
   if (S.view !== 'char') return;
   main.innerHTML = head(c.char_name, { back: true, sub: `${rooms.length} ${plural(rooms.length, 'комната', 'комнаты', 'комнат')}` })
-    + `<div class="cp-banner"${c.banner_url ? ` style="background-image:url('${esc(c.banner_url)}')"` : ''}></div>
-    <div class="cp-top">${avatar(c, 'xl')}<div class="cp-acts"><button class="icon-btn bordered" data-copy="${charPath(c)}" aria-label="Скопировать ссылку">${I.link}</button>${canEditChar(c) ? '<button class="btn ghost" data-edit-char>Изменить</button>' : ''}</div></div>
+    + `<div class="cp-top no-banner">${avatar(c, 'xl')}<div class="cp-acts"><button class="icon-btn bordered" data-copy="${charPath(c)}" aria-label="Скопировать ссылку">${I.link}</button>${canEditChar(c) ? '<button class="btn ghost" data-edit-char>Изменить</button>' : ''}</div></div>
     <div class="cp-info"><div class="cp-name">${esc(c.char_name)}</div><div class="cp-handle">@${esc(c.handle)}</div>${c.bio ? `<div class="cp-bio">${richText(c.bio)}</div>` : ''}</div>
     <div class="tabs" style="border-bottom:1px solid var(--border)"><span class="active" style="flex:1;text-align:center;padding:16px 8px;font-weight:700;position:relative">Комнаты</span></div>
     ${rooms.length ? rooms.map(r => {
