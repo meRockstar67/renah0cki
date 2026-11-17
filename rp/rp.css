@@ -644,3 +644,9 @@ html, body { overscroll-behavior-y: contain; }
 .inline-thread { margin: 6px 0 0 -4px; }
 .inline-thread .post { padding: 10px 0 10px 12px; border-bottom: 0; }
 .inline-thread .replies { margin-left: 18px; }
+/* ветки открыты по умолчанию */
+.thread-wrap { margin-top: 4px; }
+.thread-loading { color: var(--muted); font-size: 14px; padding: 8px 12px; }
+.thread-reply { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; padding: 8px 0 2px 10px; min-height: 36px; }
+.thread-reply svg { width: 16px; height: 16px; }
+@media (hover: hover) { .thread-reply:hover { color: var(--accent); } }
