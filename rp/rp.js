@@ -620,7 +620,7 @@ async function viewFeed(roomId) {
   updateNav();
   const r = S.room;
   main.innerHTML = head(r.title, { sub: r.status === 'archived' ? 'Архив · только чтение' : `${S.slots.filter(s => s.player_id).length}/${S.slots.length} персонажей в игре`,
-    extra: `<a class="icon-btn" href="#/r/${r.id}/chars" aria-label="Персонажи">${I.users}</a>` })
+    extra: `<a class="icon-btn" href="#/r/${r.id}/chars" aria-label="Персонажи">${I.users}</a>${isOwner() ? `<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : ''}` })
     + `<div id="composerSlot"></div><div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="feedList">${loader()}</div><div id="feedMore"></div>`;
   $('#newPill button').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); $('#newPill').classList.add('hidden'); };
   if (matchMedia('(min-width: 640px)').matches) refreshComposer();
@@ -889,7 +889,7 @@ async function viewCharacter(id) {
   try {
     [[c], rooms] = await Promise.all([
       api(`characters?id=eq.${id}&select=*`),
-      api(`rooms?select=id,title,description,is_private,status,slots!inner(id,character_id,player_id)&slots.character_id=eq.${id}&order=status.asc,created_at.desc`),
+      api(`rooms?select=id,title,description,is_private,status,image_url,slots!inner(id,character_id,player_id)&slots.character_id=eq.${id}&order=status.asc,created_at.desc`),
     ]);
   } catch (e) { return errorView(errText(e)); }
   if (!c) return errorView('Персонаж не найден');
@@ -901,7 +901,7 @@ async function viewCharacter(id) {
     <div class="tabs" style="border-bottom:1px solid var(--border)"><span class="active" style="flex:1;text-align:center;padding:16px 8px;font-weight:700;position:relative">Комнаты</span></div>
     ${rooms.length ? rooms.map(r => {
       const free = r.slots.some(s => !s.player_id);
-      return `<a class="room-item" href="#/r/${r.id}/chars"><div class="room-ic" style="background:hsl(${hue(r.id)} 40% 22%)">${esc((r.title.trim()[0] || '?').toUpperCase())}</div>
+      return `<a class="room-item" href="#/r/${r.id}/chars">${roomIcon(r)}
         <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? '<span class="badge">Архив</span>' : ''}</div>
         ${r.description ? `<div class="d">${esc(r.description)}</div>` : ''}
         <div class="m">${r.status !== 'active' ? 'Только чтение' : free ? '<span class="free">Свободен — можно играть</span>' : 'Занят игроком'}</div></div></a>`;
@@ -1017,15 +1017,46 @@ main.addEventListener('click', async e => {
   } catch (err) { toast(errText(err), true); t.disabled = false; }
 });
 main.addEventListener('click', e => {
+  if (S.view === 'feed' && e.target.closest('[data-room-settings]')) roomSettings();
   if (S.view !== 'lib') return;
   if (e.target.closest('[data-new-char]')) characterEditor(null, row => { location.hash = `#/c/${row.id}`; });
 });
 
+function roomIcon(r, cls = '') {
+  return r.image_url
+    ? `<img class="room-ic ${cls}" src="${esc(r.image_url)}" alt="" loading="lazy">`
+    : `<div class="room-ic ${cls}" style="background:hsl(${hue(r.id || r.title)} 40% 22%)">${esc(((r.title || '').trim()[0] || '?').toUpperCase())}</div>`;
+}
+function wireRoomImage(form) {
+  const inp = $('.room-img-pick input', form), box = $('.room-img-pick', form);
+  form.dataset.busy = '0';
+  inp.onchange = async () => {
+    const f = inp.files[0]; inp.value = ''; if (!f) return;
+    let blob;
+    try { blob = await cropImage(f, { aspect: 1, outW: 400, round: false, title: 'картинка' }); } catch (e) { return toast(errText(e), true); }
+    if (!blob) return;
+    box.classList.add('loading'); form.dataset.busy = '1';
+    try { const url = await uploadImage(blob); form.image_url.value = url; box.innerHTML = `<img src="${esc(url)}" alt="">`; box.append(inp); }
+    catch (e) { toast(errText(e), true); }
+    box.classList.remove('loading'); form.dataset.busy = '0';
+  };
+  const rm = $('[data-rm-img]', form);
+  if (rm) rm.onclick = () => { form.image_url.value = ''; box.innerHTML = `<span>${I.image}</span>`; box.append(inp); rm.remove(); };
+}
+function leaveRoomState() {
+  if (chan && rt) rt.removeChannel(chan);
+  chan = null; chanRoom = null;
+  S.room = null; S.slots = []; S.slotMap = new Map(); S.actSlot = null; S.posts.clear();
+  try { localStorage.removeItem(LS_ROOM); } catch {}
+}
 function roleOptions(sel) {
   return Object.keys(ROLE_RANK).filter(r => r !== 'user').map(r => `<option value="${r}"${r === sel ? ' selected' : ''}>${ROLE_NAME[r]} и выше</option>`).join('');
 }
 function roomFields(r = {}) {
-  return `<div class="field"><label for="r-title">Название</label><input id="r-title" name="title" required maxlength="80" value="${esc(r.title || '')}" autocomplete="off"></div>
+  return `<div class="room-img-edit"><label class="room-img-pick" title="Картинка комнаты">${r.image_url ? `<img src="${esc(r.image_url)}" alt="">` : `<span>${I.image}</span>`}<input type="file" accept="image/*" hidden aria-label="Картинка комнаты"></label>
+      <div><div style="font-weight:700">Картинка комнаты</div><div class="form-note">Нажмите на квадрат, чтобы загрузить и обрезать.</div>${r.image_url ? '<button type="button" class="btn ghost small" data-rm-img style="margin-top:8px">Убрать картинку</button>' : ''}</div></div>
+    <input type="hidden" name="image_url" value="${esc(r.image_url || '')}">
+    <div class="field"><label for="r-title">Название</label><input id="r-title" name="title" required maxlength="80" value="${esc(r.title || '')}" autocomplete="off"></div>
     <div class="field"><label for="r-desc">Описание</label><textarea id="r-desc" name="description" rows="3" maxlength="1000">${esc(r.description || '')}</textarea></div>
     <div class="field"><label for="r-max">Лимит слотов</label><input id="r-max" name="max_slots" type="number" inputmode="numeric" min="1" max="100" value="${r.max_slots || 10}"></div>
     <label class="check"><input type="checkbox" name="is_private"${r.is_private ? ' checked' : ''}> Приватная комната</label>
@@ -1036,27 +1067,38 @@ function wirePrivate(form) {
   cb.onchange = () => { mr.hidden = !cb.checked; };
 }
 function roomBody(f) {
+  if (f.dataset.busy === '1') throw new Error('Дождитесь загрузки картинки');
   const title = f.title.value.trim(); if (!title) throw new Error('Укажите название');
   const max = Math.max(1, Math.min(100, parseInt(f.max_slots.value, 10) || 10));
-  return { title, description: f.description.value.trim(), max_slots: max,
+  return { title, description: f.description.value.trim(), image_url: f.image_url.value || null, max_slots: max,
     is_private: f.is_private.checked, min_view_role: f.is_private.checked ? f.min_view_role.value : 'user' };
 }
+function rerenderRoom() { if (S.view === 'chars') { renderChars(); renderRight(); } else route(); }
 function roomSettings() {
   const r = S.room;
   const form = modal('Настройки комнаты', roomFields(r) + `
-    <button type="button" class="btn danger" data-archive>${r.status === 'active' ? 'Отправить в архив' : 'Вернуть из архива'}</button>`, {
+    <button type="button" class="btn ghost" data-archive>${r.status === 'active' ? 'Отправить в архив' : 'Вернуть из архива'}</button>
+    <button type="button" class="btn danger" data-del-room>Удалить комнату</button>`, {
     onSubmit: async f => {
       const body = roomBody(f);
       if (body.max_slots < S.slots.length) throw new Error(`Уже ${S.slots.length} персонажей — лимит не может быть меньше`);
       await api(`rooms?id=eq.${r.id}`, { method: 'PATCH', body, prefer: 'return=minimal' });
-      Object.assign(S.room, body); renderChars(); renderRight();
+      Object.assign(S.room, body); rerenderRoom();
     },
   });
-  wirePrivate(form);
+  wirePrivate(form); wireRoomImage(form);
+  $('[data-del-room]', form).onclick = async () => {
+    if (!confirm(`Удалить комнату «${r.title}» со всеми персонажами-слотами и постами? Отменить нельзя.`)) return;
+    try {
+      const del = await api(`rooms?id=eq.${r.id}`, { method: 'DELETE', prefer: 'return=representation' });
+      if (!del?.length) throw new Error('Нет прав на удаление');
+      form.close(); leaveRoomState(); toast('Комната удалена'); location.hash = '#/rooms';
+    } catch (e) { toast(errText(e), true); }
+  };
   $('[data-archive]', form).onclick = async () => {
     const status = r.status === 'active' ? 'archived' : 'active';
     if (status === 'archived' && !confirm('Архив: комната станет только для чтения. Продолжить?')) return;
-    try { await api(`rooms?id=eq.${r.id}`, { method: 'PATCH', body: { status }, prefer: 'return=minimal' }); S.room.status = status; form.close(); renderChars(); renderRight(); }
+    try { await api(`rooms?id=eq.${r.id}`, { method: 'PATCH', body: { status }, prefer: 'return=minimal' }); S.room.status = status; form.close(); rerenderRoom(); }
     catch (e) { toast(errText(e), true); }
   };
 }
@@ -1079,12 +1121,12 @@ async function loadRooms() {
   const list = $('#roomList'); if (!list) return;
   const q = roomsQ ? `&or=(title.ilike.*${likeQ(roomsQ)}*,description.ilike.*${likeQ(roomsQ)}*)` : '';
   let rows;
-  try { rows = await api(`rooms?select=id,title,description,is_private,status,max_slots,owner_id,created_at,slots(player_id)&order=status.asc,created_at.desc&limit=100${q}`); }
+  try { rows = await api(`rooms?select=id,title,description,is_private,status,image_url,max_slots,owner_id,created_at,slots(player_id)&order=status.asc,created_at.desc&limit=100${q}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (!rows.length) { list.innerHTML = `<div class="empty"><h2>${roomsQ ? 'Ничего не найдено' : 'Комнат пока нет'}</h2><p>${roomsQ ? 'Попробуйте другой запрос.' : 'Создайте первую комнату.'}</p>${!roomsQ && S.uid && rank() >= 1 ? `<a class="btn blue" href="#/new" style="margin-top:16px">${I.plus} Создать комнату</a>` : ''}</div>`; return; }
   list.innerHTML = rows.map(r => {
     const taken = r.slots.filter(s => s.player_id).length;
-    return `<a class="room-item" href="#/r/${r.id}"><div class="room-ic" style="background:hsl(${hue(r.id)} 40% 22%)">${esc((r.title.trim()[0] || '?').toUpperCase())}</div>
+    return `<a class="room-item" href="#/r/${r.id}">${roomIcon(r)}
       <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? '<span class="badge">Архив</span>' : ''} ${r.owner_id === S.uid ? '<span class="badge blue">Ваша</span>' : ''}</div>
       ${r.description ? `<div class="d">${esc(r.description)}</div>` : ''}
       <div class="m">${taken}/${r.slots.length} в игре · лимит ${r.max_slots}</div></div></a>`;
@@ -1102,7 +1144,7 @@ function viewCreate() {
     <div class="form-err" role="alert"></div>
     <button class="btn blue" type="submit">Создать комнату</button></form>`;
   const form = $('form', main);
-  wirePrivate(form);
+  wirePrivate(form); wireRoomImage(form);
   const picker = charPicker();
   $('[data-picker]', form).replaceWith(picker);
   const cnt = $('[data-count]', form);
@@ -1143,7 +1185,7 @@ function renderRight() {
     return;
   }
   const r = S.room;
-  right.innerHTML = `<div class="panel"><h2>${esc(r.title)} ${r.is_private ? I.lock : ''}</h2>${r.description ? `<p>${esc(r.description)}</p>` : ''}
+  right.innerHTML = `<div class="panel"><div class="panel-room">${roomIcon(r, 'big')}<h2>${esc(r.title)} ${r.is_private ? I.lock : ''}</h2></div>${r.description ? `<p>${esc(r.description)}</p>` : ''}
     ${r.status === 'archived' ? '<p><span class="badge">Архив · только чтение</span></p>' : ''}</div>
     <div class="panel"><h2>Персонажи</h2>
       ${S.slots.slice(0, 8).map(s => `<a class="row" href="#/r/${r.id}/chars">${avatar(s, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(s.char_name)}</div><div class="h">@${esc(s.handle)}</div></div>${s.player_id ? '' : '<span class="free">свободен</span>'}</a>`).join('')}
