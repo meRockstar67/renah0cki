@@ -154,11 +154,9 @@ const rank = () => ROLE_RANK[S.me?.rp_role] ?? 0;
 const isStaff = () => rank() >= 3;
 const isOwner = () => !!S.room && !!S.uid && (S.room.owner_id === S.uid || isStaff());
 const mySlot = () => S.slots.find(s => s.player_id && s.player_id === S.uid) || null;
-const canWrite = () => !!S.uid && !!S.room && S.room.status === 'active' && (isOwner() || (!!mySlot() && !S.room.read_only));
+const canWrite = () => !!S.uid && !!S.room && S.room.status === 'active' && !S.room.read_only && !!mySlot();
 function actingSlot() {
-  if (!S.room) return null;
-  if (S.actSlot && S.slotMap.has(S.actSlot) && (isOwner() || S.actSlot === mySlot()?.id)) return S.slotMap.get(S.actSlot);
-  return mySlot() || (isOwner() ? S.slots[0] || null : null);
+  return S.room ? mySlot() : null;
 }
 
 const SLOT_SEL = 'id,char_name,handle,avatar_url,character_id';
@@ -278,7 +276,7 @@ setInterval(async () => { if (rt) rt.realtime.setAuth((await getToken()) || SB_K
 async function onPostInsert(row) {
   if (S.posts.has(row.id)) return;
   const inRoom = S.room && row.room_id === S.room.id && (S.view === 'feed' || S.view === 'thread');
-  const onHome = S.view === 'home' && !row.reply_to && (homeTab === 'all' || (homeRooms || []).includes(row.room_id));
+  const onHome = S.view === 'home' && (homeTab === 'all' || (homeRooms || []).includes(row.room_id));
   if (!inRoom && !onHome) return;
   let p;
   try { p = cache((await api(`posts?id=eq.${row.id}&select=${P_SEL_ROOM}`))[0]); } catch { return; }
@@ -472,7 +470,10 @@ async function postAction(act, p, btn) {
   if (act === 'rt') return repostMenu(p, btn);
   if (needLogin()) return;
   const a = slotFor(p);
-  if (act === 'reply') return openComposer({ replyTo: p, slot: a, asUser: !a });
+  if (act === 'reply') {
+    if (!a) return inRoomCtx(p) ? needSlot() : toast('Отвечать могут только участники комнаты — займите персонажа', true);
+    return openComposer({ replyTo: p, slot: a });
+  }
   if (act === 'like' && !a) return toggleUserLike(p, btn);
   if (!a) return;
   if (act === 'like') {
@@ -608,7 +609,7 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
   const box = document.createElement('div');
   box.className = 'composer';
   const imgs = []; // {url|null, preview, loading}
-  const slotSel = !asUser && !fixedSlot && isOwner() && S.slots.length > 1
+  const slotSel = false
     ? `<select class="as-select" aria-label="От имени">${S.slots.map(s => `<option value="${s.id}"${s.id === actingSlot()?.id ? ' selected' : ''}>${esc(s.char_name)} @${esc(s.handle)}${s.player_id && s.player_id !== S.uid ? ' (игрок)' : ''}</option>`).join('')}</select>`
     : '';
   const a = asUser ? userAv(S.me) : (fixedSlot || actingSlot());
@@ -689,7 +690,7 @@ function composerHint() {
   return d;
 }
 function openComposer(opts = {}) {
-  if (!(opts.replyTo && (opts.asUser || opts.slot))) {
+  if (!(opts.replyTo && opts.slot)) {
     if (!S.room) { toast('Сначала зайдите в комнату', true); location.hash = '#/rooms'; return; }
     if (needSlot()) return;
   } else if (needLogin()) return;
@@ -819,7 +820,6 @@ async function viewThread(postKey) {
   main.append(renderBigPost(p));
   const cs = document.createElement('div'); cs.id = 'composerSlot'; main.append(cs);
   if (canWrite() && actingSlot()) cs.append(composerEl({ replyTo: p }));
-  else if (S.uid && S.room?.status === 'active') cs.append(composerEl({ replyTo: p, asUser: true }));
   else cs.append(composerHint());
   const box = document.createElement('div'); box.dataset.replies = p.id;
   (children.get(p.id) || []).forEach(r => box.append(renderReplyNode(r, children)));
@@ -1352,7 +1352,7 @@ async function loadHomePage(before) {
     if (!homeRooms.length) { list.innerHTML = '<div class="empty"><h2>Пока пусто</h2><p>Займите персонажа в комнате или создайте свою — посты оттуда будут здесь.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>'; return; }
     filter = `&room_id=in.(${homeRooms.join(',')})`;
   }
-  try { rows = await api(`posts?reply_to=is.null${filter}&select=${P_SEL_ROOM}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
+  try { rows = await api(`posts?select=${P_SEL_ROOM}${filter}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (S.view !== 'home' || tab !== homeTab) return;
   if (!before) list.innerHTML = '';
