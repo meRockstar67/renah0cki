@@ -632,3 +632,8 @@ html, body { overscroll-behavior-y: contain; }
 /* ответы «от себя» */
 .viewer-tag { font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; margin: 0 2px; flex: none; }
 .as-user { color: var(--muted); font-size: 13px; margin-top: 2px; }
+/* жалобы */
+.rep-reasons { display: grid; gap: 4px; }
+.rep-opt { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 4px; border-radius: 8px; cursor: pointer; }
+.rep-opt input { width: 20px; height: 20px; accent-color: var(--accent); }
+@media (hover: hover) { .rep-opt:hover { background: var(--bg-hover-2); } }

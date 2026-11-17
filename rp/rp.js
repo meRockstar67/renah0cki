@@ -38,6 +38,7 @@ const I = {
   sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>',
   pin: '<svg viewBox="0 0 24 24"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>',
   cake: '<svg viewBox="0 0 24 24"><path d="M4 20.5h16M5 20.5v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M5 15.5c1.4 1 2.6 1 4 0s2.6-1 4 0 2.6 1 4 0 1.7-.6 2 0M12 11.5v-3M12 5.5c.9-.8 1-1.8 0-3-1 1.2-.9 2.2 0 3z"/></svg>',
+  flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
   calendar: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.9-.3 5 1.4 5.5 4.4"/></svg>',
 };
@@ -398,7 +399,7 @@ function renderPost(p, { line = false, showRoom = false } = {}) {
     <a href="${p.slot?.user ? userPath(p.slot.user) : p.slot?.character_id ? `#/c/${p.slot.character_id}` : `#/r/${p.room_id}/chars`}" class="av-link" aria-label="${esc(p.slot?.char_name)}">${avatar(p.slot)}</a>
     <div class="post-main">
       <div class="post-top"><span class="name">${esc(p.slot?.char_name)}</span>${p.slot?.user ? '<span class="viewer-tag">зритель</span>' : ''}<span class="handle">@${esc(p.slot?.handle)}</span><span class="dot">·</span><time datetime="${p.created_at}" title="${esc(fullDate(p.created_at))}">${ago(p.created_at)}</time>
-        ${!p.is_deleted && canManage(p) ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
+        ${!p.is_deleted && S.uid ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
       ${p.reply_to && p.parent?.slot ? `<div class="reply-to">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
       <div data-body="${p.id}">${bodyHtml(p)}</div>
       ${actionsHtml(p)}
@@ -416,7 +417,7 @@ function renderBigPost(p) {
   const el = document.createElement('article');
   el.className = 'post-big'; el.dataset.post = p.id;
   el.innerHTML = `<div class="post-top who" style="gap:12px">${avatar(p.slot)}<div style="min-width:0"><span class="name">${esc(p.slot?.char_name)}</span><span class="handle">@${esc(p.slot?.handle)}</span></div>
-      ${!p.is_deleted && canManage(p) ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
+      ${!p.is_deleted && S.uid ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
     ${p.reply_to && p.parent?.slot ? `<div class="reply-to" style="margin-top:8px">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
     <div data-body="${p.id}">${bodyHtml(p)}</div>
     <div class="meta">${fullDate(p.created_at)}</div>
@@ -557,14 +558,31 @@ async function toggleUserRepost(p) {
     toast(on ? 'Убрано с вашей страницы' : 'Репост на вашу страницу');
   } catch (e) { toast(errText(e), true); }
 }
+const isMine = p => !!S.uid && (S.mySlots.some(x => x.id === p.slot_id) || (!p.slot_id && p.slot?.user?.user_id === S.uid));
 function postMenu(p, btn) {
-  menu(btn, [
-    { icon: I.trash, label: 'Удалить', danger: true, run: async () => {
-        if (!confirm('Удалить пост? Отменить нельзя.')) return;
-        try { await rpc('delete_post', { p_post: p.id }); p.is_deleted = true; onPostUpdate({ ...p, is_deleted: true }); toast('Пост удалён'); }
-        catch (e) { toast(errText(e), true); }
-      } },
-  ]);
+  const items = [];
+  if (!isMine(p)) items.push({ icon: I.flag, label: 'Пожаловаться', run: () => reportDialog(p) });
+  if (canManage(p)) items.push({ icon: I.trash, label: 'Удалить', danger: true, run: async () => {
+    if (!confirm('Удалить пост? Отменить нельзя.')) return;
+    try { await rpc('delete_post', { p_post: p.id }); p.is_deleted = true; onPostUpdate({ ...p, is_deleted: true }); toast('Пост удалён'); }
+    catch (e) { toast(errText(e), true); }
+  } });
+  if (items.length) menu(btn, items);
+}
+const REPORT_REASONS = ['Оскорбления', 'Травля', 'Спам', '18+ / NSFW', 'Запрещённые слова', 'Другое'];
+function reportDialog(p) {
+  const form = modal('Пожаловаться', `
+    <div class="form-note">Жалобу увидят модераторы. Выберите причину:</div>
+    <div class="rep-reasons" role="radiogroup">${REPORT_REASONS.map((r, i) => `<label class="rep-opt"><input type="radio" name="reason" value="${esc(r)}"${i ? '' : ' checked'}><span>${esc(r)}</span></label>`).join('')}</div>
+    <div class="field"><label for="rep-d">Подробнее (необязательно)</label><textarea id="rep-d" name="details" rows="3" maxlength="500"></textarea></div>`, {
+    submitLabel: 'Отправить',
+    onSubmit: async f => {
+      const reason = (f.querySelector('input[name="reason"]:checked') || {}).value || 'Другое';
+      try { await api('reports', { method: 'POST', body: { post_id: p.id, reason, details: f.details.value.trim() }, prefer: 'return=minimal' }); }
+      catch (e) { if (String(e.message).includes('duplicate')) throw new Error('Вы уже жаловались на этот пост'); throw e; }
+      toast('Жалоба отправлена модераторам');
+    },
+  });
 }
 
 function lightbox(src) {
