@@ -1742,16 +1742,9 @@ document.addEventListener('click', e => {
 })();
 
 /* ── старт ──────────────────────────────────────────────── */
-const DEV_UIDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba']; // на время разработки RP виден только этим аккаунтам
 async function init() {
   const sess = readSession();
   const token = await getToken();
-  if (!token || !DEV_UIDS.includes(sess?.user?.id)) {
-    document.title = 'renah0cki';
-    document.body.innerHTML = '';
-    location.replace('/');
-    return;
-  }
   if (token && sess?.user?.id) {
     S.uid = sess.user.id;
     try { S.me = await rpc('ensure_profile'); } catch (e) { console.warn('rp profile', e); }

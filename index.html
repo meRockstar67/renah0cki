@@ -7038,10 +7038,11 @@
     <button class="nav-tab nav-tab-home active" data-filter="home"><span class="nav-tab-icon nav-tab-icon-home"></span>Главная</button>
     <button class="nav-tab" data-filter="fanfic"><span class="nav-tab-icon nav-tab-icon-fanfic"></span>Фанфики</button>
     <button class="nav-tab" data-filter="news"><span class="nav-tab-icon nav-tab-icon-news"></span>Новости</button>
-    <a class="nav-tab" id="rpNavLink" href="/rp/" onclick="event.stopPropagation()" style="text-decoration:none;display:none">Y<small class="y-sub">(переписки)</small></a>
-    <script>(function(){var l=document.getElementById('rpNavLink');var nb=document.querySelector('#navTabs button.nav-tab');if(nb){var cs=getComputedStyle(nb);l.style.fontFamily=cs.fontFamily;l.style.lineHeight=cs.lineHeight}function c(){var id=null;try{id=(JSON.parse(localStorage.getItem('fh_session'))||{}).user.id}catch(e){}l.style.display=id==='23c6cb47-27b0-45ac-8fd9-c43b84d57aba'?'':'none'}c();setInterval(c,3000)})();</script>
+    <a class="nav-tab" id="rpNavLink" href="/rp/" onclick="event.stopPropagation()" style="text-decoration:none"><span class="nav-tab-icon nav-tab-icon-y"></span>Y<small class="y-sub">(переписки)</small></a>
+    <script>(function(){var l=document.getElementById('rpNavLink'),nb=document.querySelector('#navTabs button.nav-tab');if(nb){var cs=getComputedStyle(nb);l.style.fontFamily=cs.fontFamily;l.style.lineHeight=cs.lineHeight}})();</script>
     <style>
       #rpNavLink{font-weight:600}
+      .nav-tab-icon-y{-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5.5h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z'/><path d='M17 9.5h3a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1v2.5L16 18.5h-3'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5.5h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z'/><path d='M17 9.5h3a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1v2.5L16 18.5h-3'/></svg>") center/contain no-repeat}
       #rpNavLink .y-sub{font-size:.78em;font-weight:600;text-transform:none;letter-spacing:0;opacity:.85;margin-left:5px}
       /* модераторские кнопки — одним блоком (у обычных пользователей блока нет) */
       .mod-group{display:flex;align-items:center;order:1;border:1px solid var(--border);border-radius:8px;background:var(--panel)}
