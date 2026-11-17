@@ -1410,7 +1410,7 @@ async function viewDmList(roomKey) {
   try { await loadRoom(roomKey); } catch (e) { return errorView(errText(e)); }
   updateNav(); renderRight();
   const me = dmSlot();
-  const h = head('Сообщения', { back: true, sub: esc(S.room.title), extra: '' });
+  const h = head('Сообщения', { back: true, extra: `<a class="dm-room" href="${roomPath(S.room)}">${roomIcon(S.room, 'mini')}<span>${esc(S.room.title)}</span></a>` });
   if (!S.uid) { main.innerHTML = h + `<div class="composer-hint"><span>Войдите, чтобы переписываться.</span><a class="btn small blue" href="/">Войти</a></div>`; return; }
   if (!me) { main.innerHTML = h + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в этой комнате, чтобы писать другим.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>`; return; }
   let rows;

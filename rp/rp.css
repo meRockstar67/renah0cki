@@ -500,3 +500,13 @@ body.chat-mode .main { padding-bottom: 0; display: flex; flex-direction: column;
 .chat-peer { gap: 6px; padding: 8px 12px; }
 .chat-peer .av { width: 56px; height: 56px; font-size: 22px; }
 .chat-peer-name { font-size: 15px; font-weight: 700; }
+/* список ЛС крупнее */
+.dm-row { padding: 16px; gap: 14px; align-items: center; }
+.dm-row .av { width: 56px; height: 56px; font-size: 22px; }
+.dm-top b { font-size: 17px; }
+.dm-top time, .dm-top .dot { font-size: 15px; }
+.dm-last { font-size: 16px; margin-top: 4px; }
+.dm-room { display: inline-flex; align-items: center; gap: 8px; max-width: 45%; padding: 6px 12px; border-radius: var(--r-pill); border: 1px solid var(--ghost-border); font-weight: 700; font-size: 14px; flex: none; }
+.dm-room span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm-room .room-ic.mini { width: 20px; height: 20px; font-size: 11px; }
+@media (hover: hover) { .dm-room:hover { background: var(--ghost-hover); } }
