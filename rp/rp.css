@@ -623,3 +623,9 @@ html, body { overscroll-behavior-y: contain; }
 .n-snip { color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .cp-follow { margin-left: auto; align-self: center; }
 .in-tg .nav-out, .in-tg .site-only { display: none !important; }
+/* логотип Y */
+.ylogo { fill: currentColor; stroke: none; display: block; }
+.logo .ylogo { height: 30px; width: auto; }
+.m-logo .ylogo { height: 28px; width: auto; }
+.logo .ylogo { width: 24px; }
+.m-logo .ylogo { width: 22px; }

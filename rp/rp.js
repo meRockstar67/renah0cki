@@ -1286,7 +1286,7 @@ async function viewHome() {
   S.view = 'home'; updateNav(); renderRight();
   const meAv = S.me ? avatar(userAv(S.me), 'sm') : '';
   main.innerHTML = `<div class="head home-head">
-      <div class="m-top only-m"><a class="m-av" href="${S.me ? userPath(S.me) : '/'}" aria-label="Профиль">${meAv}</a><a class="m-logo" href="#/" aria-label="Y (переписки)">Y</a><span class="m-sp"></span></div>
+      <div class="m-top only-m"><a class="m-av" href="${S.me ? userPath(S.me) : '/'}" aria-label="Профиль">${meAv}</a><a class="m-logo" href="#/" aria-label="Y (переписки)"><svg class="ylogo" viewBox="0 125 454 570" aria-hidden="true"><path fill="currentColor" stroke="none" fill-rule="evenodd" d="M0 130H107L232 375L355 130H454L270 470V690H180V465Z M40 152H95L218 400L193 437Z"/></svg></a><span class="m-sp"></span></div>
       <div class="head-row only-d"><div class="head-title"><h1>Главная</h1></div></div>
       <div class="tabs" role="tablist"><button type="button" data-htab="all"${homeTab === 'all' ? ' class="active"' : ''}>Для вас</button><button type="button" data-htab="mine"${homeTab === 'mine' ? ' class="active"' : ''}>Мои комнаты</button></div>
     </div>`
