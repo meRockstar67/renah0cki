@@ -258,7 +258,7 @@ setInterval(async () => { if (rt) rt.realtime.setAuth((await getToken()) || SB_K
 async function onPostInsert(row) {
   if (S.posts.has(row.id)) return;
   const inRoom = S.room && row.room_id === S.room.id && (S.view === 'feed' || S.view === 'thread');
-  const onHome = S.view === 'home' && !row.reply_to;
+  const onHome = S.view === 'home' && !row.reply_to && (homeTab === 'all' || (homeRooms || []).includes(row.room_id));
   if (!inRoom && !onHome) return;
   let p;
   try { p = cache((await api(`posts?id=eq.${row.id}&select=${P_SEL_ROOM}`))[0]); } catch { return; }
@@ -687,7 +687,7 @@ function head(title, { back = false, sub = '', extra = '' } = {}) {
 main.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : (location.hash = S.room ? roomPath(S.room) : '#/'); } });
 const loader = () => '<div class="loading-row"><div class="spinner" role="status" aria-label="Загрузка"></div></div>';
 function errorView(msg) {
-  main.innerHTML = head('RP', { back: true }) + `<div class="empty"><h2>Не получилось</h2><p>${esc(msg)}</p><a class="btn blue" href="#/rooms">К комнатам</a></div>`;
+  main.innerHTML = head('Y (переписки)', { back: true }) + `<div class="empty"><h2>Не получилось</h2><p>${esc(msg)}</p><a class="btn blue" href="#/rooms">К комнатам</a></div>`;
 }
 function updateNav() {
   $('#navChars').href = '#/chars'; $('#bottomChars').href = '#/chars';
@@ -1277,21 +1277,47 @@ function viewCreate() {
 }
 
 /* ── главная: последние посты из всех комнат ────────────── */
+let homeTab = 'all', homeRooms = null;
+try { if (localStorage.getItem('rp_home_tab') === 'mine') homeTab = 'mine'; } catch {}
 async function viewHome() {
   S.view = 'home'; updateNav(); renderRight();
-  main.innerHTML = head('Главная', { sub: 'Новые посты из всех комнат' })
+  const meAv = S.me ? avatar({ char_name: S.me.nick, handle: S.me.username || S.me.nick, avatar_url: S.me.avatar_url }, 'sm') : '';
+  main.innerHTML = `<div class="head home-head">
+      <div class="m-top only-m"><a class="m-av" href="${S.me ? userPath(S.me) : '/'}" aria-label="Профиль">${meAv}</a><a class="m-logo" href="#/" aria-label="Y (переписки)">Y</a><span class="m-sp"></span></div>
+      <div class="head-row only-d"><div class="head-title"><h1>Главная</h1></div></div>
+      <div class="tabs" role="tablist"><button type="button" data-htab="all"${homeTab === 'all' ? ' class="active"' : ''}>Для вас</button><button type="button" data-htab="mine"${homeTab === 'mine' ? ' class="active"' : ''}>Мои комнаты</button></div>
+    </div>`
     + `<div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="homeList">${loader()}</div><div id="homeMore"></div>`;
   $('#newPill button').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); $('#newPill').classList.add('hidden'); };
+  $$('[data-htab]', main).forEach(b => b.onclick = () => {
+    homeTab = b.dataset.htab; try { localStorage.setItem('rp_home_tab', homeTab); } catch {}
+    $$('[data-htab]', main).forEach(x => x.classList.toggle('active', x === b));
+    $('#homeList').innerHTML = loader(); $('#homeMore').innerHTML = '';
+    loadHomePage();
+  });
   try { await loadMineAll(); } catch {}
   renderRight();
   await loadHomePage();
 }
+// комнаты, где я играю или которые мои
+async function myRoomIds() {
+  if (!S.uid) return [];
+  const own = await api(`rooms?owner_id=eq.${S.uid}&select=id`).catch(() => []);
+  return [...new Set([...S.mySlots.map(x => x.room_id), ...own.map(x => x.id)])];
+}
 async function loadHomePage(before) {
   const list = $('#homeList'); if (!list) return;
   let rows;
-  try { rows = await api(`posts?reply_to=is.null&select=${P_SEL_ROOM}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
+  const tab = homeTab;
+  let filter = '';
+  if (tab === 'mine') {
+    if (!before) homeRooms = await myRoomIds();
+    if (!homeRooms.length) { list.innerHTML = '<div class="empty"><h2>Пока пусто</h2><p>Займите персонажа в комнате или создайте свою — посты оттуда будут здесь.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>'; return; }
+    filter = `&room_id=in.(${homeRooms.join(',')})`;
+  }
+  try { rows = await api(`posts?reply_to=is.null${filter}&select=${P_SEL_ROOM}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
-  if (S.view !== 'home') return;
+  if (S.view !== 'home' || tab !== homeTab) return;
   if (!before) list.innerHTML = '';
   rows.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true })); });
   if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Постов ещё нет. Зайдите в комнату и напишите первый.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>`;
@@ -1547,7 +1573,7 @@ function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
   if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub'].includes(S.view)) {
     const mine = S.mySlots.filter(x => x.room);
-    right.innerHTML = `<div class="panel"><h2>RP</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
+    right.innerHTML = `<div class="panel"><h2>Y (переписки)</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
       ${mine.length ? `<div class="panel"><h2>Ваши роли</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
       <div class="panel"><a class="link" href="#/rooms">Все комнаты</a></div>`;
     return;

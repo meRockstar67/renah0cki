@@ -510,3 +510,29 @@ body.chat-mode .main { padding-bottom: 0; display: flex; flex-direction: column;
 .dm-room span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dm-room .room-ic.mini { width: 20px; height: 20px; font-size: 11px; }
 @media (hover: hover) { .dm-room:hover { background: var(--ghost-hover); } }
+
+/* ── iPhone: шапки не залезают под часы/вырез ───────── */
+.head { padding-top: env(safe-area-inset-top); }
+.overlay .modal .head { padding-top: env(safe-area-inset-top); }
+@media (min-width: 640px) { .overlay .modal .head { padding-top: 0; } }
+.lightbox .icon-btn { top: calc(12px + env(safe-area-inset-top)); }
+
+/* ── шапка главной как в X ──────────────────────────── */
+.only-m { display: flex; }
+.only-d { display: none !important; }
+@media (min-width: 640px) { .only-m { display: none !important; } .only-d { display: flex !important; } }
+.m-top { align-items: center; justify-content: space-between; height: 53px; padding: 0 16px; }
+.m-av, .m-sp { width: 36px; height: 36px; display: grid; place-items: center; flex: none; }
+.m-av .av { width: 32px; height: 32px; }
+.m-logo { font-weight: 900; font-size: 30px; line-height: 1; letter-spacing: -1px; }
+.home-head .tabs button { font-size: 15px; }
+
+/* ── на телефоне текст постов крупнее, как в X ──────── */
+@media (max-width: 639px) {
+  .text { font-size: 16px; line-height: 1.4; }
+  .post-top { font-size: 16px; }
+  .post-top time, .post-top .handle { font-size: 15px; }
+  .post .av:not(.xs) { width: 44px; height: 44px; }
+  .act { font-size: 14px; }
+  .bottom a svg { width: 28px; height: 28px; }
+}
