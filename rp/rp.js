@@ -1373,9 +1373,10 @@ $$('[data-theme-label]').forEach(el => { el.textContent = themeLabel(); });
 
 /* ── ЛС ─────────────────────────────────────────────────── */
 // от кого писать: свой слот; владелец/staff — ещё и свободные (NPC) слоты
-function dmOptions() { if (!S.room || !S.uid) return []; return S.slots.filter(x => x.player_id === S.uid || (!x.player_id && isOwner())); }
-function dmSlot() { const o = dmOptions(); return o.find(x => x.id === S.dmAs) || o.find(x => x.player_id === S.uid) || o[0] || null; }
+function dmOptions() { if (!S.room || !S.uid) return []; return S.slots.filter(x => x.player_id === S.uid); }
+function dmSlot() { return dmOptions()[0] || null; }
 function dmAsSelect() {
+  return ''; // писать в ЛС можно только за своего персонажа
   const o = dmOptions(); if (o.length < 2) return '';
   return `<select class="as-select" data-dm-as aria-label="Писать от имени">${o.map(x => `<option value="${x.id}"${x.id === dmSlot()?.id ? ' selected' : ''}>${esc(x.char_name)}${x.player_id ? '' : ' (NPC)'}</option>`).join('')}</select>`;
 }
