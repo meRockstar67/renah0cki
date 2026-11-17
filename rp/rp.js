@@ -720,7 +720,7 @@ function renderMe() {
   box.href = S.me ? userPath(S.me) : '/';
   box.innerHTML = a
     ? `${avatar(a)}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.char_name)}</div><div style="color:var(--muted);font-size:14px">@${esc(a.handle)}</div></div>`
-    : `${avatar(userAv(S.me))}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(yName(S.me))}</div><div style="color:var(--muted);font-size:14px">${ROLE_NAME[S.me?.rp_role] || ''}</div></div>`;
+    : `${avatar(userAv(S.me))}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(yName(S.me))}</div><div style="color:var(--muted);font-size:14px">${S.me?.username ? '@' + esc(S.me.username) : ''}</div></div>`;
 }
 
 /* главная: лента комнаты */
@@ -1374,7 +1374,7 @@ async function viewUser(key) {
   if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>Дата рождения: ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
   main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="Настройки" style="margin:0">${I.gear}</a>` : '' })
     + `<div class="cp-top no-banner">${avatar(userAv(u), 'xl')}${isMe ? '<button class="btn ghost small cp-edit-top only-d" data-edit-profile>Изменить</button>' : ''}</div>
-    <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span> ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
+    <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span></div>
       ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="Скопировать ссылку на профиль">@${esc(u.username)}</button>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
@@ -1735,9 +1735,9 @@ document.addEventListener('click', e => {
     if (y0 === null) return;
     y0 = null;
     if (dist < TRIGGER) { reset(); return; }
-    busy = true; ind.classList.add('loading', 'back'); set(TRIGGER);
+    busy = true; reset(); // одна крутилка — у самой страницы
     try { await route(); } catch {}
-    setTimeout(() => { reset(); busy = false; }, 250);
+    busy = false;
   });
 })();
 
