@@ -710,6 +710,7 @@ function navKey() {
   if (v === 'lib' || v === 'char') return 'chars';
   if (v === 'dms' || v === 'dm' || v === 'dmhub') return 'dm';
   if (v === 'user') return S.viewArg === S.uid ? 'me' : '';
+  if (v === 'settings') return 'settings';
   return 'home';
 }
 function renderMe() {
@@ -1375,16 +1376,15 @@ async function viewUser(key) {
   if (u.website) meta.push(`<a class="cp-meta cp-site" href="${esc(u.website)}" target="_blank" rel="noopener noreferrer nofollow">${I.link}<span>${esc(siteHost(u.website))}</span></a>`);
   if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>Дата рождения: ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
   meta.push(`<span class="cp-meta">${I.calendar}<span>В Y с ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} г.</span></span>`);
-  main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}` })
+  main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="Настройки" style="margin:0">${I.gear}</a>` : '' })
     + `<div class="cp-banner" style="${bannerStyle(u)}"></div>
-    <div class="cp-top">${avatar(userAv(u), 'xl')}<div class="cp-acts">
-      <button class="icon-btn bordered" data-copy="${userPath(u)}" aria-label="Скопировать ссылку" title="Скопировать ссылку">${I.link}</button>
-      ${isMe ? `<button class="icon-btn bordered" data-theme-toggle aria-label="Сменить тему" title="Сменить тему">${I.sun}</button><button class="btn ghost" data-edit-profile><span class="t-long">Редактировать профиль</span><span class="t-short">Изменить</span></button>` : ''}</div></div>
+    <div class="cp-top">${avatar(userAv(u), 'xl')}</div>
     <div class="cp-info"><div class="cp-name"><span${nameStyle(u.name_color)}>${esc(name)}</span> ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
-      ${u.username ? `<div class="cp-handle">@${esc(u.username)}</div>` : ''}
+      ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="Скопировать ссылку на профиль">@${esc(u.username)}</button>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
-      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span></div></div>
+      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span></div>
+      ${isMe ? '<button class="btn ghost cp-edit" data-edit-profile>Редактировать профиль</button>' : ''}</div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
     <div id="uList"></div>`;
   scrollTo(0, 0);
@@ -1465,6 +1465,25 @@ function profileEditor(u, onSaved) {
     if (b.dataset.rm === 'banner') { form.banner_url.value = ''; $('.ce-banner', form).setAttribute('style', bannerStyle({ ...u, banner_url: null })); }
     else { form.y_avatar_url.value = ''; $('.ce-av .ce-av-img', form).outerHTML = avatar({ ...userAv(u), avatar_url: u.avatar_url }, 'ce-av-img'); }
     b.remove();
+  });
+}
+
+/* ── настройки ──────────────────────────────────────────── */
+function viewSettings() {
+  S.view = 'settings'; updateNav(); renderRight();
+  const t = curTheme();
+  main.innerHTML = head('Настройки', { back: true })
+    + `<div class="set-sec"><h2>Оформление</h2><p>Тема применяется только в Y и запоминается на этом устройстве.</p>
+      <div class="theme-pick" role="radiogroup" aria-label="Тема">
+        <label class="theme-opt dark${t === 'dark' ? ' on' : ''}"><input type="radio" name="theme" value="dark"${t === 'dark' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Тёмная</span></label>
+        <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Светлая</span></label>
+      </div></div>
+    <div class="set-sec"><h2>Аккаунт</h2>
+      ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
+      <a class="set-row" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`;
+  $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
+    setTheme(inp.value);
+    $$('.theme-opt', main).forEach(l => l.classList.toggle('on', $('input', l).checked));
   });
 }
 
@@ -1654,7 +1673,7 @@ function onDmInsert(row) {
 /* правая колонка */
 function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
-  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub'].includes(S.view)) {
+  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings'].includes(S.view)) {
     const mine = S.mySlots.filter(x => x.room);
     right.innerHTML = `<div class="panel"><h2>Y (переписки)</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
       ${mine.length ? `<div class="panel"><h2>Ваши роли</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
@@ -1692,6 +1711,7 @@ function route() {
   if (parts[0] === 'c' && ok(parts[1])) return viewCharacter(parts[1]);
   if (parts[0] === 'u' && parts[1]) return viewUser(parts[1]);
   if (parts[0] === 'dm') return viewDmHub();
+  if (parts[0] === 'settings') return viewSettings();
   if (parts[0] === 'rooms') return viewRooms();
   return viewHome();
 }
