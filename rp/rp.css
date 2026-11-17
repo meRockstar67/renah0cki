@@ -588,3 +588,11 @@ body.chat-mode .main { padding-bottom: 0; display: flex; flex-direction: column;
 .ce-head.no-banner { margin: 0 0 4px; height: 104px; }
 .ce-head.no-banner .ce-av { left: 0; bottom: auto; top: 0; }
 .cp-top.no-banner .cp-acts { margin-bottom: 0; align-self: center; }
+/* ПК: аватар меньше, «Редактировать» маленькой кнопкой справа сверху */
+.cp-edit.only-m { display: flex !important; }
+.cp-top.no-banner { align-items: flex-start; }
+@media (min-width: 640px) {
+  .cp-edit.only-m { display: none !important; }
+  .cp-top.no-banner .av.xl { width: 96px; height: 96px; font-size: 38px; border-width: 0; }
+  .cp-edit-top { margin-top: 4px; }
+}

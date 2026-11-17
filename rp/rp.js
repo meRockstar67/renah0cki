@@ -1374,13 +1374,13 @@ async function viewUser(key) {
   if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>Дата рождения: ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
   meta.push(`<span class="cp-meta">${I.calendar}<span>В Y с ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} г.</span></span>`);
   main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="Настройки" style="margin:0">${I.gear}</a>` : '' })
-    + `<div class="cp-top no-banner">${avatar(userAv(u), 'xl')}</div>
+    + `<div class="cp-top no-banner">${avatar(userAv(u), 'xl')}${isMe ? '<button class="btn ghost small cp-edit-top only-d" data-edit-profile>Редактировать профиль</button>' : ''}</div>
     <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span> ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
       ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="Скопировать ссылку на профиль">@${esc(u.username)}</button>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
       <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span></div>
-      ${isMe ? '<button class="btn ghost cp-edit" data-edit-profile>Редактировать профиль</button>' : ''}</div>
+      ${isMe ? '<button class="btn ghost cp-edit only-m" data-edit-profile>Редактировать профиль</button>' : ''}</div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
     <div id="uList"></div>`;
   scrollTo(0, 0);
@@ -1401,8 +1401,7 @@ async function viewUser(key) {
     list.innerHTML = roles.length ? roles.map(x => `<a class="char lib-item" href="${x.room ? roomPath(x.room) : '#/rooms'}">${avatar(x)}<div class="char-main"><div class="name">${esc(x.char_name)}</div><div class="handle">@${esc(x.handle)}</div><div class="st">в комнате ${x.room ? esc(x.room.title) : '—'}</div></div></a>`).join('')
       : '<div class="empty"><h2>Сейчас без ролей</h2><p>Занятые персонажи появятся здесь.</p></div>';
   };
-  const ep = $('[data-edit-profile]', main);
-  if (ep) ep.onclick = () => profileEditor(u, () => viewUser(key));
+  $$('[data-edit-profile]', main).forEach(b => { b.onclick = () => profileEditor(u, () => viewUser(key)); });
   $$('[data-utab]', main).forEach(b => b.onclick = () => {
     $$('[data-utab]', main).forEach(x => x.classList.toggle('active', x === b));
     b.dataset.utab === 'rt' ? drawRt() : drawRoles();
