@@ -1550,7 +1550,7 @@ function viewSettings() {
       </div></div>
     <div class="set-sec"><h2>Аккаунт</h2>
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
-      <a class="set-row" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`;
+      <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`;
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
     setTheme(inp.value);
     $$('.theme-opt', main).forEach(l => l.classList.toggle('on', $('input', l).checked));
@@ -1836,6 +1836,17 @@ const TG = { initData: null, status: '' };
   } catch {}
   if (!TG.initData) return;
   document.documentElement.classList.add('in-tg');
+  // в Telegram — только Y: ссылки на основной сайт не открываем (вход — через Twitch прямо здесь),
+  // внешние сайты открываем браузером Telegram
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href]'); if (!a) return;
+    const u = new URL(a.getAttribute('href'), location.href);
+    if (u.origin === location.origin && (u.pathname.startsWith('/rp/') || u.pathname === location.pathname)) return;
+    if (u.origin === location.origin && u.pathname.startsWith('/y/')) return;
+    e.preventDefault(); e.stopPropagation();
+    if (u.origin !== location.origin) { window.Telegram?.WebApp?.openLink ? window.Telegram.WebApp.openLink(u.href) : open(u.href, '_blank'); return; }
+    if (!S.uid) startTwitchLogin();
+  }, true);
   // SDK грузим только внутри Telegram (на сайте telegram.org не нужен)
   const sc = document.createElement('script');
   sc.src = 'https://telegram.org/js/telegram-web-app.js';
@@ -1843,8 +1854,6 @@ const TG = { initData: null, status: '' };
     const w = window.Telegram?.WebApp; if (!w) return;
     w.ready(); w.expand();
     try { w.disableVerticalSwipes(); } catch {}
-    let saved = null; try { saved = localStorage.getItem('rp_theme'); } catch {}
-    if (!saved && w.colorScheme === 'light') document.documentElement.dataset.theme = 'light';
     const bg = getComputedStyle(document.body).backgroundColor;
     try { w.setHeaderColor(bg); w.setBackgroundColor(bg); } catch {}
     const upd = () => { const home = !location.hash || location.hash === '#/' || location.hash === '#'; home ? w.BackButton.hide() : w.BackButton.show(); };
