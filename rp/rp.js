@@ -822,6 +822,7 @@ async function loadFeedPage(before) {
   if (S.room?.id !== roomId || S.view !== 'feed') return;
   if (!before) list.innerHTML = '';
   rows.forEach(p => { cache(p); list.append(renderPost(p, { threads: true })); });
+  prefetchThreads(rows);
   if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Напишите первый пост в этой комнате.</p></div>`;
   const more = $('#feedMore');
   more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';
@@ -858,14 +859,26 @@ async function viewThread(postKey) {
   scrollTo({ top: chain.length ? $('.post-big', main).offsetTop - 60 : 0 });
 }
 // ответы деревом (до 8 уровней)
-async function loadReplyTree(rootId) {
-  const children = new Map(); let level = [rootId];
-  for (let d = 0; d < 8 && level.length; d++) {
-    const rows = await api(`posts?reply_to=in.(${level.join(',')})&select=${P_SEL}&order=created_at.asc&limit=500`);
-    rows.forEach(r => { cache(r); if (!children.has(r.reply_to)) children.set(r.reply_to, []); children.get(r.reply_to).push(r); });
-    level = rows.map(r => r.id);
-  }
+// вся ветка любой глубины для нескольких постов — одним запросом
+async function loadReplyTrees(ids) {
+  const children = new Map();
+  if (!ids.length) return children;
+  const rows = await api(`rpc/reply_tree?select=${P_SEL}`, { method: 'POST', body: { roots: ids } });
+  rows.forEach(r => { cache(r); if (!children.has(r.reply_to)) children.set(r.reply_to, []); children.get(r.reply_to).push(r); });
   return children;
+}
+const loadReplyTree = rootId => loadReplyTrees([rootId]);
+// заранее (в фоне) подгружаем ветки всех постов ленты — по нажатию они открываются сразу
+async function prefetchThreads(rows) {
+  const ids = rows.filter(x => x.reply_count > 0 && !x.is_deleted).map(x => x.id)
+    .filter(id => $$(`.inline-thread[data-inline="${id}"]`).some(b => !b.dataset.loaded));
+  if (!ids.length) return;
+  let ch; try { ch = await loadReplyTrees(ids); } catch { return; }
+  ids.forEach(id => $$(`.inline-thread[data-inline="${id}"]`).forEach(box => {
+    if (box.dataset.loaded) return;
+    box.replaceChildren(...(ch.get(id) || []).map(x => renderReplyNode(x, ch)));
+    box.dataset.loaded = '1';
+  }));
 }
 // ветки ответов сразу для всех постов страницы (несколько запросов на всю ленту)
 async function fillThreads(rows) {
@@ -1448,6 +1461,7 @@ async function loadHomePage(before) {
   if (S.view !== 'home' || tab !== homeTab) return;
   if (!before) { list.innerHTML = ''; writeHomeCache(rows); }
   rows.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true, threads: true })); });
+  prefetchThreads(rows);
   if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Постов ещё нет. Зайдите в комнату и напишите первый.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>`;
   const more = $('#homeMore');
   more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';
