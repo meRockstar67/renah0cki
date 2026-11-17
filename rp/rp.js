@@ -134,7 +134,9 @@ const postPath = pp => `#/p/${pp.short_code || pp.id}`;
 const charPath = c => `#/c/${c.short_code || c.id}`;
 const userPath = u => `#/u/${encodeURIComponent(u.username || u.user_id)}`;
 async function copyLink(hash, msg = 'Ссылка скопирована') {
-  const url = `${location.origin}/rp/${hash}`;
+  // короткая ссылка: #/p/КОД → /y/КОД, #/r/КОД → /y/r/КОД и т.д.
+  const h = hash.replace(/^#\//, '');
+  const url = `${location.origin}/y/${h.startsWith('p/') ? h.slice(2) : h}`;
   try { await navigator.clipboard.writeText(url); toast(msg); } catch { prompt('Ссылка', url); }
 }
 
