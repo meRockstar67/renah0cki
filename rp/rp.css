@@ -495,3 +495,8 @@ body.chat-mode .main { padding-bottom: 0; display: flex; flex-direction: column;
 .post-ctx > span { white-space: nowrap; flex: none; }
 .post-ctx > .post-room { flex: 0 1 auto; }
 .dm-none { font-style: italic; opacity: .8; }
+/* шапка чата побольше */
+.chat-head .head-row { min-height: 96px; }
+.chat-peer { gap: 6px; padding: 8px 12px; }
+.chat-peer .av { width: 56px; height: 56px; font-size: 22px; }
+.chat-peer-name { font-size: 15px; font-weight: 700; }
