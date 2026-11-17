@@ -629,3 +629,6 @@ html, body { overscroll-behavior-y: contain; }
 .m-logo .ylogo { height: 28px; width: auto; }
 .logo .ylogo { width: 24px; }
 .m-logo .ylogo { width: 22px; }
+/* ответы «от себя» */
+.viewer-tag { font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; margin: 0 2px; flex: none; }
+.as-user { color: var(--muted); font-size: 13px; margin-top: 2px; }

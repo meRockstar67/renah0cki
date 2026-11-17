@@ -148,7 +148,7 @@ const S = {
   liked: new Set(), reposted: new Map(), // post_id → id репоста
   posts: new Map(),               // кэш постов по id
   view: null, viewArg: null,
-  mySlots: [], userReposted: new Set(), dmAs: null, mineScope: '',
+  mySlots: [], userReposted: new Set(), userLiked: new Set(), dmAs: null, mineScope: '',
 };
 const rank = () => ROLE_RANK[S.me?.rp_role] ?? 0;
 const isStaff = () => rank() >= 3;
@@ -163,12 +163,22 @@ function actingSlot() {
 
 const SLOT_SEL = 'id,char_name,handle,avatar_url,character_id';
 const P_FIELDS = 'id,short_code,room_id,slot_id,body,images,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,created_at';
-const P_SEL = `${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),parent:reply_to(id,slot:slots!slot_id(handle)),`
-  + `quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL})),`
-  + `orig:repost_of(${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),parent:reply_to(id,slot:slots!slot_id(handle)),quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL})))`;
+const AU_SEL = 'author:author_user(user_id,nick,y_name,avatar_url,y_avatar_url,username)';
+const P_SEL = `${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),${AU_SEL},parent:reply_to(id,slot:slots!slot_id(handle),author:author_user(username)),`
+  + `quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL}),${AU_SEL}),`
+  + `orig:repost_of(${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),${AU_SEL},parent:reply_to(id,slot:slots!slot_id(handle),author:author_user(username)),quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL}),${AU_SEL}))`;
 const P_SEL_ROOM = `${P_SEL},room:room_id(id,title,short_code,image_url)`;
+// ответ «от себя» (без персонажа): подставляем имя/аватар пользователя как «слот»
+function normAuthor(x) {
+  if (!x) return;
+  if (!x.slot && x.author) x.slot = { char_name: yName(x.author) || x.author.username || 'Пользователь', handle: x.author.username || '', avatar_url: yAvatar(x.author), user: x.author };
+  if (x.parent && !x.parent.slot && x.parent.author) x.parent.slot = { handle: x.parent.author.username || '' };
+  if (x.quoted) normAuthor(x.quoted);
+  if (x.orig) normAuthor(x.orig);
+}
 function cache(p) {
   if (!p) return p;
+  normAuthor(p);
   S.posts.set(p.id, p);
   if (p.orig) S.posts.set(p.orig.id, p.orig);
   return p;
@@ -207,6 +217,11 @@ async function loadMine() {
 async function loadMySlots() {
   if (!S.uid) return;
   S.mySlots = await api(`slots?player_id=eq.${S.uid}&select=id,room_id,char_name,handle,avatar_url,character_id,room:room_id(id,title,short_code,image_url,status)`) || [];
+}
+async function loadUserLikes() {
+  if (!S.uid) return;
+  const rows = await api(`user_likes?user_id=eq.${S.uid}&select=post_id&limit=5000`);
+  S.userLiked = new Set(rows.map(x => x.post_id));
 }
 async function loadUserReposts() {
   if (!S.uid) return;
@@ -341,7 +356,7 @@ function refreshRtState(id) {
   $$(`[data-cnt="${id}"] .act.rt`).forEach(b => b.classList.toggle('on', S.reposted.has(id) || S.userReposted.has(id)));
 }
 function actionsHtml(p, big = false) {
-  const liked = S.liked.has(p.id), rted = S.reposted.has(p.id) || S.userReposted.has(p.id);
+  const liked = S.liked.has(p.id) || S.userLiked.has(p.id), rted = S.reposted.has(p.id) || S.userReposted.has(p.id);
   const n = v => big ? '' : `<span class="n">${fmtN(v)}</span>`;
   return `<div class="actions" data-cnt="${p.id}">
     <button class="act reply" data-act="reply" aria-label="Ответить"><span class="ic">${I.reply}</span>${n(p.reply_count)}</button>
@@ -357,6 +372,7 @@ function bodyHtml(p) {
 function canManage(p) {
   if (!S.uid) return false;
   if (isStaff() || S.mySlots.some(x => x.id === p.slot_id)) return true;
+  if (!p.slot_id && p.slot?.user?.user_id === S.uid) return true;
   return !!S.room && S.room.id === p.room_id && (isOwner() || mySlot()?.id === p.slot_id);
 }
 function renderPost(p, { line = false, showRoom = false } = {}) {
@@ -381,9 +397,9 @@ function renderPost(p, { line = false, showRoom = false } = {}) {
   el.className = 'post' + (line ? ' has-line' : '');
   el.dataset.post = p.id; el.dataset.open = p.id;
   el.innerHTML = `${line ? '<div class="thread-line"></div>' : ''}
-    <a href="${p.slot?.character_id ? `#/c/${p.slot.character_id}` : `#/r/${p.room_id}/chars`}" class="av-link" aria-label="${esc(p.slot?.char_name)}">${avatar(p.slot)}</a>
+    <a href="${p.slot?.user ? userPath(p.slot.user) : p.slot?.character_id ? `#/c/${p.slot.character_id}` : `#/r/${p.room_id}/chars`}" class="av-link" aria-label="${esc(p.slot?.char_name)}">${avatar(p.slot)}</a>
     <div class="post-main">
-      <div class="post-top"><span class="name">${esc(p.slot?.char_name)}</span><span class="handle">@${esc(p.slot?.handle)}</span><span class="dot">·</span><time datetime="${p.created_at}" title="${esc(fullDate(p.created_at))}">${ago(p.created_at)}</time>
+      <div class="post-top"><span class="name">${esc(p.slot?.char_name)}</span>${p.slot?.user ? '<span class="viewer-tag">зритель</span>' : ''}<span class="handle">@${esc(p.slot?.handle)}</span><span class="dot">·</span><time datetime="${p.created_at}" title="${esc(fullDate(p.created_at))}">${ago(p.created_at)}</time>
         ${!p.is_deleted && canManage(p) ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
       ${p.reply_to && p.parent?.slot ? `<div class="reply-to">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
       <div data-body="${p.id}">${bodyHtml(p)}</div>
@@ -455,13 +471,10 @@ async function postAction(act, p, btn) {
   if (act === 'more') return postMenu(p, btn);
   if (act === 'rt') return repostMenu(p, btn);
   if (needLogin()) return;
-  if (act === 'reply') {
-    if (!inRoomCtx(p)) { location.hash = postPath(p); return; }
-    if (needSlot()) return;
-    return openComposer({ replyTo: p });
-  }
   const a = slotFor(p);
-  if (!a) { if (inRoomCtx(p)) return needSlot(); return toast('Чтобы ставить лайки, займите персонажа в этой комнате', true); }
+  if (act === 'reply') return openComposer({ replyTo: p, slot: a, asUser: !a });
+  if (act === 'like' && !a) return toggleUserLike(p, btn);
+  if (!a) return;
   if (act === 'like') {
     const on = S.liked.has(p.id);
     const box = btn.closest('.actions');
@@ -481,6 +494,20 @@ async function postAction(act, p, btn) {
   if (act === 'rt') return repostMenu(p, btn);
 }
 
+async function toggleUserLike(p, btn) {
+  const on = S.userLiked.has(p.id);
+  $$(`[data-cnt="${p.id}"] .act.like`).forEach(b => b.classList.toggle('on', !on));
+  btn.classList.add('pop'); setTimeout(() => btn.classList.remove('pop'), 300);
+  on ? S.userLiked.delete(p.id) : S.userLiked.add(p.id);
+  try {
+    if (on) await api(`user_likes?post_id=eq.${p.id}&user_id=eq.${S.uid}`, { method: 'DELETE' });
+    else await api('user_likes', { method: 'POST', body: { post_id: p.id, user_id: S.uid }, prefer: 'return=minimal' });
+  } catch (err) {
+    on ? S.userLiked.add(p.id) : S.userLiked.delete(p.id);
+    $$(`[data-cnt="${p.id}"] .act.like`).forEach(b => b.classList.toggle('on', on));
+    toast(errText(err), true);
+  }
+}
 function menu(anchor, items) {
   closeMenu();
   const m = document.createElement('div');
@@ -577,17 +604,18 @@ async function uploadImage(file) {
 }
 
 /* ── композер ───────────────────────────────────────────── */
-function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone } = {}) {
+function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone, slot: fixedSlot = null, asUser = false } = {}) {
   const box = document.createElement('div');
   box.className = 'composer';
   const imgs = []; // {url|null, preview, loading}
-  const slotSel = isOwner() && S.slots.length > 1
+  const slotSel = !asUser && !fixedSlot && isOwner() && S.slots.length > 1
     ? `<select class="as-select" aria-label="От имени">${S.slots.map(s => `<option value="${s.id}"${s.id === actingSlot()?.id ? ' selected' : ''}>${esc(s.char_name)} @${esc(s.handle)}${s.player_id && s.player_id !== S.uid ? ' (игрок)' : ''}</option>`).join('')}</select>`
     : '';
-  const a = actingSlot();
+  const a = asUser ? userAv(S.me) : (fixedSlot || actingSlot());
   box.innerHTML = `<div class="c-av">${avatar(a)}</div>
     <div class="composer-body">
       ${slotSel}
+      ${asUser ? '<div class="as-user">Вы отвечаете от себя — вы не играете в этой комнате</div>' : fixedSlot ? `<div class="as-user">Ответ от персонажа ${esc(fixedSlot.char_name)}</div>` : ''}
       ${replyTo ? `<div class="reply-to" style="margin-top:4px">В ответ <b>@${esc(replyTo.slot?.handle)}</b></div>` : ''}
       <textarea rows="1" maxlength="${MAX_LEN + 200}" placeholder="${replyTo ? 'Опубликуйте свой ответ' : quoteOf ? 'Добавьте комментарий' : 'Что происходит?!'}" aria-label="Текст поста"></textarea>
       <div class="thumbs hidden"></div>
@@ -628,10 +656,12 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone 
   ta.oninput = update;
   ta.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !send.disabled) send.click(); };
   send.onclick = async () => {
-    const slot = actingSlot(); if (!slot) return needSlot();
+    const slot = asUser ? null : (fixedSlot || actingSlot());
+    if (!asUser && !slot) return needSlot();
     send.disabled = true;
     try {
-      const body = { room_id: S.room.id, slot_id: slot.id, body: ta.value.trim(), images: imgs.filter(i => i.url).map(i => i.url) };
+      const body = { room_id: (replyTo || quoteOf)?.room_id || S.room.id, body: ta.value.trim(), images: imgs.filter(i => i.url).map(i => i.url) };
+      if (slot) body.slot_id = slot.id;
       if (replyTo) body.reply_to = replyTo.id;
       if (quoteOf) body.quote_of = quoteOf.id;
       const [row] = await api('posts', { method: 'POST', body, prefer: 'return=representation' });
@@ -659,8 +689,10 @@ function composerHint() {
   return d;
 }
 function openComposer(opts = {}) {
-  if (!S.room) { toast('Сначала зайдите в комнату', true); location.hash = '#/rooms'; return; }
-  if (needSlot()) return;
+  if (!(opts.replyTo && (opts.asUser || opts.slot))) {
+    if (!S.room) { toast('Сначала зайдите в комнату', true); location.hash = '#/rooms'; return; }
+    if (needSlot()) return;
+  } else if (needLogin()) return;
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="Новый пост"><div class="head"><div class="head-row"><button class="icon-btn" data-close aria-label="Закрыть">${I.close}</button></div></div></div>`;
@@ -786,7 +818,9 @@ async function viewThread(postKey) {
   chain.forEach(c => main.append(renderPost(c, { line: true })));
   main.append(renderBigPost(p));
   const cs = document.createElement('div'); cs.id = 'composerSlot'; main.append(cs);
-  if (canWrite() && actingSlot()) cs.append(composerEl({ replyTo: p })); else cs.append(composerHint());
+  if (canWrite() && actingSlot()) cs.append(composerEl({ replyTo: p }));
+  else if (S.uid && S.room?.status === 'active') cs.append(composerEl({ replyTo: p, asUser: true }));
+  else cs.append(composerHint());
   const box = document.createElement('div'); box.dataset.replies = p.id;
   (children.get(p.id) || []).forEach(r => box.append(renderReplyNode(r, children)));
   main.append(box);
@@ -1915,7 +1949,7 @@ async function init() {
   if (token && sess?.user?.id) {
     S.uid = sess.user.id;
     try { S.me = await rpc('ensure_profile'); } catch (e) { console.warn('rp profile', e); }
-    try { await Promise.all([loadMySlots(), loadUserReposts()]); } catch (e) { console.warn('rp mine', e); }
+    try { await Promise.all([loadMySlots(), loadUserReposts(), loadUserLikes()]); } catch (e) { console.warn('rp mine', e); }
     loadUnread();
     tgLinkIfNeeded();
   } else {
