@@ -954,8 +954,8 @@ async function viewChars(roomId) {
 function renderChars() {
   const r = S.room, own = isOwner(), mine = mySlot();
   const taken = S.slots.filter(s => s.player_id).length;
-  main.innerHTML = head('Персонажи комнаты', { back: true, sub: `${esc(r.title)} · ${taken}/${S.slots.length} заняты · лимит ${r.max_slots}`,
-    extra: own ? `${S.slots.length < r.max_slots ? `<button class="btn small blue" data-add>${I.plus} Добавить</button>` : ''}<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : '' });
+  main.innerHTML = head('Персонажи комнаты', { back: true, sub: `${esc(r.title)} · ${taken}/${S.slots.length} заняты`,
+    extra: own ? `<button class="btn small blue" data-add>${I.plus} Добавить</button><button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : '' });
   if (!S.uid) main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Войдите, чтобы выбрать персонажа.</span><a class="btn small blue" href="/">Войти</a></div>`);
   else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Выберите, за кого играть.</span>${mine ? '<button class="btn small ghost" data-leave>Покинуть слот</button>' : ''}</div>`);
   S.slots.forEach(s => {
@@ -974,14 +974,12 @@ function renderChars() {
   if (!S.slots.length) main.insertAdjacentHTML('beforeend', `<div class="empty"><h2>Нет персонажей</h2><p>${own ? 'Нажмите «Добавить» и выберите персонажей из библиотеки.' : 'Владелец комнаты ещё не добавил персонажей.'}</p></div>`);
 }
 function addToRoom() {
-  const left = S.room.max_slots - S.slots.length;
   const picker = charPicker({ exclude: S.slots.map(s => s.character_id).filter(Boolean) });
-  const form = modal('Добавить в комнату', `<div class="form-note">Свободных мест: ${left}. Выберите персонажей из библиотеки или создайте нового.</div><div data-picker></div>`, {
+  const form = modal('Добавить в комнату', `<div class="form-note">Выберите персонажей из библиотеки или создайте нового.</div><div data-picker></div>`, {
     submitLabel: 'Добавить',
     onSubmit: async () => {
       const chosen = picker.getSelected();
       if (!chosen.length) throw new Error('Выберите хотя бы одного персонажа');
-      if (chosen.length > left) throw new Error(`Можно добавить ещё только ${left}`);
       await api('slots', { method: 'POST', body: chosen.map(c => ({ room_id: S.room.id, character_id: c.id, char_name: c.char_name, handle: c.handle })), prefer: 'return=minimal' });
       await loadSlots(); renderChars(); renderRight(); toast('Добавлено');
     },
@@ -1058,7 +1056,6 @@ function roomFields(r = {}) {
     <input type="hidden" name="image_url" value="${esc(r.image_url || '')}">
     <div class="field"><label for="r-title">Название</label><input id="r-title" name="title" required maxlength="80" value="${esc(r.title || '')}" autocomplete="off"></div>
     <div class="field"><label for="r-desc">Описание</label><textarea id="r-desc" name="description" rows="3" maxlength="1000">${esc(r.description || '')}</textarea></div>
-    <div class="field"><label for="r-max">Лимит слотов</label><input id="r-max" name="max_slots" type="number" inputmode="numeric" min="1" max="100" value="${r.max_slots || 10}"></div>
     <label class="check"><input type="checkbox" name="is_private"${r.is_private ? ' checked' : ''}> Приватная комната</label>
     <div class="field" data-minrole${r.is_private ? '' : ' hidden'}><label for="r-role">Кто видит приватную комнату</label><select id="r-role" name="min_view_role">${roleOptions(r.min_view_role || 'goy')}</select></div>`;
 }
@@ -1069,8 +1066,7 @@ function wirePrivate(form) {
 function roomBody(f) {
   if (f.dataset.busy === '1') throw new Error('Дождитесь загрузки картинки');
   const title = f.title.value.trim(); if (!title) throw new Error('Укажите название');
-  const max = Math.max(1, Math.min(100, parseInt(f.max_slots.value, 10) || 10));
-  return { title, description: f.description.value.trim(), image_url: f.image_url.value || null, max_slots: max,
+  return { title, description: f.description.value.trim(), image_url: f.image_url.value || null,
     is_private: f.is_private.checked, min_view_role: f.is_private.checked ? f.min_view_role.value : 'user' };
 }
 function rerenderRoom() { if (S.view === 'chars') { renderChars(); renderRight(); } else route(); }
@@ -1081,7 +1077,6 @@ function roomSettings() {
     <button type="button" class="btn danger" data-del-room>Удалить комнату</button>`, {
     onSubmit: async f => {
       const body = roomBody(f);
-      if (body.max_slots < S.slots.length) throw new Error(`Уже ${S.slots.length} персонажей — лимит не может быть меньше`);
       await api(`rooms?id=eq.${r.id}`, { method: 'PATCH', body, prefer: 'return=minimal' });
       Object.assign(S.room, body); rerenderRoom();
     },
@@ -1129,7 +1124,7 @@ async function loadRooms() {
     return `<a class="room-item" href="#/r/${r.id}">${roomIcon(r)}
       <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? '<span class="badge">Архив</span>' : ''} ${r.owner_id === S.uid ? '<span class="badge blue">Ваша</span>' : ''}</div>
       ${r.description ? `<div class="d">${esc(r.description)}</div>` : ''}
-      <div class="m">${taken}/${r.slots.length} в игре · лимит ${r.max_slots}</div></div></a>`;
+      <div class="m">${taken}/${r.slots.length} в игре</div></div></a>`;
   }).join('');
 }
 
@@ -1148,12 +1143,8 @@ function viewCreate() {
   const picker = charPicker();
   $('[data-picker]', form).replaceWith(picker);
   const cnt = $('[data-count]', form);
-  // лимит слотов = число отмеченных персонажей, пока его не поменяли руками
-  const maxInp = form.max_slots; let maxEdited = false;
-  maxInp.addEventListener('input', () => { maxEdited = true; });
   picker.addEventListener('change', () => {
     const n = picker.getSelected().length; cnt.textContent = n ? `· выбрано ${n}` : '';
-    if (!maxEdited && n) maxInp.value = n;
   });
   form.onsubmit = async e => {
     e.preventDefault();
@@ -1162,7 +1153,6 @@ function viewCreate() {
     try {
       const body = roomBody(form);
       const chars = picker.getSelected();
-      if (chars.length > body.max_slots) throw new Error(`Выбрано ${chars.length}, а лимит слотов ${body.max_slots}`);
       const hs = chars.map(c => c.handle.toLowerCase());
       if (new Set(hs).size !== hs.length) throw new Error('У выбранных персонажей совпадают @ники');
       btn.disabled = true;
