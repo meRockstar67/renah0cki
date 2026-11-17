@@ -276,27 +276,28 @@ setInterval(async () => { if (rt) rt.realtime.setAuth((await getToken()) || SB_K
 
 async function onPostInsert(row) {
   if (S.posts.has(row.id)) return;
-  const inRoom = S.room && row.room_id === S.room.id && (S.view === 'feed' || S.view === 'thread');
-  const onHome = S.view === 'home' && (homeTab === 'all' || (homeRooms || []).includes(row.room_id));
-  if (!inRoom && !onHome) return;
+  const box = row.reply_to ? document.querySelector(`[data-replies="${row.reply_to}"]`) : null;
+  const inFeed = S.room && row.room_id === S.room.id && S.view === 'feed' && !row.reply_to;
+  const onHome = S.view === 'home' && !row.reply_to && (homeTab === 'all' || (homeRooms || []).includes(row.room_id));
+  if (!box && !inFeed && !onHome) return;
   let p;
   try { p = cache((await api(`posts?id=eq.${row.id}&select=${P_SEL_ROOM}`))[0]); } catch { return; }
   if (!p) return;
   if (p.repost_of && (p.slot_id === actingSlot()?.id || S.mySlots.some(x => x.id === p.slot_id))) { S.reposted.set(p.repost_of, p.id); refreshRtState(p.repost_of); }
-  if (onHome) {
+  if (box) {
+    if (box.classList.contains('inline-thread') && !box.dataset.loaded) return; // ветка ещё не открывалась — подгрузится при раскрытии
+    box.append(renderReplyNode(p, []));
+  } else if (onHome) {
     const list = $('#homeList'); if (!list) return;
     $('.empty', list)?.remove();
-    list.prepend(renderPost(p, { showRoom: true }));
+    list.prepend(renderPost(p, { showRoom: true, threads: true }));
     if (window.scrollY > 200) showNewPill();
   } else if (S.view === 'feed' && !p.reply_to) {
     const list = $('#feedList'); if (!list) return;
     $('.empty', list)?.remove();
-    const el = renderPost(p);
+    const el = renderPost(p, { threads: true });
     if (window.scrollY < 200) { list.prepend(el); }
     else { list.prepend(el); showNewPill(); }
-  } else if (S.view === 'thread' && p.reply_to && document.querySelector(`[data-replies="${p.reply_to}"]`)) {
-    const box = document.querySelector(`[data-replies="${p.reply_to}"]`);
-    box.append(renderReplyNode(p, []));
   }
 }
 function onPostUpdate(row) {
@@ -308,6 +309,7 @@ function onPostUpdate(row) {
       n.textContent = fmtN(k === 'reply' ? p.reply_count : k === 'rt' ? p.repost_count : p.like_count);
     }
   });
+  $$(`[data-thread-btn="${row.id}"]`).forEach(b => { b.classList.toggle('hidden', !p.reply_count); if (!b.dataset.open) b.innerHTML = threadLabel(p); });
   $$(`[data-big-stats="${row.id}"]`).forEach(el => { el.innerHTML = bigStats(p); el.classList.toggle('hidden', !el.innerHTML); });
   if (row.is_deleted) $$(`[data-body="${row.id}"]`).forEach(el => { el.innerHTML = '<div class="deleted">Этот пост удалён.</div>'; });
 }
@@ -374,21 +376,21 @@ function canManage(p) {
   if (!p.slot_id && p.slot?.user?.user_id === S.uid) return true;
   return !!S.room && S.room.id === p.room_id && (isOwner() || mySlot()?.id === p.slot_id);
 }
-function renderPost(p, { line = false, showRoom = false } = {}) {
+function renderPost(p, { line = false, showRoom = false, threads = false } = {}) {
   const wrap = document.createElement('div');
   if (p.repost_of && p.orig) {
     const o = p.orig;
     wrap.className = 'post-wrap';
     wrap.dataset.post = p.id;
     wrap.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(p.slot?.char_name)} сделал(а) репост</span>${showRoom && p.room ? `<span class="dot">·</span>${roomLine(p.room)}` : ''}</div>`;
-    wrap.append(renderPost(o));
+    wrap.append(renderPost(o, { threads }));
     return wrap;
   }
   if (showRoom && p.room) {
     wrap.className = 'post-wrap';
     wrap.dataset.post = p.id;
     wrap.innerHTML = `<div class="post-ctx room-ctx">${roomLine(p.room)}</div>`;
-    const inner = renderPost(p); inner.removeAttribute('data-post');
+    const inner = renderPost(p, { threads }); inner.removeAttribute('data-post');
     wrap.append(inner);
     return wrap;
   }
@@ -403,6 +405,8 @@ function renderPost(p, { line = false, showRoom = false } = {}) {
       ${p.reply_to && p.parent?.slot ? `<div class="reply-to">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
       <div data-body="${p.id}">${bodyHtml(p)}</div>
       ${actionsHtml(p)}
+      ${threads && !p.is_deleted ? `<button type="button" class="thread-toggle${p.reply_count ? '' : ' hidden'}" data-act="thread" data-thread-btn="${p.id}">${threadLabel(p)}</button>
+      <div class="inline-thread replies" data-inline="${p.id}" data-replies="${p.id}" hidden></div>` : ''}
     </div>`;
   return el;
 }
@@ -468,6 +472,7 @@ function slotFor(p) {
 async function postAction(act, p, btn) {
   if (act === 'share') return copyLink(postPath(p), 'Ссылка на пост скопирована');
   if (act === 'more') return postMenu(p, btn);
+  if (act === 'thread') return toggleThread(p, btn);
   if (act === 'rt') return repostMenu(p, btn);
   if (needLogin()) return;
   const a = slotFor(p);
@@ -802,7 +807,7 @@ async function loadFeedPage(before) {
   } catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (S.room?.id !== roomId || S.view !== 'feed') return;
   if (!before) list.innerHTML = '';
-  rows.forEach(p => { cache(p); list.append(renderPost(p)); });
+  rows.forEach(p => { cache(p); list.append(renderPost(p, { threads: true })); });
   if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Напишите первый пост в этой комнате.</p></div>`;
   const more = $('#feedMore');
   more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';
@@ -825,13 +830,7 @@ async function viewThread(postKey) {
     const par = S.posts.get(cur.reply_to)?.slot ? S.posts.get(cur.reply_to) : cache((await api(`posts?id=eq.${cur.reply_to}&select=${P_SEL}`))[0]);
     if (!par) break; chain.unshift(par); cur = par;
   }
-  // ответы деревом (до 8 уровней)
-  const children = new Map(); let level = [p.id];
-  for (let d = 0; d < 8 && level.length; d++) {
-    const rows = await api(`posts?reply_to=in.(${level.join(',')})&select=${P_SEL}&order=created_at.asc&limit=500`);
-    rows.forEach(r => { cache(r); if (!children.has(r.reply_to)) children.set(r.reply_to, []); children.get(r.reply_to).push(r); });
-    level = rows.map(r => r.id);
-  }
+  const children = await loadReplyTree(p.id);
   if (S.view !== 'thread') return;
   main.innerHTML = head('Пост', { back: true, sub: `в комнате <a href="${roomPath(S.room)}" class="sub-link">${esc(S.room.title)}</a>` });
   chain.forEach(c => main.append(renderPost(c, { line: true })));
@@ -844,6 +843,32 @@ async function viewThread(postKey) {
   main.append(box);
   scrollTo({ top: chain.length ? $('.post-big', main).offsetTop - 60 : 0 });
 }
+// ответы деревом (до 8 уровней)
+async function loadReplyTree(rootId) {
+  const children = new Map(); let level = [rootId];
+  for (let d = 0; d < 8 && level.length; d++) {
+    const rows = await api(`posts?reply_to=in.(${level.join(',')})&select=${P_SEL}&order=created_at.asc&limit=500`);
+    rows.forEach(r => { cache(r); if (!children.has(r.reply_to)) children.set(r.reply_to, []); children.get(r.reply_to).push(r); });
+    level = rows.map(r => r.id);
+  }
+  return children;
+}
+// раскрыть/скрыть ветку ответов прямо в ленте
+async function toggleThread(p, btn) {
+  const box = btn.closest('.post-main')?.querySelector(`.inline-thread[data-inline="${p.id}"]`); if (!box) return;
+  if (box.dataset.loaded && !box.hidden) { box.hidden = true; btn.dataset.open = ''; btn.innerHTML = threadLabel(p); return; }
+  if (!box.dataset.loaded) {
+    btn.disabled = true; btn.textContent = 'Загрузка…';
+    try {
+      const children = await loadReplyTree(p.id);
+      box.replaceChildren(...(children.get(p.id) || []).map(r => renderReplyNode(r, children)));
+      box.dataset.loaded = '1';
+    } catch (e) { toast(errText(e), true); btn.disabled = false; btn.innerHTML = threadLabel(p); return; }
+    btn.disabled = false;
+  }
+  box.hidden = false; btn.dataset.open = '1'; btn.innerHTML = `${I.reply}<span>Скрыть ответы</span>`;
+}
+const threadLabel = p => `${I.reply}<span>${p.reply_count ? `Показать ответы (${p.reply_count})` : 'Ответов нет'}</span>`;
 function renderReplyNode(p, children) {
   const node = document.createElement('div');
   node.dataset.post = p.id;
@@ -1370,11 +1395,11 @@ async function loadHomePage(before) {
     if (!homeRooms.length) { list.innerHTML = '<div class="empty"><h2>Пока пусто</h2><p>Займите персонажа в комнате или создайте свою — посты оттуда будут здесь.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>'; return; }
     filter = `&room_id=in.(${homeRooms.join(',')})`;
   }
-  try { rows = await api(`posts?select=${P_SEL_ROOM}${filter}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
+  try { rows = await api(`posts?reply_to=is.null&select=${P_SEL_ROOM}${filter}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (S.view !== 'home' || tab !== homeTab) return;
   if (!before) list.innerHTML = '';
-  rows.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true })); });
+  rows.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true, threads: true })); });
   if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Постов ещё нет. Зайдите в комнату и напишите первый.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>`;
   const more = $('#homeMore');
   more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';

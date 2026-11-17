@@ -637,3 +637,10 @@ html, body { overscroll-behavior-y: contain; }
 .rep-opt { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 4px; border-radius: 8px; cursor: pointer; }
 .rep-opt input { width: 20px; height: 20px; accent-color: var(--accent); }
 @media (hover: hover) { .rep-opt:hover { background: var(--bg-hover-2); } }
+/* ветка ответов в ленте */
+.thread-toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 14px; font-weight: 600; padding: 8px 0 2px; min-height: 36px; }
+.thread-toggle svg { width: 16px; height: 16px; }
+@media (hover: hover) { .thread-toggle:hover span { text-decoration: underline; } }
+.inline-thread { margin: 6px 0 0 -4px; }
+.inline-thread .post { padding: 10px 0 10px 12px; border-bottom: 0; }
+.inline-thread .replies { margin-left: 18px; }
