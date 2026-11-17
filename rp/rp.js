@@ -1377,9 +1377,8 @@ async function viewUser(key) {
   if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>Дата рождения: ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
   meta.push(`<span class="cp-meta">${I.calendar}<span>В Y с ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} г.</span></span>`);
   main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="Настройки" style="margin:0">${I.gear}</a>` : '' })
-    + `<div class="cp-banner" style="${bannerStyle(u)}"></div>
-    <div class="cp-top">${avatar(userAv(u), 'xl')}</div>
-    <div class="cp-info"><div class="cp-name"><span${nameStyle(u.name_color)}>${esc(name)}</span> ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
+    + `<div class="cp-top no-banner">${avatar(userAv(u), 'xl')}</div>
+    <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span> ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
       ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="Скопировать ссылку на профиль">@${esc(u.username)}</button>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
@@ -1418,16 +1417,13 @@ async function viewUser(key) {
 function profileEditor(u, onSaved) {
   const canAvatar = rank() >= 1;
   const form = modal('Изменить профиль', `
-    <div class="ce-head">
-      <label class="ce-banner" style="${bannerStyle(u)}" title="Шапка">
-        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку"></label>
+    <div class="ce-head no-banner">
       <label class="ce-av${canAvatar ? '' : ' ce-av-static'}" title="${canAvatar ? 'Аватар' : 'Менять аватарку могут ГОЙ и выше'}">${avatar(userAv(u), 'ce-av-img')}
         ${canAvatar ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар">` : ''}</label>
     </div>
-    <div class="ce-note">${canAvatar ? 'Нажмите на шапку или аватар, чтобы загрузить и обрезать картинку.' : 'Нажмите на шапку, чтобы её поменять. Свою аватарку в Y могут ставить ГОЙ и выше.'} Изменения действуют только в Y — на renah0cki ничего не меняется.</div>
-    <input type="hidden" name="banner_url" value="${esc(u.banner_url || '')}">
+    <div class="ce-note">${canAvatar ? 'Нажмите на аватар, чтобы загрузить и обрезать картинку.' : 'Свою аватарку в Y могут ставить ГОЙ и выше.'} Изменения действуют только в Y — на renah0cki ничего не меняется.</div>
     <input type="hidden" name="y_avatar_url" value="${esc(u.y_avatar_url || '')}">
-    <div class="ce-rm-row">${u.banner_url ? '<button type="button" class="btn ghost small" data-rm="banner">Убрать шапку</button>' : ''}${u.y_avatar_url && canAvatar ? '<button type="button" class="btn ghost small" data-rm="avatar">Вернуть аватарку с renah0cki</button>' : ''}</div>
+    <div class="ce-rm-row">${u.y_avatar_url && canAvatar ? '<button type="button" class="btn ghost small" data-rm="avatar">Вернуть аватарку с renah0cki</button>' : ''}</div>
     <div class="field"><label for="p-name">Имя</label><input id="p-name" name="y_name" maxlength="50" value="${esc(u.y_name || '')}" placeholder="${esc(u.nick || '')}" autocomplete="off"></div>
     <div class="field"><label for="p-about">О себе</label><textarea id="p-about" name="about" rows="3" maxlength="300" placeholder="${esc(u.bio || '')}">${esc(u.about || '')}</textarea></div>
     <div class="field"><label for="p-loc">Местоположение</label><input id="p-loc" name="location" maxlength="30" value="${esc(u.location || '')}" autocomplete="off"></div>
@@ -1438,7 +1434,7 @@ function profileEditor(u, onSaved) {
       let web = f.website.value.trim();
       if (web && !/^https?:\/\//i.test(web)) web = 'https://' + web;
       if (web && !/^https?:\/\/\S{1,200}$/.test(web)) throw new Error('Неверная ссылка на сайт');
-      const body = { banner_url: f.banner_url.value || null, about: f.about.value.trim(), y_name: f.y_name.value.trim() || null,
+      const body = { about: f.about.value.trim(), y_name: f.y_name.value.trim() || null,
         location: f.location.value.trim(), website: web, birthday: f.birthday.value || null };
       if (canAvatar) body.y_avatar_url = f.y_avatar_url.value || null;
       await api(`profiles?user_id=eq.${S.uid}`, { method: 'PATCH', body, prefer: 'return=minimal' });
