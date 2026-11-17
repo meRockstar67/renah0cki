@@ -1106,7 +1106,13 @@ function viewCreate() {
   const picker = charPicker();
   $('[data-picker]', form).replaceWith(picker);
   const cnt = $('[data-count]', form);
-  picker.addEventListener('change', () => { const n = picker.getSelected().length; cnt.textContent = n ? `· выбрано ${n}` : ''; });
+  // лимит слотов = число отмеченных персонажей, пока его не поменяли руками
+  const maxInp = form.max_slots; let maxEdited = false;
+  maxInp.addEventListener('input', () => { maxEdited = true; });
+  picker.addEventListener('change', () => {
+    const n = picker.getSelected().length; cnt.textContent = n ? `· выбрано ${n}` : '';
+    if (!maxEdited && n) maxInp.value = n;
+  });
   form.onsubmit = async e => {
     e.preventDefault();
     const err = $('.form-err', form), btn = $('button[type=submit]', form);
