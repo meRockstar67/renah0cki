@@ -277,8 +277,8 @@ setInterval(async () => { if (rt) rt.realtime.setAuth((await getToken()) || SB_K
 async function onPostInsert(row) {
   if (S.posts.has(row.id)) return;
   const box = row.reply_to ? document.querySelector(`[data-replies="${row.reply_to}"]`) : null;
-  const inFeed = S.room && row.room_id === S.room.id && S.view === 'feed' && !row.reply_to;
-  const onHome = S.view === 'home' && !row.reply_to && (homeTab === 'all' || (homeRooms || []).includes(row.room_id));
+  const inFeed = S.room && row.room_id === S.room.id && S.view === 'feed' && !row.reply_to && !row.repost_of;
+  const onHome = S.view === 'home' && !row.reply_to && !row.repost_of && (homeTab === 'all' || (homeRooms || []).includes(row.room_id));
   if (!box && !inFeed && !onHome) return;
   let p;
   try { p = cache((await api(`posts?id=eq.${row.id}&select=${P_SEL_ROOM}`))[0]); } catch { return; }
@@ -405,8 +405,8 @@ function renderPost(p, { line = false, showRoom = false, threads = false } = {})
       ${p.reply_to && p.parent?.slot ? `<div class="reply-to">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
       <div data-body="${p.id}">${bodyHtml(p)}</div>
       ${actionsHtml(p)}
-      ${threads && !p.is_deleted ? `<div class="thread-wrap" data-tw="${p.id}"${p.reply_count ? '' : ' hidden'}>
-        <div class="inline-thread replies" data-inline="${p.id}" data-replies="${p.id}"${p.reply_count ? '' : ' data-loaded="1"'}>${p.reply_count ? '<div class="thread-loading">Загрузка ответов…</div>' : ''}</div>
+      ${threads && !p.is_deleted ? `<div class="thread-wrap" data-tw="${p.id}" hidden>
+        <div class="inline-thread replies" data-inline="${p.id}" data-replies="${p.id}"${p.reply_count ? '' : ' data-loaded="1"'}></div>
         <button type="button" class="thread-reply" data-act="compose">${I.reply}<span>Ответить</span></button></div>` : ''}
     </div>`;
   return el;
@@ -476,7 +476,17 @@ async function postAction(act, p, btn) {
   if (act === 'rt') return repostMenu(p, btn);
   // в ленте кнопка комментария сворачивает/разворачивает ветку (если ответы есть)
   const tw = btn.closest('.post-main')?.querySelector(`:scope > .thread-wrap[data-tw="${p.id}"]`);
-  if (act === 'reply' && tw && p.reply_count) { tw.hidden = !tw.hidden; return; }
+  if (act === 'reply' && tw && p.reply_count) {
+    if (!tw.hidden) { tw.hidden = true; return; }
+    tw.hidden = false;
+    const box = $('.inline-thread', tw);
+    if (!box.dataset.loaded) {
+      box.innerHTML = '<div class="thread-loading">Загрузка ответов…</div>';
+      try { const ch = await loadReplyTree(p.id); box.replaceChildren(...(ch.get(p.id) || []).map(x => renderReplyNode(x, ch))); box.dataset.loaded = '1'; }
+      catch (e) { box.innerHTML = ''; tw.hidden = true; toast(errText(e), true); }
+    }
+    return;
+  }
   if (needLogin()) return;
   if (act === 'compose') act = 'reply';
   const a = slotFor(p);
@@ -807,12 +817,11 @@ async function loadFeedPage(before) {
   const roomId = S.room.id;
   let rows;
   try {
-    rows = await api(`posts?room_id=eq.${roomId}&reply_to=is.null&select=${P_SEL}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`);
+    rows = await api(`posts?room_id=eq.${roomId}&reply_to=is.null&repost_of=is.null&select=${P_SEL}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`);
   } catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (S.room?.id !== roomId || S.view !== 'feed') return;
   if (!before) list.innerHTML = '';
   rows.forEach(p => { cache(p); list.append(renderPost(p, { threads: true })); });
-  fillThreads(rows);
   if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Напишите первый пост в этой комнате.</p></div>`;
   const more = $('#feedMore');
   more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';
@@ -1401,14 +1410,14 @@ async function viewHome() {
   });
   // сразу показываем прошлую ленту из кэша, свежую подгружаем параллельно с лайками
   const cached = readHomeCache();
-  if (cached) { const list = $('#homeList'); list.innerHTML = ''; cached.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true, threads: true })); }); fillThreads(cached); }
+  if (cached) { const list = $('#homeList'); list.innerHTML = ''; cached.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true, threads: true })); }); }
   await Promise.all([loadMineAll().catch(() => {}), loadHomePage()]);
   if (S.view !== 'home') return;
   renderRight();
   refreshActionStates();
 }
 const HOME_CACHE = () => `rp_home_cache_${homeTab}`;
-function readHomeCache() { try { const c = JSON.parse(localStorage.getItem(HOME_CACHE()) || 'null'); return Array.isArray(c) && c.length ? c : null; } catch { return null; } }
+function readHomeCache() { try { const c = (JSON.parse(localStorage.getItem(HOME_CACHE()) || 'null') || []).filter(x => !x.repost_of && !x.reply_to); return c.length ? c : null; } catch { return null; } }
 function writeHomeCache(rows) { try { localStorage.setItem(HOME_CACHE(), JSON.stringify(rows.slice(0, 30))); } catch {} }
 // после подгрузки лайков/репостов — обновить подсветку кнопок на уже нарисованных постах
 function refreshActionStates() {
@@ -1434,12 +1443,11 @@ async function loadHomePage(before) {
     if (!homeRooms.length) { list.innerHTML = '<div class="empty"><h2>Пока пусто</h2><p>Займите персонажа в комнате или создайте свою — посты оттуда будут здесь.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>'; return; }
     filter = `&room_id=in.(${homeRooms.join(',')})`;
   }
-  try { rows = await api(`posts?reply_to=is.null&select=${P_SEL_ROOM}${filter}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
+  try { rows = await api(`posts?reply_to=is.null&repost_of=is.null&select=${P_SEL_ROOM}${filter}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (S.view !== 'home' || tab !== homeTab) return;
   if (!before) { list.innerHTML = ''; writeHomeCache(rows); }
   rows.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true, threads: true })); });
-  fillThreads(rows);
   if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Постов ещё нет. Зайдите в комнату и напишите первый.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>`;
   const more = $('#homeMore');
   more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';
