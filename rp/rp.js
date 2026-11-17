@@ -1410,7 +1410,7 @@ async function viewDmList(roomKey) {
   try { await loadRoom(roomKey); } catch (e) { return errorView(errText(e)); }
   updateNav(); renderRight();
   const me = dmSlot();
-  const h = head('Сообщения', { back: true, sub: esc(S.room.title), extra: me ? `<button class="btn small blue" data-dm-new>${I.mail} Написать</button>` : '' });
+  const h = head('Сообщения', { back: true, sub: esc(S.room.title), extra: '' });
   if (!S.uid) { main.innerHTML = h + `<div class="composer-hint"><span>Войдите, чтобы переписываться.</span><a class="btn small blue" href="/">Войти</a></div>`; return; }
   if (!me) { main.innerHTML = h + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в этой комнате, чтобы писать другим.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>`; return; }
   let rows;
@@ -1419,15 +1419,17 @@ async function viewDmList(roomKey) {
   if (S.view !== 'dms') return;
   const last = new Map();
   rows.forEach(m => { const peer = m.from_slot === me.id ? m.to_slot : m.from_slot; if (!last.has(peer)) last.set(peer, m); });
-  const items = [...last.entries()].filter(([pid]) => S.slotMap.has(pid));
-  main.innerHTML = h + (dmAsSelect() ? `<div class="composer-hint" style="font-size:14px"><span>Вы пишете как</span>${dmAsSelect()}</div>` : '')
-    + (items.length ? items.map(([pid, m]) => {
+  // сначала те, с кем есть переписка (по свежести), потом все остальные персонажи комнаты
+  const withMsgs = [...last.entries()].filter(([pid]) => S.slotMap.has(pid));
+  const rest = S.slots.filter(x => x.id !== me.id && !last.has(x.id)).map(x => [x.id, null]);
+  const items = [...withMsgs, ...rest];
+  main.innerHTML = h + (items.length ? items.map(([pid, m]) => {
       const peer = S.slotMap.get(pid);
-      const txt = m.body || (m.images?.length ? 'Фото' : '');
-      return `<a class="dm-row" href="${roomPath(S.room, '/dm/' + pid)}">${avatar(peer)}<div class="dm-main"><div class="dm-top"><b>${esc(peer.char_name)}</b><span class="handle">@${esc(peer.handle)}</span><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
-        <div class="dm-last">${m.from_slot === me.id ? 'Вы: ' : ''}${esc(txt)}</div></div></a>`;
+      const txt = m ? (m.body || (m.images?.length ? 'Фото' : '')) : '';
+      return `<a class="dm-row" href="${roomPath(S.room, '/dm/' + pid)}">${avatar(peer)}<div class="dm-main"><div class="dm-top"><b>${esc(peer.char_name)}</b><span class="handle">@${esc(peer.handle)}</span>${m ? `<span class="dot">·</span><time>${ago(m.created_at)}</time>` : ''}</div>
+        <div class="dm-last">${m ? `${m.from_slot === me.id ? 'Вы: ' : ''}${esc(txt)}` : '<span class="dm-none">Нет сообщений — напишите первым</span>'}</div></div></a>`;
     }).join('')
-    : `<div class="empty"><h2>Нет сообщений</h2><p>Напишите любому персонажу этой комнаты — переписку увидите только вы двое.</p><button class="btn blue" data-dm-new style="margin-top:16px">${I.mail} Написать</button></div>`);
+    : '<div class="empty"><h2>В комнате больше никого</h2><p>Когда владелец добавит персонажей, им можно будет написать.</p></div>');
 }
 main.addEventListener('click', e => {
   if (!e.target.closest('[data-dm-new]') || !S.room) return;
