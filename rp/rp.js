@@ -1335,7 +1335,7 @@ async function viewUser(key) {
   main.innerHTML = head('Профиль', { back: true }) + loader();
   let u, reposts, roles;
   try {
-    [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%_*]/g, ''))}`}&select=user_id,nick,avatar_url,username,bio,name_color,rp_role,created_at`);
+    [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%_*]/g, ''))}`}&select=user_id,nick,avatar_url,username,bio,about,banner_url,name_color,rp_role,created_at`);
     if (!u) return errorView('Профиль не найден');
     S.viewArg = u.user_id; updateNav();
     [reposts, roles] = await Promise.all([
@@ -1349,15 +1349,15 @@ async function viewUser(key) {
   const uav = { char_name: u.nick, handle: u.username || u.nick, avatar_url: u.avatar_url };
   reposts = reposts.filter(x => x.post);
   main.innerHTML = head(u.nick, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}` })
-    + `<div class="cp-banner" style="background:${color ? `linear-gradient(135deg, ${color}, var(--placeholder))` : 'var(--placeholder)'}"></div>
+    + `<div class="cp-banner" style="${u.banner_url ? `background-image:url('${esc(u.banner_url)}')` : `background:${color ? `linear-gradient(135deg, ${color}, var(--placeholder))` : 'var(--placeholder)'}`}"></div>
     <div class="cp-top">${avatar(uav, 'xl')}<div class="cp-acts">
       <button class="icon-btn bordered" data-copy="${userPath(u)}" aria-label="Скопировать ссылку">${I.link}</button>
-      ${isMe ? `<button class="btn ghost" data-theme-toggle>${I.sun}<span data-theme-label>${themeLabel()}</span></button>` : ''}
-      ${u.username ? `<a class="btn ghost" href="/${encodeURIComponent(u.username)}">На renah0cki</a>` : ''}</div></div>
+      ${isMe ? `<button class="icon-btn bordered" data-theme-toggle aria-label="Сменить тему" title="Сменить тему">${I.sun}</button><button class="btn ghost" data-edit-profile><span class="t-long">Редактировать профиль</span><span class="t-short">Изменить</span></button>` : ''}</div></div>
     <div class="cp-info"><div class="cp-name"${color ? ` style="color:${color}"` : ''}>${esc(u.nick)} ${u.rp_role !== 'user' ? `<span class="badge blue">${esc(ROLE_NAME[u.rp_role] || '')}</span>` : ''}</div>
       ${u.username ? `<div class="cp-handle">@${esc(u.username)}</div>` : ''}
-      ${u.bio ? `<div class="cp-bio">${richText(u.bio)}</div>` : ''}
-      <div class="cp-meta">${I.calendar}<span>В RP с ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} г.</span></div>
+      ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
+      <div class="cp-meta-row">${u.username ? `<a class="cp-meta cp-site" href="/${encodeURIComponent(u.username)}">${I.link}<span>renah0cki.xyz/${esc(u.username)}</span></a>` : ''}
+        <div class="cp-meta">${I.calendar}<span>В Y с ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} г.</span></div></div>
       <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span></div></div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
     <div id="uList"></div>`;
@@ -1378,11 +1378,50 @@ async function viewUser(key) {
     list.innerHTML = roles.length ? roles.map(x => `<a class="char lib-item" href="${x.room ? roomPath(x.room) : '#/rooms'}">${avatar(x)}<div class="char-main"><div class="name">${esc(x.char_name)}</div><div class="handle">@${esc(x.handle)}</div><div class="st">в комнате ${x.room ? esc(x.room.title) : '—'}</div></div></a>`).join('')
       : '<div class="empty"><h2>Сейчас без ролей</h2><p>Занятые персонажи появятся здесь.</p></div>';
   };
+  const ep = $('[data-edit-profile]', main);
+  if (ep) ep.onclick = () => profileEditor(u, () => viewUser(key));
   $$('[data-utab]', main).forEach(b => b.onclick = () => {
     $$('[data-utab]', main).forEach(x => x.classList.toggle('active', x === b));
     b.dataset.utab === 'rt' ? drawRt() : drawRoles();
   });
   drawRt();
+}
+
+/* ── редактирование своего профиля ──────────────────────── */
+function profileEditor(u, onSaved) {
+  const uav = { char_name: u.nick, handle: u.username || u.nick, avatar_url: u.avatar_url };
+  const form = modal('Профиль', `
+    <div class="ce-head">
+      <label class="ce-banner"${u.banner_url ? ` style="background-image:url('${esc(u.banner_url)}')"` : ''} title="Шапка">
+        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden aria-label="Загрузить шапку"></label>
+      <div class="ce-av ce-av-static">${avatar(uav)}</div>
+    </div>
+    <div class="ce-note">Нажмите на шапку, чтобы загрузить и обрезать картинку. Ник и аватарка берутся с renah0cki — их меняют там.</div>
+    <input type="hidden" name="banner_url" value="${esc(u.banner_url || '')}">
+    ${u.banner_url ? '<button type="button" class="btn ghost small" data-rm-banner>Убрать шапку</button>' : ''}
+    <div class="field"><label for="p-about">О себе</label><textarea id="p-about" name="about" rows="3" maxlength="300" placeholder="${esc(u.bio || '')}">${esc(u.about || '')}</textarea></div>
+    <div class="form-note">Если оставить пустым — покажется описание с renah0cki.</div>`, {
+    onSubmit: async f => {
+      if (f.dataset.busy === '1') throw new Error('Дождитесь загрузки картинки');
+      const body = { banner_url: f.banner_url.value || null, about: f.about.value.trim() };
+      await api(`profiles?user_id=eq.${S.uid}`, { method: 'PATCH', body, prefer: 'return=minimal' });
+      Object.assign(S.me, body); toast('Профиль сохранён'); onSaved?.();
+    },
+  });
+  form.dataset.busy = '0';
+  const box = $('.ce-banner', form), inp = $('input[type=file]', box);
+  inp.onchange = async () => {
+    const file = inp.files[0]; inp.value = ''; if (!file) return;
+    let blob;
+    try { blob = await cropImage(file, { aspect: 3, outW: 1500, round: false, title: 'шапка' }); } catch (e) { return toast(errText(e), true); }
+    if (!blob) return;
+    box.classList.add('loading'); form.dataset.busy = '1';
+    try { const url = await uploadImage(blob); form.banner_url.value = url; box.style.backgroundImage = `url("${url}")`; }
+    catch (e) { toast(errText(e), true); }
+    box.classList.remove('loading'); form.dataset.busy = '0';
+  };
+  const rm = $('[data-rm-banner]', form);
+  if (rm) rm.onclick = () => { form.banner_url.value = ''; box.style.backgroundImage = ''; rm.remove(); };
 }
 
 /* ── тема ───────────────────────────────────────────────── */
