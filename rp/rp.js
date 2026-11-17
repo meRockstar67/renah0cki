@@ -599,6 +599,7 @@ function updateNav() {
   const r = S.room ? `#/r/${S.room.id}/chars` : '#/rooms';
   $('#navChars').href = r; $('#bottomChars').href = r;
   $$('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === navKey()));
+  $('#fab').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
   renderMe();
 }
 function navKey() { return S.view === 'rooms' || S.view === 'create' ? 'rooms' : S.view === 'chars' ? 'chars' : 'home'; }
@@ -698,7 +699,8 @@ function renderChars() {
   const r = S.room, own = isOwner(), mine = mySlot();
   const taken = S.slots.filter(s => s.player_id).length;
   main.innerHTML = head('Персонажи', { back: true, sub: `${esc(r.title)} · ${taken}/${S.slots.length} заняты · лимит ${r.max_slots}`,
-    extra: own ? `<button class="icon-btn" data-room-settings aria-label="Настройки комнаты">${I.gear}</button>` : '' });
+    extra: own ? `${S.slots.length < r.max_slots ? `<button class="btn small blue" data-add>${I.plus} Персонаж</button>` : ''}<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : '' });
+  if (own) main.insertAdjacentHTML('beforeend', '<div class="composer-hint" style="font-size:14px">Вы владелец: нажмите на персонажа, чтобы изменить имя, аватар, шапку и био.</div>');
   if (!S.uid) main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Войдите, чтобы занять персонажа.</span><a class="btn small blue" href="/">Войти</a></div>`);
   else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Свободный слот освобождается после ${r.idle_timeout_min} мин без постов.</span>${mine ? '<button class="btn small ghost" data-leave>Покинуть слот</button>' : ''}</div>`);
   S.slots.forEach(s => {
@@ -711,7 +713,7 @@ function renderChars() {
       if (s.player_id && !isMine) acts.push(`<button class="btn small ghost" data-kick="${s.id}">Освободить</button>`);
       acts.push(`<button class="btn small ghost" data-edit="${s.id}">Изменить</button>`);
     }
-    main.insertAdjacentHTML('beforeend', `<div class="char">${avatar(s)}<div class="char-main"><div class="name">${esc(s.char_name)}</div><div class="handle">@${esc(s.handle)}</div>${s.bio ? `<div class="bio">${richText(s.bio)}</div>` : ''}${st}</div><div class="char-acts">${acts.join('')}</div></div>`);
+    main.insertAdjacentHTML('beforeend', `<div class="char${own ? ' editable' : ''}"${own ? ` data-edit="${s.id}"` : ''}>${avatar(s)}<div class="char-main"><div class="name">${esc(s.char_name)}</div><div class="handle">@${esc(s.handle)}</div>${s.bio ? `<div class="bio">${richText(s.bio)}</div>` : ''}${st}</div><div class="char-acts">${acts.join('')}</div></div>`);
   });
   if (!S.slots.length) main.insertAdjacentHTML('beforeend', '<div class="empty"><h2>Нет персонажей</h2><p>Владелец комнаты ещё не добавил слоты.</p></div>');
   if (own && S.slots.length < r.max_slots) main.insertAdjacentHTML('beforeend', `<div class="loading-row"><button class="btn blue" data-add>${I.plus} Добавить персонажа</button></div>`);
@@ -769,6 +771,50 @@ function imgPicker(form, name, current, isBanner = false) {
   };
   void current;
 }
+const TR = { а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya' };
+function toHandle(name) {
+  return [...name.toLowerCase()].map(c => TR[c] ?? c).join('').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
+}
+// @ник подставляется из имени, пока его не правили руками
+function autoHandle(nameInp, handleInp) {
+  handleInp.dataset.auto = handleInp.value ? '' : '1';
+  nameInp.addEventListener('input', () => { if (handleInp.dataset.auto) handleInp.value = toHandle(nameInp.value); });
+  handleInp.addEventListener('input', () => { handleInp.dataset.auto = handleInp.value ? '' : '1'; });
+}
+// карточка персонажа для формы создания комнаты
+function charCard() {
+  const d = document.createElement('div');
+  d.className = 'char-card';
+  d.innerHTML = `<label class="cc-banner" title="Шапка"><span>Шапка</span><input type="file" accept="image/*" hidden data-f="banner"></label>
+    <div class="cc-row">
+      <label class="cc-av" title="Аватар"><span class="av lg cc-av-img" style="background:#333639">${I.image}</span><input type="file" accept="image/*" hidden data-f="avatar"></label>
+      <div class="cc-fields">
+        <input placeholder="Имя (Тор в прайме)" maxlength="50" aria-label="Имя персонажа" data-n autocomplete="off">
+        <input placeholder="@ник" maxlength="31" aria-label="@ник" autocapitalize="none" spellcheck="false" data-h autocomplete="off">
+      </div>
+      <button type="button" class="cc-rm" aria-label="Убрать персонажа">${I.close}</button>
+    </div>
+    <textarea placeholder="Био (необязательно)" maxlength="300" rows="2" aria-label="Био" data-b></textarea>`;
+  const data = { avatar_url: null, banner_url: null, busy: 0 };
+  autoHandle($('[data-n]', d), $('[data-h]', d));
+  $('.cc-rm', d).onclick = () => d.parentNode && d.parentNode.removeChild(d);
+  $$('input[type=file]', d).forEach(inp => inp.onchange = async () => {
+    const f = inp.files[0]; inp.value = ''; if (!f) return;
+    const kind = inp.dataset.f; data.busy++;
+    const box = kind === 'avatar' ? $('.cc-av', d) : $('.cc-banner', d);
+    box.classList.add('loading');
+    try {
+      const url = await uploadImage(f);
+      data[kind + '_url'] = url;
+      if (kind === 'avatar') $('.cc-av-img', d).outerHTML = `<img class="av lg cc-av-img" src="${esc(url)}" alt="">`;
+      else { box.style.backgroundImage = `url("${url}")`; box.classList.add('has'); }
+    } catch (e) { toast(errText(e), true); }
+    box.classList.remove('loading'); data.busy--;
+  });
+  d.getData = () => ({ char_name: $('[data-n]', d).value.trim(), handle: $('[data-h]', d).value.trim().replace(/^@/, ''), bio: $('[data-b]', d).value.trim(), avatar_url: data.avatar_url, banner_url: data.banner_url });
+  d.isBusy = () => data.busy > 0;
+  return d;
+}
 function slotEditor(s) {
   const form = modal(s ? 'Персонаж' : 'Новый персонаж', `
     <div class="av-edit" data-pick="avatar_url">${s?.avatar_url ? `<img class="av lg" data-prev src="${esc(s.avatar_url)}" alt="">` : `<span class="av lg" data-prev style="background:#333639">?</span>`}
@@ -778,7 +824,7 @@ function slotEditor(s) {
       <label class="btn ghost small" style="margin-top:8px">Шапка<input type="file" accept="image/*" hidden></label></div>
     <input type="hidden" name="banner_url" value="${esc(s?.banner_url || '')}">
     <div class="field"><label for="f-name">Имя персонажа</label><input id="f-name" name="char_name" required maxlength="50" value="${esc(s?.char_name || '')}" autocomplete="off"></div>
-    <div class="field"><label for="f-handle">@ник (латиница, цифры, _)</label><input id="f-handle" name="handle" required maxlength="30" pattern="[A-Za-z0-9_]+" value="${esc(s?.handle || '')}" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+    <div class="field"><label for="f-handle">@ник (подставится из имени, можно поменять)</label><input id="f-handle" name="handle" required maxlength="30" pattern="[A-Za-z0-9_]+" value="${esc(s?.handle || '')}" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
     <div class="field"><label for="f-bio">Био</label><textarea id="f-bio" name="bio" rows="3" maxlength="300">${esc(s?.bio || '')}</textarea></div>
     ${s ? '<button type="button" class="btn danger" data-del-slot>Удалить персонажа</button>' : ''}`, {
     onSubmit: async f => {
@@ -791,6 +837,7 @@ function slotEditor(s) {
     },
   });
   imgPicker(form, 'avatar_url'); imgPicker(form, 'banner_url', null, true);
+  autoHandle(form.char_name, form.handle);
   const del = $('[data-del-slot]', form);
   if (del) del.onclick = async () => {
     if (!confirm('Удалить персонажа и все его посты? Отменить нельзя.')) return;
@@ -877,19 +924,14 @@ function viewCreate() {
   main.innerHTML = head('Новая комната', { back: true }) + `<form class="form" novalidate>${roomFields()}
     <div><div style="font-weight:700;margin-bottom:8px">Персонажи</div>
       <div class="char-rows" id="charRows"></div>
-      <button type="button" class="btn ghost small" id="addChar" style="margin-top:8px">${I.plus} Ещё персонаж</button>
-      <div class="form-note" style="margin-top:8px">Аватары, шапки и био можно добавить после создания.</div></div>
+      <button type="button" class="btn ghost small" id="addChar" style="margin-top:12px">${I.plus} Ещё персонаж</button>
+      <div class="form-note" style="margin-top:8px">Нажмите на круг — аватар, на полосу сверху — шапка. Всё можно поменять потом в «Персонажах».</div></div>
     <div class="form-err" role="alert"></div>
     <button class="btn blue" type="submit">Создать комнату</button></form>`;
   const form = $('form', main), rows = $('#charRows');
   wirePrivate(form);
-  const addRow = () => {
-    const d = document.createElement('div'); d.className = 'char-row';
-    d.innerHTML = `<input placeholder="Имя (Тор в прайме)" maxlength="50" aria-label="Имя персонажа" data-n><input placeholder="@ник (thor)" maxlength="31" aria-label="@ник" autocapitalize="none" spellcheck="false" data-h><button type="button" aria-label="Убрать">${I.close}</button>`;
-    $('button', d).onclick = () => d.remove();
-    rows.append(d);
-  };
-  addRow(); addRow(); addRow();
+  const addRow = () => rows.append(charCard());
+  addRow(); addRow();
   $('#addChar').onclick = addRow;
   form.onsubmit = async e => {
     e.preventDefault();
@@ -897,7 +939,8 @@ function viewCreate() {
     err.textContent = '';
     try {
       const body = roomBody(form);
-      const chars = $$('.char-row', rows).map(r => ({ char_name: $('[data-n]', r).value.trim(), handle: $('[data-h]', r).value.trim().replace(/^@/, '') })).filter(c => c.char_name || c.handle);
+      if ($$('.char-card', rows).some(c => c.isBusy())) throw new Error('Дождитесь загрузки картинок');
+      const chars = $$('.char-card', rows).map(c => c.getData()).filter(c => c.char_name || c.handle);
       for (const c of chars) {
         if (!c.char_name) throw new Error(`Укажите имя для @${c.handle}`);
         if (!/^[A-Za-z0-9_]{1,30}$/.test(c.handle)) throw new Error(`@ник для «${c.char_name}»: только латиница, цифры и _`);
