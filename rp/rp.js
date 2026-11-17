@@ -1866,8 +1866,40 @@ async function tgLogin() {
   return false;
 }
 
+// вход через Twitch прямо в Y (нужен в Telegram, где бот не может прислать ссылку)
+function startTwitchLogin() {
+  try { sessionStorage.setItem('rp_tg_link', '1'); } catch {}
+  location.href = `${SB_URL}/auth/v1/authorize?provider=twitch&redirect_to=${encodeURIComponent(location.origin + '/rp/')}`;
+}
+async function handleOAuthReturn() {
+  const h = location.hash;
+  if (!h.includes('access_token=')) return;
+  const p = new URLSearchParams(h.replace(/^#\/?/, ''));
+  const at = p.get('access_token'), rtk = p.get('refresh_token');
+  history.replaceState(null, '', location.pathname + location.search + '#/');
+  if (!at) return;
+  try {
+    const r = await fetch(`${SB_URL}/auth/v1/user`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + at } });
+    if (r.ok) localStorage.setItem(LS_SESSION, JSON.stringify({ user: await r.json(), token: at, refreshToken: rtk }));
+  } catch {}
+}
+// привязать Telegram к вошедшему аккаунту (один раз за запуск)
+async function tgLinkIfNeeded() {
+  if (!TG.initData) return;
+  let explicit = false, done = false;
+  try { explicit = sessionStorage.getItem('rp_tg_link') === '1'; done = sessionStorage.getItem('rp_tg_done') === '1'; } catch {}
+  if (done && !explicit) return;
+  try {
+    const r = await fetch(`${CDN}/tg-link`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await getToken() }, body: JSON.stringify({ initData: TG.initData }) });
+    const d = await r.json().catch(() => ({}));
+    if (explicit) toast(r.ok ? 'Telegram привязан — дальше вход будет сам' : (d.error || 'Не удалось привязать Telegram'), !r.ok);
+    try { sessionStorage.setItem('rp_tg_done', '1'); sessionStorage.removeItem('rp_tg_link'); } catch {}
+  } catch {}
+}
+
 /* ── старт ──────────────────────────────────────────────── */
 async function init() {
+  await handleOAuthReturn();
   let token = await getToken();
   if (!token && TG.initData && await tgLogin()) token = await getToken();
   const sess = readSession();
@@ -1876,14 +1908,15 @@ async function init() {
     try { S.me = await rpc('ensure_profile'); } catch (e) { console.warn('rp profile', e); }
     try { await Promise.all([loadMySlots(), loadUserReposts()]); } catch (e) { console.warn('rp mine', e); }
     loadUnread();
+    tgLinkIfNeeded();
   } else {
     document.body.classList.add('guest');
-    const msg = TG.status === 'unlinked' ? 'Telegram не привязан к renah0cki. Напиши боту /start, войди по ссылке из бота и открой Y снова.'
+    const msg = TG.status === 'unlinked' ? 'Telegram не привязан к renah0cki. Войди один раз через Twitch — дальше вход будет сам.'
       : TG.status === 'no_email' ? 'Не получилось войти через Telegram: у аккаунта нет почты. Войди на сайте.'
       : TG.status ? 'Не получилось войти через Telegram. Попробуй открыть Y ещё раз.'
       : 'Смотрите как гость. Войдите, чтобы играть.';
-    document.body.insertAdjacentHTML('beforeend', `<div class="guest-bar"><span>${esc(msg)}</span>${TG.status === 'unlinked' && window.Telegram?.WebApp ? '<button class="btn small" type="button" data-tg-close>Закрыть</button>' : '<a class="btn small" href="/">Войти</a>'}</div>`);
-    const cl = $('[data-tg-close]'); if (cl) cl.onclick = () => window.Telegram?.WebApp?.close();
+    document.body.insertAdjacentHTML('beforeend', `<div class="guest-bar"><span>${esc(msg)}</span>${TG.initData ? '<button class="btn small" type="button" data-tg-login>Войти через Twitch</button>' : '<a class="btn small" href="/">Войти</a>'}</div>`);
+    const tl = $('[data-tg-login]'); if (tl) tl.onclick = startTwitchLogin;
   }
   renderMe();
   addEventListener('hashchange', route);
