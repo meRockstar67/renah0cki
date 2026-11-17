@@ -1427,7 +1427,7 @@ async function viewDmList(roomKey) {
       const peer = S.slotMap.get(pid);
       const txt = m ? (m.body || (m.images?.length ? 'Фото' : '')) : '';
       return `<a class="dm-row" href="${roomPath(S.room, '/dm/' + pid)}">${avatar(peer)}<div class="dm-main"><div class="dm-top"><b>${esc(peer.char_name)}</b><span class="handle">@${esc(peer.handle)}</span>${m ? `<span class="dot">·</span><time>${ago(m.created_at)}</time>` : ''}</div>
-        <div class="dm-last">${m ? `${m.from_slot === me.id ? 'Вы: ' : ''}${esc(txt)}` : '<span class="dm-none">Нет сообщений — напишите первым</span>'}</div></div></a>`;
+        <div class="dm-last">${m ? esc(txt) : '<span class="dm-none">Пусто</span>'}</div></div></a>`;
     }).join('')
     : '<div class="empty"><h2>В комнате больше никого</h2><p>Когда владелец добавит персонажей, им можно будет написать.</p></div>');
 }
