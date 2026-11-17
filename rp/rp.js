@@ -877,7 +877,7 @@ async function loadLibrary() {
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (S.view !== 'lib') return;
   list.innerHTML = rows.length ? rows.map(c => charRow(c)).join('')
-    : `<div class="empty"><h2>${libQ ? 'Ничего не найдено' : 'Персонажей пока нет'}</h2><p>${libQ ? 'Попробуйте другой запрос.' : 'Создайте первого — потом его можно добавить в комнаты.'}</p></div>`;
+    : `<div class="empty"><h2>${libQ ? 'Ничего не найдено' : 'Персонажей пока нет'}</h2><p>${libQ ? 'Попробуйте другой запрос.' : 'Создайте первого — потом его можно добавить в комнаты.'}</p>${!libQ && S.uid && rank() >= 1 ? `<button class="btn blue" data-new-char style="margin-top:16px">${I.plus} Создать персонажа</button>` : ''}</div>`;
 }
 
 /* ── страница персонажа ─────────────────────────────────── */
