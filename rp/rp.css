@@ -650,3 +650,12 @@ html, body { overscroll-behavior-y: contain; }
 .thread-reply { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; padding: 8px 0 2px 10px; min-height: 36px; }
 .thread-reply svg { width: 16px; height: 16px; }
 @media (hover: hover) { .thread-reply:hover { color: var(--accent); } }
+/* правила */
+.rules { padding: 16px 16px 40px; line-height: 1.5; }
+.rules h2 { font-size: 18px; font-weight: 800; margin: 24px 0 8px; }
+.rules p { margin: 0 0 10px; overflow-wrap: anywhere; }
+.rules ul { margin: 0 0 10px; padding-left: 20px; }
+.rules li { margin-bottom: 4px; }
+.rules-lead { color: var(--muted); }
+.side-note { color: var(--muted); font-size: 13px; padding: 12px 4px; margin: 0; }
+.side-note a { color: var(--accent); }

@@ -1678,6 +1678,40 @@ function onNotifInsert() {
 }
 
 /* ── настройки ──────────────────────────────────────────── */
+/* ── правила и пользовательское соглашение ───────────────── */
+function viewRules() {
+  S.view = 'rules'; updateNav(); renderRight();
+  main.innerHTML = head('Правила и соглашение', { back: true }) + `<article class="rules">
+    <p class="rules-lead">Y (переписки) — ролевая игра на renah0cki: пользователи пишут посты, ответы и сообщения от лица персонажей. Пользуясь Y, вы соглашаетесь с этими правилами.</p>
+
+    <h2>1. Персонажи вымышлены</h2>
+    <p>Все персонажи в Y — игровые образы, созданные пользователями для ролевой игры. Даже если имя, ник, внешность или характер персонажа напоминают реального человека (стримера, блогера, знакомого), это <b>не этот человек и не его аккаунт</b>.</p>
+    <p>Реальные люди, на которых могут быть похожи персонажи, <b>не имеют отношения к Y, не участвуют в игре, не пишут от имени персонажей и не несут ответственности</b> за посты, ответы и сообщения, опубликованные от лица этих персонажей. Их мнение и слова этим не выражаются.</p>
+    <p>Всё, что пишется от лица персонажа, — художественный отыгрыш конкретного пользователя.</p>
+
+    <h2>2. Кто отвечает за написанное</h2>
+    <p>За каждый пост, ответ, сообщение и картинку отвечает пользователь, который их опубликовал, независимо от того, от какого персонажа он писал. Модераторы видят, кто на самом деле автор.</p>
+
+    <h2>3. Что запрещено</h2>
+    <ul>
+      <li>выдавать себя за реального человека, чтобы обмануть других (будто это правда пишет он);</li>
+      <li>травля, угрозы и оскорбления реальных людей, в том числе через персонажей;</li>
+      <li>публикация чужих личных данных: адресов, телефонов, переписок, фото без согласия;</li>
+      <li>18+ контент, жестокость, призывы к насилию и всё, что запрещено законом;</li>
+      <li>спам, реклама, накрутки, обход блокировок и фильтра запрещённых слов.</li>
+    </ul>
+
+    <h2>4. Модерация</h2>
+    <p>Любой пост можно отправить модераторам через «⋯ → Пожаловаться». Модераторы могут удалять посты и ответы, освобождать персонажей, закрывать комнаты и блокировать аккаунт. Запрещённые слова автоматически скрываются звёздочками.</p>
+
+    <h2>5. Если вас или ваш образ используют</h2>
+    <p>Если вы реальный человек и не хотите, чтобы в Y был персонаж, похожий на вас, — напишите модераторам renah0cki или пожалуйтесь на посты. Такого персонажа уберут.</p>
+
+    <h2>6. Прочее</h2>
+    <p>Y работает «как есть»: возможны ошибки и перерывы. Правила могут обновляться — актуальная версия всегда на этой странице.</p>
+  </article>`;
+}
+
 function viewSettings() {
   S.view = 'settings'; updateNav(); renderRight();
   const t = curTheme();
@@ -1689,6 +1723,7 @@ function viewSettings() {
       </div></div>
     <div class="set-sec"><h2>Аккаунт</h2>
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
+      <a class="set-row" href="#/rules">${I.flag}<span>Правила и соглашение</span></a>
       <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`;
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
     setTheme(inp.value);
@@ -1882,11 +1917,12 @@ function onDmInsert(row) {
 /* правая колонка */
 function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
-  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs'].includes(S.view)) {
+  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs', 'rules'].includes(S.view)) {
     const mine = S.mySlots.filter(x => x.room);
     right.innerHTML = `<div class="panel"><h2>Y (переписки)</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
       ${mine.length ? `<div class="panel"><h2>Ваши роли</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
-      <div class="panel"><a class="link" href="#/rooms">Все комнаты</a></div>`;
+      <div class="panel"><a class="link" href="#/rooms">Все комнаты</a></div>
+      <p class="side-note">Все персонажи вымышлены и не связаны с реальными людьми. <a href="#/rules">Правила и соглашение</a></p>`;
     return;
   }
   const r = S.room;
@@ -1921,6 +1957,7 @@ function route() {
   if (parts[0] === 'u' && parts[1]) return viewUser(parts[1]);
   if (parts[0] === 'dm') return viewDmHub();
   if (parts[0] === 'settings') return viewSettings();
+  if (parts[0] === 'rules') return viewRules();
   if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'rooms') return viewRooms();
   return viewHome();
