@@ -600,9 +600,10 @@ function updateNav() {
   void r; $('#navChars').href = '#/chars'; $('#bottomChars').href = '#/chars';
   $$('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === navKey()));
   $('#fab').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
+  $('#navNew').classList.toggle('hidden', !(S.uid && rank() >= 1));
   renderMe();
 }
-function navKey() { return S.view === 'rooms' || S.view === 'create' ? 'rooms' : S.view === 'lib' || S.view === 'char' ? 'chars' : 'home'; }
+function navKey() { return S.view === 'create' ? 'new' : S.view === 'rooms' ? 'rooms' : S.view === 'lib' || S.view === 'char' ? 'chars' : 'home'; }
 function renderMe() {
   const box = $('#meCard');
   if (!S.uid) { box.innerHTML = '<a class="btn blue small" href="/">Войти</a>'; return; }
@@ -956,7 +957,7 @@ function renderChars() {
   main.innerHTML = head('Персонажи комнаты', { back: true, sub: `${esc(r.title)} · ${taken}/${S.slots.length} заняты · лимит ${r.max_slots}`,
     extra: own ? `${S.slots.length < r.max_slots ? `<button class="btn small blue" data-add>${I.plus} Добавить</button>` : ''}<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : '' });
   if (!S.uid) main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Войдите, чтобы выбрать персонажа.</span><a class="btn small blue" href="/">Войти</a></div>`);
-  else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Выберите, за кого играть. Слот освобождается после ${r.idle_timeout_min} мин без постов.</span>${mine ? '<button class="btn small ghost" data-leave>Покинуть слот</button>' : ''}</div>`);
+  else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Выберите, за кого играть.</span>${mine ? '<button class="btn small ghost" data-leave>Покинуть слот</button>' : ''}</div>`);
   S.slots.forEach(s => {
     const isMine = mine?.id === s.id;
     const st = isMine ? '<div class="st mine">Вы играете за этого персонажа</div>'
@@ -1023,12 +1024,10 @@ main.addEventListener('click', e => {
 function roleOptions(sel) {
   return Object.keys(ROLE_RANK).filter(r => r !== 'user').map(r => `<option value="${r}"${r === sel ? ' selected' : ''}>${ROLE_NAME[r]} и выше</option>`).join('');
 }
-const TIMEOUTS = [[15, '15 мин'], [30, '30 мин'], [60, '1 час'], [180, '3 часа'], [720, '12 часов'], [1440, '1 день'], [10080, '7 дней']];
 function roomFields(r = {}) {
   return `<div class="field"><label for="r-title">Название</label><input id="r-title" name="title" required maxlength="80" value="${esc(r.title || '')}" autocomplete="off"></div>
     <div class="field"><label for="r-desc">Описание</label><textarea id="r-desc" name="description" rows="3" maxlength="1000">${esc(r.description || '')}</textarea></div>
     <div class="field"><label for="r-max">Лимит слотов</label><input id="r-max" name="max_slots" type="number" inputmode="numeric" min="1" max="100" value="${r.max_slots || 10}"></div>
-    <div class="field"><label for="r-idle">Освобождать слот без активности через</label><select id="r-idle" name="idle_timeout_min">${TIMEOUTS.map(([v, t]) => `<option value="${v}"${v === (r.idle_timeout_min || 60) ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
     <label class="check"><input type="checkbox" name="is_private"${r.is_private ? ' checked' : ''}> Приватная комната</label>
     <div class="field" data-minrole${r.is_private ? '' : ' hidden'}><label for="r-role">Кто видит приватную комнату</label><select id="r-role" name="min_view_role">${roleOptions(r.min_view_role || 'goy')}</select></div>`;
 }
@@ -1039,7 +1038,7 @@ function wirePrivate(form) {
 function roomBody(f) {
   const title = f.title.value.trim(); if (!title) throw new Error('Укажите название');
   const max = Math.max(1, Math.min(100, parseInt(f.max_slots.value, 10) || 10));
-  return { title, description: f.description.value.trim(), max_slots: max, idle_timeout_min: +f.idle_timeout_min.value,
+  return { title, description: f.description.value.trim(), max_slots: max,
     is_private: f.is_private.checked, min_view_role: f.is_private.checked ? f.min_view_role.value : 'user' };
 }
 function roomSettings() {
@@ -1067,7 +1066,7 @@ let roomsQ = '';
 async function viewRooms() {
   S.view = 'rooms'; updateNav();
   const canCreate = S.uid && rank() >= 1;
-  main.innerHTML = head('Комнаты', { extra: canCreate ? `<a class="btn small blue" href="#/new">Создать</a>` : '' })
+  main.innerHTML = head('Комнаты', { extra: canCreate ? `<a class="btn small blue" href="#/new">${I.plus} Создать комнату</a>` : '' })
     + `<div class="search">${I.search}<input type="search" placeholder="Поиск комнат" aria-label="Поиск комнат" value="${esc(roomsQ)}" enterkeyhint="search"></div>
     ${S.uid && !canCreate ? '<div class="composer-hint" style="font-size:14px">Создавать комнаты могут ГОЙ и выше.</div>' : ''}
     <div id="roomList">${loader()}</div>`;
@@ -1082,7 +1081,7 @@ async function loadRooms() {
   let rows;
   try { rows = await api(`rooms?select=id,title,description,is_private,status,max_slots,owner_id,created_at,slots(player_id)&order=status.asc,created_at.desc&limit=100${q}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
-  if (!rows.length) { list.innerHTML = `<div class="empty"><h2>${roomsQ ? 'Ничего не найдено' : 'Комнат пока нет'}</h2><p>${roomsQ ? 'Попробуйте другой запрос.' : 'Создайте первую комнату.'}</p></div>`; return; }
+  if (!rows.length) { list.innerHTML = `<div class="empty"><h2>${roomsQ ? 'Ничего не найдено' : 'Комнат пока нет'}</h2><p>${roomsQ ? 'Попробуйте другой запрос.' : 'Создайте первую комнату.'}</p>${!roomsQ && S.uid && rank() >= 1 ? `<a class="btn blue" href="#/new" style="margin-top:16px">${I.plus} Создать комнату</a>` : ''}</div>`; return; }
   list.innerHTML = rows.map(r => {
     const taken = r.slots.filter(s => s.player_id).length;
     return `<a class="room-item" href="#/r/${r.id}"><div class="room-ic" style="background:hsl(${hue(r.id)} 40% 22%)">${esc((r.title.trim()[0] || '?').toUpperCase())}</div>
