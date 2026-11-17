@@ -7038,6 +7038,8 @@
     <button class="nav-tab nav-tab-home active" data-filter="home"><span class="nav-tab-icon nav-tab-icon-home"></span>Главная</button>
     <button class="nav-tab" data-filter="fanfic"><span class="nav-tab-icon nav-tab-icon-fanfic"></span>Фанфики</button>
     <button class="nav-tab" data-filter="news"><span class="nav-tab-icon nav-tab-icon-news"></span>Новости</button>
+    <a class="nav-tab" id="rpNavLink" href="/rp/" onclick="event.stopPropagation()" style="text-decoration:none;display:none">RP</a>
+    <script>(function(){var l=document.getElementById('rpNavLink');function c(){var id=null;try{id=(JSON.parse(localStorage.getItem('fh_session'))||{}).user.id}catch(e){}l.style.display=id==='23c6cb47-27b0-45ac-8fd9-c43b84d57aba'?'':'none'}c();setInterval(c,3000)})();</script>
   </nav>
   <div class="header-right-outer" id="headerRightOuter">
     <div class="header-right">
