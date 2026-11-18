@@ -633,8 +633,7 @@ function lightbox(src) {
 }
 
 /* ── GIF (ГОЙ и выше; пока только meRockstar) ──────────────── */
-const FEAT_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
-const featDev = () => !!S.uid && FEAT_DEV_IDS.includes(S.uid);
+const featDev = () => !!S.uid; // GIF и чтение чужих ЛС открыты всем (по роли)
 const gifOk = () => featDev() && rank() >= 1;
 const peekOk = () => featDev() && rank() >= 1;
 const isGiphy = u => /^https:\/\/media\.giphy\.com\/media\/[A-Za-z0-9]{4,40}\/giphy\.gif$/.test(u || '');
@@ -1880,10 +1879,17 @@ function viewRules() {
       <li>спам, реклама, накрутки, обход блокировок и фильтра запрещённых слов.</li>
     </ul>
 
-    <h2>4. Модерация</h2>
+    <h2>4. Личные сообщения не полностью приватные</h2>
+    <p>Личные сообщения между персонажами могут читать игроки, чья роль <b>выше роли обоих участников</b> переписки: переписки обычных игроков видят ГОИ и выше, переписки ГОЕВ — VIP и выше, переписки VIP — модераторы и админы. Читать можно только в комнатах, которые этот игрок и так видит, и только просмотр — писать от вашего имени никто не может.</p>
+    <p>Не пишите в ЛС ничего личного и настоящего: это часть ролевой игры.</p>
+
+    <h2>5. Подписки и монеты</h2>
+    <p>Роли ГОЙ и VIP покупаются за renah0cki coin на 30 дней и сами не продлеваются. Монеты — внутренняя валюта сайта, их нельзя вывести или обменять на деньги. Пополнение — добровольная поддержка renah0cki и не возвращается. При бане за нарушение правил оплаченный срок не компенсируется.</p>
+
+    <h2>6. Модерация</h2>
     <p>Любой пост можно отправить модераторам через «⋯ → Пожаловаться». Модераторы могут удалять посты и ответы, освобождать персонажей, закрывать комнаты и блокировать аккаунт. Запрещённые слова автоматически скрываются звёздочками.</p>
 
-    <h2>5. Если вас или ваш образ используют</h2>
+    <h2>7. Если вас или ваш образ используют</h2>
     <p>Если вы реальный человек и не хотите, чтобы в Y был персонаж, похожий на вас, — <a href="#/support">напишите модераторам</a> или пожалуйтесь на посты. Такого персонажа уберут.</p>
 
     <h2>Связь с модераторами</h2>
@@ -1918,8 +1924,7 @@ function viewSettings() {
 }
 
 /* ── подписка Y за renah0cki coin (пока только meRockstar) ── */
-const SHOP_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
-const shopVisible = () => !!S.uid && SHOP_DEV_IDS.includes(S.uid);
+const shopVisible = () => !!S.uid; // подписки ГОЙ/VIP — всем вошедшим
 const SHOP_ROLES = [
   { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Читать переписки обычных игроков'] },
   { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Доступ к закрытым комнатам «VIP и выше»', 'Читать переписки ГОЕВ'] },
@@ -2125,7 +2130,7 @@ async function viewDmChat(roomKey, peerId) {
 function drawChat(jump = false) {
   const box = $('#chat'); if (!box) return;
   const nearBottom = innerHeight + scrollY >= document.body.scrollHeight - 160;
-  if (!chat.msgs.length) { box.innerHTML = `<div class="chat-empty">${avatar(S.slotMap.get(chat.peer), 'lg')}<b>${esc(S.slotMap.get(chat.peer)?.char_name || '')}</b><span>Начните переписку — её видите только вы двое.</span></div>`; return; }
+  if (!chat.msgs.length) { box.innerHTML = `<div class="chat-empty">${avatar(S.slotMap.get(chat.peer), 'lg')}<b>${esc(S.slotMap.get(chat.peer)?.char_name || '')}</b><span>Начните переписку. Её могут читать игроки с ролью выше вашей и выше роли собеседника.</span></div>`; return; }
   let html = '', prev = null;
   const HOUR = 60 * 60e3;
   chat.msgs.forEach((m, i) => {
