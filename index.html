@@ -11927,7 +11927,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
         fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_da_code`, { method: 'POST', headers: coinHeaders(), body: '{}' }).then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.message || 'ошибка'); return j; }),
       ]);
       codeEl.textContent = code;
-      if (info.url) { go.href = info.url; go.style.display = ''; } else { go.style.display = 'none'; st.textContent = 'DonationAlerts ещё не подключён.'; }
+      if (info.url) { go.href = info.url.replace(/^https:\/\/www\.donationalerts\.com\/r\//, 'https://dalink.to/'); go.style.display = ''; } else { go.style.display = 'none'; st.textContent = 'DonationAlerts ещё не подключён.'; }
       if (COIN_DEV_IDS.includes(currentUser.id)) conn.textContent = info.connected ? 'Переподключить DonationAlerts' : 'Подключить DonationAlerts';
     } catch (e) { codeEl.textContent = '—'; st.textContent = 'Ошибка: ' + e.message; }
   }
