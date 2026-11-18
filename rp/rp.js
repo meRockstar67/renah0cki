@@ -880,7 +880,8 @@ function errorView(msg) {
 }
 function updateNav() {
   $('#navChars').href = '#/chars'; $('#bottomChars').href = '#/chars';
-  const dmHref = S.room ? roomPath(S.room, '/dm') : '#/dm';
+  // кто может читать чужие ЛС — всегда в общий список «Сообщения» (ЛС комнаты — через иконку в шапке комнаты)
+  const dmHref = S.room && !peekOk() ? roomPath(S.room, '/dm') : '#/dm';
   $('#navDm').href = dmHref; $('#bottomDm').href = dmHref;
   const meHref = S.me ? userPath(S.me) : '/';
   $('#navMe').href = meHref; $('#bottomMe').href = meHref;
@@ -1999,14 +2000,53 @@ function chatTime(ts) {
 
 async function viewDmHub() {
   S.view = 'dmhub'; updateNav(); renderRight();
-  if (S.room) { location.replace(roomPath(S.room, '/dm')); return; }
+  const peek = peekOk();
+  if (S.room && !peek) { location.replace(roomPath(S.room, '/dm')); return; }
   main.innerHTML = head('Сообщения') + loader();
   try { await loadMySlots(); } catch {}
+  if (S.view !== 'dmhub') return;
   const mine = S.mySlots.filter(x => x.room);
-  if (mine.length === 1) { location.replace(roomPath(mine[0].room, '/dm')); return; }
-  main.innerHTML = head('Сообщения', { sub: 'Переписка идёт внутри комнат' }) + (mine.length
-    ? mine.map(x => `<a class="room-item" href="${roomPath(x.room, '/dm')}">${roomIcon(x.room)}<div style="min-width:0;flex:1"><div class="t">${esc(x.room.title)}</div><div class="m">вы играете за ${esc(x.char_name)}</div></div></a>`).join('')
-    : '<div class="empty"><h2>Пока нет переписок</h2><p>Займите персонажа в комнате, чтобы писать другим персонажам.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>');
+  if (mine.length === 1 && !peek) { location.replace(roomPath(mine[0].room, '/dm')); return; }
+  main.innerHTML = head('Сообщения', { sub: 'Переписка идёт внутри комнат' })
+    + (peek && mine.length ? '<div class="peek-head" style="border-top:0;margin-top:0">Мои переписки</div>' : '')
+    + (mine.length
+      ? mine.map(x => `<a class="room-item" href="${roomPath(x.room, '/dm')}">${roomIcon(x.room)}<div style="min-width:0;flex:1"><div class="t">${esc(x.room.title)}</div><div class="m">вы играете за ${esc(x.char_name)}</div></div></a>`).join('')
+      : (peek ? '' : '<div class="empty"><h2>Пока нет переписок</h2><p>Займите персонажа в комнате, чтобы писать другим персонажам.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>'))
+    + (peek ? `<div id="peekAll">${loader()}</div>` : '');
+  if (peek) fillPeekAll(new Set(S.mySlots.map(x => x.id)));
+}
+// чужие переписки из всех комнат, которые видны по роли — без захода в комнату
+async function fillPeekAll(mySlotIds) {
+  let rows;
+  try { rows = await api(`dms?select=room_id,from_slot,to_slot,body,images,created_at&order=created_at.desc&limit=2000`); }
+  catch (e) { const b = $('#peekAll'); if (b) b.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
+  const pairs = new Map();
+  rows.forEach(m => {
+    if (mySlotIds.has(m.from_slot) || mySlotIds.has(m.to_slot)) return;
+    const [a, b] = [m.from_slot, m.to_slot].sort();
+    const k = a + '|' + b;
+    if (!pairs.has(k)) pairs.set(k, { room: m.room_id, a, b, m, n: 0 });
+    pairs.get(k).n++;
+  });
+  const items = [...pairs.values()];
+  const slotIds = [...new Set(items.flatMap(x => [x.a, x.b]))], roomIds = [...new Set(items.map(x => x.room))];
+  const chunk = (arr, n) => arr.reduce((acc, v, i) => (i % n ? acc[acc.length - 1].push(v) : acc.push([v]), acc), []);
+  let slots = [], rooms = [];
+  try {
+    [slots, rooms] = await Promise.all([
+      Promise.all(chunk(slotIds, 80).map(c => api(`slots?id=in.(${c.join(',')})&select=id,char_name,handle,avatar_url`))).then(r => r.flat()),
+      Promise.all(chunk(roomIds, 80).map(c => api(`rooms?id=in.(${c.join(',')})&select=id,title,short_code,image_url`))).then(r => r.flat()),
+    ]);
+  } catch {}
+  const box = $('#peekAll'); if (!box || S.view !== 'dmhub') return;
+  const sm = new Map(slots.map(s => [s.id, s])), rm = new Map(rooms.map(r => [r.id, r]));
+  const vis = items.filter(x => sm.has(x.a) && sm.has(x.b) && rm.has(x.room));
+  box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + (vis.length ? vis.map(({ room, a, b, m, n }) => {
+    const A = sm.get(a), B = sm.get(b), R = rm.get(room);
+    const txt = m.body || (m.images?.length ? 'Фото' : '');
+    return `<a class="dm-row" href="${roomPath(R, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
+      <div class="dm-last"><span class="dm-none">${esc(R.title)} ·</span> ${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
+  }).join('') : '<div class="empty"><p>Пока нет переписок, доступных вам по роли.</p></div>');
 }
 
 async function viewDmList(roomKey) {
