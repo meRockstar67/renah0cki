@@ -4908,6 +4908,23 @@
     position: relative;
   }
 
+  /* ── renah0cki coin ── */
+  .coin-ico { width: 1.15em; height: 1.15em; object-fit: contain; vertical-align: -0.2em; }
+  .coin-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; margin-right: 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-weight: 600; font-size: 14px; line-height: 1; font-family: inherit; cursor: pointer; white-space: nowrap; }
+  .coin-chip:hover { border-color: var(--accent); }
+  .coin-chip .coin-ico { width: 18px; height: 18px; }
+  .header-user-wrap { display: flex; align-items: center; }
+  .coin-wallet-balance { display: flex; align-items: center; gap: 10px; font-size: 34px; font-weight: 700; margin: 6px 0 4px; }
+  .coin-wallet-balance .coin-ico { width: 40px; height: 40px; }
+  .coin-tx-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 45vh; overflow-y: auto; }
+  .coin-tx { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; }
+  .coin-tx-note { opacity: .65; font-size: 12px; margin-top: 2px; }
+  .coin-tx-amt { font-weight: 700; white-space: nowrap; }
+  .coin-tx-amt.plus { color: #3ecf6e; } .coin-tx-amt.minus { color: #ff5a5a; }
+  .coin-grant-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .coin-grant-row input { flex: 1 1 120px; min-width: 0; }
+  @media (max-width: 600px) { .coin-chip { padding: 4px 8px; margin-right: 6px; font-size: 13px; } .coin-chip .coin-ico { width: 16px; height: 16px; } }
+
   .header-user-dropdown {
     display: none;
     position: absolute;
@@ -7575,6 +7592,16 @@
   </div>
 </div>
 
+<div class="overlay" id="coinWalletOverlay">
+  <div class="modal">
+    <button class="close-x" data-close="coinWalletOverlay">×</button>
+    <h2>Кошелёк</h2>
+    <p class="hint">renah0cki coin — валюта сайта. Скоро: пополнение и покупка ролей за монеты.</p>
+    <div class="coin-wallet-balance"><img class="coin-ico" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt=""><span id="coinWalletBalance">…</span></div>
+    <p class="profile-feed-title" style="margin-top:14px;">История</p>
+    <div class="coin-tx-list" id="coinTxList"></div>
+  </div>
+</div>
 <div class="overlay" id="notifSettingsOverlay">
   <div class="modal">
     <button class="close-x" data-close="notifSettingsOverlay">×</button>
@@ -11796,6 +11823,45 @@
   }
   // ─────────────────────────────────────────────────────────────────────
 
+  // ── renah0cki coin ─────────────────────────────────────────────────────
+  // Пока в разработке — видно только meRockstar. Открыть всем: return !!currentUser;
+  const COIN_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
+  const COIN_LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
+  let coinBalanceCache = null;
+  function coinsVisible() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); }
+  function coinIcoHtml() { return `<img class="coin-ico" src="${COIN_LOGO}" alt="coin">`; }
+  function fmtCoins(n) { return Number(n || 0).toLocaleString('ru-RU'); }
+  function coinHeaders() { return { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' }; }
+  async function refreshCoinBalance() {
+    if (!coinsVisible() || !currentUserToken) return null;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_balance`, { method: 'POST', headers: coinHeaders(), body: '{}' });
+      if (!r.ok) return null;
+      const v = await r.json();
+      coinBalanceCache = v == null ? 0 : Number(v);
+      document.querySelectorAll('#coinChipVal, #coinWalletBalance, #profileCoinVal').forEach(el => { el.textContent = fmtCoins(coinBalanceCache); });
+      return coinBalanceCache;
+    } catch (e) { return null; }
+  }
+  const COIN_KIND_LABEL = { purchase: 'Пополнение', reward: 'Награда', spend: 'Покупка', admin: 'От администрации', refund: 'Возврат' };
+  async function openCoinWallet() {
+    if (!coinsVisible()) return;
+    document.getElementById('coinWalletBalance').textContent = coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache);
+    const list = document.getElementById('coinTxList');
+    list.innerHTML = '<p class="hint">Загрузка…</p>';
+    openOverlay('coinWalletOverlay');
+    refreshCoinBalance();
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/coin_tx?user_id=eq.${currentUser.id}&select=amount,kind,note,created_at&order=created_at.desc&limit=50`, { headers: coinHeaders() });
+      const rows = r.ok ? await r.json() : [];
+      list.innerHTML = rows.length ? rows.map(t => `
+        <div class="coin-tx"><div><div>${escapeHtml(COIN_KIND_LABEL[t.kind] || t.kind)}</div>${t.note ? `<div class="coin-tx-note">${escapeHtml(t.note)}</div>` : ''}<div class="coin-tx-note">${timeAgo(t.created_at)}</div></div>
+        <div class="coin-tx-amt ${t.amount > 0 ? 'plus' : 'minus'}">${t.amount > 0 ? '+' : '−'}${fmtCoins(Math.abs(t.amount))}</div></div>`).join('')
+        : '<p class="hint">Пока операций нет.</p>';
+    } catch (e) { list.innerHTML = '<p class="hint">Не удалось загрузить историю.</p>'; }
+  }
+  // ───────────────────────────────────────────────────────────────────────
+
   function renderAuthArea() {
     if (currentUser) {
       const displayName = currentUser.display_name || currentUser.username || 'без имени';
@@ -11804,6 +11870,7 @@
       const icon = roleIcon(currentUser.role);
       authArea.innerHTML = `
         <div class="header-user-wrap">
+          ${coinsVisible() ? `<button type="button" class="coin-chip" id="coinChip" title="renah0cki coin — кошелёк">${coinIcoHtml()}<span id="coinChipVal">${coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache)}</span></button>` : ''}
           <span class="header-user" id="openProfileBtn" title="Открыть меню профиля">
             <span class="avatar-wrap">
               <img class="avatar-circle" src="${escapeHtml(avatar)}" alt="">
@@ -11821,6 +11888,9 @@
           </div>
         </div>
       `;
+
+      const coinChipEl = document.getElementById('coinChip');
+      if (coinChipEl) { coinChipEl.addEventListener('click', (e) => { e.stopPropagation(); openCoinWallet(); }); refreshCoinBalance(); }
 
       document.getElementById('openProfileBtn').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -14767,7 +14837,9 @@
           <div class="profile-stats">
             <span><b>${totalCount}</b> публикаций</span>
             <span><b id="profileSubscriberCount">${subscriberCount}</b> подписчиков</span>
+            ${(coinsVisible() && currentUser.id === profile.id) ? `<span class="profile-coin-stat" id="profileCoinStat" style="cursor:pointer;" title="Открыть кошелёк">${coinIcoHtml()} <b id="profileCoinVal">${coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache)}</b> coin</span>` : ''}
           </div>
+          ${(coinsVisible() && hasRole(currentUser, 'admin') && currentUser.id !== profile.id) ? `<div class="coin-grant-row"><input type="number" id="coinGrantAmount" placeholder="Монеты (− списать)" step="1"><input type="text" id="coinGrantNote" placeholder="За что" maxlength="300"><button type="button" class="secondary small" id="coinGrantBtn">${coinIcoHtml()} Выдать</button></div><div class="hint" id="coinGrantStatus"></div>` : ''}
           <div class="profile-header-buttons">
             ${subscribeBtnHtml}
             <button class="copy-link-btn copy-link-btn-icon" id="profileCopyLinkBtn" type="button" title="Скопировать ссылку" aria-label="Скопировать ссылку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
@@ -14785,6 +14857,26 @@
     `;
 
     document.getElementById('profilePageBackBtn').addEventListener('click', closeProfilePage);
+
+    const profileCoinStatEl = document.getElementById('profileCoinStat');
+    if (profileCoinStatEl) { profileCoinStatEl.addEventListener('click', openCoinWallet); refreshCoinBalance(); }
+    const coinGrantBtnEl = document.getElementById('coinGrantBtn');
+    if (coinGrantBtnEl) coinGrantBtnEl.addEventListener('click', async () => {
+      const amt = parseInt(document.getElementById('coinGrantAmount').value, 10);
+      const note = document.getElementById('coinGrantNote').value.trim();
+      const st = document.getElementById('coinGrantStatus');
+      if (!amt) { st.textContent = 'Укажи количество'; return; }
+      if (!confirm(`${amt > 0 ? 'Выдать' : 'Списать'} ${fmtCoins(Math.abs(amt))} coin пользователю ${displayName}?`)) return;
+      coinGrantBtnEl.disabled = true; st.textContent = '…';
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_admin_grant`, { method: 'POST', headers: coinHeaders(), body: JSON.stringify({ p_user: profile.id, p_amount: amt, p_note: note || null }) });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) throw new Error((j && j.message) || 'ошибка');
+        st.textContent = `Готово. Баланс пользователя: ${fmtCoins(j)}`;
+        document.getElementById('coinGrantAmount').value = ''; document.getElementById('coinGrantNote').value = '';
+      } catch (e) { st.textContent = 'Ошибка: ' + e.message; }
+      coinGrantBtnEl.disabled = false;
+    });
 
     const profileEditBtnEl = document.getElementById('profileEditBtn');
     if (profileEditBtnEl) {

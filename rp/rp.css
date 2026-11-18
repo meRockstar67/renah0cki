@@ -662,3 +662,8 @@ html, body { overscroll-behavior-y: contain; }
 .rules a { color: var(--accent); }
 .sup-who { width: 100%; color: var(--muted); font-size: 12px; margin: 0 0 2px 12px; }
 .bub-row.them { flex-wrap: wrap; }
+
+/* renah0cki coin */
+.coin-ico { width: 1.15em; height: 1.15em; object-fit: contain; vertical-align: -0.2em; flex: none; }
+.set-row .coin-ico { width: 22px; height: 22px; }
+.cp-coin { display: inline-flex; align-items: center; gap: 4px; }

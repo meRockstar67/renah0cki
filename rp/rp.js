@@ -127,6 +127,19 @@ async function api(path, { method = 'GET', body, prefer, schema = 'rp' } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
+/* ── renah0cki coin (пока только meRockstar; открыть всем: return !!S.uid) ── */
+const COIN_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
+const COIN_LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
+const coinsVisible = () => !!S.uid && COIN_DEV_IDS.includes(S.uid);
+const coinIco = () => `<img class="coin-ico" src="${COIN_LOGO}" alt="coin">`;
+async function fillCoinBalance(root) {
+  if (!coinsVisible()) return;
+  try {
+    const v = await api('rpc/coin_balance', { method: 'POST', body: {}, schema: 'public' });
+    $$('[data-coin-bal]', root).forEach(el => { el.textContent = Number(v || 0).toLocaleString('ru-RU'); });
+  } catch {}
+}
+
 /* ── короткие ссылки ────────────────────────────────────── */
 const isUuid = x => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x || '');
 const keyFilter = k => isUuid(k) ? `id=eq.${k}` : `short_code=eq.${encodeURIComponent(k)}`;
@@ -1525,7 +1538,7 @@ async function viewUser(key) {
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
       <div class="cp-stats"><span><b data-fcount>${followers.length}</b> <span data-fword>${plural(followers.length, 'подписчик', 'подписчика', 'подписчиков')}</span></span><span><b>${following.length}</b> ${plural(following.length, 'подписка', 'подписки', 'подписок')}</span></div>
-      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span></div>
+      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> coin</span>` : ''}</div>
       ${isMe ? '<button class="btn ghost cp-edit only-m" data-edit-profile>Редактировать профиль</button>' : ''}</div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
     <div id="uList"></div>`;
@@ -1548,6 +1561,7 @@ async function viewUser(key) {
       : '<div class="empty"><h2>Сейчас без ролей</h2><p>Занятые персонажи появятся здесь.</p></div>';
   };
   $$('[data-edit-profile]', main).forEach(b => { b.onclick = () => profileEditor(u, () => viewUser(key)); });
+  if (isMe) fillCoinBalance(main);
   const fb = $('[data-follow]', main);
   if (fb) fb.onclick = async () => {
     fb.disabled = true;
@@ -1775,9 +1789,11 @@ function viewSettings() {
       </div></div>
     <div class="set-sec"><h2>Аккаунт</h2>
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
+      ${coinsVisible() ? `<div class="set-row">${coinIco()}<span>Баланс: <b data-coin-bal>…</b> renah0cki coin</span></div>` : ''}
       <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
       <a class="set-row" href="#/rules">${I.flag}<span>Правила и соглашение</span></a>
       <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`;
+  fillCoinBalance(main);
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
     setTheme(inp.value);
     $$('.theme-opt', main).forEach(l => l.classList.toggle('on', $('input', l).checked));
