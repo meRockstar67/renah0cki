@@ -11879,7 +11879,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
   function coinsVisible() { return !!currentUser; }
   function coinTopupAllowed() { return !!currentUser; }                                       // пополнение (DonationAlerts) — всем
   function coinCryptoAllowed() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); } // крипта — пока только владелец (ждём Trybit)
-  function coinInHeader() { return false; } // включим после одобрения: return coinsVisible();
+  function coinInHeader() { return coinsVisible(); } // значок с балансом в шапке — всем вошедшим
   function coinIcoHtml() { return `<img class="coin-ico" src="${COIN_LOGO}" alt="coin">`; }
   function fmtCoins(n) { return Number(n || 0).toLocaleString('ru-RU'); }
   function coinHeaders() { return { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' }; }
