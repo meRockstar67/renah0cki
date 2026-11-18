@@ -4930,6 +4930,10 @@
   .coin-pack span { opacity: .7; font-size: 13px; }
   .coin-pack:hover:not(:disabled) { border-color: var(--accent); }
   .coin-pack:disabled { opacity: .5; cursor: wait; }
+  .coin-da-code { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 12px; }
+  .coin-da-code b { font-size: 20px; letter-spacing: 1px; font-family: ui-monospace, Consolas, monospace; }
+  .coin-da-code button { margin-left: auto; }
+  .coin-da-go { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 10px; background: var(--accent); color: #1b1209; font-weight: 700; text-decoration: none; flex: 1 1 auto; }
   .coin-grant-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   .coin-grant-row input { flex: 1 1 120px; min-width: 0; }
   @media (max-width: 600px) { .coin-chip { margin-right: 6px; } }
@@ -7625,6 +7629,13 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     <p class="hint">renah0cki coin — валюта сайта. За монеты можно будет покупать роли и другие плюшки.</p>
     <div class="coin-wallet-balance"><img class="coin-ico" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt=""><span id="coinWalletBalance">…</span></div>
     <p class="hint" id="coinTopupSoon" style="margin-top:14px;">Пополнение скоро появится.</p>
+    <div id="coinDaBox" style="display:none;">
+      <p class="profile-feed-title" style="margin-top:14px;">Картой / СБП (DonationAlerts)</p>
+      <p class="hint">Поддержи renah0cki донатом и получи монеты: <b>1 ₽ = 1 coin</b>. Обязательно вставь свой код в сообщение к донату — по нему монеты придут тебе автоматически (обычно в течение минуты).</p>
+      <div class="coin-da-code"><span>Твой код:</span><b id="coinDaCode">…</b><button type="button" class="secondary small" id="coinDaCopy">Скопировать</button></div>
+      <div class="coin-grant-row"><a class="coin-da-go" id="coinDaGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a><button type="button" class="secondary small" id="coinDaConnect" style="display:none;">Подключить DonationAlerts</button></div>
+      <div class="hint" id="coinDaStatus"></div>
+    </div>
     <p class="profile-feed-title" id="coinPacksTitle" style="margin-top:14px;">Пополнить (криптой)</p>
     <div class="coin-packs" id="coinPacks">
       <button type="button" class="coin-pack" data-coin-pack="c100"><b>100</b> coin<span>1 $</span></button>
@@ -11891,8 +11902,10 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     document.getElementById('coinPacksTitle').style.display = canTop ? '' : 'none';
     document.getElementById('coinPacks').style.display = canTop ? '' : 'none';
     document.getElementById('coinTopupSoon').style.display = canTop ? 'none' : '';
+    document.getElementById('coinDaBox').style.display = canTop ? '' : 'none';
     openOverlay('coinWalletOverlay');
     refreshCoinBalance();
+    if (canTop) loadCoinDa();
     try {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/coin_tx?user_id=eq.${currentUser.id}&select=amount,kind,note,created_at&order=created_at.desc&limit=50`, { headers: coinHeaders() });
       const rows = r.ok ? await r.json() : [];
@@ -11902,6 +11915,37 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
         : '<p class="hint">Пока операций нет.</p>';
     } catch (e) { list.innerHTML = '<p class="hint">Не удалось загрузить историю.</p>'; }
   }
+  // DonationAlerts: личный код + ссылка на страницу доната
+  async function loadCoinDa() {
+    const codeEl = document.getElementById('coinDaCode'), go = document.getElementById('coinDaGo'), st = document.getElementById('coinDaStatus');
+    const conn = document.getElementById('coinDaConnect');
+    conn.style.display = COIN_DEV_IDS.includes(currentUser.id) ? '' : 'none';
+    st.textContent = '';
+    try {
+      const [info, code] = await Promise.all([
+        fetch(`${B2_WORKER_URL}/da/info`).then(r => r.json()),
+        fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_da_code`, { method: 'POST', headers: coinHeaders(), body: '{}' }).then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.message || 'ошибка'); return j; }),
+      ]);
+      codeEl.textContent = code;
+      if (info.url) { go.href = info.url; go.style.display = ''; } else { go.style.display = 'none'; st.textContent = 'DonationAlerts ещё не подключён.'; }
+      if (COIN_DEV_IDS.includes(currentUser.id)) conn.textContent = info.connected ? 'Переподключить DonationAlerts' : 'Подключить DonationAlerts';
+    } catch (e) { codeEl.textContent = '—'; st.textContent = 'Ошибка: ' + e.message; }
+  }
+  document.getElementById('coinDaCopy').addEventListener('click', async () => {
+    const c = document.getElementById('coinDaCode').textContent;
+    if (!/^RN-/.test(c)) return;
+    try { await navigator.clipboard.writeText(c); document.getElementById('coinDaStatus').textContent = 'Код скопирован — вставь его в сообщение к донату.'; }
+    catch (e) { prompt('Твой код', c); }
+  });
+  document.getElementById('coinDaConnect').addEventListener('click', async () => {
+    const st = document.getElementById('coinDaStatus');
+    try {
+      const r = await fetch(`${B2_WORKER_URL}/da/login-url`, { method: 'POST', headers: { Authorization: `Bearer ${currentUserToken}` } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.url) throw new Error(j.error || 'ошибка');
+      location.href = j.url;
+    } catch (e) { st.textContent = 'Ошибка: ' + e.message; }
+  });
   document.querySelectorAll('[data-coin-pack]').forEach(btn => btn.addEventListener('click', async () => {
     if (!coinTopupAllowed()) return;
     const st = document.getElementById('coinPayStatus');
