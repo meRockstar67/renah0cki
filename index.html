@@ -7097,7 +7097,7 @@ b.forEach(function(x){g.appendChild(x)});
 var bg=['moderationBadge','commentReportsBadge'].map(function(i){return document.getElementById(i)}).filter(Boolean);
 function ub(){var n=0;bg.forEach(function(x){if(x.classList.contains('show'))n+=parseInt(x.textContent,10)||0});var e=t.querySelector('.notif-badge');e.textContent=n>99?'99+':String(n);e.classList.toggle('on',n>0)}
 function u(){var v=b.filter(function(x){return x.style.display!=='none'});g.style.display=v.length?'':'none';b.forEach(function(x){x.classList.remove('mg-first','mg-last')});if(v.length&&!col){v[v.length-1].classList.add('mg-last');t.classList.remove('mg-last')}else{t.classList.add('mg-last')}ub()}
-sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attributes:true,attributeFilter:['style','class']})});bg.forEach(function(x){mo.observe(x,{attributes:true,childList:true,characterData:true,subtree:true})})});</script>
+sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attributes:true,attributeFilter:['style']})});bg.forEach(function(x){mo.observe(x,{attributes:true,childList:true,characterData:true,subtree:true})})});</script>
   </nav>
   <div class="header-right-outer" id="headerRightOuter">
     <div class="header-right">
