@@ -127,10 +127,9 @@ async function api(path, { method = 'GET', body, prefer, schema = 'rp' } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
-/* ── renah0cki coin (пока только meRockstar; открыть всем: return !!S.uid) ── */
-const COIN_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
+/* ── renah0cki coin: баланс в своём профиле — для всех вошедших ── */
 const COIN_LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
-const coinsVisible = () => !!S.uid && COIN_DEV_IDS.includes(S.uid);
+const coinsVisible = () => !!S.uid;
 const coinIco = () => `<img class="coin-ico" src="${COIN_LOGO}" alt="coin">`;
 async function fillCoinBalance(root) {
   if (!coinsVisible()) return;
@@ -1788,9 +1787,7 @@ function viewSettings() {
         <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Светлая</span></label>
       </div></div>
     <div class="set-sec"><h2>Аккаунт</h2>
-      ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
-      ${coinsVisible() ? `<div class="set-row">${coinIco()}<span>Баланс: <b data-coin-bal>…</b> renah0cki coin</span></div>` : ''}
-      <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
+      ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}      <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
       <a class="set-row" href="#/rules">${I.flag}<span>Правила и соглашение</span></a>
       <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`;
   fillCoinBalance(main);

@@ -7622,9 +7622,10 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
   <div class="modal">
     <button class="close-x" data-close="coinWalletOverlay">×</button>
     <h2>Кошелёк</h2>
-    <p class="hint">renah0cki coin — валюта сайта. Скоро: пополнение и покупка ролей за монеты.</p>
+    <p class="hint">renah0cki coin — валюта сайта. За монеты можно будет покупать роли и другие плюшки.</p>
     <div class="coin-wallet-balance"><img class="coin-ico" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt=""><span id="coinWalletBalance">…</span></div>
-    <p class="profile-feed-title" style="margin-top:14px;">Пополнить (криптой)</p>
+    <p class="hint" id="coinTopupSoon" style="margin-top:14px;">Пополнение скоро появится.</p>
+    <p class="profile-feed-title" id="coinPacksTitle" style="margin-top:14px;">Пополнить (криптой)</p>
     <div class="coin-packs" id="coinPacks">
       <button type="button" class="coin-pack" data-coin-pack="c100"><b>100</b> coin<span>1 $</span></button>
       <button type="button" class="coin-pack" data-coin-pack="c500"><b>500</b> coin<span>5 $</span></button>
@@ -11858,11 +11859,14 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
   // ─────────────────────────────────────────────────────────────────────
 
   // ── renah0cki coin ─────────────────────────────────────────────────────
-  // Пока в разработке — видно только meRockstar. Открыть всем: return !!currentUser;
+  // Баланс и кошелёк (в профиле) — для всех вошедших.
+  // Пополнение — пока только meRockstar, значок в шапке — выключен (ждём одобрения Trybit).
   const COIN_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
   const COIN_LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
   let coinBalanceCache = null;
-  function coinsVisible() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); }
+  function coinsVisible() { return !!currentUser; }
+  function coinTopupAllowed() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); }
+  function coinInHeader() { return false; } // включим после одобрения: return coinsVisible();
   function coinIcoHtml() { return `<img class="coin-ico" src="${COIN_LOGO}" alt="coin">`; }
   function fmtCoins(n) { return Number(n || 0).toLocaleString('ru-RU'); }
   function coinHeaders() { return { apikey: SUPABASE_KEY, Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' }; }
@@ -11883,6 +11887,10 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     document.getElementById('coinWalletBalance').textContent = coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache);
     const list = document.getElementById('coinTxList');
     list.innerHTML = '<p class="hint">Загрузка…</p>';
+    const canTop = coinTopupAllowed();
+    document.getElementById('coinPacksTitle').style.display = canTop ? '' : 'none';
+    document.getElementById('coinPacks').style.display = canTop ? '' : 'none';
+    document.getElementById('coinTopupSoon').style.display = canTop ? 'none' : '';
     openOverlay('coinWalletOverlay');
     refreshCoinBalance();
     try {
@@ -11895,7 +11903,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     } catch (e) { list.innerHTML = '<p class="hint">Не удалось загрузить историю.</p>'; }
   }
   document.querySelectorAll('[data-coin-pack]').forEach(btn => btn.addEventListener('click', async () => {
-    if (!coinsVisible()) return;
+    if (!coinTopupAllowed()) return;
     const st = document.getElementById('coinPayStatus');
     const all = document.querySelectorAll('[data-coin-pack]');
     all.forEach(b => b.disabled = true); st.textContent = 'Создаю счёт…';
@@ -11913,7 +11921,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     if (!m) return;
     history.replaceState(null, '', location.pathname + location.hash);
     const tryOpen = (n) => {
-      if (currentUser && coinsVisible()) {
+      if (currentUser && coinTopupAllowed()) {
         openCoinWallet();
         document.getElementById('coinPayStatus').textContent = m[1] === 'success'
           ? 'Оплата прошла — монеты появятся в течение пары минут (после подтверждения сети).'
@@ -11933,7 +11941,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       const icon = roleIcon(currentUser.role);
       authArea.innerHTML = `
         <div class="header-user-wrap">
-          ${coinsVisible() ? `<button type="button" class="notif-btn streak-btn coin-chip" id="coinChip" title="renah0cki coin — кошелёк" aria-label="Кошелёк">${coinIcoHtml()}<span class="streak-count-text" id="coinChipVal">${coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache)}</span></button>` : ''}
+          ${coinInHeader() ? `<button type="button" class="notif-btn streak-btn coin-chip" id="coinChip" title="renah0cki coin — кошелёк" aria-label="Кошелёк">${coinIcoHtml()}<span class="streak-count-text" id="coinChipVal">${coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache)}</span></button>` : ''}
           <span class="header-user" id="openProfileBtn" title="Открыть меню профиля">
             <span class="avatar-wrap">
               <img class="avatar-circle" src="${escapeHtml(avatar)}" alt="">
