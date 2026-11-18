@@ -539,6 +539,8 @@
     .header-account-toggle {
       display: contents;
     }
+    /* все кнопки шапки — с одинаковым отступом */
+    .header-right-outer { gap: 8px; }
     #moderationBtn { order: 1; }
     #commentReportsBtn { order: 2; }
     #addCollectionBtn { order: 3; }
@@ -7085,7 +7087,7 @@
       .mod-group .mod-toggle .notif-badge{display:none}
       .mod-group.collapsed .mod-toggle .notif-badge.on{display:block}
       /* игра, правила и уведомления — плотной группой */
-      @media (min-width:769px){#rulesBtn,#notifWrap{margin-left:-8px}}
+
     </style>
     <script>document.addEventListener('DOMContentLoaded',function(){var b=['moderationBtn','commentReportsBtn','addCollectionBtn','allUsersBtn'].map(function(i){return document.getElementById(i)});if(b.some(function(x){return !x}))return;var g=document.createElement('div');g.className='mod-group';b[0].parentNode.insertBefore(g,b[0]);
 /* кнопка-щит: сворачивает модераторские кнопки (по умолчанию свёрнуты, состояние запоминается) */
