@@ -622,11 +622,101 @@ function reportDialog(p) {
 function lightbox(src) {
   const lb = document.createElement('div');
   lb.className = 'lightbox';
-  lb.innerHTML = `<button class="icon-btn" aria-label="Закрыть">${I.close}</button><img src="${esc(src)}" alt="">`;
+  lb.innerHTML = `<button class="icon-btn" aria-label="Закрыть">${I.close}</button><img src="${esc(src)}" alt="">`
+    + (gifOk() && isGifUrl(src) ? `<button type="button" class="btn small lb-save" data-save-gif>Сохранить в мои GIF</button>` : '');
   const close = () => { lb.remove(); document.removeEventListener('keydown', onKey); };
   const onKey = e => { if (e.key === 'Escape') close(); };
-  lb.onclick = close; document.addEventListener('keydown', onKey);
+  lb.onclick = e => { if (e.target.closest('[data-save-gif]')) { e.stopPropagation(); saveGif(src, e.target.closest('[data-save-gif]')); return; } close(); };
+  document.addEventListener('keydown', onKey);
   document.body.append(lb);
+}
+
+/* ── GIF (ГОЙ и выше; пока только meRockstar) ──────────────── */
+const FEAT_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
+const featDev = () => !!S.uid && FEAT_DEV_IDS.includes(S.uid);
+const gifOk = () => featDev() && rank() >= 1;
+const peekOk = () => featDev() && rank() >= 1;
+const isGiphy = u => /^https:\/\/media\.giphy\.com\/media\/[A-Za-z0-9]{4,40}\/giphy\.gif$/.test(u || '');
+const isGifUrl = u => isGiphy(u) || /^https:\/\/cdn\.renah0cki\.xyz\/file\/rp\/[0-9a-f-]{36}\/[A-Za-z0-9_.-]+\.gif$/i.test(u || '');
+async function saveGif(url, btn) {
+  try {
+    await api('saved_gifs', { method: 'POST', body: { url }, prefer: 'return=minimal' });
+    toast('Сохранено в «Мои GIF»');
+  } catch (e) {
+    if (String(e.message).includes('duplicate')) toast('Уже в «Мои GIF»'); else toast(errText(e), true);
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'В «Мои GIF»'; }
+}
+// окно выбора GIF: поиск GIPHY, «Мои», загрузка своего .gif. onPick(url)
+function gifPicker(onPick) {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal gif-modal" role="dialog" aria-modal="true" aria-label="GIF"><div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="Закрыть">${I.close}</button><div class="head-title"><h1>GIF</h1></div></div>
+      <div class="tabs" role="tablist"><button type="button" class="active" data-gtab="search">Поиск</button><button type="button" data-gtab="mine">Мои</button></div></div>
+    <div class="gif-top"><input type="search" class="gif-q" placeholder="Поиск GIPHY" aria-label="Поиск GIF" maxlength="50">
+      <label class="btn ghost small gif-up">Свой .gif<input type="file" accept="image/gif" hidden></label></div>
+    <div class="gif-grid"></div><div class="gif-more"></div>
+    <div class="gif-attr">Powered by GIPHY</div></div>`;
+  const grid = $('.gif-grid', ov), more = $('.gif-more', ov), q = $('.gif-q', ov), file = $('input[type=file]', ov), top = $('.gif-top', ov), attr = $('.gif-attr', ov);
+  let tab = 'search', next = 0, seq = 0, timer = null;
+  const close = () => { ov.remove(); document.body.style.overflow = ''; document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  const pick = url => { close(); onPick(url); };
+  const cell = (url, preview, mine) => `<button type="button" class="gif-cell" data-gif="${esc(url)}"><img src="${esc(preview)}" alt="" loading="lazy">${mine ? `<span class="gif-del" data-gif-del="${esc(url)}" title="Убрать из «Мои»">${I.close}</span>` : ''}</button>`;
+  async function search(append) {
+    const my = ++seq;
+    if (!append) { next = 0; grid.innerHTML = loader(); }
+    more.innerHTML = '';
+    try {
+      const t = await getToken();
+      const r = await fetch(`${CDN}/gif-search`, { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: q.value, offset: next }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Ошибка поиска');
+      if (my !== seq || tab !== 'search') return;
+      const html = d.items.map(g => cell(g.url, g.preview, false)).join('');
+      grid.innerHTML = (append ? grid.innerHTML : '') + html;
+      if (!grid.innerHTML) grid.innerHTML = '<div class="empty">Ничего не найдено</div>';
+      next = d.next;
+      if (d.items.length && next < d.total) more.innerHTML = '<button type="button" class="btn ghost small" data-gif-more>Ещё</button>';
+    } catch (e) { if (my === seq) grid.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; }
+  }
+  async function mine() {
+    const my = ++seq; grid.innerHTML = loader(); more.innerHTML = '';
+    try {
+      const rows = await api(`saved_gifs?select=url&order=created_at.desc&limit=300`);
+      if (my !== seq) return;
+      grid.innerHTML = rows.length ? rows.map(x => cell(x.url, x.url, true)).join('')
+        : '<div class="empty">Пока пусто. Откройте GIF в посте или сообщении и нажмите «Сохранить в мои GIF».</div>';
+    } catch (e) { grid.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; }
+  }
+  ov.addEventListener('click', async e => {
+    if (e.target === ov || e.target.closest('[data-close]')) return close();
+    const del = e.target.closest('[data-gif-del]');
+    if (del) { e.stopPropagation(); try { await api(`saved_gifs?url=eq.${encodeURIComponent(del.dataset.gifDel)}`, { method: 'DELETE' }); del.closest('.gif-cell').remove(); } catch (er) { toast(errText(er), true); } return; }
+    const g = e.target.closest('[data-gif]'); if (g) return pick(g.dataset.gif);
+    if (e.target.closest('[data-gif-more]')) return search(true);
+    const tb = e.target.closest('[data-gtab]');
+    if (tb) {
+      tab = tb.dataset.gtab;
+      $$('[data-gtab]', ov).forEach(x => x.classList.toggle('active', x === tb));
+      q.classList.toggle('hidden', tab !== 'search'); attr.classList.toggle('hidden', tab !== 'search');
+      return tab === 'search' ? search(false) : mine();
+    }
+  });
+  q.oninput = () => { clearTimeout(timer); timer = setTimeout(() => search(false), 350); };
+  file.onchange = async () => {
+    const f = file.files[0]; file.value = '';
+    if (!f) return;
+    if (f.type !== 'image/gif') return toast('Нужен файл .gif', true);
+    if (f.size > MAX_BYTES) return toast('GIF больше 5 МБ', true);
+    top.classList.add('busy');
+    try { const url = await uploadImage(f); saveGif(url); pick(url); }
+    catch (e) { toast(errText(e), true); top.classList.remove('busy'); }
+  };
+  document.addEventListener('keydown', onKey);
+  document.body.append(ov); document.body.style.overflow = 'hidden';
+  search(false);
+  setTimeout(() => q.focus(), 50);
 }
 
 /* ── загрузка картинок ──────────────────────────────────── */
@@ -675,6 +765,7 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
       ${quoteOf ? quoteHtml(quoteOf) : ''}
       <div class="composer-tools">
         <label class="tool" title="Картинки" aria-label="Добавить картинки">${I.image}<input type="file" accept="image/*" multiple hidden></label>
+        ${gifOk() ? '<button type="button" class="tool gif-tool" data-gif-open title="GIF" aria-label="Добавить GIF">GIF</button>' : ''}
         <span class="count"></span>
         <button class="btn blue small send" type="button" disabled>${replyTo ? 'Ответить' : 'Опубликовать'}</button>
       </div>
@@ -696,6 +787,11 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
     update();
   };
   thumbs.onclick = e => { const b = e.target.closest('[data-rm]'); if (!b) return; const [im] = imgs.splice(+b.dataset.rm, 1); URL.revokeObjectURL(im.preview); drawThumbs(); };
+  const gifBtn = $('[data-gif-open]', box);
+  if (gifBtn) gifBtn.onclick = () => {
+    if (imgs.length >= MAX_IMG) return toast(`Не больше ${MAX_IMG} картинок`, true);
+    gifPicker(url => { imgs.push({ url, preview: url, loading: false }); drawThumbs(); });
+  };
   file.onchange = async () => {
     const files = [...file.files].slice(0, MAX_IMG - imgs.length); file.value = '';
     if (!files.length) return toast(`Не больше ${MAX_IMG} картинок`, true);
@@ -796,7 +892,7 @@ function navKey() {
   if (v === 'create') return 'new';
   if (v === 'rooms' || v === 'feed' || v === 'thread' || v === 'chars') return 'rooms';
   if (v === 'lib' || v === 'char') return 'chars';
-  if (v === 'dms' || v === 'dm' || v === 'dmhub') return 'dm';
+  if (v === 'dms' || v === 'dm' || v === 'dmhub' || v === 'dmpeek') return 'dm';
   if (v === 'user') return S.viewArg === S.uid ? 'me' : '';
   if (v === 'settings') return 'settings';
   if (v === 'notifs') return 'notifs';
@@ -1897,7 +1993,7 @@ async function viewDmList(roomKey) {
   const me = dmSlot();
   const h = head('Сообщения', { back: true, extra: `<a class="dm-room" href="${roomPath(S.room)}">${roomIcon(S.room, 'mini')}<span>${esc(S.room.title)}</span></a>` });
   if (!S.uid) { main.innerHTML = h + `<div class="composer-hint"><span>Войдите, чтобы переписываться.</span><a class="btn small blue" href="/">Войти</a></div>`; return; }
-  if (!me) { main.innerHTML = h + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в этой комнате, чтобы писать другим.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>`; return; }
+  if (!me) { main.innerHTML = h + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в этой комнате, чтобы писать другим.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>` + (peekOk() ? '<div id="peekList"></div>' : ''); if (peekOk()) fillPeekList(null); return; }
   let rows;
   try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(from_slot.eq.${me.id},to_slot.eq.${me.id})&select=id,from_slot,to_slot,body,images,created_at&order=created_at.desc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
@@ -1914,7 +2010,56 @@ async function viewDmList(roomKey) {
       return `<a class="dm-row" href="${roomPath(S.room, '/dm/' + pid)}">${avatar(peer)}<div class="dm-main"><div class="dm-top"><b>${esc(peer.char_name)}</b>${m ? `<span class="dot">·</span><time>${ago(m.created_at)}</time>` : ''}</div>
         <div class="dm-last">${m ? esc(txt) : '<span class="dm-none">Пусто</span>'}</div></div></a>`;
     }).join('')
-    : '<div class="empty"><h2>В комнате больше никого</h2><p>Когда владелец добавит персонажей, им можно будет написать.</p></div>');
+    : '<div class="empty"><h2>В комнате больше никого</h2><p>Когда владелец добавит персонажей, им можно будет написать.</p></div>')
+    + (peekOk() ? '<div id="peekList"></div>' : '');
+  if (peekOk()) fillPeekList(me.id);
+}
+// переписки других персонажей, которые видны по роли (выше обоих участников)
+async function fillPeekList(myId) {
+  const box = $('#peekList'); if (!box) return;
+  let rows;
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&select=from_slot,to_slot,body,images,created_at&order=created_at.desc&limit=2000`); }
+  catch { return; }
+  const pairs = new Map();
+  rows.forEach(m => {
+    if (myId && (m.from_slot === myId || m.to_slot === myId)) return;
+    const [a, b] = [m.from_slot, m.to_slot].sort();
+    const k = a + '|' + b;
+    if (!pairs.has(k)) pairs.set(k, { a, b, m, n: 0 });
+    pairs.get(k).n++;
+  });
+  const items = [...pairs.values()].filter(x => S.slotMap.has(x.a) && S.slotMap.has(x.b));
+  if (!items.length || !$('#peekList')) return;
+  box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + items.map(({ a, b, m, n }) => {
+    const A = S.slotMap.get(a), B = S.slotMap.get(b);
+    const txt = m.body || (m.images?.length ? 'Фото' : '');
+    return `<a class="dm-row" href="${roomPath(S.room, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
+      <div class="dm-last">${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
+  }).join('');
+}
+// чтение чужой переписки (только просмотр)
+async function viewDmPeek(roomKey, aId, bId) {
+  S.view = 'dmpeek'; document.body.classList.add('chat-mode');
+  main.innerHTML = head('Переписка', { back: true }) + loader(); updateNav();
+  try { await loadRoom(roomKey); } catch (e) { return errorView(errText(e)); }
+  updateNav(); renderRight();
+  const A = S.slotMap.get(aId), B = S.slotMap.get(bId);
+  if (!A || !B) return errorView('Персонаж не найден в этой комнате');
+  if (!peekOk()) return errorView('Нет доступа');
+  Object.assign(chat, { msgs: [], me: A.id, peer: B.id, ids: new Set() });
+  main.innerHTML = `<div class="head chat-head"><div class="head-row">
+      <button class="icon-btn" data-back aria-label="Назад">${I.back}</button>
+      <div class="chat-peer"><span class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</span><span class="chat-peer-name">${esc(A.char_name)} и ${esc(B.char_name)}</span></div>
+      <span class="chat-spacer"></span></div></div>
+    <div class="peek-note">Вы читаете чужую переписку — только просмотр. Справа сообщения ${esc(A.char_name)}.</div>
+    <div class="chat" id="chat">${loader()}</div>`;
+  let rows;
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${A.id},to_slot.eq.${B.id}),and(from_slot.eq.${B.id},to_slot.eq.${A.id}))&select=id,from_slot,to_slot,body,images,created_at&order=created_at.asc&limit=1000`); }
+  catch (e) { return errorView(errText(e)); }
+  if (S.view !== 'dmpeek') return;
+  if (!rows.length) { $('#chat').innerHTML = '<div class="empty"><h2>Нет доступа или пусто</h2><p>Переписка видна только ролям выше обоих участников.</p></div>'; return; }
+  rows.forEach(m => { chat.msgs.push(m); chat.ids.add(m.id); });
+  drawChat(true);
 }
 main.addEventListener('click', e => {
   if (!e.target.closest('[data-dm-new]') || !S.room) return;
@@ -1947,6 +2092,7 @@ async function viewDmChat(roomKey, peerId) {
     <div class="chat" id="chat">${loader()}</div>
     <form class="chat-bar" id="chatBar" autocomplete="off">
       <label class="chat-tool" aria-label="Добавить фото">${I.image}<input type="file" accept="image/*" multiple hidden></label>
+      ${gifOk() ? '<button type="button" class="chat-tool gif-tool" data-gif-open aria-label="Добавить GIF">GIF</button>' : ''}
       <div class="chat-input"><div class="thumbs hidden"></div><textarea rows="1" maxlength="1000" placeholder="Сообщение" aria-label="Сообщение"></textarea></div>
       <button class="chat-send" type="submit" disabled aria-label="Отправить">${I.send}</button>
     </form>`;
@@ -1991,6 +2137,11 @@ function wireChatBar() {
     update();
   };
   thumbs.onclick = e => { const b = e.target.closest('[data-rm]'); if (!b) return; imgs.splice(+b.dataset.rm, 1); drawThumbs(); };
+  const gifBtn = $('[data-gif-open]', bar);
+  if (gifBtn) gifBtn.onclick = () => {
+    if (imgs.length >= MAX_IMG) return toast(`Не больше ${MAX_IMG} картинок`, true);
+    gifPicker(url => { imgs.push({ url, preview: url, loading: false }); drawThumbs(); });
+  };
   file.onchange = async () => {
     const files = [...file.files].slice(0, MAX_IMG - imgs.length); file.value = '';
     if (!files.length) return toast(`Не больше ${MAX_IMG} картинок`, true);
@@ -2062,6 +2213,7 @@ function route() {
     if (parts[2] === 'p' && ok(parts[3])) return viewThread(parts[3]);
     if (parts[2] === 'chars') return viewChars(parts[1]);
     if (parts[2] === 'dm') return ok(parts[3]) ? viewDmChat(parts[1], parts[3]) : viewDmList(parts[1]);
+    if (parts[2] === 'peek' && ok(parts[3]) && ok(parts[4])) return viewDmPeek(parts[1], parts[3], parts[4]);
     return viewFeed(parts[1]);
   }
   if (parts[0] === 'new') return viewCreate();

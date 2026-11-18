@@ -674,3 +674,28 @@ html, body { overscroll-behavior-y: contain; }
 .shop-price b { color: var(--text); font-size: 18px; }
 .shop-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .shop-card .btn { margin-top: 4px; }
+
+/* GIF */
+.gif-tool { font-weight: 800; font-size: 12px; letter-spacing: .5px; border: 1.5px solid currentColor; border-radius: 6px; padding: 1px 5px; line-height: 16px; background: none; color: var(--accent, #1d9bf0); cursor: pointer; }
+.composer-tools .gif-tool { margin-left: 4px; }
+.gif-modal { max-width: 560px; }
+.gif-top { display: flex; gap: 8px; padding: 12px 16px; align-items: center; }
+.gif-top.busy { opacity: .5; pointer-events: none; }
+.gif-q { flex: 1; min-width: 0; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: inherit; font: inherit; }
+.gif-up { white-space: nowrap; cursor: pointer; }
+.gif-grid { columns: 3 140px; column-gap: 6px; padding: 0 16px; }
+.gif-cell { position: relative; display: block; width: 100%; margin: 0 0 6px; padding: 0; border: 0; background: var(--hover, rgba(127,127,127,.12)); border-radius: 10px; overflow: hidden; cursor: pointer; break-inside: avoid; }
+.gif-cell img { display: block; width: 100%; height: auto; min-height: 60px; }
+.gif-del { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,.65); color: #fff; display: flex; align-items: center; justify-content: center; }
+.gif-del svg { width: 14px; height: 14px; }
+.gif-grid .empty { column-span: all; }
+.gif-more { display: flex; justify-content: center; padding: 8px 16px; }
+.gif-attr { text-align: center; font-size: 11px; color: var(--muted); padding: 6px 16px 14px; }
+.lb-save { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 2; }
+
+/* чужие ЛС */
+.peek-head { padding: 16px 16px 6px; font-weight: 800; font-size: 17px; border-top: 1px solid var(--border); margin-top: 8px; }
+.peek-head span { font-weight: 400; font-size: 13px; color: var(--muted); margin-left: 6px; }
+.peek-avs { display: inline-flex; flex: none; }
+.peek-avs > * + * { margin-left: -12px; }
+.peek-note { margin: 8px 16px 0; padding: 8px 12px; border-radius: 12px; font-size: 13px; color: var(--muted); background: var(--hover, rgba(127,127,127,.12)); text-align: center; }
