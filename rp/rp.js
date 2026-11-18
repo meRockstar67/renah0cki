@@ -163,7 +163,10 @@ const S = {
   view: null, viewArg: null,
   mySlots: [], userReposted: new Set(), userLiked: new Set(), dmAs: null, mineScope: '',
 };
-const rank = () => ROLE_RANK[S.me?.rp_role] ?? 0;
+// действующая роль: старшая из выданной (rp_role) и купленной (paid_role, пока не истекла)
+const paidActive = p => !!(p?.paid_role && p.paid_until && new Date(p.paid_until).getTime() > Date.now());
+const effRole = p => (paidActive(p) && (ROLE_RANK[p.paid_role] ?? 0) > (ROLE_RANK[p.rp_role] ?? 0)) ? p.paid_role : (p?.rp_role || 'user');
+const rank = () => ROLE_RANK[effRole(S.me)] ?? 0;
 const isStaff = () => rank() >= 3;
 const isOwner = () => !!S.room && !!S.uid && (S.room.owner_id === S.uid || isStaff());
 const mySlot = () => S.slots.find(s => s.player_id && s.player_id === S.uid) || null;
@@ -1502,7 +1505,7 @@ function bannerStyle(u) {
   return 'background:var(--placeholder)';
 }
 const siteHost = url => { try { const x = new URL(url); return (x.host + x.pathname).replace(/\/$/, ''); } catch { return url; } };
-const U_SEL = 'user_id,nick,avatar_url,username,bio,about,banner_url,name_color,rp_role,created_at,y_name,y_avatar_url,location,website,birthday';
+const U_SEL = 'user_id,nick,avatar_url,username,bio,about,banner_url,name_color,rp_role,paid_role,paid_until,created_at,y_name,y_avatar_url,location,website,birthday';
 
 async function viewUser(key) {
   S.view = 'user'; updateNav(); renderRight();
@@ -1787,13 +1790,57 @@ function viewSettings() {
         <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Светлая</span></label>
       </div></div>
     <div class="set-sec"><h2>Аккаунт</h2>
-      ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}      <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
+      ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
+      <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
       <a class="set-row" href="#/rules">${I.flag}<span>Правила и соглашение</span></a>
-      <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`;
+      <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`
+    + (shopVisible() ? shopHtml() : '');
   fillCoinBalance(main);
+  bindShop(main);
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
     setTheme(inp.value);
     $$('.theme-opt', main).forEach(l => l.classList.toggle('on', $('input', l).checked));
+  });
+}
+
+/* ── подписка Y за renah0cki coin (пока только meRockstar) ── */
+const SHOP_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
+const shopVisible = () => !!S.uid && SHOP_DEV_IDS.includes(S.uid);
+const SHOP_ROLES = [
+  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y'] },
+  { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Доступ к закрытым комнатам «VIP и выше»'] },
+];
+function shopHtml() {
+  const me = S.me || {};
+  const active = paidActive(me);
+  const until = active ? new Date(me.paid_until) : null;
+  const status = active
+    ? `Активна роль <b>${ROLE_NAME[me.paid_role]}</b> до ${until.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`
+    : (ROLE_RANK[me.rp_role] ?? 0) >= 1 ? `Ваша роль: <b>${ROLE_NAME[me.rp_role]}</b>` : 'Подписки нет';
+  return `<div class="set-sec"><h2>Подписка</h2><p>${status} · Баланс: ${coinIco()} <b data-coin-bal>…</b> coin</p>
+    <div class="shop-grid">${SHOP_ROLES.map(r => {
+      const base = (ROLE_RANK[me.rp_role] ?? 0) >= ROLE_RANK[r.id];
+      const higher = active && ROLE_RANK[me.paid_role] > ROLE_RANK[r.id];
+      const renew = active && me.paid_role === r.id;
+      const label = base ? 'Уже есть' : higher ? 'Есть выше' : renew ? 'Продлить на 30 дней' : (active && me.paid_role === 'goy' && r.id === 'vip') ? 'Перейти на VIP' : 'Купить на 30 дней';
+      return `<div class="shop-card"><div class="shop-name">${ROLE_NAME[r.id]}</div>
+        <div class="shop-price">${coinIco()} <b>${r.price}</b> / 30 дней</div>
+        <ul>${r.perks.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+        <button type="button" class="btn${base || higher ? ' ghost' : ' blue'} small" data-buy-role="${r.id}"${base || higher ? ' disabled' : ''}>${label}</button></div>`;
+    }).join('')}</div>
+    <p style="margin:12px 0 0">Роль не продлевается сама: когда срок закончится, её можно купить снова. При переходе с ГОЯ на VIP оставшиеся дни пересчитываются в дни VIP.</p></div>`;
+}
+function bindShop(root) {
+  $$('[data-buy-role]', root).forEach(b => b.onclick = async () => {
+    const r = SHOP_ROLES.find(x => x.id === b.dataset.buyRole);
+    if (!r || !confirm(`Купить роль ${ROLE_NAME[r.id]} на 30 дней за ${r.price} coin?`)) return;
+    b.disabled = true;
+    try {
+      const res = await api('rpc/buy_role', { method: 'POST', body: { p_role: r.id, p_months: 1 } });
+      Object.assign(S.me, { paid_role: res.role, paid_until: res.until });
+      toast(`Готово! ${ROLE_NAME[r.id]} до ${new Date(res.until).toLocaleDateString('ru-RU')}`);
+      renderMe(); updateNav(); viewSettings();
+    } catch (e) { toast(errText(e), true); b.disabled = false; }
   });
 }
 

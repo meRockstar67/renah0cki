@@ -667,3 +667,10 @@ html, body { overscroll-behavior-y: contain; }
 .coin-ico { width: 1.15em; height: 1.15em; object-fit: contain; vertical-align: -0.2em; flex: none; }
 .set-row .coin-ico { width: 22px; height: 22px; }
 .cp-coin { display: inline-flex; align-items: center; gap: 4px; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.shop-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.shop-name { font-size: 18px; font-weight: 800; }
+.shop-price { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+.shop-price b { color: var(--text); font-size: 18px; }
+.shop-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.shop-card .btn { margin-top: 4px; }
