@@ -19,6 +19,7 @@ const main = $('#main'), right = $('#right');
 const I = {
   back: '<svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
   close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  leave: '<svg viewBox="0 0 24 24"><path d="M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14M10 16l-4-4 4-4M6 12h10"/></svg>',
   reply: '<svg viewBox="0 0 24 24"><path d="M4.5 11.5c0-4 3.4-7 7.5-7h.5c4.1 0 7.5 3.1 7.5 7s-3.4 7-7.5 7H11l-5 3.5V17a6.8 6.8 0 0 1-1.5-5.5z"/></svg>',
   rt: '<svg viewBox="0 0 24 24"><path d="M4 9l3-3 3 3M7 6v9a3 3 0 0 0 3 3h5M20 15l-3 3-3-3M17 18V9a3 3 0 0 0-3-3H9"/></svg>',
   like: '<svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-9-9.3C2 7.3 4.3 4.5 7.3 4.5c2 0 3.5 1.1 4.7 2.8 1.2-1.7 2.7-2.8 4.7-2.8 3 0 5.3 2.8 4.3 6.2-1.5 4.7-9 9.3-9 9.3z"/></svg>',
@@ -918,7 +919,7 @@ async function viewFeed(roomKey) {
   updateNav();
   const r = S.room;
   main.innerHTML = head(r.title, { sub: r.status === 'archived' ? 'Архив · только чтение' : `${S.slots.filter(s => s.player_id).length}/${S.slots.length} персонажей в игре`,
-    back: true, extra: `<a class="icon-btn" href="${roomPath(r, '/dm')}" aria-label="Сообщения" style="margin:0">${I.mail}</a><a class="icon-btn" href="${roomPath(r, '/chars')}" aria-label="Персонажи" style="margin:0">${I.users}</a><button class="icon-btn" data-copy="${roomPath(r)}" aria-label="Скопировать ссылку на комнату" style="margin:0">${I.link}</button>${isOwner() ? `<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : ''}` })
+    back: true, extra: `<a class="icon-btn" href="${roomPath(r, '/dm')}" aria-label="Сообщения" style="margin:0">${I.mail}</a><a class="icon-btn" href="${roomPath(r, '/chars')}" aria-label="Персонажи" style="margin:0">${I.users}</a><button class="icon-btn" data-copy="${roomPath(r)}" aria-label="Скопировать ссылку на комнату" style="margin:0">${I.link}</button>${isOwner() ? `<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : ''}${mySlot() ? `<button class="icon-btn" data-leave-room title="Выйти из роли" aria-label="Выйти из роли" style="margin:0">${I.leave}</button>` : ''}` })
     + `<div id="composerSlot"></div><div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="feedList">${loader()}</div><div id="feedMore"></div>`;
   $('#newPill button').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); $('#newPill').classList.add('hidden'); };
   if (matchMedia('(min-width: 640px)').matches) refreshComposer();
@@ -1307,13 +1308,14 @@ function renderChars() {
   main.innerHTML = head('Персонажи комнаты', { back: true, sub: `${esc(r.title)} · ${taken}/${S.slots.length} заняты`,
     extra: own ? `<button class="btn small blue" data-add>${I.plus} Добавить</button><button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : '' });
   if (!S.uid) main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Войдите, чтобы выбрать персонажа.</span><a class="btn small blue" href="/">Войти</a></div>`);
-  else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Выберите, за кого играть.</span>${mine ? '<button class="btn small ghost" data-leave>Покинуть слот</button>' : ''}</div>`);
+  else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>${mine ? `Вы играете за ${esc(mine.char_name)}.` : 'Выберите, за кого играть.'}</span></div>`);
   S.slots.forEach(s => {
     const isMine = mine?.id === s.id;
     const st = isMine ? '<div class="st mine">Вы играете за этого персонажа</div>'
       : s.player_id ? `<div class="st">Играет ${esc(s.player?.nick || 'игрок')}</div>` : '<div class="st free">Свободен</div>';
     const acts = [];
     if (S.uid && r.status === 'active' && !s.player_id) acts.push(`<button class="btn small blue" data-take="${s.id}">Играть</button>`);
+    if (isMine) acts.push('<button class="btn small ghost" data-leave>Выйти из роли</button>');
     if (own) {
       if (s.player_id && !isMine) acts.push(`<button class="btn small ghost" data-kick="${s.id}">Освободить</button>`);
       acts.push(`<button class="btn small ghost" data-rm-slot="${s.id}" aria-label="Убрать из комнаты">Убрать</button>`);
@@ -1336,6 +1338,18 @@ function addToRoom() {
   });
   $('[data-picker]', form).replaceWith(picker);
 }
+// выход из роли из шапки ленты комнаты
+main.addEventListener('click', async e => {
+  const b = e.target.closest('[data-leave-room]'); if (!b || !S.room) return;
+  const s = mySlot(); if (!s) return;
+  if (!confirm(`Выйти из роли ${s.char_name}? Персонаж станет свободным, ваши посты останутся.`)) return;
+  b.disabled = true;
+  try {
+    await rpc('leave_slot', { p_room: S.room.id });
+    S.actSlot = null; await loadSlots(); await loadMine(); loadMySlots();
+    toast('Вы вышли из роли'); route();
+  } catch (er) { toast(errText(er), true); b.disabled = false; }
+});
 main.addEventListener('click', async e => {
   if (S.view !== 'chars') return;
   const t = e.target.closest('[data-take],[data-kick],[data-rm-slot],[data-add],[data-leave],[data-room-settings]');
@@ -1351,6 +1365,7 @@ main.addEventListener('click', async e => {
       S.actSlot = null; await loadSlots(); await loadMine(); loadMySlots();
       toast('Вы в игре!'); location.hash = roomPath(S.room);
     } else if (t.hasAttribute('data-leave')) {
+      if (!confirm(`Выйти из роли ${mySlot()?.char_name || ''}? Персонаж станет свободным, ваши посты останутся.`)) return;
       await rpc('leave_slot', { p_room: S.room.id }); await loadSlots(); await loadMine(); renderChars(); renderRight(); toast('Слот освобождён');
     } else if (t.dataset.kick) {
       if (!confirm('Освободить слот? Игрок потеряет персонажа.')) return;
