@@ -7305,10 +7305,9 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       <div class="home-col-header" id="homeSponsorHeader">
         <h3>Спонсоры</h3>
       </div>
-      <div class="home-streamers-panel home-streamers-panel-with-cta" id="homeSponsorPanel">
+      <div class="home-streamers-panel" id="homeSponsorPanel">
         <p class="home-empty">Загрузка...</p>
       </div>
-      <a class="home-sponsor-cta" id="homeSponsorCtaBtn" href="https://dalink.to/merockstar_" target="_blank" rel="noopener noreferrer">Стать спонсором</a>
     </div>
   </div>
   <div class="home-layout" id="homeLayout">
@@ -7361,10 +7360,9 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       <div class="home-col-header">
         <h3>Спонсоры</h3>
       </div>
-      <div class="home-streamers-panel home-streamers-panel-with-cta" id="homeMobileSponsorPanel">
+      <div class="home-streamers-panel" id="homeMobileSponsorPanel">
         <p class="home-empty">Загрузка...</p>
       </div>
-      <a class="home-sponsor-cta" href="https://dalink.to/merockstar_" target="_blank" rel="noopener noreferrer">Стать спонсором</a>
     </div>
 
   </div>
@@ -17961,7 +17959,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     const sponsorSectionEl = document.getElementById('homeSponsorSection');
     const sponsorPanelEl = document.getElementById('homeSponsorPanel');
     const sponsorCtaBtnEl = document.getElementById('homeSponsorCtaBtn');
-    if (!respectPanelEl || !sponsorSectionEl || !sponsorPanelEl || !sponsorCtaBtnEl) return;
+    if (!respectPanelEl || !sponsorSectionEl || !sponsorPanelEl) return;
     if (sponsorSectionEl.style.display === 'none') return;
     if (window.innerWidth <= 1200) { sponsorPanelEl.style.maxHeight = ''; return; }
     const minHeight = 320; // ~5 карточек
@@ -17969,7 +17967,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     const sponsorTop = sponsorPanelEl.getBoundingClientRect().top;
     // Кнопка идёт вплотную под панелью (без отступа) — вычитаем её текущую
     // высоту, чтобы выровнять именно НИЖНЮЮ ЛИНИЮ КНОПКИ, а не панели.
-    const btnHeight = sponsorCtaBtnEl.getBoundingClientRect().height;
+    const btnHeight = sponsorCtaBtnEl ? sponsorCtaBtnEl.getBoundingClientRect().height : 0;
     const targetHeight = Math.round(respectBottom - btnHeight - sponsorTop);
     sponsorPanelEl.style.maxHeight = Math.max(targetHeight, minHeight) + 'px';
   }
