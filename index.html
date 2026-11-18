@@ -4924,7 +4924,8 @@
   .coin-tx-note { opacity: .65; font-size: 12px; margin-top: 2px; }
   .coin-tx-amt { font-weight: 700; white-space: nowrap; }
   .coin-tx-amt.plus { color: #3ecf6e; } .coin-tx-amt.minus { color: #ff5a5a; }
-  .coin-packs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .coin-packs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .coin-off { margin-left: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; background: var(--panel-2); color: var(--muted); }
   .coin-pack { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font-family: inherit; font-size: 14px; cursor: pointer; }
   .coin-pack b { font-size: 20px; }
   .coin-pack span { opacity: .7; font-size: 13px; }
@@ -7636,9 +7637,8 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       <div class="coin-grant-row"><a class="coin-da-go" id="coinDaGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a><button type="button" class="secondary small" id="coinDaConnect" style="display:none;">Подключить DonationAlerts</button></div>
       <div class="hint" id="coinDaStatus"></div>
     </div>
-    <p class="profile-feed-title" id="coinPacksTitle" style="margin-top:14px;">Пополнить (криптой)</p>
+    <p class="profile-feed-title" id="coinPacksTitle" style="margin-top:14px;">Криптой <span class="coin-off" id="coinCryptoOff">временно не работает</span></p>
     <div class="coin-packs" id="coinPacks">
-      <button type="button" class="coin-pack" data-coin-pack="c100"><b>100</b> coin<span>1 $</span></button>
       <button type="button" class="coin-pack" data-coin-pack="c500"><b>500</b> coin<span>5 $</span></button>
       <button type="button" class="coin-pack" data-coin-pack="c1000"><b>1 000</b> coin<span>10 $</span></button>
       <button type="button" class="coin-pack" data-coin-pack="c2500"><b>2 500</b> coin<span>25 $</span></button>
@@ -11876,7 +11876,8 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
   const COIN_LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
   let coinBalanceCache = null;
   function coinsVisible() { return !!currentUser; }
-  function coinTopupAllowed() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); }
+  function coinTopupAllowed() { return !!currentUser; }                                       // пополнение (DonationAlerts) — всем
+  function coinCryptoAllowed() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); } // крипта — пока только владелец (ждём Trybit)
   function coinInHeader() { return false; } // включим после одобрения: return coinsVisible();
   function coinIcoHtml() { return `<img class="coin-ico" src="${COIN_LOGO}" alt="coin">`; }
   function fmtCoins(n) { return Number(n || 0).toLocaleString('ru-RU'); }
@@ -11903,6 +11904,9 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     document.getElementById('coinPacks').style.display = canTop ? '' : 'none';
     document.getElementById('coinTopupSoon').style.display = canTop ? 'none' : '';
     document.getElementById('coinDaBox').style.display = canTop ? '' : 'none';
+    const crypto = coinCryptoAllowed();
+    document.getElementById('coinCryptoOff').style.display = crypto ? 'none' : '';
+    document.querySelectorAll('[data-coin-pack]').forEach(b => { b.disabled = !crypto; });
     openOverlay('coinWalletOverlay');
     refreshCoinBalance();
     if (canTop) loadCoinDa();
@@ -11947,7 +11951,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     } catch (e) { st.textContent = 'Ошибка: ' + e.message; }
   });
   document.querySelectorAll('[data-coin-pack]').forEach(btn => btn.addEventListener('click', async () => {
-    if (!coinTopupAllowed()) return;
+    if (!coinCryptoAllowed()) return;
     const st = document.getElementById('coinPayStatus');
     const all = document.querySelectorAll('[data-coin-pack]');
     all.forEach(b => b.disabled = true); st.textContent = 'Создаю счёт…';
