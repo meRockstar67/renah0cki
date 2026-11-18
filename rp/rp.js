@@ -652,13 +652,13 @@ function gifPicker(onPick) {
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `<div class="modal gif-modal" role="dialog" aria-modal="true" aria-label="GIF"><div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="Закрыть">${I.close}</button><div class="head-title"><h1>GIF</h1></div></div>
-      <div class="tabs" role="tablist"><button type="button" class="active" data-gtab="search">Поиск</button><button type="button" data-gtab="mine">Мои</button></div></div>
+      <div class="tabs" role="tablist"><button type="button" data-gtab="mine">Мои</button><button type="button" data-gtab="search">Поиск</button></div></div>
     <div class="gif-top"><input type="search" class="gif-q" placeholder="Поиск GIPHY" aria-label="Поиск GIF" maxlength="50">
       <label class="btn ghost small gif-up">Свой .gif<input type="file" accept="image/gif" hidden></label></div>
     <div class="gif-grid"></div><div class="gif-more"></div>
     <div class="gif-attr">Powered by GIPHY</div></div>`;
   const grid = $('.gif-grid', ov), more = $('.gif-more', ov), q = $('.gif-q', ov), file = $('input[type=file]', ov), top = $('.gif-top', ov), attr = $('.gif-attr', ov);
-  let tab = 'search', next = 0, seq = 0, timer = null;
+  let tab = 'mine', next = 0, seq = 0, timer = null, opening = true;
   const close = () => { ov.remove(); document.body.style.overflow = ''; document.removeEventListener('keydown', onKey); };
   const onKey = e => { if (e.key === 'Escape') close(); };
   const pick = url => { close(); onPick(url); };
@@ -685,6 +685,8 @@ function gifPicker(onPick) {
     try {
       const rows = await api(`saved_gifs?select=url&order=created_at.desc&limit=300`);
       if (my !== seq) return;
+      if (!rows.length && opening) { opening = false; return setTab('search'); } // «Мои» пусто — сразу поиск
+      opening = false;
       grid.innerHTML = rows.length ? rows.map(x => cell(x.url, x.url, true)).join('')
         : '<div class="empty">Пока пусто. Откройте GIF в посте или сообщении и нажмите «Сохранить в мои GIF».</div>';
     } catch (e) { grid.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; }
@@ -696,13 +698,15 @@ function gifPicker(onPick) {
     const g = e.target.closest('[data-gif]'); if (g) return pick(g.dataset.gif);
     if (e.target.closest('[data-gif-more]')) return search(true);
     const tb = e.target.closest('[data-gtab]');
-    if (tb) {
-      tab = tb.dataset.gtab;
-      $$('[data-gtab]', ov).forEach(x => x.classList.toggle('active', x === tb));
-      q.classList.toggle('hidden', tab !== 'search'); attr.classList.toggle('hidden', tab !== 'search');
-      return tab === 'search' ? search(false) : mine();
-    }
+    if (tb) return setTab(tb.dataset.gtab);
   });
+  function setTab(t) {
+    tab = t;
+    $$('[data-gtab]', ov).forEach(x => x.classList.toggle('active', x.dataset.gtab === t));
+    q.classList.toggle('hidden', t !== 'search'); attr.classList.toggle('hidden', t !== 'search');
+    if (t === 'search') { setTimeout(() => q.focus(), 50); return search(false); }
+    return mine();
+  }
   q.oninput = () => { clearTimeout(timer); timer = setTimeout(() => search(false), 350); };
   file.onchange = async () => {
     const f = file.files[0]; file.value = '';
@@ -715,8 +719,7 @@ function gifPicker(onPick) {
   };
   document.addEventListener('keydown', onKey);
   document.body.append(ov); document.body.style.overflow = 'hidden';
-  search(false);
-  setTimeout(() => q.focus(), 50);
+  setTab('mine');
 }
 
 /* ── загрузка картинок ──────────────────────────────────── */
