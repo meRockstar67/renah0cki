@@ -1921,8 +1921,8 @@ function viewSettings() {
 const SHOP_DEV_IDS = ['23c6cb47-27b0-45ac-8fd9-c43b84d57aba'];
 const shopVisible = () => !!S.uid && SHOP_DEV_IDS.includes(S.uid);
 const SHOP_ROLES = [
-  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»'] },
-  { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Доступ к закрытым комнатам «VIP и выше»'] },
+  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Читать переписки обычных игроков'] },
+  { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Доступ к закрытым комнатам «VIP и выше»', 'Читать переписки ГОЕВ'] },
 ];
 function shopHtml() {
   const me = S.me || {};
