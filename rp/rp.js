@@ -1626,7 +1626,7 @@ async function viewUser(key) {
   main.innerHTML = head('Профиль', { back: true }) + loader();
   let u, reposts, roles, followers, following;
   try {
-    [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%_*]/g, ''))}`}&select=${U_SEL}`);
+    [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%*]/g, '').replace(/[\\_]/g, '\\$&'))}`}&select=${U_SEL}`);
     if (!u) return errorView('Профиль не найден');
     S.viewArg = u.user_id; updateNav();
     [reposts, roles, followers, following] = await Promise.all([
