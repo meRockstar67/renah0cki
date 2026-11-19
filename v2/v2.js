@@ -11,7 +11,12 @@ const COIN = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmt = n => { n = Number(n) || 0; return n >= 10000 ? (n / 1000).toFixed(n >= 100000 ? 0 : 1).replace('.0', '') + 'k' : n.toLocaleString('ru-RU'); };
+const fmt = n => {
+  n = Number(n) || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e8 ? 0 : 1).replace('.0', '') + 'm';   // 1.9m
+  if (n >= 1e4) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace('.0', '') + 'k';   // 19.5k, 125k
+  return n.toLocaleString('ru-RU');
+};
 const page = $('#page');
 let toastT;
 function toast(msg, err = false) { const t = $('#toast'); t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800); }
@@ -438,7 +443,7 @@ function ytDuration(iso) {
 async function viewSuggest() {
   setNav('suggest');
   page.innerHTML = `<div class="page-head"><h1>Предложка</h1>${S.uid ? `<button class="btn accent" data-sg-add><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Предложить видео</button>` : ''}</div>
-    <div class="grid" id="sgGrid">${'<div class="skel"></div>'.repeat(8)}</div>`;
+    <div class="grid sg-grid" id="sgGrid">${'<div class="skel"></div>'.repeat(8)}</div>`;
   let rows = [];
   try { rows = await api('suggestions?select=*&order=approved_at.desc.nullsfirst,created_at.desc&limit=100'); }
   catch (e) { $('#sgGrid').outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; return; }
@@ -449,7 +454,7 @@ async function viewSuggest() {
   } catch {}
   const g = $('#sgGrid'); if (!g) return;
   const mod = isMod();
-  g.outerHTML = rows.length ? `<div class="grid" id="sgGrid">${rows.map(r => {
+  g.outerHTML = rows.length ? `<div class="grid sg-grid" id="sgGrid">${rows.map(r => {
     const id = encodeURIComponent(r.video_id), y = yt[r.video_id], dur = ytDuration(y?.contentDetails?.duration);
     const pending = r.status !== 'approved', canDel = S.uid && (S.uid === r.user_id || mod);
     return `<article class="card sg-card">

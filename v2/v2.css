@@ -274,3 +274,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .prof-acts { width: 100%; }
   .prof-acts .btn:first-child { flex: 1; }
 }
+
+/* предложка: крупнее карточки, превью YouTube целиком (16:9) */
+.grid.sg-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+.sg-card .card-media { aspect-ratio: 16 / 9; }
+.sg-card .card-media img { object-fit: cover; }
+@media (max-width: 900px) { .grid.sg-grid { grid-template-columns: 1fr; } }
