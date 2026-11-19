@@ -4,7 +4,6 @@
 <script>/* короткие ссылки Y: /y/<код поста>, /y/r|c|u/... */(function(){var m=location.pathname.match(/^\/y\/(.+?)\/?$/);if(m){var r=m[1];location.replace('/rp/#/'+(r.indexOf('/')<0?'p/'+r:r));}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="trybit-verification" content="h63f3z3n1ft6yz3idwwauyoqnvl3au0d" />
 <meta name="theme-color" content="#17120d">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4924,16 +4923,14 @@
   .coin-tx-note { opacity: .65; font-size: 12px; margin-top: 2px; }
   .coin-tx-amt { font-weight: 700; white-space: nowrap; }
   .coin-tx-amt.plus { color: #3ecf6e; } .coin-tx-amt.minus { color: #ff5a5a; }
-  .coin-packs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
   .coin-off { margin-left: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; background: var(--panel-2); color: var(--muted); }
-  .coin-pack { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font-family: inherit; font-size: 14px; cursor: pointer; }
-  .coin-pack b { font-size: 20px; }
-  .coin-pack span { opacity: .7; font-size: 13px; }
-  .coin-pack:hover:not(:disabled) { border-color: var(--accent); }
-  .coin-pack:disabled { opacity: .5; cursor: wait; }
   .coin-da-code { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 12px; }
   .coin-da-code b { font-size: 20px; letter-spacing: 1px; font-family: ui-monospace, Consolas, monospace; }
   .coin-da-code button { margin-left: auto; }
+  .coin-rules-link { color: var(--accent); }
+  .coin-rules h3 { margin: 16px 0 6px; font-size: 15px; }
+  .coin-rules p, .coin-rules li { font-size: 14px; line-height: 1.5; }
+  .coin-rules ul { margin: 0; padding-left: 20px; }
   .coin-da-go { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 10px; background: var(--accent); color: #1b1209; font-weight: 700; text-decoration: none; flex: 1 1 auto; }
   .coin-react-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
   .coin-react-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; transition: transform .15s; }
@@ -7659,23 +7656,16 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
   <div class="modal">
     <button class="close-x" data-close="coinWalletOverlay">×</button>
     <h2>Кошелёк</h2>
-    <p class="hint">renah0cki coin — валюта сайта. За монеты можно будет покупать роли и другие плюшки.</p>
+    <p class="hint">renah0cki coin — внутренняя валюта сайта: подписки в Y, подарки авторам, переводы друзьям. <a href="#" class="coin-rules-link" data-coin-rules>Правила renah0cki coin</a></p>
     <div class="coin-wallet-balance"><img class="coin-ico" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt=""><span id="coinWalletBalance">…</span></div>
     <p class="hint" id="coinTopupSoon" style="margin-top:14px;">Пополнение скоро появится.</p>
     <div id="coinDaBox" style="display:none;">
       <p class="profile-feed-title" style="margin-top:14px;">Картой / СБП (DonationAlerts)</p>
-      <p class="hint">Поддержи renah0cki донатом и получи монеты: <b>1 ₽ = 1 coin</b>. На странице доната впиши свой код в <b>сообщение к донату</b> — по нему монеты придут тебе автоматически (обычно в течение минуты). Донат добровольный и не возвращается; если ошибся в коде — напиши в поддержку.</p>
+      <p class="hint">Поддержи renah0cki донатом и получи монеты: <b>1 ₽ = 1 coin</b>. На странице доната впиши свой код в <b>сообщение к донату</b> — по нему монеты придут тебе автоматически (обычно в течение минуты). Донат добровольный и не возвращается; если ошибся в коде — напиши в поддержку. <a href="#" class="coin-rules-link" data-coin-rules>Подробнее</a></p>
       <div class="coin-da-code"><span>Твой код:</span><b id="coinDaCode">…</b><button type="button" class="secondary small" id="coinDaCopy">Скопировать</button></div>
       <div class="coin-grant-row"><a class="coin-da-go" id="coinDaGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a><button type="button" class="secondary small" id="coinDaConnect" style="display:none;">Подключить DonationAlerts</button></div>
       <div class="hint" id="coinDaStatus"></div>
     </div>
-    <p class="profile-feed-title" id="coinPacksTitle" style="margin-top:14px;">Криптой <span class="coin-off" id="coinCryptoOff">временно не работает</span></p>
-    <div class="coin-packs" id="coinPacks">
-      <button type="button" class="coin-pack" data-coin-pack="c500"><b>500</b> coin<span>5 $</span></button>
-      <button type="button" class="coin-pack" data-coin-pack="c1000"><b>1 000</b> coin<span>10 $</span></button>
-      <button type="button" class="coin-pack" data-coin-pack="c2500"><b>2 500</b> coin<span>25 $</span></button>
-    </div>
-    <div class="hint" id="coinPayStatus"></div>
     <p class="profile-feed-title" style="margin-top:14px;">История</p>
     <div class="coin-tx-list" id="coinTxList"></div>
   </div>
@@ -7695,6 +7685,38 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     <textarea id="coinSendNote" rows="2" maxlength="200" placeholder="Сообщение (необязательно)"></textarea>
     <button type="button" class="coin-react-send" id="coinSendGo">Передать <img class="coin-ico" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt=""> <span id="coinSendGoAmt">50</span></button>
     <div class="hint" id="coinSendStatus" style="min-height:1.2em;"></div>
+  </div>
+</div>
+<div class="overlay" id="coinRulesOverlay">
+  <div class="modal coin-rules">
+    <button class="close-x" data-close="coinRulesOverlay">×</button>
+    <h2>Правила renah0cki coin</h2>
+    <h3>Что это</h3>
+    <p>renah0cki coin — внутренняя игровая валюта сайта renah0cki.xyz. Это не деньги, не электронные деньги и не криптовалюта. Монеты нельзя вывести, обменять обратно на деньги или продать вне сайта.</p>
+    <h3>Как получить</h3>
+    <ul>
+      <li><b>Добровольный донат</b> через DonationAlerts: 1 ₽ = 1 coin (другие валюты — по курсу). Чтобы монеты пришли, впиши свой код <b>RN-…</b> в сообщение к донату. Донат без кода — просто поддержка проекта, монеты не начисляются.</li>
+      <li>Переводы и подарки от других пользователей.</li>
+      <li>Награды от администрации.</li>
+    </ul>
+    <h3>Донат — это поддержка, а не покупка</h3>
+    <p>Донат делается добровольно, чтобы поддержать сайт. Монеты — благодарность за поддержку. Донаты <b>не возвращаются</b>. Если ошибся в коде или монеты не пришли в течение часа — напиши в поддержку, разберёмся.</p>
+    <h3>На что тратить</h3>
+    <ul>
+      <li>Подписки ГОЙ и VIP в Y (переписки).</li>
+      <li>Подарки авторам — реакция-монета под постом, монеты сразу получает автор.</li>
+      <li>Переводы другим пользователям.</li>
+    </ul>
+    <p>Потраченные, подаренные и переведённые монеты не возвращаются — проверяй сумму и получателя.</p>
+    <h3>Ограничения</h3>
+    <ul>
+      <li>Запрещено пользоваться ошибками сайта, накручивать монеты, продавать или покупать их за деньги вне сайта, выманивать монеты обманом.</li>
+      <li>За нарушения администрация может списать монеты, обнулить баланс или заблокировать аккаунт. Монеты, начисленные по ошибке, могут быть списаны.</li>
+      <li>При удалении аккаунта монеты сгорают.</li>
+    </ul>
+    <h3>Изменения</h3>
+    <p>Цены, курс и список того, на что тратятся монеты, могут меняться. Сайт делается одним человеком и может в любой момент изменить или закрыть систему монет. Деньги за монеты при этом не возвращаются.</p>
+    <p class="hint">Вопросы — в поддержку на сайте.</p>
   </div>
 </div>
 <div class="overlay" id="notifSettingsOverlay">
@@ -11930,7 +11952,6 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
   let coinBalanceCache = null;
   function coinsVisible() { return !!currentUser; }
   function coinTopupAllowed() { return !!currentUser; }                                       // пополнение (DonationAlerts) — всем
-  function coinCryptoAllowed() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); } // крипта — пока только владелец (ждём Trybit)
   function coinInHeader() { return coinsVisible(); } // значок с балансом в шапке — всем вошедшим
   function coinIcoHtml() { return `<img class="coin-ico" src="${COIN_LOGO}" alt="coin">`; }
   function fmtCoins(n) { return Number(n || 0).toLocaleString('ru-RU'); }
@@ -11955,13 +11976,8 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     const list = document.getElementById('coinTxList');
     list.innerHTML = '<p class="hint">Загрузка…</p>';
     const canTop = coinTopupAllowed();
-    document.getElementById('coinPacksTitle').style.display = canTop ? '' : 'none';
-    document.getElementById('coinPacks').style.display = canTop ? '' : 'none';
     document.getElementById('coinTopupSoon').style.display = canTop ? 'none' : '';
     document.getElementById('coinDaBox').style.display = canTop ? '' : 'none';
-    const crypto = coinCryptoAllowed();
-    document.getElementById('coinCryptoOff').style.display = crypto ? 'none' : '';
-    document.querySelectorAll('[data-coin-pack]').forEach(b => { b.disabled = !crypto; });
     openOverlay('coinWalletOverlay');
     refreshCoinBalance();
     if (canTop) loadCoinDa();
@@ -12005,35 +12021,11 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       location.href = j.url;
     } catch (e) { st.textContent = 'Ошибка: ' + e.message; }
   });
-  document.querySelectorAll('[data-coin-pack]').forEach(btn => btn.addEventListener('click', async () => {
-    if (!coinCryptoAllowed()) return;
-    const st = document.getElementById('coinPayStatus');
-    const all = document.querySelectorAll('[data-coin-pack]');
-    all.forEach(b => b.disabled = true); st.textContent = 'Создаю счёт…';
-    try {
-      const r = await fetch(`${B2_WORKER_URL}/pay/create`, { method: 'POST', headers: { Authorization: `Bearer ${currentUserToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ pack: btn.dataset.coinPack }) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.url) throw new Error(j.error || 'ошибка');
-      st.textContent = 'Открываю оплату…';
-      location.href = j.url;
-    } catch (e) { st.textContent = 'Ошибка: ' + e.message; all.forEach(b => b.disabled = false); }
-  }));
-  // возврат со страницы оплаты: /?pay=success|fail
-  (function () {
-    const m = location.search.match(/[?&]pay=(success|fail)\b/);
-    if (!m) return;
-    history.replaceState(null, '', location.pathname + location.hash);
-    const tryOpen = (n) => {
-      if (currentUser && coinTopupAllowed()) {
-        openCoinWallet();
-        document.getElementById('coinPayStatus').textContent = m[1] === 'success'
-          ? 'Оплата прошла — монеты появятся в течение пары минут (после подтверждения сети).'
-          : 'Оплата не прошла или отменена.';
-        if (m[1] === 'success') { [5000, 15000, 30000, 60000].forEach(t => setTimeout(() => { refreshCoinBalance(); }, t)); }
-      } else if (n > 0) setTimeout(() => tryOpen(n - 1), 500);
-    };
-    tryOpen(20);
-  })();
+  // правила renah0cki coin
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-coin-rules]')) return;
+    e.preventDefault(); openOverlay('coinRulesOverlay');
+  });
   // ───────────────────────────────────────────────────────────────────────
 
   // ── платные реакции renah0cki coin на посты (монеты уходят автору) ──
