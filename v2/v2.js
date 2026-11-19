@@ -67,6 +67,41 @@ async function api(path, { method = 'GET', body, prefer } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
+/* ── кэш: сначала показываем сохранённое, потом тихо обновляем ── */
+const CDN_URL = 'https://cdn.renah0cki.xyz';
+const MEM = new Map();
+const LSC = 'v2c:';
+function cacheGet(k) {
+  if (MEM.has(k)) return MEM.get(k);
+  try { const v = JSON.parse(localStorage.getItem(LSC + k) || 'null'); if (v) MEM.set(k, v); return v; } catch { return null; }
+}
+function cacheSet(k, v, persist = true) {
+  MEM.set(k, v);
+  if (!persist) return;
+  try { localStorage.setItem(LSC + k, JSON.stringify(v)); }
+  catch { try { Object.keys(localStorage).filter(x => x.startsWith(LSC)).forEach(x => localStorage.removeItem(x)); } catch {} }
+}
+// fetcher → данные; onData(данные, изКэша). Повторный показ только если данные изменились.
+async function swr(key, fetcher, onData, { persist = true } = {}) {
+  const hit = cacheGet(key);
+  if (hit) onData(hit, true);
+  let fresh;
+  try { fresh = await fetcher(); } catch (e) { if (!hit) throw e; return hit; }
+  const changed = !hit || JSON.stringify(hit) !== JSON.stringify(fresh);
+  cacheSet(key, fresh, persist);
+  if (changed) onData(fresh, false);
+  return fresh;
+}
+// превью картинок с нашего cdn (сервер делает лёгкий webp); для чужих ссылок — оригинал
+function thumbUrl(u, w) {
+  const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+)$/);
+  return m && /\.(jpe?g|png|webp|gif|avif|bmp)$/i.test(m[1]) ? `${CDN_URL}/thumb/${w}/${m[1]}` : u;
+}
+const imgTag = (u, w, extra = '') => {
+  const t = thumbUrl(u, w);
+  return `<img src="${esc(t)}"${t !== u ? ` data-full="${esc(u)}" onerror="this.onerror=null;this.src=this.dataset.full"` : ''} alt="" loading="lazy" decoding="async"${extra}>`;
+};
+
 /* ── состояние ── */
 const S = {
   uid: readSession()?.user?.id || null,
@@ -74,7 +109,24 @@ const S = {
   profiles: new Map(),           // кэш профилей авторов
   liked: new Set(),               // мои лайки (content)
   feed: { key: '', items: [], done: false, loading: false },
+  items: new Map(),               // посты, уже показанные в лентах (для мгновенного открытия)
 };
+// автор приходит вместе с постом (один запрос вместо двух)
+const AUTHOR = 'author:profiles!content_submitted_by_fkey(id,username,display_name,avatar_url)';
+const CARD_SEL = `id,short_code,title,description,source_url,cover_image_url,media_items,content_type,submitted_by,views,likes,comments_count,is_blurred,published_at,created_at,${AUTHOR}`;
+function absorb(rows) {
+  rows.forEach(r => {
+    if (r.author) { S.profiles.set(r.author.id, { ...(S.profiles.get(r.author.id) || {}), ...r.author }); }
+    S.items.set(r.id, r); if (r.short_code) S.items.set(r.short_code, r);
+  });
+  return rows;
+}
+// мои лайки — один раз на старте, дальше без запросов на каждую страницу
+let likesReady = null;
+function loadAllMyLikes() {
+  if (!S.uid) return Promise.resolve();
+  return likesReady ||= api(`content_likes?user_id=eq.${S.uid}&select=content_id&order=created_at.desc&limit=5000`).then(r => r.forEach(x => S.liked.add(x.content_id))).catch(() => {});
+}
 async function loadProfiles(ids) {
   const need = [...new Set(ids.filter(id => id && !S.profiles.has(id)))];
   for (let i = 0; i < need.length; i += 80) {
@@ -111,19 +163,20 @@ const isOwnFile = u => /^https:\/\/(cdn\.renah0cki\.xyz|[^/]*backblazeb2\.com)\/
 const isVideoFile = u => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u || '');
 function thumbHtml(it) {
   const src = it.source_url || '', cover = it.cover_image_url || '';
-  if (it.content_type === 'fanfic') return `<div class="card-fanfic">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35">` : ''}<p style="position:relative">${esc((it.description || '').slice(0, 220))}</p></div>`;
+  const W = FEED.type === 'art' ? 720 : 480;
+  if (it.content_type === 'fanfic') return `<div class="card-fanfic">${cover ? imgTag(cover, 480, ' style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35"') : ''}<p style="position:relative">${esc((it.description || '').slice(0, 220))}</p></div>`;
   if (it.content_type === 'video') {
-    if (cover) return `<img src="${esc(cover)}" alt="" loading="lazy">`;
-    const y = ytId(src); if (y) return `<img src="https://img.youtube.com/vi/${y}/hqdefault.jpg" alt="" loading="lazy">`;
-    if (isOwnFile(src)) return `<video src="${esc(src)}#t=0.5" preload="metadata" muted playsinline tabindex="-1"></video>`;
+    if (cover) return imgTag(cover, 480);
+    const y = ytId(src); if (y) return `<img src="https://img.youtube.com/vi/${y}/mqdefault.jpg" alt="" loading="lazy" decoding="async">`;
+    if (isOwnFile(src)) return `<video data-lazy="${esc(src)}#t=0.5" preload="none" muted playsinline tabindex="-1"></video>`;
     return '';
   }
   const first = src || (Array.isArray(it.media_items) && it.media_items[0]?.url) || cover;
-  return first ? `<img src="${esc(first)}" alt="" loading="lazy">` : '';
+  return first ? imgTag(first, W) : '';
 }
 const TYPE_BADGE = { video: [I.play, 'Видео'], fanfic: [I.text, 'Фанфик'], art: null };
 function cardHtml(it) {
-  const a = S.profiles.get(it.submitted_by);
+  const a = S.profiles.get(it.submitted_by) || it.author;
   const b = TYPE_BADGE[it.content_type];
   const liked = S.liked.has(it.id);
   return `<article class="card" data-open="${esc(it.short_code || it.id)}">
@@ -151,7 +204,7 @@ const FEED = { tab: 'all', type: 'all', sort: 'new', q: '' };
 const TYPE_NAMES = { all: 'Все', art: 'Арты', video: 'Видео', fanfic: 'Фанфики' };
 let subsIds = null;
 async function feedQuery(offset) {
-  let q = `content?status=eq.published&select=id,short_code,title,description,source_url,cover_image_url,media_items,content_type,submitted_by,views,likes,comments_count,is_blurred,published_at,created_at`;
+  let q = `content?status=eq.published&select=${CARD_SEL}`;
   if (FEED.type !== 'all') q += `&content_type=eq.${FEED.type}`;
   if (FEED.q) q += `&title=ilike.${encodeURIComponent('*' + FEED.q.replace(/[*,()]/g, ' ') + '*')}`;
   if (FEED.tab === 'subs') {
@@ -176,27 +229,72 @@ function viewFeed(type) {
     </div>
     <div class="grid${FEED.type === 'art' ? ' grid-art' : ''}" id="grid">${'<div class="skel"></div>'.repeat(8)}</div><div class="more" id="more"></div>`;
   S.feed = { key: JSON.stringify(FEED), items: [], done: false, loading: false };
-  loadMore(true);
+  loadFirst();
 }
-async function loadMore(first) {
-  const f = S.feed; if (f.loading || f.done) return;
+const feedEmpty = () => `<div class="empty" id="grid">${FEED.tab === 'subs' ? 'Тут появятся посты тех, на кого вы подписаны.' : FEED.q ? 'Ничего не найдено.' : 'Пока пусто.'}</div>`;
+function renderGrid(rows) {
+  const grid = $('#grid'); if (!grid) return;
+  if (!rows.length) { grid.outerHTML = feedEmpty(); return; }
+  if (grid.tagName !== 'DIV' || !grid.classList.contains('grid')) return;
+  grid.innerHTML = rows.map(cardHtml).join('');
+  wireLazy(grid);
+}
+// первая страница: мгновенно из кэша, затем свежая (поиск не кэшируем)
+async function loadFirst() {
+  const f = S.feed, key = f.key;
+  f.loading = true;
+  const ck = 'feed:' + key;
+  try {
+    await swr(ck, async () => { await loadAllMyLikes(); return absorb(await feedQuery(0)); }, (rows, cached) => {
+      if (key !== S.feed.key) return;
+      absorb(rows); f.items = rows.slice(); f.done = rows.length < PAGE;
+      renderGrid(rows);
+    }, { persist: !FEED.q && FEED.tab === 'all' });
+  } catch (e) { const g = $('#grid'); if (g) g.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; }
+  finally { if (key === S.feed.key) f.loading = false; }
+  if (key === S.feed.key && !FEED.q) idlePrefetch();
+}
+async function loadMore() {
+  const f = S.feed; if (f.loading || f.done || !f.items.length) return;
   f.loading = true; const key = f.key;
   try {
-    const rows = await feedQuery(f.items.length);
-    if (key !== S.feed.key) return;
-    await Promise.all([loadProfiles(rows.map(r => r.submitted_by)), loadMyLikes(rows.map(r => r.id))]);
+    const rows = absorb(await feedQuery(f.items.length));
     if (key !== S.feed.key) return;
     f.items.push(...rows); f.done = rows.length < PAGE;
     const grid = $('#grid'); if (!grid) return;
-    if (first) grid.innerHTML = '';
-    grid.insertAdjacentHTML('beforeend', rows.map(cardHtml).join(''));
-    if (!f.items.length) grid.outerHTML = `<div class="empty">${FEED.tab === 'subs' ? 'Тут появятся посты тех, на кого вы подписаны.' : FEED.q ? 'Ничего не найдено.' : 'Пока пусто.'}</div>`;
-  } catch (e) { const g = $('#grid'); if (g && first) g.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; }
+    const tmp = document.createElement('div'); tmp.innerHTML = rows.map(cardHtml).join('');
+    wireLazy(tmp); grid.append(...tmp.children);
+  } catch {}
   finally { if (key === S.feed.key) f.loading = false; }
+}
+// видео без обложки начинают грузиться только когда карточка рядом с экраном
+const lazyIO = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  const v = e.target; lazyIO.unobserve(v); v.preload = 'metadata'; v.src = v.dataset.lazy;
+}), { rootMargin: '300px' }) : null;
+function wireLazy(root) { $$('video[data-lazy]', root).forEach(v => { if (lazyIO) lazyIO.observe(v); else { v.preload = 'metadata'; v.src = v.dataset.lazy; } }); }
+// предзагрузка соседних разделов, пока пользователь смотрит текущий
+let prefetched = false;
+function idlePrefetch() {
+  if (prefetched) return; prefetched = true;
+  const idle = cb => setTimeout(cb, 600); // requestIdleCallback может не сработать в фоновой вкладке
+  idle(async () => {
+    for (const t of ['art', 'video', 'fanfic', 'all']) {
+      const k = 'feed:' + JSON.stringify({ tab: 'all', type: t, sort: 'new', q: '' });
+      if (MEM.has(k) && t !== 'all') continue;
+      try {
+        let q = `content?status=eq.published&select=${CARD_SEL}`;
+        if (t !== 'all') q += `&content_type=eq.${t}`;
+        q += `&order=published_at.desc.nullslast,created_at.desc&limit=${PAGE}&offset=0`;
+        if (!MEM.has(k)) cacheSet(k, absorb(await api(q)));
+      } catch {}
+    }
+    prefetchNewsSuggest();
+  });
 }
 addEventListener('scroll', () => {
   if (!$('#grid')) return;
-  if (innerHeight + scrollY > document.body.scrollHeight - 900) loadMore(false);
+  if (innerHeight + scrollY > document.body.scrollHeight - 1400) loadMore();
 }, { passive: true });
 
 page.addEventListener('click', e => {
@@ -223,15 +321,20 @@ $('#searchInput').addEventListener('input', e => {
 /* ── страница поста ── */
 async function viewPost(key) {
   setNav('');
-  page.innerHTML = `<div class="post"><div class="skel" style="aspect-ratio:16/9"></div></div>`;
-  let it;
-  try {
-    const f = /^[0-9a-f-]{36}$/i.test(key) ? `id=eq.${key}` : `short_code=eq.${encodeURIComponent(key)}`;
-    [it] = await api(`content?${f}&select=*`);
-  } catch (e) { page.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
-  if (!it) { page.innerHTML = '<div class="empty">Пост не найден</div>'; return; }
-  await Promise.all([loadProfiles([it.submitted_by]), loadMyLikes([it.id])]);
-  const a = S.profiles.get(it.submitted_by);
+  let it = S.items.get(key);
+  if (!it) {
+    page.innerHTML = `<div class="post"><div class="skel" style="aspect-ratio:16/9"></div></div>`;
+    try {
+      const f = /^[0-9a-f-]{36}$/i.test(key) ? `id=eq.${key}` : `short_code=eq.${encodeURIComponent(key)}`;
+      [it] = absorb(await api(`content?${f}&select=*,${AUTHOR}`));
+    } catch (e) { page.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
+    if (!it) { page.innerHTML = '<div class="empty">Пост не найден</div>'; return; }
+    await loadAllMyLikes();
+  } else {
+    // теги и прочие поля догружаем в фоне, показ — сразу
+    api(`content?id=eq.${it.id}&select=tags`).then(([r]) => { if (r?.tags?.length && !$('.post .tags') && $('.post h1')) { it.tags = r.tags; $('.post h1').insertAdjacentHTML('afterend', `<div class="tags">${r.tags.map(t => `<span class="tag">#${esc(t)}</span>`).join('')}</div>`); } }).catch(() => {});
+  }
+  const a = S.profiles.get(it.submitted_by) || it.author;
   const src = it.source_url || '';
   let media = '';
   if (it.content_type === 'video') {
@@ -239,7 +342,7 @@ async function viewPost(key) {
     media = y ? `<iframe src="https://www.youtube.com/embed/${y}" allowfullscreen loading="lazy"></iframe>` : isOwnFile(src) || isVideoFile(src) ? `<video src="${esc(src)}" controls playsinline preload="metadata"></video>` : `<a class="btn" href="${esc(src)}" target="_blank" rel="noopener">Открыть видео</a>`;
   } else if (it.content_type === 'art') {
     const imgs = Array.isArray(it.media_items) && it.media_items.length ? it.media_items.map(m => m.url).filter(Boolean) : [src];
-    media = imgs.map(u => `<img src="${esc(u)}" alt="">`).join('');
+    media = imgs.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener" title="Открыть оригинал">${imgTag(u, 1080).replace(' loading="lazy"', '')}</a>`).join('');
   }
   const liked = S.liked.has(it.id);
   page.innerHTML = `<div class="post">
@@ -363,13 +466,27 @@ function newsCardHtml(n) {
 async function viewNews() {
   setNav('news');
   page.innerHTML = `<div class="page-head"><h1>Новости</h1>${isMod() ? '<a class="btn" href="/?v2=news">Написать</a>' : ''}</div><div class="grid" id="newsGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
-  let rows = [];
-  try { rows = await api('news?select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)&order=pinned.desc,created_at.desc&limit=60'); }
-  catch (e) { $('#newsGrid').outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; return; }
-  rows.forEach(n => NEWS.cache.set(n.id, n));
-  await Promise.all([newsLoadChans(rows), newsLoadLiked(rows.map(r => r.id))]);
-  const g = $('#newsGrid'); if (!g) return;
-  g.outerHTML = rows.length ? `<div class="grid" id="newsGrid">${rows.map(newsCardHtml).join('')}</div>` : '<div class="empty">Пока новостей нет.</div>';
+  try {
+    await swr('news', fetchNews, data => {
+      applyNews(data);
+      const g = $('#newsGrid'); if (!g) return;
+      g.outerHTML = data.rows.length ? `<div class="grid" id="newsGrid">${data.rows.map(newsCardHtml).join('')}</div>` : '<div class="empty" id="newsGrid">Пока новостей нет.</div>';
+    });
+  } catch (e) { const g = $('#newsGrid'); if (g) g.outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; }
+}
+async function fetchNews() {
+  const rows = await api('news?select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)&order=pinned.desc,created_at.desc&limit=60');
+  const chIds = [...new Set(rows.map(x => x.channel_id).filter(Boolean))];
+  const [chans, liked] = await Promise.all([
+    chIds.length ? api(`news_channels?id=in.(${chIds.join(',')})&select=id,name,avatar_url`).catch(() => []) : [],
+    S.uid && rows.length ? api(`news_likes?user_id=eq.${S.uid}&news_id=in.(${rows.map(r => r.id).join(',')})&select=news_id`).catch(() => []) : [],
+  ]);
+  return { rows, chans, liked: liked.map(x => x.news_id) };
+}
+function applyNews(d) {
+  d.rows.forEach(n => NEWS.cache.set(n.id, n));
+  d.chans.forEach(c => NEWS.chans.set(c.id, c));
+  d.liked.forEach(id => NEWS.liked.add(id));
 }
 async function viewNewsArticle(key) {
   setNav('news');
@@ -444,18 +561,23 @@ async function viewSuggest() {
   setNav('suggest');
   page.innerHTML = `<div class="page-head"><h1>Предложка</h1>${S.uid ? `<button class="btn accent" data-sg-add><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Предложить видео</button>` : ''}</div>
     <div class="grid sg-grid" id="sgGrid">${'<div class="skel"></div>'.repeat(8)}</div>`;
-  let rows = [];
-  try { rows = await api('suggestions?select=*&order=approved_at.desc.nullsfirst,created_at.desc&limit=100'); }
-  catch (e) { $('#sgGrid').outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; return; }
+  try { await swr('suggest', fetchSuggest, renderSuggest); }
+  catch (e) { const g = $('#sgGrid'); if (g) g.outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; }
+}
+async function fetchSuggest() {
+  const rows = await api('suggestions?select=*&order=approved_at.desc.nullsfirst,created_at.desc&limit=100');
   const yt = {};
   try {
     const ids = [...new Set(rows.map(r => r.video_id))].slice(0, 50).join(',');
-    if (ids) (await (await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids}&key=${YT_KEY}`)).json()).items?.forEach(it => { yt[it.id] = it; });
+    if (ids) (await (await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails&id=${ids}&key=${YT_KEY}`)).json()).items?.forEach(it => { yt[it.id] = { v: it.statistics?.viewCount, d: it.contentDetails?.duration }; });
   } catch {}
+  return { rows, yt };
+}
+function renderSuggest({ rows, yt }) {
   const g = $('#sgGrid'); if (!g) return;
   const mod = isMod();
   g.outerHTML = rows.length ? `<div class="grid sg-grid" id="sgGrid">${rows.map(r => {
-    const id = encodeURIComponent(r.video_id), y = yt[r.video_id], dur = ytDuration(y?.contentDetails?.duration);
+    const id = encodeURIComponent(r.video_id), y = yt[r.video_id], dur = ytDuration(y?.d);
     const pending = r.status !== 'approved', canDel = S.uid && (S.uid === r.user_id || mod);
     return `<article class="card sg-card">
       <a class="card-media" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer"><img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" alt="" loading="lazy">
@@ -463,10 +585,15 @@ async function viewSuggest() {
       <div class="card-body">
         ${r.author_name ? `<div class="card-author"><span>${esc(r.author_name)}</span></div>` : ''}
         <h3 class="card-title"><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer">${esc(r.title || 'Видео')}</a></h3>
-        <div class="card-stats">${y?.statistics?.viewCount != null ? `<span title="Просмотры на YouTube">${I.views}${fmt(y.statistics.viewCount)}</span>` : ''}<time>${when(r.approved_at || r.created_at)}</time></div>
+        <div class="card-stats">${y?.v != null ? `<span title="Просмотры на YouTube">${I.views}${fmt(y.v)}</span>` : ''}<time>${when(r.approved_at || r.created_at)}</time></div>
         ${(pending && mod) || canDel ? `<div class="sg-acts">${pending && mod ? `<button class="btn accent" data-sg-ok="${r.id}">Одобрить</button>` : ''}${canDel ? `<button class="btn" data-sg-del="${r.id}">Удалить</button>` : ''}</div>` : ''}
       </div></article>`;
-  }).join('')}</div>` : '<div class="empty">Пока пусто — предложи первое видео.</div>';
+  }).join('')}</div>` : '<div class="empty" id="sgGrid">Пока пусто — предложи первое видео.</div>';
+}
+// фоновая подготовка новостей и предложки (вызывается после ленты)
+async function prefetchNewsSuggest() {
+  try { if (!MEM.has('news')) cacheSet('news', await fetchNews()); } catch {}
+  try { if (!MEM.has('suggest')) cacheSet('suggest', await fetchSuggest()); } catch {}
 }
 async function sgTitle(id) {
   try { const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + id)}&format=json`); if (r.ok) return (await r.json()).title; } catch {}
@@ -487,7 +614,7 @@ function sgAddDialog() {
     const mod = isMod();
     try {
       await api('suggestions', { method: 'POST', prefer: 'return=minimal', body: { user_id: S.uid, video_id: id, title: (await sgTitle(id)) || 'Видео', author_name: S.me?.display_name || S.me?.username || '', status: mod ? 'approved' : 'pending', approved_at: mod ? new Date().toISOString() : null } });
-      close(); toast(mod ? 'Видео добавлено' : 'Отправлено на проверку модераторам'); viewSuggest();
+      close(); toast(mod ? 'Видео добавлено' : 'Отправлено на проверку модераторам'); MEM.delete('suggest'); viewSuggest();
     } catch (er) { hint.textContent = 'Ошибка: ' + er.message; }
   };
   document.body.append(ov); setTimeout(() => $('input', ov).focus(), 30);
@@ -495,9 +622,9 @@ function sgAddDialog() {
 page.addEventListener('click', async e => {
   if (e.target.closest('[data-sg-add]')) return sgAddDialog();
   const ok = e.target.closest('[data-sg-ok]');
-  if (ok) { ok.disabled = true; try { await api(`suggestions?id=eq.${ok.dataset.sgOk}`, { method: 'PATCH', body: { status: 'approved', approved_at: new Date().toISOString() } }); viewSuggest(); } catch (er) { toast(er.message, true); ok.disabled = false; } return; }
+  if (ok) { ok.disabled = true; try { await api(`suggestions?id=eq.${ok.dataset.sgOk}`, { method: 'PATCH', body: { status: 'approved', approved_at: new Date().toISOString() } }); MEM.delete('suggest'); viewSuggest(); } catch (er) { toast(er.message, true); ok.disabled = false; } return; }
   const del = e.target.closest('[data-sg-del]');
-  if (del) { if (!confirm('Удалить видео из предложки?')) return; try { await api(`suggestions?id=eq.${del.dataset.sgDel}`, { method: 'DELETE' }); viewSuggest(); } catch (er) { toast(er.message, true); } }
+  if (del) { if (!confirm('Удалить видео из предложки?')) return; try { await api(`suggestions?id=eq.${del.dataset.sgDel}`, { method: 'DELETE' }); MEM.delete('suggest'); viewSuggest(); } catch (er) { toast(er.message, true); } }
 });
 
 /* ── профиль ── */
@@ -515,11 +642,11 @@ async function viewProfile(key) {
   S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p });
   const own = S.uid === p.id;
   const [works, subCount, followRows] = await Promise.all([
-    api(`content?submitted_by=eq.${p.id}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=id,short_code,title,description,source_url,cover_image_url,media_items,content_type,submitted_by,views,likes,comments_count,is_blurred,published_at,created_at`).catch(() => []),
+    api(`content?submitted_by=eq.${p.id}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=${CARD_SEL}`).then(absorb).catch(() => []),
     (async () => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/subscriptions?following_id=eq.${p.id}&select=id`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; })().catch(() => 0),
     S.uid && !own ? api(`subscriptions?follower_id=eq.${S.uid}&following_id=eq.${p.id}&select=id`).catch(() => []) : Promise.resolve([]),
   ]);
-  await loadMyLikes(works.map(w => w.id));
+  await loadAllMyLikes();
   let subscribed = !!followRows[0], subs = subCount;
   const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
   const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && ['Telegram', p.stream_social_url]].filter(Boolean);
@@ -543,6 +670,7 @@ async function viewProfile(key) {
     <div class="tabs prof-tabs"><button class="tab on">Работы</button></div>
     ${works.length ? `<div class="grid">${works.map(cardHtml).join('')}</div>` : `<div class="empty">${own ? 'У вас пока нет опубликованных работ.' : 'Пока нет опубликованных работ.'}</div>`}
   </div>`;
+  wireLazy(page);
   $('#profCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/@${encodeURIComponent(p.username || p.id)}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
   const sb = $('#subBtn');
   if (sb) sb.onclick = async () => {
@@ -654,6 +782,7 @@ function route() {
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
+loadAllMyLikes();
 loadMe().then(() => { if (/^#\/(suggest|news|u\/)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
 route();
 })();
