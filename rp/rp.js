@@ -25,6 +25,7 @@ const I = {
   like: '<svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-9-9.3C2 7.3 4.3 4.5 7.3 4.5c2 0 3.5 1.1 4.7 2.8 1.2-1.7 2.7-2.8 4.7-2.8 3 0 5.3 2.8 4.3 6.2-1.5 4.7-9 9.3-9 9.3z"/></svg>',
   share: '<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13"/></svg>',
   more: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg>',
+  mic: '<svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
   image: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8.5 8.5"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
   quote: '<svg viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16zM13.5 6.5l4 4"/></svg>',
@@ -177,7 +178,7 @@ function actingSlot() {
 }
 
 const SLOT_SEL = 'id,char_name,handle,avatar_url,character_id';
-const P_FIELDS = 'id,short_code,room_id,slot_id,body,images,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,created_at';
+const P_FIELDS = 'id,short_code,room_id,slot_id,body,images,voice_url,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,created_at';
 const AU_SEL = 'author:author_user(user_id,nick,y_name,avatar_url,y_avatar_url,username)';
 const P_SEL = `${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),${AU_SEL},parent:reply_to(id,slot:slots!slot_id(handle),author:author_user(username)),`
   + `quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL}),${AU_SEL}),`
@@ -354,6 +355,7 @@ function showNewPill() {
 }
 
 /* ── пост: разметка ─────────────────────────────────────── */
+const voiceHtml = u => u && /^https:\/\/cdn\.renah0cki\.xyz\/file\//.test(u) ? `<audio class="voice" src="${esc(u)}" controls preload="none" onclick="event.stopPropagation()"></audio>` : '';
 function mediaHtml(imgs) {
   if (!imgs?.length) return '';
   return `<div class="media n${imgs.length}">${imgs.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-zoom>`).join('')}</div>`;
@@ -384,7 +386,7 @@ function actionsHtml(p, big = false) {
 }
 function bodyHtml(p) {
   if (p.is_deleted) return '<div class="deleted">Этот пост удалён.</div>';
-  return `${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${mediaHtml(p.images)}${quoteHtml(p.quoted)}`;
+  return `${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${voiceHtml(p.voice_url)}${mediaHtml(p.images)}${quoteHtml(p.quoted)}`;
 }
 function canManage(p) {
   if (!S.uid) return false;
@@ -635,6 +637,39 @@ function lightbox(src) {
 /* ── GIF (ГОЙ и выше; пока только meRockstar) ──────────────── */
 const featDev = () => !!S.uid; // GIF и чтение чужих ЛС открыты всем (по роли)
 const gifOk = () => featDev() && rank() >= 1;
+// голосовые — ГОЙ и выше (проверка и в базе)
+const voiceOk = () => rank() >= 1 && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
+async function recordVoice(host, onSend) {
+  if ($('.vrec', host)) return;
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+  catch { return toast('Нет доступа к микрофону', true); }
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find(m => MediaRecorder.isTypeSupported?.(m)) || '';
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined), chunks = [];
+  const bar = document.createElement('div');
+  bar.className = 'vrec';
+  bar.innerHTML = `<span class="vrec-dot"></span><b class="vrec-t">0:00</b><span class="vrec-lbl">Идёт запись…</span><button type="button" class="btn ghost small" data-vx>Отмена</button><button type="button" class="btn blue small" data-vok>Отправить</button>`;
+  host.append(bar);
+  const t0 = Date.now(); let ok = false;
+  const stop = v => { ok = v; clearInterval(tick); if (rec.state !== 'inactive') rec.stop(); stream.getTracks().forEach(x => x.stop()); };
+  const tick = setInterval(() => { const sec = Math.floor((Date.now() - t0) / 1000); $('.vrec-t', bar).textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; if (sec >= 120) stop(true); }, 250);
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = async () => {
+    if (!ok || Date.now() - t0 < 400) { bar.remove(); return; }
+    $('.vrec-lbl', bar).textContent = 'Отправляем…'; $$('button', bar).forEach(b => { b.disabled = true; });
+    try {
+      const type = (rec.mimeType || 'audio/webm').split(';')[0], t = await getToken();
+      if (!t) throw new Error('Нужно войти');
+      const r = await fetch(`${CDN}/upload`, { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': type, 'X-File-Name': 'voice', 'X-User-Id': S.uid }, body: new Blob(chunks, { type }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.url) throw new Error(d.error || 'Ошибка загрузки');
+      await onSend(d.url);
+    } catch (e) { toast(errText(e), true); }
+    bar.remove();
+  };
+  bar.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('[data-vx]')) stop(false); if (e.target.closest('[data-vok]')) stop(true); });
+  rec.start();
+}
 const peekOk = () => featDev() && rank() >= 1;
 const isGiphy = u => /^https:\/\/media\.giphy\.com\/media\/[A-Za-z0-9]{4,40}\/giphy\.gif$/.test(u || '');
 const isGifUrl = u => isGiphy(u) || /^https:\/\/cdn\.renah0cki\.xyz\/file\/rp\/[0-9a-f-]{36}\/[A-Za-z0-9_.-]+\.gif$/i.test(u || '');
@@ -769,6 +804,7 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
       <div class="composer-tools">
         <label class="tool" title="Картинки" aria-label="Добавить картинки">${I.image}<input type="file" accept="image/*" multiple hidden></label>
         ${gifOk() ? '<button type="button" class="tool gif-tool" data-gif-open title="GIF" aria-label="Добавить GIF">GIF</button>' : ''}
+        ${voiceOk() ? `<button type="button" class="tool" data-voice title="Голосовое" aria-label="Записать голосовое">${I.mic}</button>` : ''}
         <span class="count"></span>
         <button class="btn blue small send" type="button" disabled>${replyTo ? 'Ответить' : 'Опубликовать'}</button>
       </div>
@@ -807,6 +843,22 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
   };
   ta.oninput = update;
   ta.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !send.disabled) send.click(); };
+  const vBtn = $('[data-voice]', box);
+  if (vBtn) vBtn.onclick = () => {
+    const slot = asUser ? null : (fixedSlot || actingSlot());
+    if (!asUser && !slot) return needSlot();
+    recordVoice($('.composer-body', box), async url => {
+      const body = { room_id: (replyTo || quoteOf)?.room_id || S.room.id, body: ta.value.trim(), images: imgs.filter(i => i.url).map(i => i.url), voice_url: url };
+      if (slot) body.slot_id = slot.id;
+      if (replyTo) body.reply_to = replyTo.id;
+      if (quoteOf) body.quote_of = quoteOf.id;
+      const [row] = await api('posts', { method: 'POST', body, prefer: 'return=representation' });
+      ta.value = ''; imgs.length = 0; drawThumbs();
+      await onPostInsert(row);
+      toast(replyTo ? 'Ответ отправлен' : 'Пост опубликован');
+      onDone?.(row);
+    });
+  };
   send.onclick = async () => {
     const slot = asUser ? null : (fixedSlot || actingSlot());
     if (!asUser && !slot) return needSlot();
@@ -2021,7 +2073,7 @@ async function viewDmHub() {
 // чужие переписки из всех комнат, которые видны по роли — без захода в комнату
 async function fillPeekAll(mySlotIds) {
   let rows;
-  try { rows = await api(`dms?select=room_id,from_slot,to_slot,body,images,created_at&order=created_at.desc&limit=2000`); }
+  try { rows = await api(`dms?select=room_id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.desc&limit=2000`); }
   catch (e) { const b = $('#peekAll'); if (b) b.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   const pairs = new Map();
   rows.forEach(m => {
@@ -2046,7 +2098,7 @@ async function fillPeekAll(mySlotIds) {
   const vis = items.filter(x => sm.has(x.a) && sm.has(x.b) && rm.has(x.room));
   box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + (vis.length ? vis.map(({ room, a, b, m, n }) => {
     const A = sm.get(a), B = sm.get(b), R = rm.get(room);
-    const txt = m.body || (m.images?.length ? 'Фото' : '');
+    const txt = m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
     return `<a class="dm-row" href="${roomPath(R, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
       <div class="dm-last"><span class="dm-none">${esc(R.title)} ·</span> ${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
   }).join('') : '<div class="empty"><p>Пока нет переписок, доступных вам по роли.</p></div>');
@@ -2061,7 +2113,7 @@ async function viewDmList(roomKey) {
   if (!S.uid) { main.innerHTML = h + `<div class="composer-hint"><span>Войдите, чтобы переписываться.</span><a class="btn small blue" href="/">Войти</a></div>`; return; }
   if (!me) { main.innerHTML = h + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в этой комнате, чтобы писать другим.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>` + (peekOk() ? '<div id="peekList"></div>' : ''); if (peekOk()) fillPeekList(null); return; }
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(from_slot.eq.${me.id},to_slot.eq.${me.id})&select=id,from_slot,to_slot,body,images,created_at&order=created_at.desc&limit=1000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(from_slot.eq.${me.id},to_slot.eq.${me.id})&select=id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.desc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dms') return;
   const last = new Map();
@@ -2072,7 +2124,7 @@ async function viewDmList(roomKey) {
   const items = [...withMsgs, ...rest];
   main.innerHTML = h + (items.length ? items.map(([pid, m]) => {
       const peer = S.slotMap.get(pid);
-      const txt = m ? (m.body || (m.images?.length ? 'Фото' : '')) : '';
+      const txt = m ? (m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '')) : '';
       return `<a class="dm-row" href="${roomPath(S.room, '/dm/' + pid)}">${avatar(peer)}<div class="dm-main"><div class="dm-top"><b>${esc(peer.char_name)}</b>${m ? `<span class="dot">·</span><time>${ago(m.created_at)}</time>` : ''}</div>
         <div class="dm-last">${m ? esc(txt) : '<span class="dm-none">Пусто</span>'}</div></div></a>`;
     }).join('')
@@ -2084,7 +2136,7 @@ async function viewDmList(roomKey) {
 async function fillPeekList(myId) {
   const box = $('#peekList'); if (!box) return;
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&select=from_slot,to_slot,body,images,created_at&order=created_at.desc&limit=2000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&select=from_slot,to_slot,body,images,voice_url,created_at&order=created_at.desc&limit=2000`); }
   catch { return; }
   const pairs = new Map();
   rows.forEach(m => {
@@ -2098,7 +2150,7 @@ async function fillPeekList(myId) {
   if (!items.length || !$('#peekList')) return;
   box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + items.map(({ a, b, m, n }) => {
     const A = S.slotMap.get(a), B = S.slotMap.get(b);
-    const txt = m.body || (m.images?.length ? 'Фото' : '');
+    const txt = m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
     return `<a class="dm-row" href="${roomPath(S.room, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
       <div class="dm-last">${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
   }).join('');
@@ -2120,7 +2172,7 @@ async function viewDmPeek(roomKey, aId, bId) {
     <div class="peek-note">Вы читаете чужую переписку — только просмотр. Справа сообщения ${esc(A.char_name)}.</div>
     <div class="chat" id="chat">${loader()}</div>`;
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${A.id},to_slot.eq.${B.id}),and(from_slot.eq.${B.id},to_slot.eq.${A.id}))&select=id,from_slot,to_slot,body,images,created_at&order=created_at.asc&limit=1000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${A.id},to_slot.eq.${B.id}),and(from_slot.eq.${B.id},to_slot.eq.${A.id}))&select=id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.asc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dmpeek') return;
   if (!rows.length) { $('#chat').innerHTML = '<div class="empty"><h2>Нет доступа или пусто</h2><p>Переписка видна только ролям выше обоих участников.</p></div>'; return; }
@@ -2159,11 +2211,12 @@ async function viewDmChat(roomKey, peerId) {
     <form class="chat-bar" id="chatBar" autocomplete="off">
       <label class="chat-tool" aria-label="Добавить фото">${I.image}<input type="file" accept="image/*" multiple hidden></label>
       ${gifOk() ? '<button type="button" class="chat-tool gif-tool" data-gif-open aria-label="Добавить GIF">GIF</button>' : ''}
+      ${voiceOk() ? `<button type="button" class="chat-tool" data-voice aria-label="Записать голосовое">${I.mic}</button>` : ''}
       <div class="chat-input"><div class="thumbs hidden"></div><textarea rows="1" maxlength="1000" placeholder="Сообщение" aria-label="Сообщение"></textarea></div>
       <button class="chat-send" type="submit" disabled aria-label="Отправить">${I.send}</button>
     </form>`;
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${me.id},to_slot.eq.${peer.id}),and(from_slot.eq.${peer.id},to_slot.eq.${me.id}))&select=id,from_slot,to_slot,body,images,created_at&order=created_at.asc&limit=1000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${me.id},to_slot.eq.${peer.id}),and(from_slot.eq.${peer.id},to_slot.eq.${me.id}))&select=id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.asc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dm') return;
   rows.forEach(m => { chat.msgs.push(m); chat.ids.add(m.id); });
@@ -2184,6 +2237,7 @@ function drawChat(jump = false) {
     const first = !prev || prev.from_slot !== m.from_slot || t - new Date(prev.created_at) > HOUR;
     html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}"><div class="bub${tail ? ' tail' : ''}" title="${esc(fullDate(m.created_at))}">`
       + (m.images?.length ? `<div class="bub-imgs n${m.images.length}">${m.images.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-zoom>`).join('')}</div>` : '')
+      + voiceHtml(m.voice_url)
       + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + '</div></div>';
     prev = m;
   });
@@ -2220,6 +2274,11 @@ function wireChatBar() {
   };
   ta.oninput = update;
   ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer: fine)').matches) { e.preventDefault(); if (!send.disabled) bar.requestSubmit(); } };
+  const vBtn = $('[data-voice]', bar);
+  if (vBtn) vBtn.onclick = () => recordVoice(bar, async url => {
+    const [row] = await api('dms', { method: 'POST', body: { room_id: S.room.id, from_slot: chat.me, to_slot: chat.peer, body: '', images: [], voice_url: url }, prefer: 'return=representation' });
+    addChatMsg(row);
+  });
   bar.onsubmit = async e => {
     e.preventDefault();
     if (send.disabled) return;

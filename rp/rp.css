@@ -699,3 +699,13 @@ html, body { overscroll-behavior-y: contain; }
 .peek-avs { display: inline-flex; flex: none; }
 .peek-avs > * + * { margin-left: -12px; }
 .peek-note { margin: 8px 16px 0; padding: 8px 12px; border-radius: 12px; font-size: 13px; color: var(--muted); background: var(--hover, rgba(127,127,127,.12)); text-align: center; }
+
+/* голосовые */
+audio.voice { display: block; width: 100%; max-width: 300px; height: 38px; margin: 6px 0 2px; }
+.bub audio.voice { max-width: 240px; margin: 2px 0; }
+.vrec { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; margin-top: 8px; border-radius: 14px; background: var(--placeholder, #222); border: 1px solid rgba(255,90,90,.45); }
+.chat-bar .vrec { position: absolute; left: 8px; right: 8px; bottom: calc(100% + 6px); width: auto; margin: 0; background: var(--bg, #000); }
+.vrec-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff5a5a; animation: vrecPulse 1s ease-in-out infinite; }
+@keyframes vrecPulse { 50% { opacity: .3; transform: scale(.8); } }
+.vrec-t { font-variant-numeric: tabular-nums; }
+.vrec-lbl { flex: 1; opacity: .7; font-size: 13px; }
