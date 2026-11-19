@@ -68,6 +68,71 @@ async function api(path, { method = 'GET', body, prefer } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
+/* ── база адресов: сейчас /v2/, после открытия для всех — / ── */
+const BASE = location.pathname.startsWith('/v2/') ? '/v2/' : '/';
+
+/* ── вход через Twitch: Supabase возвращает #access_token=… — завершаем вход здесь же ── */
+async function finishOAuth() {
+  const hp = new URLSearchParams(location.hash.slice(1));
+  const back = (() => { try { const b = localStorage.getItem('fh_after_login'); localStorage.removeItem('fh_after_login'); return b && /^\/(v2\/)?(#.*)?$/.test(b) ? b : BASE; } catch { return BASE; } })();
+  const show = t => { document.body.innerHTML = `<div style="min-height:100dvh;display:grid;place-items:center;font:600 16px system-ui;color:#8ea3c2;background:#0b1220">${t}</div>`; };
+  history.replaceState(null, '', location.pathname + location.search);
+  if (hp.get('error')) { show('Вход не удался: ' + esc(hp.get('error_description') || hp.get('error'))); setTimeout(() => location.replace(back), 2500); return; }
+  const token = hp.get('access_token'), refresh = hp.get('refresh_token');
+  show('Входим…');
+  try {
+    const h = { apikey: SB_KEY, Authorization: 'Bearer ' + token };
+    const u = await fetch(`${SB_URL}/auth/v1/user`, { headers: h }).then(r => { if (!r.ok) throw new Error('токен не принят'); return r.json(); });
+    // ник и аватар из Twitch — при каждом входе (как на старом сайте)
+    const meta = u.user_metadata || {};
+    const tName = meta.nickname || meta.preferred_username || meta.full_name || meta.name || null;
+    const tAva = meta.avatar_url || meta.picture || null;
+    const [ex] = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${u.id}&select=username,avatar_url`, { headers: h }).then(r => r.json()).catch(() => []);
+    const patch = {};
+    if (!ex || !ex.username) { patch.username = tName || 'twitch_user'; patch.avatar_url = tAva; }
+    else { if (tName) patch.username = tName; if (tAva) patch.avatar_url = tAva; }
+    if (Object.keys(patch).length) await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${u.id}`, { method: 'PATCH', headers: { ...h, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(patch) }).catch(() => {});
+    const [p] = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${u.id}&select=username,display_name,avatar_url,role,extra_roles,is_banned,name_color,bio`, { headers: h }).then(r => r.json()).catch(() => []);
+    localStorage.setItem(LS_SESSION, JSON.stringify({ user: { ...u, ...(p || {}), extra_roles: p?.extra_roles || [] }, token, refreshToken: refresh }));
+    // привязка Telegram, если человек пришёл по ссылке из бота
+    const tg = (() => { try { return localStorage.getItem('fh_tglink'); } catch { return null; } })();
+    if (tg) {
+      try { localStorage.removeItem('fh_tglink'); } catch {}
+      await fetch(`${SB_URL}/rest/v1/rpc/claim_tg_link`, { method: 'POST', headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_token: tg }) }).catch(() => {});
+    }
+    location.replace(back);
+  } catch (e) { show('Вход не удался: ' + esc(e.message) + '. Попробуйте ещё раз.'); setTimeout(() => location.replace(back), 3000); }
+}
+if (/[#&]access_token=|[#&]error=/.test(location.hash)) { finishOAuth(); return; }
+
+/* ── старые адреса сайта → разделы v2: /КОД, /@ник, /n/КОД, ?post=, ?collection=, ?news=, ?user=, ?rules, ?streak, /y/… ── */
+async function resolveLegacy() {
+  let path = location.pathname.slice(BASE.length).replace(/\/+$/, '');
+  const qs = new URLSearchParams(location.search);
+  if (!path && qs.get('redirect')) path = qs.get('redirect').replace(/^\/+|\/+$/g, '');
+  let hash = null;
+  const ym = path.match(/^y\/(.+)$/);
+  if (ym) { location.replace('/rp/#/' + (ym[1].includes('/') ? ym[1] : 'p/' + ym[1])); return false; }
+  if (path.startsWith('@')) hash = '#/u/' + encodeURIComponent(decodeURIComponent(path.slice(1)));
+  else if (/^n\/[A-Za-z0-9]{4,12}$/.test(path)) hash = '#/news/' + path.slice(2);
+  else if (/^[A-Za-z0-9]{4,12}$/.test(path) && path !== 'old') {
+    const sel = t => api(`${t}?short_code=eq.${path}&select=id,short_code`).catch(() => []);
+    const [[c], [k], [n]] = await Promise.all([sel('content'), sel('collections'), sel('news')]);
+    hash = c ? '#/p/' + path : k ? '#/c/' + path : n ? '#/news/' + n.id : '#/';
+  }
+  else if (qs.get('post')) hash = '#/p/' + qs.get('post');
+  else if (qs.get('collection')) hash = '#/c/' + qs.get('collection');
+  else if (qs.get('news')) hash = '#/news/' + qs.get('news');
+  else if (qs.get('user')) hash = '#/u/' + qs.get('user');
+  else if (qs.get('rules')) hash = '#/rules';
+  else if (qs.get('streak')) hash = '#/streak';
+  else if (qs.get('openModeration')) hash = '#/mod';
+  if (hash == null && !path && !['post', 'collection', 'news', 'user', 'redirect'].some(k => qs.has(k))) return true;
+  const keep = new URLSearchParams(); if (qs.get('tglink')) keep.set('tglink', qs.get('tglink'));
+  history.replaceState(null, '', BASE + (keep.toString() ? '?' + keep : '') + (hash || location.hash || '#/'));
+  return true;
+}
+
 /* ── кэш: сначала показываем сохранённое, потом тихо обновляем ── */
 const CDN_URL = 'https://cdn.renah0cki.xyz';
 const MEM = new Map();
@@ -869,7 +934,7 @@ async function viewNewsArticle(key) {
     } catch (er) { toast(er.message, true); }
     b.disabled = false;
   };
-  $('#newsCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/${n.short_code ? 'n/' + n.short_code : '?news=' + n.id}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
+  $('#newsCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/${n.short_code ? n.short_code : '?news=' + n.id}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
   const np = $('#newsPin');
   if (np) np.onclick = async () => { try { await api(`news?id=eq.${n.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { pinned: !n.pinned } }); n.pinned = !n.pinned; np.textContent = n.pinned ? 'Открепить' : 'Закрепить'; MEM.delete('news'); toast(n.pinned ? 'Закреплено' : 'Откреплено'); } catch (er) { toast(er.message, true); } };
   newsLoadComments(n);
@@ -1403,7 +1468,7 @@ async function logout() {
   const s = readSession();
   try { if (s?.token) await fetch(`${SB_URL}/auth/v1/logout`, { method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + s.token } }); } catch {}
   try { localStorage.removeItem(LS_SESSION); } catch {}
-  location.href = '/v2/';
+  location.href = BASE;
 }
 $('#loginBtn').onclick = login;
 $('#meLogout').onclick = logout;
@@ -2526,5 +2591,5 @@ function route() {
 addEventListener('hashchange', route);
 loadAllMyLikes();
 loadMe().then(() => { if (/^#\/(suggest|news|u\/|mod|collections|new\/collection)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
-route();
+resolveLegacy().then(ok => { if (ok) route(); });
 })();
