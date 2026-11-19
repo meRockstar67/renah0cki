@@ -1324,6 +1324,24 @@ const shade = document.createElement('div'); shade.className = 'side-shade';
 shade.addEventListener('click', () => document.querySelector('.app').classList.remove('menu-open'));
 document.querySelector('.app').append(shade);
 addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelector('.app').classList.remove('menu-open'); });
+// меню на телефоне можно смахнуть влево — оно едет за пальцем
+(() => {
+  const side = $('#side'), app = document.querySelector('.app');
+  let x0 = null, y0 = 0, dx = 0, drag = false;
+  side.addEventListener('touchstart', e => { if (!app.classList.contains('menu-open') || e.touches.length !== 1) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; drag = false; }, { passive: true });
+  side.addEventListener('touchmove', e => {
+    if (x0 == null) return;
+    const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+    if (!drag) { if (Math.abs(mx) < 8) return; if (Math.abs(my) > Math.abs(mx) || mx > 0) { x0 = null; return; } drag = true; side.classList.add('dragging'); }
+    dx = Math.min(0, mx); side.style.transform = `translateX(${dx}px)`;
+    shade.style.opacity = String(Math.max(0, 1 + dx / side.offsetWidth));
+  }, { passive: true });
+  side.addEventListener('touchend', () => {
+    if (x0 == null) return; x0 = null;
+    side.classList.remove('dragging'); side.style.transform = ''; shade.style.opacity = '';
+    if (drag && dx < -60) app.classList.remove('menu-open');
+  }, { passive: true });
+})();
 // свернуть боковую панель (на компьютере), запоминаем выбор
 $('#collapseBtn').onclick = () => { const a = document.querySelector('.app'); a.classList.toggle('collapsed'); const c = a.classList.contains('collapsed'); $('#collapseBtn').title = c ? 'Развернуть меню' : 'Свернуть меню'; try { localStorage.setItem('v2_side', c ? '1' : '0'); } catch {} };
 try { if (localStorage.getItem('v2_side') === '1') { document.querySelector('.app').classList.add('collapsed'); $('#collapseBtn').title = 'Развернуть меню'; } } catch {}

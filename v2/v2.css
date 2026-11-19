@@ -953,3 +953,25 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .collapse-btn { width: 32px; height: 32px; border: 0; background: none; color: var(--muted); }
 .collapse-btn:hover { color: var(--text); border: 0; }
 .app.collapsed .sb-row { flex-direction: column; }
+
+/* ── телефон: плавное боковое меню ── */
+.burger path { transition: transform .35s cubic-bezier(.22,1,.36,1), opacity .2s; transform-box: fill-box; transform-origin: center; }
+@media (max-width: 900px) {
+  .app.menu-open::after { display: none; }
+  .side { transform: translateX(-104%); box-shadow: none; transition: transform .42s cubic-bezier(.22,1,.36,1), box-shadow .42s; will-change: transform; }
+  .app.menu-open .side { transform: none; box-shadow: 0 0 60px rgba(0,0,0,.65); }
+  .side.dragging { transition: none; }
+  .side-shade { transition: opacity .35s ease; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+  /* пункты меню въезжают по очереди */
+  .app.menu-open .side .side-head, .app.menu-open .side .nav-item, .app.menu-open .side .spons { animation: sideIn .45s cubic-bezier(.22,1,.36,1) backwards; }
+  .app.menu-open .side .nav > :nth-child(1) { animation-delay: .04s; } .app.menu-open .side .nav > :nth-child(2) { animation-delay: .07s; }
+  .app.menu-open .side .nav > :nth-child(3) { animation-delay: .10s; } .app.menu-open .side .nav > :nth-child(4) { animation-delay: .13s; }
+  .app.menu-open .side .nav > :nth-child(5) { animation-delay: .16s; } .app.menu-open .side .nav > :nth-child(6) { animation-delay: .19s; }
+  .app.menu-open .side .nav > :nth-child(7) { animation-delay: .22s; } .app.menu-open .side .nav > :nth-child(8) { animation-delay: .25s; }
+  .app.menu-open .side .spons { animation-delay: .26s; } .app.menu-open .side .side-bottom .nav-item { animation-delay: .3s; }
+  /* три полоски превращаются в крестик */
+  .app.menu-open .burger .b1 { transform: translateY(5px) rotate(45deg); }
+  .app.menu-open .burger .b2 { opacity: 0; transform: scaleX(.2); }
+  .app.menu-open .burger .b3 { transform: translateY(-5px) rotate(-45deg); }
+}
+@keyframes sideIn { from { opacity: 0; transform: translateX(-18px); } }
