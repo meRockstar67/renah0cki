@@ -938,3 +938,11 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .ptr.ready { color: var(--accent); border-color: var(--accent); }
 .ptr.spin svg { animation: ptrSpin .6s linear infinite; }
 @keyframes ptrSpin { to { transform: rotate(360deg); } }
+
+/* ── телефон: кнопка отправки в поддержке, тап мимо меню ── */
+.sup-form .btn svg { width: 20px; height: 20px; display: block; flex: none; }
+.side-shade { display: none; }
+@media (max-width: 900px) {
+  .side-shade { display: block; position: fixed; inset: 0; z-index: 39; background: rgba(3,7,15,.55); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .app.menu-open .side-shade { opacity: 1; pointer-events: auto; }
+}

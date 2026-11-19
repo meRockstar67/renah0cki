@@ -1247,7 +1247,7 @@ async function viewSupport(threadArg) {
       <header class="sup-head"><div class="sup-ava"><img src="${COIN}" alt=""></div><div><b>Поддержка renah0cki</b><span>Модераторы ответят здесь. Обычно в течение дня.</span></div></header>
       <div class="sup-msgs" id="supMsgs"><div class="empty">Загрузка…</div></div>
       <div class="sup-attach" id="supAttach" hidden></div>
-      <form class="sup-form" id="supForm"><label class="btn sup-clip" title="Прикрепить фото" aria-label="Прикрепить фото"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><svg viewBox="0 0 24 24"><path d="M20 11.5 12.6 19a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3"/></svg></label><textarea rows="1" maxlength="2000" placeholder="Сообщение…" aria-label="Сообщение"></textarea><button class="btn accent" type="submit" aria-label="Отправить"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></form>
+      <form class="sup-form" id="supForm"><label class="btn sup-clip" title="Прикрепить фото" aria-label="Прикрепить фото"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><svg viewBox="0 0 24 24"><path d="M20 11.5 12.6 19a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3"/></svg></label><textarea rows="1" maxlength="2000" placeholder="Сообщение…" aria-label="Сообщение"></textarea><button class="btn accent" type="submit" aria-label="Отправить"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></form>
     </section></div>`;
   const form = $('#supForm'), ta = $('textarea', form), fileIn = $('.sup-clip input', form), att = $('#supAttach');
   SUP.file = null;
@@ -1270,7 +1270,8 @@ async function viewSupport(threadArg) {
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer: fine)').matches) { e.preventDefault(); form.requestSubmit(); } });
   form.onsubmit = async e => {
     e.preventDefault();
-    const text = ta.value.trim(); if ((!text && !SUP.file) || !SUP.thread) return;
+    const text = ta.value.trim(); if (!text && !SUP.file) return;
+    if (!SUP.thread) return toast(mod ? 'Сначала выберите обращение в списке' : 'Чат ещё загружается, попробуйте через секунду', true);
     const btn = $('button[type=submit]', form); btn.disabled = true;
     try {
       const msg = { thread_id: SUP.thread, sender_id: S.uid, body: text || '📷 Фото' };
@@ -1319,6 +1320,10 @@ page.addEventListener('click', e => {
 /* ── меню, профиль, монеты ── */
 function setNav(k) { $$('[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
 $('#menuBtn').onclick = () => document.querySelector('.app').classList.toggle('menu-open');
+const shade = document.createElement('div'); shade.className = 'side-shade';
+shade.addEventListener('click', () => document.querySelector('.app').classList.remove('menu-open'));
+document.querySelector('.app').append(shade);
+addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelector('.app').classList.remove('menu-open'); });
 // свернуть боковую панель (на компьютере), запоминаем выбор
 $('#collapseBtn').onclick = () => { const a = document.querySelector('.app'); a.classList.toggle('collapsed'); const c = a.classList.contains('collapsed'); $('#collapseBtn').title = c ? 'Развернуть меню' : 'Свернуть меню'; try { localStorage.setItem('v2_side', c ? '1' : '0'); } catch {} };
 try { if (localStorage.getItem('v2_side') === '1') { document.querySelector('.app').classList.add('collapsed'); $('#collapseBtn').title = 'Развернуть меню'; } } catch {}
