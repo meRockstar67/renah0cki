@@ -946,3 +946,10 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
   .side-shade { display: block; position: fixed; inset: 0; z-index: 39; background: rgba(3,7,15,.55); opacity: 0; pointer-events: none; transition: opacity .25s; }
   .app.menu-open .side-shade { opacity: 1; pointer-events: auto; }
 }
+/* стрелка сворачивания — справа от «Поддержки», без фона */
+.side-head { padding-bottom: 18px; }
+.sb-row { display: flex; align-items: center; gap: 4px; }
+.sb-row .nav-item { flex: 1; min-width: 0; }
+.collapse-btn { width: 32px; height: 32px; border: 0; background: none; color: var(--muted); }
+.collapse-btn:hover { color: var(--text); border: 0; }
+.app.collapsed .sb-row { flex-direction: column; }
