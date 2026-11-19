@@ -1173,8 +1173,19 @@ page.addEventListener('click', e => { const t = e.target.closest('[data-sup]'); 
 /* ── меню, профиль, монеты ── */
 function setNav(k) { $$('[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
 $('#menuBtn').onclick = () => document.querySelector('.app').classList.toggle('menu-open');
-$('#collapseBtn').onclick = () => { const a = document.querySelector('.app'); a.classList.toggle('collapsed'); try { localStorage.setItem('v2_side', a.classList.contains('collapsed') ? '1' : '0'); } catch {} };
-try { if (localStorage.getItem('v2_side') === '1') document.querySelector('.app').classList.add('collapsed'); } catch {}
+// спонсоры в левом меню: список (видно 5), листается, порядок случайный
+function loadSponsors() {
+  swr('sponsors', () => api(`profiles?or=(role.eq.sponsor,extra_roles.cs.{sponsor})&select=id,username,display_name,avatar_url`), rows => {
+    const box = $('#sponsList'); if (!box || !rows?.length) return;
+    const ids = rows.map(r => r.id).sort().join();
+    if (box.dataset.ids === ids) return;
+    box.dataset.ids = ids;
+    const list = [...rows].sort(() => Math.random() - .5);
+    box.innerHTML = list.map(p => `<a class="spons-item" href="${userPath(p)}" title="${esc(pname(p))}">${imgTag(avatarUrl(p), 360, ' width="28" height="28"')}<span>${esc(pname(p))}</span></a>`).join('');
+    $('#spons').hidden = false;
+  }).catch(() => {});
+}
+loadSponsors();
 $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
 async function loadMe() {
   if (!S.uid) return;
