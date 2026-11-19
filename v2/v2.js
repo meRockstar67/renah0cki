@@ -99,7 +99,7 @@ function thumbUrl(u, w) {
 }
 const imgTag = (u, w, extra = '') => {
   const t = thumbUrl(u, w);
-  return `<img src="${esc(t)}"${t !== u ? ` data-full="${esc(u)}" onerror="this.onerror=null;this.src=this.dataset.full"` : ''} alt="" loading="lazy" decoding="async"${extra}>`;
+  return `<img class="fade" onload="this.classList.add('ld')" src="${esc(t)}"${t !== u ? ` data-full="${esc(u)}" onerror="this.onerror=null;this.src=this.dataset.full"` : ''} alt="" loading="lazy" decoding="async"${extra}>`;
 };
 
 /* ── состояние ── */
@@ -231,12 +231,22 @@ function viewFeed(type) {
   S.feed = { key: JSON.stringify(FEED), items: [], done: false, loading: false };
   loadFirst();
 }
+function animateCards(root, from = 0) {
+  if (!root) return;
+  $$('.card', root).slice(from).forEach((c, i) => {
+    c.style.setProperty('--i', Math.min(i, 14));
+    c.classList.add('enter');
+    c.addEventListener('animationend', () => c.classList.remove('enter'), { once: true });
+  });
+}
 const feedEmpty = () => `<div class="empty" id="grid">${FEED.tab === 'subs' ? 'Тут появятся посты тех, на кого вы подписаны.' : FEED.q ? 'Ничего не найдено.' : 'Пока пусто.'}</div>`;
 function renderGrid(rows) {
   const grid = $('#grid'); if (!grid) return;
   if (!rows.length) { grid.outerHTML = feedEmpty(); return; }
   if (grid.tagName !== 'DIV' || !grid.classList.contains('grid')) return;
+  const first = !grid.querySelector('.card');
   grid.innerHTML = rows.map(cardHtml).join('');
+  if (first) animateCards(grid);
   wireLazy(grid);
 }
 // первая страница: мгновенно из кэша, затем свежая (поиск не кэшируем)
@@ -263,7 +273,7 @@ async function loadMore() {
     f.items.push(...rows); f.done = rows.length < PAGE;
     const grid = $('#grid'); if (!grid) return;
     const tmp = document.createElement('div'); tmp.innerHTML = rows.map(cardHtml).join('');
-    wireLazy(tmp); grid.append(...tmp.children);
+    wireLazy(tmp); const n0 = grid.children.length; grid.append(...tmp.children); animateCards(grid, n0);
   } catch {}
   finally { if (key === S.feed.key) f.loading = false; }
 }
@@ -364,6 +374,7 @@ async function viewPost(key) {
       it.likes = Math.max(0, (it.likes || 0) + (on ? 1 : -1));
       if (on) S.liked.add(it.id); else S.liked.delete(it.id);
       b.classList.toggle('liked', !!on); $('span', b).textContent = fmt(it.likes);
+      if (on) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
     } catch (er) { toast(er.message, true); }
     b.disabled = false;
   };
@@ -470,7 +481,9 @@ async function viewNews() {
     await swr('news', fetchNews, data => {
       applyNews(data);
       const g = $('#newsGrid'); if (!g) return;
+      const firstN = !g.querySelector('.card');
       g.outerHTML = data.rows.length ? `<div class="grid" id="newsGrid">${data.rows.map(newsCardHtml).join('')}</div>` : '<div class="empty" id="newsGrid">Пока новостей нет.</div>';
+      if (firstN) animateCards($('#newsGrid'));
     });
   } catch (e) { const g = $('#newsGrid'); if (g) g.outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; }
 }
@@ -575,6 +588,8 @@ async function fetchSuggest() {
 }
 function renderSuggest({ rows, yt }) {
   const g = $('#sgGrid'); if (!g) return;
+  const firstS = !g.querySelector('.card');
+  queueMicrotask(() => { if (firstS) animateCards($('#sgGrid')); });
   const mod = isMod();
   g.outerHTML = rows.length ? `<div class="grid sg-grid" id="sgGrid">${rows.map(r => {
     const id = encodeURIComponent(r.video_id), y = yt[r.video_id], dur = ytDuration(y?.d);
@@ -670,7 +685,7 @@ async function viewProfile(key) {
     <div class="tabs prof-tabs"><button class="tab on">Работы</button></div>
     ${works.length ? `<div class="grid">${works.map(cardHtml).join('')}</div>` : `<div class="empty">${own ? 'У вас пока нет опубликованных работ.' : 'Пока нет опубликованных работ.'}</div>`}
   </div>`;
-  wireLazy(page);
+  wireLazy(page); animateCards(page);
   $('#profCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/@${encodeURIComponent(p.username || p.id)}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
   const sb = $('#subBtn');
   if (sb) sb.onclick = async () => {
@@ -773,6 +788,7 @@ async function loadMe() {
 function route() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   scrollTo(0, 0);
+  page.classList.remove('pg-in'); void page.offsetWidth; page.classList.add('pg-in');
   if (parts[0] === 'p' && parts[1]) return viewPost(parts[1]);
   if (['art', 'video', 'fanfic'].includes(parts[0])) return viewFeed(parts[0]);
   if (parts[0] === 'news') return parts[1] ? viewNewsArticle(parts[1]) : viewNews();
