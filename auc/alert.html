@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Донаты coin — виджет</title>
+<!-- OBS: источник «Браузер», 800×300. Настройки — на renah0cki.xyz/donate/ (блок «Для стримера»). -->
+<style>
+  :root { --text: #eaf2ff; --muted: #b5c4dc; --accent: #6cc4ff; --ok: #5fd3a0; }
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  [hidden] { display: none !important; }
+  body { font: 700 22px/1.3 system-ui, "Segoe UI", Roboto, sans-serif; color: var(--text); display: grid; place-items: center; min-height: 100vh; }
+  .al { display: grid; justify-items: center; gap: 10px; text-align: center; max-width: 92vw; opacity: 0; transform: translateY(18px) scale(.96); transition: opacity .35s, transform .45s cubic-bezier(.2, .8, .2, 1.2); }
+  .al.show { opacity: 1; transform: none; }
+  .coin { width: 92px; height: 92px; filter: drop-shadow(0 6px 18px rgba(108, 196, 255, .45)); animation: bob 1.6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-6px) rotate(-4deg); } }
+  .head { font-size: 34px; font-weight: 900; text-shadow: 0 3px 10px rgba(0, 0, 0, .75); }
+  .head b { color: var(--accent); }
+  .lot { display: inline-block; font-size: 18px; padding: 4px 12px; border-radius: 999px; background: rgba(11, 18, 32, .78); color: var(--ok); }
+  .msg { font-size: 22px; font-weight: 600; color: #fff; max-width: 760px; padding: 10px 16px; border-radius: 14px; background: rgba(11, 18, 32, .72); overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<div class="al" id="al" aria-live="polite">
+  <img class="coin" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="">
+  <div class="head" id="h"></div>
+  <div class="lot" id="lot" hidden></div>
+  <div class="msg" id="m" hidden></div>
+</div>
+<script>
+(() => {
+  const QS = new URLSearchParams(location.search);
+  const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  const API = (LOCAL && QS.get('api')) || 'https://cdn.renah0cki.xyz';
+  const fmt = n => (+n || 0).toLocaleString('ru-RU');
+  let cfg = { duration: 8, min: 1, show_message: true, sound: true };
+  const queue = []; let busy = false; const seen = new Set();
+  let ac = null;
+  function chime() {   // короткий звон без файлов
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const t = ac.currentTime;
+      [880, 1318.5, 1760].forEach((f, i) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0, t + i * .09); g.gain.linearRampToValueAtTime(.22, t + i * .09 + .02); g.gain.exponentialRampToValueAtTime(.001, t + i * .09 + .6);
+        o.connect(g).connect(ac.destination); o.start(t + i * .09); o.stop(t + i * .09 + .65);
+      });
+    } catch {}
+  }
+  function next() {
+    if (busy || !queue.length) return;
+    busy = true;
+    const d = queue.shift();
+    document.getElementById('h').innerHTML = '';
+    const h = document.getElementById('h');
+    h.append(document.createTextNode((d.name || 'Аноним') + ' — '));
+    const b = document.createElement('b'); b.textContent = fmt(d.amount) + ' coin'; h.append(b);
+    const lot = document.getElementById('lot'); lot.hidden = !d.lot; lot.textContent = d.lot ? 'на лот ' + d.lot : '';
+    const m = document.getElementById('m'); m.hidden = !(cfg.show_message !== false && d.message); m.textContent = d.message || '';
+    if (cfg.sound !== false) chime();
+    const al = document.getElementById('al'); al.classList.add('show');
+    setTimeout(() => { al.classList.remove('show'); setTimeout(() => { busy = false; next(); }, 600); }, Math.max(3, +cfg.duration || 8) * 1000);
+  }
+  const es = new EventSource(API + '/auc/events');
+  es.onmessage = e => { try { const s = JSON.parse(e.data); if (s?.config?.alert) cfg = { ...cfg, ...s.config.alert }; } catch {} };
+  es.addEventListener('donation', e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (seen.has(d.id)) return; seen.add(d.id);
+      if (!d.test && +d.amount < (+cfg.min || 1)) return;
+      queue.push(d); next();
+    } catch {}
+  });
+})();
+</script>
+</body>
+</html>

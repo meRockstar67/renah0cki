@@ -29,6 +29,12 @@
   .pt small { color: var(--muted); font-weight: 700; font-size: 15px; margin-left: 6px; }
   .last { margin-top: 10px; font-size: 16px; color: var(--muted); min-height: 22px; }
   .last b { color: var(--text); }
+  .wheel { display: none; }
+  body.spin #l, body.spin .last { display: none; }
+  body.spin .wheel { display: grid; justify-items: center; gap: 10px; }
+  .wheel canvas { width: min(560px, 92vw); aspect-ratio: 1; }
+  .wres { font-size: 26px; font-weight: 900; text-align: center; min-height: 34px; }
+  .wres.win { color: var(--ok); }
 </style>
 </head>
 <body>
@@ -36,7 +42,9 @@
   <div class="head"><div class="title" id="t">Аукцион</div><div class="timer off" id="tm">—</div></div>
   <ol id="l"></ol>
   <div class="last" id="last"></div>
+  <div class="wheel"><canvas id="wc"></canvas><div class="wres" id="wr"></div></div>
 </div>
+<script src="wheel.js?v=20261120b"></script>
 <script>
 (() => {
   const QS = new URLSearchParams(location.search);
@@ -71,6 +79,20 @@
   const es = new EventSource(API + '/auc/events');
   es.onmessage = e => { try { D = JSON.parse(e.data); off = Date.parse(D.now) - Date.now(); draw(); tick(); } catch {} };
   setInterval(tick, 250);
+  // колесо: показывается, когда стример его крутит, и прячется через 12 с после остановки
+  let lastSpin = null, hideT = null, stopSpin = null;
+  es.addEventListener('spin', e => {
+    let ev; try { ev = JSON.parse(e.data); } catch { return; }
+    if (!window.AucWheel || lastSpin === ev.id) return; lastSpin = ev.id;
+    const W = window.AucWheel, segs = W.segs(ev.lots), cv = document.getElementById('wc'), res = document.getElementById('wr');
+    clearTimeout(hideT); stopSpin?.();
+    document.body.classList.add('spin'); res.className = 'wres';
+    stopSpin = W.spin(cv, segs, ev.from, ev.to, ev.ms, ev.startAt - off, s => { if (s) res.textContent = s.name; }, rot => {
+      const win = segs.find(s => s.id === ev.winner) || W.at(segs, rot);
+      W.draw(cv, segs, rot, win?.id); res.textContent = win ? 'Победитель: ' + win.name : ''; res.className = 'wres win';
+      hideT = setTimeout(() => document.body.classList.remove('spin'), 12000);
+    });
+  });
 })();
 </script>
 </body>
