@@ -190,9 +190,9 @@ function cardHtml(it) {
       <h3 class="card-title">${esc(it.title || 'Без названия')}</h3>
       ${it.description && it.content_type !== 'fanfic' ? `<p class="card-desc">${esc(it.description)}</p>` : ''}
       <div class="card-stats">
-        <span title="Просмотры">${I.views}${fmt(it.views)}</span>
+        ${it.content_type === 'fanfic' ? '' : `<span title="Просмотры">${I.views}${fmt(it.views)}</span>`}
         <span class="${liked ? 'liked' : ''}" title="Лайки">${I.heart}${fmt(it.likes)}</span>
-        <span title="Комментарии">${I.comment}${fmt(it.comments_count)}</span>
+        ${it.content_type === 'fanfic' ? '' : `<span title="Комментарии">${I.comment}${fmt(it.comments_count)}</span>`}
         <time>${when(it.published_at || it.created_at)}</time>
       </div>
     </div>
@@ -361,13 +361,13 @@ async function viewPost(key, root = page) {
   root.innerHTML = `<div class="post">
     ${inLb ? '' : `<button class="back" data-back>${I.back} Назад</button>`}
     ${media ? `<div class="post-media${it.is_blurred ? ' blur' : ''}" id="postMedia">${media}</div>` : ''}
-    <div class="post-head"><img class="av" src="${esc(avatarUrl(a))}" alt="" data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"><div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${esc(pname(a))}</b><div class="sub">${when(it.published_at || it.created_at)} · ${fmt(it.views)} просмотров</div></div>
+    <div class="post-head"><img class="av" src="${esc(avatarUrl(a))}" alt="" data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"><div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${esc(pname(a))}</b><div class="sub">${when(it.published_at || it.created_at)}${it.content_type === 'fanfic' ? '' : ` · ${fmt(it.views)} просмотров`}</div></div>
       <div class="post-actions"><div class="react-wrap" id="reactWrap"></div><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button></div></div>
     <h1>${esc(it.title || 'Без названия')}</h1>
     ${it.description && it.content_type !== 'fanfic' ? `<p class="post-desc">${esc(it.description)}</p>` : ''}
     ${it.content_type === 'fanfic' ? `<div class="post-text">${esc(it.description || '')}</div>` : ''}
     ${Array.isArray(it.tags) && it.tags.length ? `<div class="tags">${it.tags.map(t => `<span class="tag">#${esc(t)}</span>`).join('')}</div>` : ''}
-    <section class="comments" id="comments"><h3>Комментарии</h3><div class="empty" style="padding:20px">Загрузка…</div></section>
+    ${it.content_type === 'fanfic' ? (it.source_url ? `<a class="btn accent fic-read" href="${esc(it.source_url)}" target="_blank" rel="noopener noreferrer">Читать фанфик</a>` : '') : `<section class="comments" id="comments"><h3>Комментарии</h3><div class="empty" style="padding:20px">Загрузка…</div></section>`}
   </div>`;
   const pmEl = root.querySelector('#postMedia');
   if (pmEl) pmEl.addEventListener('click', ev => {
@@ -388,8 +388,7 @@ async function viewPost(key, root = page) {
     b.disabled = false;
   };
   $('#copyBtn').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/${it.short_code || '?post=' + it.id}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
-  rpc('increment_content_views', { content_id: it.id }).catch(() => {});
-  loadComments(it.id);
+  if (it.content_type !== 'fanfic') { rpc('increment_content_views', { content_id: it.id }).catch(() => {}); loadComments(it.id); }
   renderReact(it);
 }
 
@@ -1001,6 +1000,113 @@ async function viewNotifs() {
   setSeen(Date.now()); updateBell();
 }
 
+/* ── новая работа: арт / видео / фанфик → на проверку модераторам ── */
+const PRESET_TAGS = ['meowh0cki', 'renamid', 'gl1n', 'EgorTsai', 'MagicKat1', 'BaNaNcHiK1', 'Olezha27', 'gei_angel', 'meRockstar', 'unfeell'];
+const UP = { type: 'art', file: null, cover: null, tags: new Set() };
+function uploadFile(file, onPct) {
+  return new Promise((ok, bad) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', CDN_URL + '/upload');
+    x.timeout = 180000;
+    x.setRequestHeader('Content-Type', file.type);
+    x.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
+    x.setRequestHeader('X-User-Id', S.uid);
+    x.upload.onprogress = e => { if (e.lengthComputable) onPct(Math.round(e.loaded / e.total * 100)); };
+    x.onload = () => { try { const j = JSON.parse(x.responseText); x.status < 300 && j.url ? ok(j.url) : bad(new Error(j.error || 'Ошибка загрузки')); } catch { bad(new Error('Ошибка загрузки')); } };
+    x.onerror = () => bad(new Error('Нет соединения'));
+    x.ontimeout = () => bad(new Error('Слишком долго, попробуйте ещё раз'));
+    x.send(file);
+  });
+}
+function viewNew(type) {
+  setNav('');
+  if (!S.uid) { page.innerHTML = '<div class="empty">Войдите, чтобы добавлять работы.</div>'; return; }
+  UP.type = ['art', 'video', 'fanfic'].includes(type) ? type : 'art';
+  UP.file = null; UP.cover = null; UP.tags = new Set();
+  const T = UP.type;
+  const drop = (id, accept, text, sub) => `<label class="drop" id="${id}"><input type="file" accept="${accept}" hidden>
+      <div class="drop-empty"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg><b>${text}</b><span>${sub}</span></div>
+      <div class="drop-preview" hidden></div></label>`;
+  page.innerHTML = `<div class="up">
+    <div class="page-head"><h1>Новая работа</h1></div>
+    <div class="up-tabs">${[['art', 'Арт'], ['video', 'Видео'], ['fanfic', 'Фанфик']].map(([k, v]) => `<a class="up-tab${T === k ? ' on' : ''}" href="#/new/${k}">${v}</a>`).join('')}</div>
+    <form class="up-form" id="upForm" novalidate>
+      <label class="fld"><span>Название</span><input name="title" maxlength="120" placeholder="${T === 'fanfic' ? 'Название произведения' : T === 'video' ? 'Название видео' : 'Название арта'}" required></label>
+      ${T === 'art' ? drop('upDrop', 'image/png,image/jpeg,image/webp,image/gif', 'Перетащите картинку сюда', 'или нажмите, чтобы выбрать · PNG, JPG, WEBP, GIF') : ''}
+      ${T === 'video' ? `${drop('upDrop', 'video/mp4,video/webm,video/quicktime', 'Перетащите видео сюда', 'MP4, WEBM, MOV до 30 МБ')}<div class="or"><span>или ссылка</span></div><label class="fld"><input name="url" placeholder="https://youtube.com/... или https://bilibili.com/..."></label>` : ''}
+      ${T === 'fanfic' ? `<label class="fld"><span>Ссылка на оригинал</span><input name="url" placeholder="https://ficbook.net/... или https://archiveofourown.org/..."></label>
+        <div class="fld-row"><label class="fld"><span>Фэндом</span><input name="fandom" maxlength="80" placeholder="например, Гарри Поттер"></label><label class="fld"><span>Пейринг</span><input name="pairing" maxlength="80" placeholder="например, Гарри/Драко"></label></div>
+        <label class="fld"><span>Краткое описание</span><textarea name="desc" rows="3" maxlength="600" placeholder="1–2 предложения о том, что внутри"></textarea></label>
+        <label class="fld"><span>Обложка (необязательно)</span></label>${drop('upCover', 'image/png,image/jpeg,image/webp,image/gif', 'Обложка', 'необязательно')}` : ''}
+      <div class="fld"><span>Теги</span><div class="chips up-tags">${PRESET_TAGS.map(t => `<button type="button" class="chip" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>
+        <input class="tag-add" placeholder="${T === 'fanfic' ? 'Свои теги через запятую: ангст, AU, романтика' : 'Свой тег и Enter'}"></div>
+      ${T === 'art' ? `<label class="sw"><input type="checkbox" name="blur"><i></i><div><b>Спойлер / пазл</b><span>Картинка в ленте будет размытой</span></div></label>
+        <label class="fld puzzle" hidden><span>Сложность пазла</span><select name="puzzle"><option value="easy">Лёгкий</option><option value="x2">Сложный (×2)</option><option value="x3">Сложный (×3)</option><option value="x4">Очень сложный (×4)</option><option value="choice">На выбор зрителя</option></select></label>` : ''}
+      ${T === 'fanfic' ? `<label class="sw"><input type="checkbox" name="r18"><i></i><div><b>18+</b><span>Иначе рейтинг PG-13</span></div></label>` : ''}
+      <div class="up-foot"><div class="up-status" id="upStatus"></div><div class="up-bar" hidden><i id="upBar"></i></div><button class="btn accent up-send" type="submit">Отправить на проверку</button></div>
+    </form></div>`;
+  const form = $('#upForm');
+  const wireDrop = (id, key, kind) => {
+    const z = $('#' + id); if (!z) return;
+    const inp = $('input', z), prev = $('.drop-preview', z), empty = $('.drop-empty', z);
+    const take = f => {
+      if (!f) return;
+      if (kind === 'video' && f.size > 30 * 1024 * 1024) return toast('Видео больше 30 МБ', true);
+      if (kind === 'image' && !/^image\//.test(f.type)) return toast('Нужна картинка', true);
+      if (kind === 'video' && !/^video\//.test(f.type)) return toast('Нужно видео', true);
+      UP[key] = f;
+      const u = URL.createObjectURL(f);
+      prev.innerHTML = (kind === 'video' ? `<video src="${u}" muted playsinline controls></video>` : `<img src="${u}" alt="">`) + `<div class="drop-name">${esc(f.name)} · ${(f.size / 1048576).toFixed(1)} МБ<button type="button" class="drop-x" aria-label="Убрать">✕</button></div>`;
+      prev.hidden = false; empty.hidden = true; z.classList.add('has');
+      if (kind === 'video') { const ui = form.url; if (ui) ui.value = ''; }
+    };
+    inp.onchange = () => take(inp.files[0]);
+    z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('over'); });
+    z.addEventListener('dragleave', () => z.classList.remove('over'));
+    z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('over'); take(e.dataTransfer.files[0]); });
+    z.addEventListener('click', e => { if (e.target.closest('.drop-x')) { e.preventDefault(); UP[key] = null; inp.value = ''; prev.hidden = true; prev.innerHTML = ''; empty.hidden = false; z.classList.remove('has'); } });
+  };
+  wireDrop('upDrop', 'file', T === 'video' ? 'video' : 'image');
+  wireDrop('upCover', 'cover', 'image');
+  const tagsBox = $('.up-tags', form), tagAdd = $('.tag-add', form);
+  tagsBox.onclick = e => { const b = e.target.closest('[data-tag]'); if (!b) return; const t = b.dataset.tag; UP.tags.has(t) ? UP.tags.delete(t) : UP.tags.add(t); b.classList.toggle('on', UP.tags.has(t)); };
+  tagAdd.onkeydown = e => {
+    if (e.key !== 'Enter' || T === 'fanfic') return;
+    e.preventDefault();
+    const t = tagAdd.value.trim().replace(/^#/, '').slice(0, 40); if (!t) return;
+    if (!UP.tags.has(t)) { UP.tags.add(t); tagsBox.insertAdjacentHTML('beforeend', `<button type="button" class="chip on" data-tag="${esc(t)}">#${esc(t)}</button>`); }
+    tagAdd.value = '';
+  };
+  if (form.blur) form.blur.onchange = () => { $('.puzzle', form).hidden = !form.blur.checked; };
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const st = $('#upStatus'), bar = $('.up-bar', form), btn = $('.up-send', form);
+    const say = (t, err) => { st.textContent = t; st.classList.toggle('err', !!err); };
+    const title = form.title.value.trim();
+    if (!title) return say('Добавьте название', true);
+    const url = form.url?.value.trim() || '';
+    if (T === 'art' && !UP.file) return say('Выберите картинку', true);
+    if (T === 'video' && !UP.file && !url) return say('Загрузите видео или вставьте ссылку', true);
+    if (T === 'fanfic' && !/^https?:\/\//.test(url)) return say('Нужна ссылка на оригинал (https://…)', true);
+    btn.disabled = true; say('');
+    try {
+      let source_url = url, cover_image_url = null;
+      const prog = pct => { bar.hidden = false; $('#upBar').style.width = pct + '%'; say(`Загрузка файла: ${pct}%`); };
+      if (UP.file) source_url = await uploadFile(UP.file, prog);
+      if (UP.cover) cover_image_url = await uploadFile(UP.cover, prog);
+      say('Сохраняем…');
+      let tags = [...UP.tags];
+      if (T === 'fanfic') tags = [...tags, ...tagAdd.value.split(',').map(t => t.trim()).filter(Boolean)];
+      const body = { title, source_url, content_type: T, status: 'draft', submitted_by: S.uid, tags };
+      if (T === 'art') { body.is_blurred = !!form.blur.checked; body.puzzle_difficulty = body.is_blurred ? form.puzzle.value : 'easy'; }
+      if (T === 'fanfic') Object.assign(body, { fandom: form.fandom.value.trim() || null, pairing: form.pairing.value.trim() || null, description: form.desc.value.trim() || null, age_rating: form.r18.checked ? '18+' : 'pg13', cover_image_url });
+      await api('content', { method: 'POST', body, prefer: 'return=minimal' });
+      fetch(CDN_URL + '/notify-moderators', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await getToken()) }, body: JSON.stringify({ kind: T, title }) }).catch(() => {});
+      page.innerHTML = `<div class="up-done"><div class="up-done-ic"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h1>Отправлено на проверку!</h1><p>Модераторы посмотрят работу и опубликуют её. Если что-то будет не так — придёт уведомление с причиной.</p><div class="up-done-acts"><a class="btn accent" href="#/new/${T}">Добавить ещё</a><a class="btn" href="#/">В ленту</a></div></div>`;
+    } catch (er) { say('Ошибка: ' + er.message, true); btn.disabled = false; }
+  };
+}
+
 /* ── поддержка: чат с модераторами (те же таблицы, что у основного сайта) ── */
 const SUP = { thread: null, timer: null, owner: null };
 async function viewSupport(threadArg) {
@@ -1098,6 +1204,7 @@ function route() {
   if (parts[0] === 'u' && parts[1]) return viewProfile(parts[1]);
   if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'support') return viewSupport(parts[1]);
+  if (parts[0] === 'new') return viewNew(parts[1]);
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
