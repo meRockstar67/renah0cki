@@ -559,6 +559,14 @@ function lbEnsure() {
     const u = e.target.closest('[data-user]');
     if (u) { closeLightbox(true); location.hash = '#/u/' + encodeURIComponent(u.dataset.user); }
   });
+  // свайп влево/вправо на телефоне — соседняя работа
+  let sx = 0, sy = 0, st = 0;
+  el.addEventListener('touchstart', e => { if (e.touches.length !== 1) { st = 0; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (!st || Date.now() - st > 600 || e.target.closest('input, textarea, .react-pop, .pz-over, .coll-items, .vrec')) return;
+    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.8) lbStep(dx < 0 ? 1 : -1);
+  }, { passive: true });
   document.body.append(el);
   LB.el = el;
   return el;
