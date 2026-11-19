@@ -842,3 +842,31 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .gg-rate-row span { flex: 1; }
 @media (max-width: 560px) { .gg-opts { grid-template-columns: 1fr; } .gg-stage { height: 42vh; } }
 .app.guest .gg-btn { display: inline-grid; }
+
+/* ── отзывы ── */
+.revs { max-width: 760px; margin: 14px auto 0; }
+.rev-form { display: flex; gap: 10px; align-items: flex-end; padding: 14px; border-radius: 16px; background: var(--panel); border: 1px solid var(--border); margin-bottom: 14px; }
+.rev-form .av { width: 36px; height: 36px; }
+.rev-form textarea { flex: 1; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; resize: vertical; }
+.rev-form textarea:focus { outline: none; border-color: var(--accent); }
+.rev { display: flex; gap: 12px; padding: 14px 16px; margin-bottom: 10px; border-radius: 16px; background: var(--panel); border: 1px solid var(--border); }
+.rev > .av { width: 40px; height: 40px; }
+.rev-main { flex: 1; min-width: 0; }
+.rev-main .cmt-head b { cursor: pointer; }
+.rev-text { margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.rev-st { padding: 1px 8px; border-radius: 999px; background: var(--panel-3); color: var(--accent) !important; font-size: 11px !important; }
+.rev-acts { display: flex; gap: 14px; margin-top: 8px; }
+.rev-like, .rev-del { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rev-like svg { width: 17px; height: 17px; }
+.rev-like.liked { color: #ff6b8a; } .rev-like.liked svg { fill: currentColor; }
+.rev-del:hover { color: #ff8a8a; }
+.filter-wrap[hidden] { display: none; }
+/* ── стрик ── */
+.streak-chip { color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.streak-chip[hidden] { display: none; }
+.st-row { display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 10px; transition: background .2s; }
+.st-row:hover, .st-row.me { background: var(--panel-2); }
+.st-row i { font-style: normal; width: 26px; text-align: center; font-weight: 800; }
+.st-row .av, .st-row .av-ph { width: 34px; height: 34px; }
+.st-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 900px) { .streak-chip { padding: 0 8px; } }

@@ -221,7 +221,7 @@ function viewFeed(type) {
   FEED.type = type || 'all';
   setNav(type && type !== 'all' ? type : 'feed');
   page.innerHTML = `<div class="feed-bar">
-      <div class="tabs" role="tablist"><button class="tab${FEED.tab === 'all' ? ' on' : ''}" data-tab="all">Все</button><button class="tab${FEED.tab === 'subs' ? ' on' : ''}" data-tab="subs">Подписки</button></div>
+      <div class="tabs" role="tablist"><button class="tab${FEED.tab === 'all' ? ' on' : ''}" data-tab="all">Все</button><button class="tab${FEED.tab === 'reviews' ? ' on' : ''}" data-tab="reviews">Отзывы</button><button class="tab${FEED.tab === 'subs' ? ' on' : ''}" data-tab="subs">Подписки</button></div>
       <div class="filter-wrap"><button class="filter-btn" data-filter-toggle>${I.filter} Фильтрация</button>
         <div class="filter-pop" hidden>
           <h4>Тип</h4><div class="chips">${Object.entries(TYPE_NAMES).map(([k, v]) => `<button class="chip${FEED.type === k ? ' on' : ''}" data-ftype="${k}">${v}</button>`).join('')}</div>
@@ -231,6 +231,7 @@ function viewFeed(type) {
     </div>
     <div class="grid${FEED.type === 'art' ? ' grid-art' : FEED.type === 'video' || FEED.type === 'fanfic' ? ' grid-big' : ''}" id="grid">${'<div class="skel"></div>'.repeat(8)}</div><div class="more" id="more"></div>`;
   S.feed = { key: JSON.stringify(FEED), items: [], done: false, loading: false };
+  if (FEED.tab === 'reviews') { $('.filter-wrap', page).hidden = true; S.feed.done = true; return drawReviews(); }
   loadFirst();
 }
 function animateCards(root, from = 0) {
@@ -1333,6 +1334,7 @@ async function loadMe() {
     $('#navMod').hidden = !isMod();
     if (isMod()) modCount();
     postMenuLate();
+    updateStreak();
     setTimeout(() => { if (!NOTIF.loaded) loadNotifs(); }, 1200); // счётчик на колокольчике
   } catch {}
   try { const v = await rpc('coin_balance'); $('#coinVal').textContent = fmt(v || 0); } catch { $('#coinVal').textContent = '0'; }
@@ -1421,9 +1423,9 @@ const MOD = { tab: 'queue' };
 async function modCount() {
   const cnt = async q => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/${q}`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; };
   try {
-    const [a, b] = await Promise.all([cnt('content?select=id&status=eq.draft'), cnt('comment_reports?select=id&status=eq.pending')]);
-    MOD.n = { queue: a, reports: b };
-    const n = a + b, el = $('#modBadge');
+    const [a, b, c] = await Promise.all([cnt('content?select=id&status=eq.draft'), cnt('comment_reports?select=id&status=eq.pending'), cnt('reviews?select=id&status=eq.draft')]);
+    MOD.n = { queue: a + c, reports: b };
+    const n = a + b + c, el = $('#modBadge');
     if (el) { el.textContent = n > 99 ? '99+' : String(n); el.hidden = !n; }
     $$('[data-modtab]').forEach(t => { const k = t.dataset.modtab, v = MOD.n[k]; const s = $('i', t); if (s) s.textContent = v ? v : ''; });
   } catch {}
@@ -1554,8 +1556,11 @@ async function modQueue() {
   let rows;
   try { rows = absorb(await api(`content?status=eq.draft&select=*,${AUTHOR}&order=created_at.asc&limit=50`)); }
   catch (e) { const b = $('#modList'); if (b) b.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
+  const revs = await api('reviews?status=eq.draft&order=created_at.asc&select=*').catch(() => []);
+  await loadProfiles(revs.map(r => r.user_id));
   const box = $('#modList'); if (!box || MOD.tab !== 'queue') return;
   const TN = { art: 'Арт', video: 'Видео', fanfic: 'Фанфик' };
+  const revHtml = revs.map(r => { const p = S.profiles.get(r.user_id); return `<article class="mod-card" data-revid="${r.id}"><div class="mod-top">${avaHtml(p?.avatar_url || r.avatar_url, pname(p))}<div><b data-user="${esc(p?.username || r.user_id)}">${esc(p ? pname(p) : r.username)}</b><span>Отзыв о сайте · ${when(r.created_at)}</span></div></div><p class="mod-desc">${esc(r.text)}</p><div class="mod-acts"><button class="btn accent" data-revok="${r.id}">Опубликовать</button><button class="btn" data-revno="${r.id}">Отклонить</button></div></article>`; }).join('');
   box.innerHTML = rows.length ? rows.map(it => {
     const a = it.author;
     const meta = [it.fandom && `Фэндом: ${esc(it.fandom)}`, it.pairing && `Пейринг: ${esc(it.pairing)}`, it.age_rating === '18+' && '18+', it.is_blurred && 'Спойлер / пазл'].filter(Boolean);
@@ -1568,7 +1573,7 @@ async function modQueue() {
       ${modMedia(it)}
       <div class="mod-acts"><button class="btn accent" data-mok="${it.id}">Одобрить</button><button class="btn" data-mno="${it.id}">Отклонить</button></div>
     </article>`;
-  }).join('') : '<div class="empty">Очередь пуста — всё проверено.</div>';
+  }).join('') + revHtml : revHtml || '<div class="empty">Очередь пуста — всё проверено.</div>';
 }
 async function modReports() {
   let rows;
@@ -1621,6 +1626,17 @@ page.addEventListener('click', async e => {
       toast(ok ? 'Опубликовано' : 'Отклонено');
       modDone(card);
     } catch (er) { toast(er.message, true); $$('button', card).forEach(b => { b.disabled = false; }); }
+    return;
+  }
+  const rvo = e.target.closest('[data-revok]'), rvn = e.target.closest('[data-revno]');
+  if (rvo || rvn) {
+    const id = (rvo || rvn).dataset[rvo ? 'revok' : 'revno'], card = (rvo || rvn).closest('.mod-card');
+    let reason = null; if (rvn) { reason = await rejectDialog(); if (reason === undefined) return; }
+    try {
+      const r = await api(`reviews?id=eq.${id}`, { method: 'PATCH', prefer: 'return=representation', body: rvo ? { status: 'published', published_at: new Date().toISOString() } : { status: 'rejected', rejection_reason: reason } });
+      if (!r?.length) throw new Error('Нет прав');
+      toast(rvo ? 'Отзыв опубликован' : 'Отзыв отклонён'); modDone(card);
+    } catch (er) { toast(er.message, true); }
     return;
   }
   const rd = e.target.closest('[data-rdel]'), rn = e.target.closest('[data-rno]');
@@ -2171,6 +2187,89 @@ addEventListener('keydown', e => {
 }, true);
 $('#ggBtn').onclick = ggOpen;
 
+/* ── отзывы о сайте: вкладка в ленте, публикуются после модерации ── */
+const REV = { liked: new Set() };
+async function drawReviews() {
+  const g = $('#grid'); if (!g) return;
+  g.outerHTML = `<div class="revs" id="grid">
+    ${S.uid ? `<form class="rev-form" id="revForm"><img class="av" src="${esc(avatarUrl(S.me))}" alt=""><textarea maxlength="500" rows="2" placeholder="Что вы думаете о сайте? Отзыв появится после проверки модератором." required></textarea><button class="btn accent" type="submit">Отправить</button></form>`
+      : `<div class="cmt-login"><button type="button" class="btn accent" data-login>Войти</button><span>чтобы оставить отзыв</span></div>`}
+    <div id="revList">${'<div class="skel" style="aspect-ratio:auto;height:90px;margin-bottom:10px"></div>'.repeat(4)}</div></div>`;
+  const f = $('#revForm');
+  if (f) f.onsubmit = async e => {
+    e.preventDefault();
+    const ta = $('textarea', f), text = ta.value.trim(); if (!text) return;
+    const btn = $('button', f); btn.disabled = true;
+    try {
+      await api('reviews', { method: 'POST', prefer: 'return=minimal', body: { user_id: S.uid, username: pname(S.me), avatar_url: S.me?.avatar_url || null, text } });
+      ta.value = ''; toast('Спасибо! Отзыв появится после проверки.'); loadReviews();
+      fetch(CDN_URL + '/notify-moderators', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await getToken()) }, body: JSON.stringify({ kind: 'review', title: text.slice(0, 60) }) }).catch(() => {});
+    } catch (er) { toast(er.message, true); }
+    btn.disabled = false;
+  };
+  loadReviews();
+}
+async function loadReviews() {
+  const or = ['status.eq.published', ...(S.uid ? [`user_id.eq.${S.uid}`] : [])];
+  let rows = [];
+  try {
+    rows = await api(`reviews?select=*&or=(${or.join(',')})&order=published_at.desc.nullslast,created_at.desc&limit=60`);
+    if (S.uid && rows.length) (await api(`review_likes?review_id=in.(${rows.map(r => r.id).join(',')})&user_id=eq.${S.uid}&select=review_id`).catch(() => [])).forEach(x => REV.liked.add(x.review_id));
+  } catch (e) { const l = $('#revList'); if (l) l.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
+  await loadProfiles(rows.map(r => r.user_id));
+  const l = $('#revList'); if (!l) return;
+  const mod = isMod();
+  l.innerHTML = rows.length ? rows.map(r => {
+    const p = S.profiles.get(r.user_id), mine = r.user_id === S.uid, liked = REV.liked.has(r.id);
+    return `<article class="rev" data-rev="${r.id}">
+      <img class="av" src="${esc(p?.avatar_url || r.avatar_url || COIN)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'">
+      <div class="rev-main"><div class="cmt-head"><b data-user="${esc(p?.username || r.user_id)}"><span${nameAttr(p?.name_color)}>${esc(p ? pname(p) : r.username || 'без имени')}</span></b><span>${when(r.published_at || r.created_at)}</span>${r.status !== 'published' ? `<span class="rev-st">${r.status === 'rejected' ? 'отклонён' : 'на проверке'}</span>` : ''}</div>
+        <div class="rev-text">${esc(r.text)}</div>
+        <div class="rev-acts">${r.status === 'published' ? `<button type="button" class="rev-like${liked ? ' liked' : ''}" data-rlike="${r.id}">${I.heart}<span>${fmt(r.likes)}</span></button>` : ''}${mine || mod ? `<button type="button" class="rev-del" data-rdel2="${r.id}">Удалить</button>` : ''}</div></div>
+    </article>`;
+  }).join('') : '<div class="empty">Отзывов пока нет — оставьте первый!</div>';
+  animateCards(l);
+}
+page.addEventListener('click', async e => {
+  const lk = e.target.closest('[data-rlike]');
+  if (lk) {
+    if (!S.uid) return login();
+    const id = +lk.dataset.rlike, was = REV.liked.has(id), sp = $('span', lk); lk.disabled = true;
+    try {
+      if (was) { await api(`review_likes?review_id=eq.${id}&user_id=eq.${S.uid}`, { method: 'DELETE' }); await rpc('decrement_review_likes', { rid: id }).catch(() => {}); REV.liked.delete(id); }
+      else { await api('review_likes', { method: 'POST', prefer: 'return=minimal', body: { review_id: id, user_id: S.uid } }); await rpc('increment_review_likes', { rid: id }).catch(() => {}); REV.liked.add(id); }
+      lk.classList.toggle('liked', !was); sp.textContent = fmt(Math.max(0, (parseInt(sp.textContent.replace(/\D/g, ''), 10) || 0) + (was ? -1 : 1)));
+    } catch (er) { toast(er.message, true); }
+    lk.disabled = false; return;
+  }
+  const dl = e.target.closest('[data-rdel2]');
+  if (dl) { if (!confirm('Удалить отзыв?')) return; try { await api(`reviews?id=eq.${dl.dataset.rdel2}`, { method: 'DELETE' }); dl.closest('.rev').remove(); toast('Отзыв удалён'); } catch (er) { toast(er.message, true); } }
+});
+
+/* ── стрик: дни подряд на сайте (общий со старым сайтом) ── */
+async function updateStreak() {
+  if (!S.uid) return;
+  try {
+    const [p] = await api(`profiles?id=eq.${S.uid}&select=streak_count,last_visit_date`); if (!p) return;
+    const today = new Date().toISOString().slice(0, 10), yest = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    let n = p.streak_count || 0;
+    if (p.last_visit_date !== today) {
+      n = p.last_visit_date === yest ? n + 1 : (n || 1);
+      await api(`profiles?id=eq.${S.uid}`, { method: 'PATCH', prefer: 'return=minimal', body: { streak_count: n, last_visit_date: today } });
+    }
+    const c = $('#streakChip'); $('#streakVal').textContent = fmt(n); c.hidden = false;
+  } catch {}
+}
+$('#streakChip').onclick = () => { location.hash = '#/streak'; };
+async function viewStreak() {
+  setNav('');
+  page.innerHTML = `<div class="sets"><div class="page-head"><h1>🔥 Топ 10 по посещаемости</h1></div><section class="rules-card" id="stList">${'<div class="skel" style="aspect-ratio:auto;height:48px;margin-bottom:8px"></div>'.repeat(5)}</section>
+    <p class="rules-foot">Стрик — сколько дней подряд вы заходите на сайт. Пропуск не сбрасывает его, а замораживает.</p></div>`;
+  const rows = await api('profiles?select=id,username,display_name,avatar_url,name_color,streak_count&streak_count=gt.0&order=streak_count.desc.nullslast&limit=10').catch(() => []);
+  const box = $('#stList'); if (!box) return;
+  box.innerHTML = rows.length ? rows.map((p, i) => `<a class="st-row${p.id === S.uid ? ' me' : ''}" href="${userPath(p)}"><i>${['🥇', '🥈', '🥉'][i] || i + 1}</i>${avaHtml(p.avatar_url, pname(p))}<span${nameAttr(p.name_color)}>${esc(pname(p))}</span><b>🔥 ${fmt(p.streak_count)}</b></a>`).join('') : '<div class="empty">Пока пусто.</div>';
+}
+
 /* ── кошелёк renah0cki coin ── */
 const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const TX = {
@@ -2345,6 +2444,7 @@ function route() {
   if (parts[0] === 'rules') return viewRules();
   if (parts[0] === 'wallet') return viewWallet(parts[1]);
   if (parts[0] === 'settings') return viewSettings();
+  if (parts[0] === 'streak') return viewStreak();
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
