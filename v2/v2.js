@@ -449,7 +449,6 @@ function openViewer(list, i = 0) {
         <button data-vw="out" aria-label="Уменьшить"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5M8 11h6"/></svg></button>
         <button data-vw="reset" aria-label="Сбросить" class="vw-pct">100%</button>
         <button data-vw="in" aria-label="Увеличить"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5M8 11h6M11 8v6"/></svg></button>
-        <a data-vw="orig" target="_blank" rel="noopener" aria-label="Оригинал" title="Открыть оригинал"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
         <button data-vw="close" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div>
       <button class="vw-nav vw-prev" data-vw="prev" aria-label="Назад"><svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg></button>
       <button class="vw-nav vw-next" data-vw="next" aria-label="Вперёд"><svg viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></svg></button>`;
@@ -502,7 +501,6 @@ function vwGo(i) {
   img.src = t; img.onload = () => { img.classList.add('ld'); if (t !== u) { const full = new Image(); full.onload = () => { if (VW.list[VW.i] === u) img.src = u; }; full.src = u; } };
   img.onerror = () => { img.onerror = null; img.src = u; };
   $('.vw-count', VW.el).textContent = VW.list.length > 1 ? `${i + 1} / ${VW.list.length}` : '';
-  $('[data-vw="orig"]', VW.el).href = u;
   $('.vw-prev', VW.el).hidden = i <= 0; $('.vw-next', VW.el).hidden = i >= VW.list.length - 1;
 }
 function vwZoom(z, cx = null, cy = null, anim = true) {
