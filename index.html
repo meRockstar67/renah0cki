@@ -11947,8 +11947,8 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     } catch (e) { return null; }
   }
   const COIN_KIND_LABEL = { purchase: 'Пополнение', reward: 'Награда', spend: 'Покупка', admin: 'От администрации', refund: 'Возврат', transfer: 'Перевод', reaction: 'Реакция' };
-  // переводы и платные реакции — пока только владелец (meRockstar)
-  function coinSocialOk() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); }
+  // переводы и платные реакции — для всех вошедших
+  function coinSocialOk() { return !!currentUser; }
   async function openCoinWallet() {
     if (!coinsVisible()) return;
     document.getElementById('coinWalletBalance').textContent = coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache);
@@ -12169,7 +12169,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
           </span>
           <div class="header-user-dropdown" id="headerUserDropdown">
             <button type="button" id="headerGoProfileBtn">Профиль</button>
-            ${coinSocialOk() ? '<button type="button" id="headerV2Btn">Новый дизайн (бета)</button>' : ''}
+            ${(currentUser && COIN_DEV_IDS.includes(currentUser.id)) ? '<button type="button" id="headerV2Btn">Новый дизайн (бета)</button>' : ''}
             <button type="button" id="headerSettingsBtn">Настройки</button>
             <button type="button" id="headerSignOutBtn" class="danger">Выйти</button>
           </div>
