@@ -11,9 +11,9 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
 <link rel="preconnect" href="https://api.renah0cki.xyz" crossorigin>
 <link rel="preconnect" href="https://cdn.renah0cki.xyz" crossorigin>
-<link rel="stylesheet" href="/auc/auc.css?v=20261120c">
-<script src="/auc/wheel.js?v=20261120c" defer></script>
-<script src="/auc/auc.js?v=20261120c" defer></script>
+<link rel="stylesheet" href="/auc/auc.css?v=20261120d">
+<script src="/auc/wheel.js?v=20261120d" defer></script>
+<script src="/auc/auc.js?v=20261120d" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -87,6 +87,67 @@
         <label class="tg"><span>Без возврата</span><span class="tip" title="При завершении не возвращать баллы проигравшим">?</span><input type="checkbox" id="noRefTg"><i></i></label>
       </div>
     </div>
+  </aside>
+</main>
+
+<main class="wapp" id="wapp" hidden>
+  <aside class="wlist">
+    <div class="wl-head">
+      <span class="lbl">Лоты</span>
+      <button class="tgl" data-wl="num" title="Номера лотов" aria-label="Показывать номера">#</button>
+      <button class="tgl" data-wl="pct" title="Проценты" aria-label="Показывать проценты">%</button>
+      <button class="tgl" data-wl="sum" title="Суммы" aria-label="Показывать суммы">₽</button>
+      <span class="wl-n" id="wlN">0</span>
+    </div>
+    <div class="wl-items" id="wlItems"></div>
+    <div class="wl-out" id="wlOut" hidden></div>
+  </aside>
+
+  <section class="wcenter">
+    <div class="wtop" id="wTop" aria-live="polite">&nbsp;</div>
+    <div class="wbox" id="wBox">
+      <svg class="wptr" id="wPtr" viewBox="0 0 40 46" aria-hidden="true"><path d="M20 44 4 14A16 16 0 1 1 36 14z"/></svg>
+      <canvas id="wheelCv" aria-label="Колесо фортуны"></canvas>
+    </div>
+    <div class="wbar" data-adm hidden>
+      <button class="spin-btn" data-act="spin" id="spinBtn"><kbd>SPACE</kbd>Крутить!</button>
+      <div class="wdur"><span class="lbl">Длительность</span><input id="spinSec" type="number" inputmode="numeric" min="3" max="120" aria-label="Длительность прокрута, секунд"><span class="u">с.</span>
+        <button class="ib" data-act="dice" title="Случайная длительность" aria-label="Случайная длительность"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="15" r="1" fill="currentColor"/><circle cx="15" cy="9" r="1" fill="currentColor"/><circle cx="9" cy="15" r="1" fill="currentColor"/></svg></button></div>
+    </div>
+    <div class="wres" id="wRes"></div>
+  </section>
+
+  <aside class="wset" id="wSet" data-adm hidden>
+    <div class="ws-sec">
+      <span class="lbl">Режим</span>
+      <div class="wseg" id="wMode"><button data-wv="mode:normal">Обычный</button><button data-wv="mode:elim" title="Лот, на котором остановилось колесо, выбывает. Остаётся последний — он победил. Чем больше баллов, тем меньше сектор на выбывание.">Выбывание</button></div>
+      <p class="ws-hint">Настройки ниже можно менять прямо во время прокрута.</p>
+    </div>
+    <div class="ws-sec">
+      <span class="lbl">Палитра</span>
+      <div class="pals" id="wPals"></div>
+    </div>
+    <div class="ws-sec">
+      <span class="lbl">Подписи</span>
+      <div class="wseg" id="wLabels"><button data-wv="labels:radial">По радиусу</button><button data-wv="labels:horizontal">Горизонтально</button></div>
+      <label class="tg wide"><span>Скрыть сумму в секторах</span><input type="checkbox" data-wb="hide_sum"><i></i></label>
+      <label class="tg wide"><span>Текст лота целиком</span><input type="checkbox" data-wb="full_text"><i></i></label>
+    </div>
+    <div class="ws-sec">
+      <span class="lbl">Изображение</span>
+      <div class="ws-img"><img id="wImgPrev" alt="" width="44" height="44"><label class="btn sm"><input type="file" id="wImgFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>Сменить</label><button class="btn sm ghost" data-act="imgReset">Своё лого</button></div>
+      <label class="tg wide"><span>Ускорение в начале</span><input type="checkbox" data-wb="accel"><i></i></label>
+    </div>
+    <div class="ws-sec">
+      <span class="lbl">Звук прокрута</span>
+      <div class="row"><label class="sel grow"><select id="wSound" aria-label="Звук прокрута"><option value="none">Без звука</option><option value="ticks">Щелчки</option></select></label>
+        <button class="ib" data-act="soundTest" title="Послушать" aria-label="Послушать звук"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z"/></svg></button></div>
+      <input type="range" id="wVol" min="0" max="1" step="0.05" aria-label="Громкость">
+    </div>
+    <div class="ws-sec">
+      <label class="tg wide"><span>Крутить само, когда время вышло</span><input type="checkbox" id="autoSpin"><i></i></label>
+    </div>
+    <button class="ws-finish" data-act="finish"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="4" rx="1"/><path d="M5.5 9v10h13V9M10 13h4"/></svg>Завершить аукцион</button>
   </aside>
 </main>
 

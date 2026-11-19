@@ -124,9 +124,11 @@ function render() {
   document.body.classList.toggle('hide-sums', S.view.hide);
   document.body.classList.toggle('no-pct', !S.view.pct);
   document.body.classList.toggle('no-bars', !S.view.bars);
-  renderView(); renderRight(); tickClock();
-  if (S.isAdmin && WH.auto && S.prevStatus === 'running' && a.status === 'ended' && !WH.spinning) { S.tab = 'wheel'; renderView(); setTimeout(doSpin, 600); }
-  S.prevStatus = a.status;
+  const wheel = S.tab === 'wheel';
+  document.body.classList.toggle('tab-wheel', wheel); $('#wapp').hidden = !wheel;
+  renderView(); if (!wheel) renderRight(); tickClock();
+  if (S.isAdmin && WH.auto && S.prevStatus === 'running' && a.status === 'ended' && !WH.spinning) { setTab('wheel'); setTimeout(doSpin, 700); }
+  S.prevStatus = a.status; S.ready = true;
 }
 
 /* таймер в шапке */
@@ -158,7 +160,7 @@ setInterval(tickClock, 250);
 
 function renderView() {
   const v = $('#view'); const t = S.tab;
-  if (t === 'wheel') return renderWheel(v);
+  if (t === 'wheel') return renderWheelTab();
   if (t === 'lots') return renderLots(v);
   if (v.dataset.tab !== t) { v.dataset.tab = t; v.className = 'pane'; v.style.cssText = ''; v.innerHTML = ''; }
   if (t === 'bids') return v.innerHTML = bidsHtml();
@@ -167,38 +169,98 @@ function renderView() {
   if (t === 'settings') { if (!$('#setForm') || !v.contains(document.activeElement)) v.innerHTML = settingsHtml(); }
 }
 
+/* ── плавные списки: новые въезжают, ушедшие сворачиваются, остальные плавно переезжают (FLIP) ── */
+function leave(el) {
+  if (el.classList.contains('leaving')) return;
+  el.style.height = el.offsetHeight + 'px'; el.classList.add('leaving');
+  requestAnimationFrame(() => { el.style.height = '0px'; el.style.opacity = '0'; el.style.paddingTop = el.style.paddingBottom = '0px'; el.style.marginTop = '-4px'; });
+  setTimeout(() => el.remove(), 330);
+}
+function keyed(box, items, keyOf, build, update, emptyHtml) {
+  box.querySelectorAll(':scope > .empty').forEach(e => { if (items.length) e.remove(); });
+  const old = new Map([...box.children].filter(c => c.dataset.k && !c.classList.contains('leaving')).map(c => [c.dataset.k, c]));
+  if (!items.length) {
+    old.forEach(leave);
+    let e = box.querySelector(':scope > .empty');
+    if (!e) { box.insertAdjacentHTML('beforeend', emptyHtml); } else if (e.outerHTML !== emptyHtml) e.outerHTML = emptyHtml;
+    return;
+  }
+  const first = new Map(); old.forEach((el, k) => first.set(k, el.getBoundingClientRect().top));
+  const keep = new Set(); let prev = null;
+  for (const it of items) {
+    const k = String(keyOf(it)); keep.add(k);
+    let el = old.get(k);
+    if (!el) { el = build(it); el.dataset.k = k; if (S.ready) { el.classList.add('enter'); el.addEventListener('animationend', () => el.classList.remove('enter'), { once: true }); } }
+    update(el, it);
+    const want = prev ? prev.nextSibling : box.firstChild;
+    if (want !== el) box.insertBefore(el, want);
+    prev = el;
+  }
+  old.forEach((el, k) => { if (!keep.has(k)) leave(el); });
+  old.forEach((el, k) => {
+    if (!keep.has(k)) return;
+    const dy = first.get(k) - el.getBoundingClientRect().top; if (Math.abs(dy) < 1) return;
+    el.style.transition = 'none'; el.style.transform = `translateY(${dy}px)`;
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = 'transform .5s cubic-bezier(.2,.7,.2,1)'; el.style.transform = ''; }));
+  });
+}
+// число плавно «досчитывается» до нового значения
+function tween(el, to, f = fmt) {
+  to = Number(to) || 0;
+  const from = el._v ?? to; el._v = to;
+  cancelAnimationFrame(el._raf);
+  if (from === to || !S.ready) { el.textContent = f(to); return; }
+  const t0 = performance.now(), d = 650;
+  const step = now => { const p = Math.min(1, (now - t0) / d); el.textContent = f(from + (to - from) * (1 - Math.pow(1 - p, 3))); if (p < 1) el._raf = requestAnimationFrame(step); };
+  el._raf = requestAnimationFrame(step);
+  const row = el.closest('.lrow');
+  if (row && to > from) { row.classList.add('bump'); clearTimeout(row._bt); row._bt = setTimeout(() => row.classList.remove('bump'), 800); }
+}
+
 /* ── лоты (таблица) ── */
+const LOT_ACTS = id => `<button class="ib" data-act="lotPlus" data-id="${id}" title="Добавить баллы" aria-label="Добавить баллы">+</button><button class="ib" data-act="lotRename" data-id="${id}" title="Переименовать" aria-label="Переименовать"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button class="ib" data-act="lotDel" data-id="${id}" title="Удалить" aria-label="Удалить">✕</button>`;
 function renderLots(v) {
   if (v.dataset.tab !== 'lots') {
-    v.dataset.tab = 'lots'; v.className = 'lots-view'; v.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0';
+    v.dataset.tab = 'lots'; v.className = 'lots-view';
     v.innerHTML = `<div class="thead"><span class="c">N</span><span class="c hash">#</span><span>Название</span><input id="lotSearch" type="search" placeholder="Поиск…" aria-label="Поиск лота" value="${esc(S.search)}"><span class="r">Сумма</span></div>
       <div class="tbody" id="lotRows"></div>
-      <form class="addbar" data-form="lotAdd" ${S.isAdmin && A().auction.status !== 'closed' ? '' : 'hidden'}>
+      <form class="addbar" data-form="lotAdd">
         <input class="in" name="name" maxlength="80" placeholder="Название лота…" aria-label="Название лота" autocomplete="off">
         <input class="in sum-in" name="sum" type="number" step="any" min="0" inputmode="decimal" placeholder="Сумма" aria-label="Сумма">
         <select class="in" name="unit" aria-label="Единица"><option value="pts">б.</option><option value="RUB">₽</option></select>
         <button class="add-btn">+ Лот</button>
       </form>`;
-  } else v.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0';
+  }
   const f = $('.addbar', v); if (f) f.hidden = !(S.isAdmin && A().auction.status !== 'closed');
   const d = A(); const all = d.lots;
   const max = Math.max(1, ...all.map(l => +l.total)); const sum = all.reduce((s, l) => s + +l.total, 0) || 1;
   const q = S.search.trim().toLowerCase();
   const lots = q ? all.filter(l => l.name.toLowerCase().includes(q) || String(l.num) === q.replace('#', '')) : all;
   const win = d.auction.winner_lot;
-  const rowsHtml = lots.length ? lots.map(l => `
-    <div class="lrow ${win === l.id ? 'win' : ''}" data-lot="${l.id}">
-      <span class="bar" style="width:${(+l.total / max * 100).toFixed(1)}%"></span>
-      <span class="c n">${all.indexOf(l) + 1}</span><span class="c hash">${l.num}</span>
-      <span class="nm">${esc(l.name)}</span>
-      <span class="acts">${S.isAdmin ? `<button class="ib" data-act="lotPlus" data-id="${l.id}" title="Добавить баллы" aria-label="Добавить баллы">+</button><button class="ib" data-act="lotRename" data-id="${l.id}" title="Переименовать" aria-label="Переименовать"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button class="ib" data-act="lotDel" data-id="${l.id}" title="Удалить" aria-label="Удалить">✕</button>` : ''}</span>
-      <span class="r sum"><b>${fmt(l.total)}</b><small>${(+l.total / sum * 100).toFixed(1)}%</small></span>
-    </div>`).join('')
-    : `<div class="empty">${q ? 'Ничего не нашлось' : 'Лотов пока нет — добавьте первый'}</div>`;
-  const rows = $('#lotRows'); if (rows.dataset.h !== rowsHtml) { rows.innerHTML = rowsHtml; rows.dataset.h = rowsHtml; }
+  keyed($('#lotRows'), lots, l => l.id,
+    l => { const el = document.createElement('div'); el.className = 'lrow'; el.dataset.lot = l.id;
+      el.innerHTML = `<span class="bar"></span><span class="c n"></span><span class="c hash"></span><span class="nm"></span><span class="acts"></span><span class="r sum"><b></b><small></small></span>`; return el; },
+    (el, l) => {
+      el.classList.toggle('win', win === l.id);
+      $('.bar', el).style.width = (+l.total / max * 100).toFixed(1) + '%';
+      $('.n', el).textContent = all.indexOf(l) + 1; $('.hash', el).textContent = l.num; $('.nm', el).textContent = l.name;
+      if (el._adm !== S.isAdmin) { $('.acts', el).innerHTML = S.isAdmin ? LOT_ACTS(l.id) : ''; el._adm = S.isAdmin; }
+      tween($('.sum b', el), +l.total);
+      $('.sum small', el).textContent = (+l.total / sum * 100).toFixed(1) + '%';
+    },
+    `<div class="empty">${q ? 'Ничего не нашлось' : 'Лотов пока нет — добавьте первый'}</div>`);
 }
 
 /* ── правая колонка: донаты ── */
+function donHtml(b, opts) {
+  const msg = b.message || b.meta?.message || '';
+  const unit = b.orig_amount != null && !['manual', 'wallet'].includes(b.source) ? `${fmt(b.orig_amount)} ${esc(b.orig_unit || '')}` : '';
+  return `<span class="who">${esc(b.user_name)}</span><span class="amt">+${fmt(b.points)}${unit ? `<small>${unit}</small>` : ''}</span>
+    ${msg ? `<span class="msg">${esc(msg)}</span>` : ''}
+    <span class="meta"><span class="src ${b.source}">${SRC[b.source]}</span>${b.status !== 'queue' ? `<span class="st ${b.status}">${ST[b.status]}</span>${b.lot_id ? ' ' + esc(lotLabel(b.lot_id)) : ''}` : ''}<span>${time(b.created_at)}</span>${b.refund_to ? `<span>→ ${esc(b.refund_to)}</span>` : ''}</span>
+    ${S.isAdmin && b.status === 'queue' ? `<span class="acts"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}${msg ? `<option value="new">+ Новый лот «${esc(msg.slice(0, 30))}»</option>` : ''}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
+    ${S.isAdmin && b.status === 'failed' ? `<span class="acts"><button class="btn sm" data-act="retry">Повторить</button><button class="btn sm ghost" data-act="markDone" data-id="${b.id}">Уже вернул</button></span>` : ''}`;
+}
 function renderRight() {
   document.querySelectorAll('.seg2 button').forEach(b => b.classList.toggle('on', b.dataset.q === S.q));
   const d = A();
@@ -207,85 +269,175 @@ function renderRight() {
   $('#qN').textContent = pending.length || '';
   let list = S.q === 'wait' ? pending : bids.filter(b => b.status !== 'queue');
   list = list.filter(b => PTS.has(b.source) ? S.flt.pts : S.flt.don);
-  list = list.slice().sort((x, y) => S.qSort === 'old' ? x.id - y.id : y.id - x.id);
-  const el = $('#dlist'); let html;
-  if (!list.length) {
-    const a = d.auction;
-    html = S.q === 'wait' && S.isAdmin && !accepting() && ['idle'].includes(a.status)
-      ? `<div class="empty"><b>Донатов пока нет</b><p>Включите приём — донаты и баллы будут приходить до старта таймера.</p><button class="btn outline" data-act="acceptOn">Начать принимать донаты</button></div>`
-      : `<div class="empty"><b>${S.q === 'wait' ? 'Ожидающих нет' : 'Пока пусто'}</b>${S.q === 'wait' ? '<p>Сюда попадают донаты без понятного лота. Перетащите донат на лот или выберите лот из списка.</p>' : ''}</div>`;
-  } else {
-    const fresh = Date.now() + S.off - 15000;
-    const opts = d.lots.slice().sort((a, b) => a.num - b.num).map(l => `<option value="${l.id}">#${l.num} ${esc(l.name)}</option>`).join('');
-    html = list.map(b => {
-      const msg = b.message || b.meta?.message || '';
-      const unit = b.orig_amount != null && !['manual', 'wallet'].includes(b.source) ? `${fmt(b.orig_amount)} ${esc(b.orig_unit || '')}` : '';
-      return `<div class="don ${Date.parse(b.created_at) > fresh ? 'fresh' : ''}" ${S.isAdmin && b.status === 'queue' ? `draggable="true" data-bid="${b.id}"` : ''}>
-        <span class="who">${esc(b.user_name)}</span><span class="amt">+${fmt(b.points)}${unit ? `<small>${unit}</small>` : ''}</span>
-        ${msg ? `<span class="msg">${esc(msg)}</span>` : ''}
-        <span class="meta"><span class="src ${b.source}">${SRC[b.source]}</span>${b.status !== 'queue' ? `<span class="st ${b.status}">${ST[b.status]}</span>${b.lot_id ? ' ' + esc(lotLabel(b.lot_id)) : ''}` : ''}<span>${time(b.created_at)}</span>${b.refund_to ? `<span>→ ${esc(b.refund_to)}</span>` : ''}</span>
-        ${S.isAdmin && b.status === 'queue' ? `<span class="acts"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}${msg ? `<option value="new">+ Новый лот «${esc(msg.slice(0, 30))}»</option>` : ''}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
-        ${S.isAdmin && b.status === 'failed' ? `<span class="acts"><button class="btn sm" data-act="retry">Повторить</button><button class="btn sm ghost" data-act="markDone" data-id="${b.id}">Уже вернул</button></span>` : ''}
-      </div>`;
-    }).join('');
-  }
-  if (el.dataset.h !== html && !el.contains(document.activeElement)) { el.innerHTML = html; el.dataset.h = html; }
+  list = list.slice().sort((x, y) => S.qSort === 'old' ? x.id - y.id : y.id - x.id).slice(0, 150);
+  const a = d.auction;
+  const empty = S.q === 'wait' && S.isAdmin && !accepting() && a.status === 'idle'
+    ? `<div class="empty"><b>Донатов пока нет</b><p>Включите приём — донаты и баллы будут приходить до старта таймера.</p><button class="btn outline" data-act="acceptOn">Начать принимать донаты</button></div>`
+    : `<div class="empty"><b>${S.q === 'wait' ? 'Ожидающих нет' : 'Пока пусто'}</b>${S.q === 'wait' ? '<p>Сюда попадают донаты без понятного лота. Перетащите донат на лот или выберите лот из списка.</p>' : ''}</div>`;
+  const fresh = Date.now() + S.off - 15000;
+  const opts = d.lots.slice().sort((x, y) => x.num - y.num).map(l => `<option value="${l.id}">#${l.num} ${esc(l.name)}</option>`).join('');
+  keyed($('#dlist'), list, b => S.q + b.id,
+    () => document.createElement('div'),
+    (el, b) => {
+      el.className = 'don' + (Date.parse(b.created_at) > fresh ? ' fresh' : '') + (el.classList.contains('enter') ? ' enter' : '');
+      if (S.isAdmin && b.status === 'queue') { el.draggable = true; el.dataset.bid = b.id; } else { el.draggable = false; delete el.dataset.bid; }
+      const h = donHtml(b, opts);
+      if (el._h !== h && !el.contains(document.activeElement)) { el.innerHTML = h; el._h = h; }
+    }, empty);
   if (S.isAdmin && S.adm) {
     const c = S.adm.config;
     if (document.activeElement !== $('#autoAdd')) $('#autoAdd').value = c.auto_add || 'match';
     $('#qSort').value = S.qSort;
-    $('#acceptTg').checked = !!d.auction.accepting || ['running', 'paused'].includes(d.auction.status);
-    $('#acceptTg').disabled = ['running', 'paused', 'ended', 'closed'].includes(d.auction.status);
+    $('#acceptTg').checked = !!a.accepting || ['running', 'paused'].includes(a.status);
+    $('#acceptTg').disabled = ['running', 'paused', 'ended', 'closed'].includes(a.status);
     $('#noRefTg').checked = !!c.no_refund;
     document.querySelectorAll('.flt').forEach(b => b.classList.toggle('on', S.flt[b.dataset.flt]));
   }
 }
 
-/* ── колесо ── */
-function renderWheel(v) {
-  if (v.dataset.tab !== 'wheel' || !$('#wheelCv')) {
-    v.dataset.tab = 'wheel'; v.className = 'wheel-pane'; v.style.cssText = '';
-    v.innerHTML = `<div class="wheel-box"><canvas id="wheelCv" aria-label="Колесо фортуны"></canvas></div><div class="wheel-res" id="wheelRes" aria-live="polite"></div><div class="wheel-ctl" id="wheelCtl"></div>`;
-  }
-  if (!WH.spinning) W_.draw($('#wheelCv'), W_.segs(A().lots), WH.rot, WH.result?.id);
-  const res = $('#wheelRes');
-  if (!WH.spinning) { res.textContent = WH.result ? `Победитель: #${WH.result.num} ${WH.result.name}` : 'Чем больше баллов у лота, тем больше его сектор'; res.className = 'wheel-res' + (WH.result ? ' win' : ''); }
-  const c = $('#wheelCtl');
-  if (S.isAdmin && !c.contains(document.activeElement)) {
-    c.innerHTML = `<label class="min-in"><span class="muted">сек</span><input id="spinSec" type="number" inputmode="numeric" min="3" max="120" value="${A().config?.wheel_sec || 20}" aria-label="Сколько секунд крутится колесо"></label>
-      <button class="btn pri" data-act="spin" ${WH.spinning ? 'disabled' : ''}>Крутить</button>
-      ${WH.result && !WH.spinning && A().auction.status !== 'closed' ? `<button class="btn ok" data-act="finishWin">Завершить: «${esc(WH.result.name)}»</button>` : ''}
-      <label class="check"><input type="checkbox" id="autoSpin" ${WH.auto ? 'checked' : ''}><span>Крутить само, когда время вышло</span></label>`;
-  } else if (!S.isAdmin) c.innerHTML = '';
+/* ══ вкладка «Колесо» ══ */
+const LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
+const WDEF = { mode: 'normal', palette: 'rainbow', labels: 'radial', hide_sum: false, full_text: false, image: '', accel: false, sound: 'ticks', volume: 0.5 };
+const PAL_NAMES = { rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар' };
+WH.local = {}; WH.out = new Set(); WH.lastSeg = null; WH.lastTick = 0; WH.msg = '';
+WH.wl = { num: ls.get('auc_wl_num') !== '0', pct: ls.get('auc_wl_pct') !== '0', sum: ls.get('auc_wl_sum') === '1' };
+const wcfg = () => ({ ...WDEF, ...(A()?.config?.wheel || {}), ...WH.local });
+let wImg = null, wImgSrc = null;
+function wheelImg() {
+  const src = wcfg().image || LOGO;
+  if (src !== wImgSrc) { wImgSrc = src; wImg = new Image(); wImg.crossOrigin = 'anonymous'; wImg.onload = () => drawStatic(); wImg.src = src; }
+  return wImg;
 }
-window.addEventListener('resize', () => { if (S.tab === 'wheel' && !WH.spinning && $('#wheelCv')) W_.draw($('#wheelCv'), W_.segs(A().lots), WH.rot, WH.result?.id); });
+// лоты на колесе: в «Выбывании» сектор обратно пропорционален баллам и выбывшие убраны
+function wheelLots() {
+  const c = wcfg();
+  const lots = (A()?.lots || []).filter(l => +l.total > 0 && !(c.mode === 'elim' && WH.out.has(l.id)));
+  return c.mode === 'elim' ? lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total, w: 1 / +l.total })) : lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total }));
+}
+const drawOpts = hi => { const c = wcfg(); return { hi, labels: c.labels, hideSum: c.hide_sum, fullText: c.full_text, img: wheelImg(), accel: c.accel }; };
+function drawStatic() {
+  if (S.tab !== 'wheel' || WH.spinning) return;
+  const S2 = W_.segs(wheelLots(), wcfg().palette);
+  W_.draw($('#wheelCv'), S2, WH.rot, drawOpts(WH.result?.id));
+  if (!WH.result && !WH.msg) { const s = W_.at(S2, WH.rot); setTop(s ? s.name : ' ', false); }
+}
+function setTop(text, win) { const t = $('#wTop'); if (t.textContent !== text) t.textContent = text; t.classList.toggle('win', !!win); }
+
+function renderWheelTab() {
+  const c = wcfg(); const d = A(); if (!d) return;
+  const segs = W_.segs(wheelLots(), c.palette); const wsum = segs.reduce((x, s) => x + s.weight, 0) || 1;
+  const chance = new Map(segs.map(s => [s.id, s.weight / wsum * 100]));
+  // список лотов слева
+  const lots = d.lots.filter(l => +l.total > 0).slice().sort((x, y) => (chance.get(y.id) ?? -1) - (chance.get(x.id) ?? -1) || y.total - x.total);
+  $('#wlN').textContent = lots.length;
+  document.querySelectorAll('[data-wl]').forEach(b => b.classList.toggle('on', WH.wl[b.dataset.wl]));
+  keyed($('#wlItems'), lots, l => l.id,
+    () => { const el = document.createElement('div'); el.className = 'wli'; el.innerHTML = '<i></i><span class="no"></span><span class="nm"></span><span class="pc"></span>'; return el; },
+    (el, l) => {
+      const col = W_.colorOf(l.num, c.palette);
+      $('i', el).style.background = col;
+      const no = $('.no', el); no.hidden = !WH.wl.num; no.textContent = '#' + l.num; no.style.color = col;
+      $('.nm', el).textContent = l.name;
+      const out = c.mode === 'elim' && WH.out.has(l.id);
+      el.classList.toggle('out', out); el.classList.toggle('hot', !out && WH.result?.id === l.id);
+      $('.pc', el).innerHTML = (WH.wl.pct ? (out ? '—' : (chance.get(l.id) ?? 0).toFixed(1) + '%') : '') + (WH.wl.sum ? `<small>${fmt(l.total)}</small>` : '');
+    }, '<div class="empty" style="min-height:120px;padding:20px">Нет лотов с баллами</div>');
+  const outBox = $('#wlOut');
+  outBox.hidden = !(c.mode === 'elim' && WH.out.size);
+  if (!outBox.hidden) outBox.innerHTML = `<span>Выбыло: ${WH.out.size}</span>${S.isAdmin ? '<button class="btn sm" data-act="elimReset">Вернуть всех на колесо</button>' : ''}`;
+  // настройки справа
+  if (S.isAdmin) {
+    document.querySelectorAll('[data-wv]').forEach(b => { const [k, v] = b.dataset.wv.split(':'); b.classList.toggle('on', c[k] === v); });
+    const pals = $('#wPals');
+    if (!pals.children.length) pals.innerHTML = Object.keys(W_.PALETTES).map(p => `<button class="pal" data-pal="${p}"><i style="background:linear-gradient(90deg,${W_.PALETTES[p].slice(0, 5).join(',')})"></i>${PAL_NAMES[p]}</button>`).join('');
+    pals.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.pal === c.palette));
+    document.querySelectorAll('[data-wb]').forEach(i => { i.checked = !!c[i.dataset.wb]; });
+    if (document.activeElement !== $('#wSound')) $('#wSound').value = c.sound;
+    if (document.activeElement !== $('#wVol')) $('#wVol').value = c.volume;
+    $('#wImgPrev').src = c.image || LOGO;
+    $('#autoSpin').checked = WH.auto;
+    if (document.activeElement !== $('#spinSec')) $('#spinSec').value = WH.sec ?? d.config?.wheel_sec ?? 20;
+    $('#spinBtn').disabled = WH.spinning;
+    const res = $('#wRes');
+    const can = WH.result && !WH.spinning && d.auction.status !== 'closed';
+    const h = can ? `<button class="btn ok" data-act="finishWin">Завершить: победил «${esc(WH.result.name)}»</button>` : '';
+    if (res.dataset.h !== h) { res.innerHTML = h; res.dataset.h = h; }
+  }
+  if (WH.result && !WH.spinning) setTop(`Победитель: ${WH.result.name}`, true);
+  else if (WH.msg && !WH.spinning) setTop(WH.msg, false);
+  drawStatic();
+}
+window.addEventListener('resize', drawStatic);
+
 async function doSpin() {
   if (WH.spinning) return;
-  const segs = W_.segs(A().lots);
-  if (!segs.length) return toast('На лотах нет баллов', true);
+  const c = wcfg();
+  const lots = wheelLots();
+  if (!lots.length) return toast('На лотах нет баллов', true);
+  if (c.mode === 'elim' && lots.length === 1) { WH.result = { ...lots[0] }; WH.msg = ''; toast(`Победитель: ${lots[0].name}`); return renderWheelTab(); }
+  const segs = W_.segs(lots, c.palette);
   const sec = Math.min(120, Math.max(3, Number($('#spinSec')?.value) || A().config?.wheel_sec || 20));
+  WH.sec = sec;
   const win = W_.pick(segs);
   const from = WH.rot % (Math.PI * 2);
-  const to = W_.target(win, from, Math.max(4, Math.round(sec / 1.6)));
+  const to = W_.target(win, from, Math.max(5, Math.round(sec / 1.3)));
   try {
-    const ev = await aucApi('/auc/admin/do', { a: 'spin', lots: A().lots, winner: win.id, from, to, ms: sec * 1000 });
+    const ev = await aucApi('/auc/admin/do', { a: 'spin', lots, winner: win.id, from, to, ms: sec * 1000, mode: c.mode });
     setTimeout(() => { if (WH.lastSpin !== ev.id) onSpin(ev); }, 1200);
   } catch (e) { toast(e.message, true); }
 }
 function onSpin(ev) {
   if (WH.lastSpin === ev.id) return;
-  WH.lastSpin = ev.id; WH.spinning = true; WH.result = null;
-  if (S.tab !== 'wheel') { S.tab = 'wheel'; render(); }
-  renderWheel($('#view'));
-  const cv = $('#wheelCv'); const res = $('#wheelRes'); const segs = W_.segs(ev.lots);
+  WH.lastSpin = ev.id; WH.spinning = true; WH.result = null; WH.msg = '';
+  if (S.tab !== 'wheel') setTab('wheel'); else renderWheelTab();
+  const cv = $('#wheelCv'); const ptr = $('#wPtr');
+  const segs = W_.segs(ev.lots, wcfg().palette);
   WH.stop?.();
-  WH.stop = W_.spin(cv, segs, ev.from, ev.to, ev.ms, ev.startAt - S.off,
-    s => { if (s) { res.textContent = `#${s.num} ${s.name}`; res.className = 'wheel-res'; } },
+  WH.stop = W_.spin(cv, segs, ev.from, ev.to, ev.ms, ev.startAt - S.off, drawOpts(),
+    s => {
+      if (!s || s.id === WH.lastSeg) return;
+      WH.lastSeg = s.id; setTop(s.name, false);
+      const now = performance.now();
+      if (now - WH.lastTick > 35) {
+        WH.lastTick = now;
+        const c = wcfg(); if (c.sound === 'ticks') W_.tick(+c.volume);
+        ptr.classList.add('kick'); requestAnimationFrame(() => requestAnimationFrame(() => ptr.classList.remove('kick')));
+      }
+    },
     rot => {
-      WH.rot = rot; WH.spinning = false; WH.result = segs.find(s => s.id === ev.winner) || W_.at(segs, rot);
-      W_.draw(cv, segs, rot, WH.result?.id); renderWheel($('#view'));
-      if (WH.result) toast(`Колесо выбрало: ${WH.result.name}`);
+      WH.rot = rot; WH.spinning = false;
+      const landed = segs.find(s => s.id === ev.winner) || W_.at(segs, rot);
+      if (ev.mode === 'elim' && landed) {
+        WH.out.add(landed.id);
+        const rest = (A()?.lots || []).filter(l => +l.total > 0 && !WH.out.has(l.id));
+        if (rest.length === 1) { WH.result = { ...rest[0] }; toast(`Победитель: ${rest[0].name}`); }
+        else { WH.msg = `Выбыл: ${landed.name}`; toast(`Выбыл: ${landed.name} · осталось ${rest.length}`); }
+      } else if (landed) { WH.result = landed; toast(`Колесо выбрало: ${landed.name}`); }
+      renderWheelTab();
     });
+}
+
+/* настройки колеса: применяются сразу, на сервер уходят пачкой */
+let wSaveT = null, wPatch = {};
+function setW(patch) {
+  Object.assign(WH.local, patch); Object.assign(wPatch, patch);
+  if ('mode' in patch) { WH.out.clear(); WH.result = null; WH.msg = ''; }
+  renderWheelTab();
+  clearTimeout(wSaveT);
+  wSaveT = setTimeout(async () => {
+    const p = wPatch; wPatch = {};
+    try { await aucApi('/auc/admin/do', { a: 'config', config: { wheel: p } }); await loadAdmin(); for (const k of Object.keys(p)) if (WH.local[k] === p[k]) delete WH.local[k]; }
+    catch (e) { toast(e.message, true); }
+  }, 350);
+}
+async function uploadImage(file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) return toast('Картинка больше 5 МБ', true);
+  const t = await getToken();
+  const r = await fetch(API + '/upload', { method: 'POST', headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name).slice(0, 100), ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: file });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.url) return toast(d.error || 'Не удалось загрузить', true);
+  setW({ image: d.url }); toast('Картинка обновлена');
 }
 
 /* ── все ставки, кошельки ── */
@@ -442,13 +594,19 @@ function finishSheet(winnerId) {
       toast(`Готово: победа ${r.won}, возвращено ${r.refunded}${r.kept ? `, оставлено ${r.kept}` : ''}${r.failed ? `, ошибок ${r.failed} — см. «Все ставки»` : ''}`, !!r.failed);
     });
 }
-const setTab = t => { S.tab = t; closePop(); render(); };
+const setTab = t => {
+  const was = S.tab; S.tab = t; closePop(); render();
+  if (was !== t) { const el = t === 'wheel' ? $('#wapp') : $('#view'); el.classList.remove('fade-in'); void el.offsetWidth; el.classList.add('fade-in'); }
+};
 
 /* ── клики ── */
 document.addEventListener('click', async e => {
   if (!e.target.closest('#pop') && !e.target.closest('[data-act=aucList],[data-act=view]')) closePop();
   const tab = e.target.closest('#tabs [data-tab]'); if (tab) return setTab(tab.dataset.tab);
   const q = e.target.closest('.seg2 button'); if (q) { S.q = q.dataset.q; return renderRight(); }
+  const wv = e.target.closest('[data-wv]'); if (wv) { const [k, v] = wv.dataset.wv.split(':'); return setW({ [k]: v }); }
+  const pl = e.target.closest('[data-pal]'); if (pl) return setW({ palette: pl.dataset.pal });
+  const wl = e.target.closest('[data-wl]'); if (wl) { const k = wl.dataset.wl; WH.wl[k] = !WH.wl[k]; ls.set('auc_wl_' + k, WH.wl[k] ? '1' : '0'); return renderWheelTab(); }
   const fl = e.target.closest('.flt'); if (fl) { S.flt[fl.dataset.flt] = !S.flt[fl.dataset.flt]; return renderRight(); }
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act, id = el.dataset.id, nid = Number(id);
@@ -477,6 +635,10 @@ document.addEventListener('click', async e => {
         return finishSheet();
       case 'finishWin': return finishSheet(WH.result?.id);
       case 'spin': return doSpin();
+      case 'dice': { const v = 15 + Math.floor(Math.random() * 46); $('#spinSec').value = v; WH.sec = v; return; }
+      case 'elimReset': WH.out.clear(); WH.result = null; WH.msg = ''; return renderWheelTab();
+      case 'imgReset': return setW({ image: '' });
+      case 'soundTest': { const c = wcfg(); [0, 90, 170, 240, 300].forEach(t => setTimeout(() => W_.tick(+c.volume), t)); return; }
       case 'retry': { const r = await admDo({ a: 'retry' }); return toast(`Повторено: ${r.retried}, успешно: ${r.ok}`); }
       case 'archive': S.histAuction = 'all'; $('#view').dataset.tab = ''; return setTab('history');
       case 'aucList': {
@@ -494,7 +656,7 @@ document.addEventListener('click', async e => {
         f => admDo({ a: 'config', config: { rules: String(f.get('r') || '') } }, 'Правила сохранены'));
       case 'lotRename': { const l = lotsMap().get(nid); return sheet(`Лот #${l.num}`, `<label class="field"><span>Название</span><input class="in" name="n" maxlength="80" value="${esc(l.name)}"></label>${acts('Сохранить')}`,
         f => admDo({ a: 'lot', op: 'rename', id: nid, name: f.get('n') })); }
-      case 'lotDel': { const l = lotsMap().get(nid); if (confirm(`Удалить лот «${l.name}»? Его ставки уйдут в ожидающие.`)) return admDo({ a: 'lot', op: 'delete', id: nid }, 'Лот удалён'); return; }
+      case 'lotDel': { const l = lotsMap().get(nid); return admDo({ a: 'lot', op: 'delete', id: nid }, `Лот «${l?.name || ''}» удалён`); }
       case 'lotPlus': case 'manual': return sheet('Добавить баллы', `${act === 'manual' ? lotPick(null, false) : `<input type="hidden" name="lot" value="${nid}"><p class="hint">Лот ${esc(lotLabel(nid))}</p>`}
         <label class="field"><span>Ник</span><input class="in" name="u" maxlength="60" required autocomplete="off" value="Стример"></label>
         <label class="field"><span>Баллы</span><input class="in" name="p" type="number" step="any" min="0.01" inputmode="decimal" required></label>${acts('Добавить')}`,
@@ -545,12 +707,17 @@ document.addEventListener('change', async e => {
     if (t.id === 'qSort') { S.qSort = t.value; ls.set('auc_qsort', t.value); return renderRight(); }
     if (t.id === 'hsc') return loadHistory();
     if (t.id === 'autoSpin') { WH.auto = t.checked; ls.set('auc_autospin', WH.auto ? '1' : '0'); }
+    if (t.dataset.wb) return setW({ [t.dataset.wb]: t.checked });
+    if (t.id === 'wSound') return setW({ sound: t.value });
+    if (t.id === 'wImgFile') { await uploadImage(t.files[0]); t.value = ''; return; }
+    if (t.id === 'spinSec') { WH.sec = Number(t.value) || 20; return; }
   } catch (err) { toast(err.message, true); render(); }
 });
 let hqT;
 document.addEventListener('input', e => {
   if (e.target.id === 'hq') { clearTimeout(hqT); hqT = setTimeout(() => loadHistory(), 300); }
   if (e.target.id === 'lotSearch') { S.search = e.target.value; renderLots($('#view')); }
+  if (e.target.id === 'wVol') setW({ volume: Number(e.target.value) });
 });
 document.addEventListener('submit', async e => {
   const f = e.target.closest('[data-form]'); if (!f) return;
@@ -582,6 +749,12 @@ document.addEventListener('drop', async e => {
   e.preventDefault(); r.classList.remove('drop');
   const bid = Number(e.dataTransfer.getData('text/plain')); if (!bid) return;
   try { await admDo({ a: 'assign', bid, lot: Number(r.dataset.lot) }, 'На лоте'); } catch (err) { toast(err.message, true); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || S.tab !== 'wheel' || !S.isAdmin || $('#sheet').open) return;
+  if (e.target.closest('input, textarea, select, button, [contenteditable]')) return;
+  e.preventDefault(); doSpin();
 });
 
 /* ── старт ── */
