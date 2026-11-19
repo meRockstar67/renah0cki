@@ -37,15 +37,23 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .nav-item.active { background: var(--panel-2); color: var(--text); }
 .nav-item.active svg { color: var(--accent); }
 .nav-item .ylogo { width: 13px; height: 16px; margin: 0 3.5px; }
-.spons { margin-top: 18px; min-height: 0; display: flex; flex-direction: column; }
+.nav { margin-bottom: auto; }
+.nav-item[hidden] { display: none; }
+.spons { margin-top: 16px; min-height: 0; display: flex; flex-direction: column; }
+.spons[hidden] { display: none; }
+.spons-top { flex: none; }
+.spons-top .spons-list { max-height: none; overflow: visible; }
+.spons-item .don-sum { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--accent); }
+.spons-item .don-sum img { width: 14px; height: 14px; border-radius: 0; background: none; }
+.spons-item .medal { width: 18px; flex: none; text-align: center; font-size: 14px; margin-right: -4px; }
 .spons-title { padding: 0 14px 6px; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .3px; }
-.spons-list { display: flex; flex-direction: column; max-height: 200px; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; overscroll-behavior: contain; }
+.spons-list { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(#000 80%, transparent); mask-image: linear-gradient(#000 80%, transparent); -ms-overflow-style: none; overscroll-behavior: contain; }
 .spons-list::-webkit-scrollbar { display: none; }
 .spons-item { display: flex; align-items: center; gap: 10px; height: 40px; flex: none; padding: 0 14px; border-radius: 10px; color: var(--muted); font-size: 14px; font-weight: 600; transition: background .2s, color .2s; }
 .spons-item:hover { background: var(--panel); color: var(--text); }
 .spons-item img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; background: var(--panel-2); }
 .spons-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.side-bottom { margin-top: auto; margin-bottom: -4px; display: flex; flex-direction: column; gap: 4px; padding-top: 10px; }
+.side-bottom { margin-top: 14px; margin-bottom: -4px; display: flex; flex-direction: column; gap: 4px; padding-top: 10px; }
 .side-bottom .nav-item[hidden] { display: none; }
 .nav-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 800; display: inline-grid; place-items: center; }
 .nav-badge[hidden] { display: none; }
@@ -630,3 +638,8 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .rules-foot a { color: var(--accent); }
 @media (max-width: 900px) { .cmt.reply { margin-left: 24px; } .mod-imgs img { height: 160px; } .rules-card { padding: 16px; } }
 @media (max-width: 560px) { .post-head { flex-wrap: wrap; } .post-head > div:not(.post-actions) { min-width: 0; flex: 1; } .post-actions { margin-left: 0; width: 100%; } .post-actions .react-wrap { margin-right: auto; } }
+.spons-list.end, .spons-top .spons-list { -webkit-mask-image: none; mask-image: none; }
+#spons .spons-list { min-height: 124px; }
+.side { overflow-y: auto; scrollbar-width: none; }
+.side::-webkit-scrollbar { display: none; }
+.spons-item span:not(.medal):not(.don-sum) { flex: 1; min-width: 0; }

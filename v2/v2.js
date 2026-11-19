@@ -1284,6 +1284,22 @@ function loadSponsors() {
   }).catch(() => {});
 }
 loadSponsors();
+// затухание снизу у списка спонсоров — пока есть что листать
+$('#sponsList').addEventListener('scroll', e => { const l = e.currentTarget; l.classList.toggle('end', l.scrollTop + l.clientHeight >= l.scrollHeight - 2); }, { passive: true });
+// топ 3 по балансу renah0cki coin (главный админ не учитывается — это на стороне базы)
+function loadTopDonors() {
+  swr('topdon', async () => {
+    const rows = await rpc('coin_top', { p_limit: 3 });
+    await loadProfiles(rows.map(r => r.user_id));
+    return rows.map(r => ({ ...r, p: S.profiles.get(r.user_id) || null }));
+  }, rows => {
+    const box = $('#topDonList'); if (!box) return;
+    if (!rows?.length) { $('#topDon').hidden = true; return; }
+    box.innerHTML = rows.map((r, i) => `<a class="spons-item" href="${userPath(r.p || { id: r.user_id })}" title="${esc(pname(r.p))}"><span class="medal">${['🥇', '🥈', '🥉'][i] || ''}</span>${imgTag(avatarUrl(r.p), 360, ' width="28" height="28"')}<span>${esc(pname(r.p))}</span><span class="don-sum"><img src="${COIN}" alt="">${fmt(r.balance)}</span></a>`).join('');
+    $('#topDon').hidden = false;
+  }).catch(() => {});
+}
+loadTopDonors();
 $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
 async function loadMe() {
   if (!S.uid) return;
