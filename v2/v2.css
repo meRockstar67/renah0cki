@@ -874,3 +874,21 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .app.guest .gg-btn { display: inline-flex; }
 .search svg { top: 50%; transform: translateY(-50%); }
 .wal-find { display: block; }
+
+/* ── квадратные кнопки шапки и уведомления поверх ── */
+.coin-chip.sq { width: 40px; padding: 0; justify-content: center; color: var(--text); }
+.coin-chip.sq svg { width: 21px; height: 21px; }
+.gg-btn svg { color: var(--accent); }
+.bell.sq { position: relative; }
+.bell.sq.on, .bell.sq:hover { border-color: var(--accent); }
+.bell.sq .bell-badge { top: -5px; right: -5px; }
+.bell-wrap { position: relative; }
+.app.guest .bell-wrap { display: none; }
+.notif-pop { position: absolute; right: -60px; top: calc(100% + 10px); z-index: 60; width: min(400px, calc(100vw - 24px)); max-height: min(560px, calc(100dvh - 90px)); display: flex; flex-direction: column; border-radius: 16px; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 24px 60px rgba(0,0,0,.55); overflow: hidden; transform-origin: top right; animation: popIn .18s var(--ease); }
+.notif-pop[hidden] { display: none; }
+.np-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.np-all { font-size: 13px; font-weight: 700; color: var(--accent); padding: 4px 10px; border-radius: 8px; background: var(--panel-2); }
+.np-all:hover { background: var(--panel-3); }
+.np-list { overflow-y: auto; padding: 6px; scrollbar-width: thin; }
+.np-list .notif { margin-bottom: 4px; }
+@media (max-width: 560px) { .notif-pop { position: fixed; left: 12px; right: 12px; top: 62px; width: auto; } }

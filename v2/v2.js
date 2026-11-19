@@ -1078,6 +1078,32 @@ function updateBell() {
 }
 const NOTIF_TEXT = { like: 'лайкнул(а) вашу работу', comment: 'прокомментировал(а)', follow: 'подписался(ась) на вас', reject: 'отклонил(а) вашу работу' };
 const NOTIF_ICON = { like: I.heart, comment: I.comment, follow: '<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 19.5c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M18 8v6M15 11h6"/></svg>', reject: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>' };
+function notifHtml(n, seen) {
+  const unread = new Date(n.at).getTime() > seen;
+  const href = n.type === 'follow' ? userPath(n.actor) : n.target ? (n.coll ? `#/c/${n.target.short_code || n.target.id}` : `#/p/${n.target.short_code || n.target.id}`) : '#/';
+  return `<a class="notif${unread ? ' unread' : ''} n-${n.type}" href="${esc(href)}">
+    <span class="notif-ic">${NOTIF_ICON[n.type]}</span>
+    ${avaHtml(n.actor?.avatar_url, pname(n.actor))}
+    <div class="notif-main"><div><b>${esc(pname(n.actor))}</b> ${NOTIF_TEXT[n.type]}${n.target ? ` <span class="notif-target">«${esc(n.target.title || 'без названия')}»</span>` : ''}</div>
+      ${n.body ? `<div class="notif-body">${esc(n.body)}</div>` : ''}<time>${when(n.at)}</time></div></a>`;
+}
+// выпадающий список у колокольчика (страница «Все уведомления» осталась)
+async function openNotifPop() {
+  const pop = $('#notifPop'), list = $('#npList');
+  if (!pop.hidden) { pop.hidden = true; return; }
+  pop.hidden = false; $('#bellBtn').classList.add('on');
+  const seen = getSeen();
+  const draw = () => { list.innerHTML = NOTIF.list.length ? NOTIF.list.slice(0, 15).map(n => notifHtml(n, seen)).join('') : '<div class="empty" style="padding:30px 10px">Пока уведомлений нет.</div>'; };
+  if (NOTIF.loaded) draw(); else list.innerHTML = '<div class="empty" style="padding:30px 10px">Загрузка…</div>';
+  await loadNotifs().catch(() => {});
+  if (!pop.hidden) { draw(); setSeen(Date.now()); updateBell(); }
+}
+$('#bellBtn').onclick = e => { e.stopPropagation(); if (!S.uid) return login(); openNotifPop(); };
+document.addEventListener('click', e => {
+  const pop = $('#notifPop'); if (!pop || pop.hidden) return;
+  if (!e.target.closest('.bell-wrap') || e.target.closest('.notif, .np-all')) { pop.hidden = true; $('#bellBtn').classList.remove('on'); }
+});
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#notifPop').hidden) { $('#notifPop').hidden = true; $('#bellBtn').classList.remove('on'); } });
 async function viewNotifs() {
   setNav('notifs');
   page.innerHTML = `<div class="notifs"><div class="page-head"><h1>Уведомления</h1></div><div id="notifList">${'<div class="skel" style="aspect-ratio:auto;height:64px;margin-bottom:8px"></div>'.repeat(5)}</div></div>`;
@@ -1085,15 +1111,7 @@ async function viewNotifs() {
   const seen = getSeen();
   const list = await loadNotifs();
   const box = $('#notifList'); if (!box) return;
-  box.innerHTML = list.length ? list.map(n => {
-    const unread = new Date(n.at).getTime() > seen;
-    const href = n.type === 'follow' ? userPath(n.actor) : n.target ? (n.coll ? `#/c/${n.target.short_code || n.target.id}` : `#/p/${n.target.short_code || n.target.id}`) : '#/';
-    return `<a class="notif${unread ? ' unread' : ''} n-${n.type}" href="${esc(href)}">
-      <span class="notif-ic">${NOTIF_ICON[n.type]}</span>
-      ${avaHtml(n.actor?.avatar_url, pname(n.actor))}
-      <div class="notif-main"><div><b>${esc(pname(n.actor))}</b> ${NOTIF_TEXT[n.type]}${n.target ? ` <span class="notif-target">«${esc(n.target.title || 'без названия')}»</span>` : ''}</div>
-        ${n.body ? `<div class="notif-body">${esc(n.body)}</div>` : ''}<time>${when(n.at)}</time></div></a>`;
-  }).join('') : '<div class="empty">Пока уведомлений нет.</div>';
+  box.innerHTML = list.length ? list.map(n => notifHtml(n, seen)).join('') : '<div class="empty">Пока уведомлений нет.</div>';
   setSeen(Date.now()); updateBell();
 }
 
