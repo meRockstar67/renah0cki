@@ -4935,6 +4935,20 @@
   .coin-da-code b { font-size: 20px; letter-spacing: 1px; font-family: ui-monospace, Consolas, monospace; }
   .coin-da-code button { margin-left: auto; }
   .coin-da-go { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 10px; background: var(--accent); color: #1b1209; font-weight: 700; text-decoration: none; flex: 1 1 auto; }
+  .coin-react-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
+  .coin-react-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); font-size: 14px; }
+  .coin-react-add { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px dashed var(--accent); background: transparent; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+  .coin-react-add .coin-ico, .coin-react-send .coin-ico { width: 16px; height: 16px; }
+  .coin-react-pop { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: min(340px, calc(100vw - 32px)); padding: 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 12px 30px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 10px; }
+  .coin-react-pop[hidden] { display: none; }
+  .coin-react-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .coin-react-emoji { font-size: 22px; width: 42px; height: 42px; border-radius: 10px; border: 1px solid var(--border); background: transparent; cursor: pointer; padding: 0; }
+  .coin-react-amt { min-width: 42px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; padding: 0 8px; }
+  .coin-react-emoji.on, .coin-react-amt.on { border-color: var(--accent); background: var(--panel-2); }
+  .coin-react-custom { width: 80px; height: 34px; }
+  .coin-react-send { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: 10px; border: 0; background: var(--accent); color: #1b1209; font: inherit; font-weight: 700; cursor: pointer; }
+  .coin-react-status { font-size: 13px; color: var(--muted); }
+  .coin-react-status:empty { display: none; }
   .coin-grant-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   .coin-grant-row input { flex: 1 1 120px; min-width: 0; }
   @media (max-width: 600px) { .coin-chip { margin-right: 6px; } }
@@ -7482,6 +7496,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
         <span class="post-like-count">0</span>
       </button>
     </div>
+    <div class="coin-react-bar" id="postPageReactBar" style="display:none;"></div>
     <div class="lightbox-meta-row">
       <h2 id="postPageTitle" style="margin:0;"></h2>
       <button class="copy-link-btn" id="postPageCopyLinkBtn" type="button">🔗 Скопировать ссылку</button>
@@ -7959,6 +7974,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
         <button type="button" class="puzzle-level-switch-btn puzzle-level-x4" data-level="x4" title="Очень сложный ×4" aria-label="Очень сложный ×4"></button>
       </div>
     </div>
+    <div class="coin-react-bar" id="lightboxReactBar" style="display:none;"></div>
     <div class="lightbox-meta-row">
       <h2 id="lightboxTitle" style="margin:0;"></h2>
       <button class="copy-link-btn" id="copyLinkBtn" type="button">🔗 Скопировать ссылку</button>
@@ -11894,7 +11910,9 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       return coinBalanceCache;
     } catch (e) { return null; }
   }
-  const COIN_KIND_LABEL = { purchase: 'Пополнение', reward: 'Награда', spend: 'Покупка', admin: 'От администрации', refund: 'Возврат' };
+  const COIN_KIND_LABEL = { purchase: 'Пополнение', reward: 'Награда', spend: 'Покупка', admin: 'От администрации', refund: 'Возврат', transfer: 'Перевод', reaction: 'Реакция' };
+  // переводы и платные реакции — пока только владелец (meRockstar)
+  function coinSocialOk() { return !!currentUser && COIN_DEV_IDS.includes(currentUser.id); }
   async function openCoinWallet() {
     if (!coinsVisible()) return;
     document.getElementById('coinWalletBalance').textContent = coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache);
@@ -11980,6 +11998,69 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
     };
     tryOpen(20);
   })();
+  // ───────────────────────────────────────────────────────────────────────
+
+  // ── платные реакции renah0cki coin на посты (монеты уходят автору) ──
+  const COIN_REACT_EMOJI = ['❤️', '🔥', '😂', '😍', '👏', '💎'];
+  const COIN_REACT_AMOUNTS = [1, 5, 10, 25, 50, 100];
+  async function renderCoinReactions(bar, id, kind) {
+    if (!bar) return;
+    bar.dataset.reactId = id || ''; bar.dataset.reactKind = kind;
+    if (!id || !coinSocialOk()) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+    let rows = [];
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/coin_reactions?target_kind=eq.${kind}&target_id=eq.${id}&select=emoji,amount`, { headers: coinHeaders() });
+      rows = r.ok ? await r.json() : [];
+    } catch (e) {}
+    if (bar.dataset.reactId !== id) return; // пост уже сменился
+    const sum = {};
+    rows.forEach(x => { sum[x.emoji] = (sum[x.emoji] || 0) + Number(x.amount); });
+    const chips = COIN_REACT_EMOJI.filter(e => sum[e]).map(e => `<span class="coin-react-chip" title="${fmtCoins(sum[e])} coin">${e} <b>${fmtCoins(sum[e])}</b></span>`).join('');
+    const own = currentPostAuthor && currentUser && currentPostAuthor.id === currentUser.id;
+    bar.innerHTML = chips + (own ? '' : `<button type="button" class="coin-react-add" data-react-open title="Реакция за renah0cki coin — монеты получит автор">${coinIcoHtml()} Реакция</button>`)
+      + `<div class="coin-react-pop" hidden>
+          <div class="coin-react-row">${COIN_REACT_EMOJI.map((e, i) => `<button type="button" class="coin-react-emoji${i === 1 ? ' on' : ''}" data-react-emoji="${e}">${e}</button>`).join('')}</div>
+          <div class="coin-react-row">${COIN_REACT_AMOUNTS.map((a, i) => `<button type="button" class="coin-react-amt${i === 1 ? ' on' : ''}" data-react-amt="${a}">${a}</button>`).join('')}<input type="number" min="1" max="100000" step="1" class="coin-react-custom" placeholder="своя"></div>
+          <button type="button" class="coin-react-send" data-react-send>Отправить ${coinIcoHtml()} <span>5</span></button>
+          <div class="coin-react-status"></div>
+        </div>`;
+    bar.style.display = (chips || !own) ? '' : 'none';
+  }
+  document.addEventListener('click', async (e) => {
+    const bar = e.target.closest('.coin-react-bar');
+    if (!bar) { document.querySelectorAll('.coin-react-pop:not([hidden])').forEach(x => { x.hidden = true; }); return; }
+    const pop = bar.querySelector('.coin-react-pop');
+    const amountNow = () => { const c = parseInt(bar.querySelector('.coin-react-custom').value, 10); return c > 0 ? c : parseInt(bar.querySelector('.coin-react-amt.on')?.dataset.reactAmt || '5', 10); };
+    const sync = () => { bar.querySelector('[data-react-send] span').textContent = fmtCoins(amountNow()); };
+    if (e.target.closest('[data-react-open]')) { pop.hidden = !pop.hidden; return; }
+    const em = e.target.closest('[data-react-emoji]');
+    if (em) { bar.querySelectorAll('[data-react-emoji]').forEach(b => b.classList.toggle('on', b === em)); return; }
+    const am = e.target.closest('[data-react-amt]');
+    if (am) { bar.querySelectorAll('[data-react-amt]').forEach(b => b.classList.toggle('on', b === am)); bar.querySelector('.coin-react-custom').value = ''; sync(); return; }
+    const send = e.target.closest('[data-react-send]');
+    if (send) {
+      const emoji = bar.querySelector('.coin-react-emoji.on')?.dataset.reactEmoji || '🔥';
+      const amount = amountNow();
+      const st = bar.querySelector('.coin-react-status');
+      if (!(amount >= 1)) { st.textContent = 'Укажи сумму'; return; }
+      send.disabled = true; st.textContent = '…';
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_react`, { method: 'POST', headers: coinHeaders(), body: JSON.stringify({ p_kind: bar.dataset.reactKind, p_id: bar.dataset.reactId, p_emoji: emoji, p_amount: amount }) });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) throw new Error((j && j.message) || 'ошибка');
+        coinBalanceCache = Number(j);
+        document.querySelectorAll('#coinChipVal, #coinWalletBalance, #profileCoinVal').forEach(el => { el.textContent = fmtCoins(coinBalanceCache); });
+        await renderCoinReactions(bar, bar.dataset.reactId, bar.dataset.reactKind);
+      } catch (er) { st.textContent = 'Ошибка: ' + er.message; send.disabled = false; }
+    }
+  });
+  document.addEventListener('input', (e) => {
+    const inp = e.target.closest('.coin-react-custom'); if (!inp) return;
+    const bar = inp.closest('.coin-react-bar');
+    if (inp.value) bar.querySelectorAll('[data-react-amt]').forEach(b => b.classList.remove('on'));
+    const c = parseInt(inp.value, 10);
+    bar.querySelector('[data-react-send] span').textContent = fmtCoins(c > 0 ? c : 0);
+  });
   // ───────────────────────────────────────────────────────────────────────
 
   function renderAuthArea() {
@@ -14917,6 +14998,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
             <span><b id="profileSubscriberCount">${subscriberCount}</b> подписчиков</span>
             ${(coinsVisible() && currentUser.id === profile.id) ? `<span class="profile-coin-stat" id="profileCoinStat" style="cursor:pointer;" title="Открыть кошелёк">${coinIcoHtml()} <b id="profileCoinVal">${coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache)}</b> coin</span>` : ''}
           </div>
+          ${(coinSocialOk() && currentUser.id !== profile.id) ? `<div class="coin-grant-row"><input type="number" id="coinSendAmount" placeholder="Сколько coin" min="1" step="1"><input type="text" id="coinSendNote" placeholder="Сообщение (необязательно)" maxlength="200"><button type="button" class="secondary small" id="coinSendBtn">${coinIcoHtml()} Передать</button></div><div class="hint" id="coinSendStatus"></div>` : ''}
           ${(coinsVisible() && hasRole(currentUser, 'admin') && currentUser.id !== profile.id) ? `<div class="coin-grant-row"><input type="number" id="coinGrantAmount" placeholder="Монеты (− списать)" step="1"><input type="text" id="coinGrantNote" placeholder="За что" maxlength="300"><button type="button" class="secondary small" id="coinGrantBtn">${coinIcoHtml()} Выдать</button></div><div class="hint" id="coinGrantStatus"></div>` : ''}
           <div class="profile-header-buttons">
             ${subscribeBtnHtml}
@@ -14954,6 +15036,25 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
         document.getElementById('coinGrantAmount').value = ''; document.getElementById('coinGrantNote').value = '';
       } catch (e) { st.textContent = 'Ошибка: ' + e.message; }
       coinGrantBtnEl.disabled = false;
+    });
+    const coinSendBtnEl = document.getElementById('coinSendBtn');
+    if (coinSendBtnEl) coinSendBtnEl.addEventListener('click', async () => {
+      const amt = parseInt(document.getElementById('coinSendAmount').value, 10);
+      const note = document.getElementById('coinSendNote').value.trim();
+      const st = document.getElementById('coinSendStatus');
+      if (!(amt >= 1)) { st.textContent = 'Укажи, сколько монет передать'; return; }
+      if (!confirm(`Передать ${fmtCoins(amt)} coin пользователю ${displayName}? Отменить перевод нельзя.`)) return;
+      coinSendBtnEl.disabled = true; st.textContent = '…';
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_transfer`, { method: 'POST', headers: coinHeaders(), body: JSON.stringify({ p_to: profile.id, p_amount: amt, p_note: note || null }) });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) throw new Error((j && j.message) || 'ошибка');
+        coinBalanceCache = Number(j);
+        document.querySelectorAll('#coinChipVal, #coinWalletBalance, #profileCoinVal').forEach(el => { el.textContent = fmtCoins(coinBalanceCache); });
+        st.textContent = `Готово! Передано ${fmtCoins(amt)} coin. Твой баланс: ${fmtCoins(coinBalanceCache)}`;
+        document.getElementById('coinSendAmount').value = ''; document.getElementById('coinSendNote').value = '';
+      } catch (e) { st.textContent = 'Ошибка: ' + e.message; }
+      coinSendBtnEl.disabled = false;
     });
 
     const profileEditBtnEl = document.getElementById('profileEditBtn');
@@ -17393,6 +17494,8 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
   // поста. id === null — сбрасываем (закрытие лайтбокса/поста).
   function setupPostLikeButton(btnEl, id, isCollection, likes, likedByMe) {
     if (!btnEl) return;
+    const reactBar = document.getElementById(btnEl.id === 'postPageLikeBtn' ? 'postPageReactBar' : btnEl.id === 'lightboxLikeBtn' ? 'lightboxReactBar' : '');
+    if (reactBar) renderCoinReactions(reactBar, id, isCollection ? 'collection' : 'content');
     if (!id) {
       btnEl.style.display = 'none';
       btnEl.disabled = false;
