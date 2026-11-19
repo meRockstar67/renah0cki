@@ -12699,9 +12699,16 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       renderAuthArea();
       updateStreak();
       closeOverlay('authOverlay');
+      // вход начат с нового дизайна (/v2/) — возвращаем туда
+      try {
+        const back = localStorage.getItem('fh_after_login');
+        localStorage.removeItem('fh_after_login');
+        if (back && /^\/v2\//.test(back) && !localStorage.getItem('fh_tglink')) { location.replace(back); return; }
+      } catch (e) {}
       tryTgLink();
       welcomeSound();
     } catch (e) {
+      try { localStorage.removeItem('fh_after_login'); } catch (e2) {}
       console.error('Ошибка обработки входа через Twitch:', e);
       showStatus('Не удалось завершить вход через Twitch: ' + e.message, 'err');
       openOverlay('authOverlay');
@@ -13879,7 +13886,8 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
             <img src="${escapeHtml(avatar)}" alt="">
             <div class="support-msg-bubble">
               <div class="support-msg-author${nameAttrs.cls}"${nameAttrs.style}>${escapeHtml(sender.display_name || sender.username || 'без имени')}</div>
-              <p class="support-msg-text">${renderMessageBody(m.body)}</p>
+              ${m.image_url && /^https:\/\/cdn\.renah0cki\.xyz\/file\//.test(m.image_url) ? `<a href="${escapeHtml(m.image_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(m.image_url)}" alt="" loading="lazy" style="display:block;max-width:240px;max-height:240px;width:auto;height:auto;border-radius:10px;margin:4px 0;"></a>` : ''}
+              ${m.image_url && m.body === '📷 Фото' ? '' : `<p class="support-msg-text">${renderMessageBody(m.body)}</p>`}
               <div class="support-msg-footer">
                 <div class="support-msg-time">${timeAgo(m.created_at)}</div>
                 ${canDeleteMessages ? `<button type="button" class="support-msg-delete-btn" data-message-id="${m.id}" title="Удалить сообщение">🗑</button>` : ''}

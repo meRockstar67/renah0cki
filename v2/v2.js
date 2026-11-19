@@ -618,15 +618,89 @@ async function fetchComments(id) {
 }
 async function loadComments(id) {
   const box = $('#comments'); if (!box) return;
-  const draw = rows => { if ($('#comments') === box) drawComments(box, rows); };
+  const draw = rows => { if ($('#comments') === box) drawComments(box, rows, id); };
   if (CMT.has(id)) draw(CMT.get(id));
   draw(await fetchComments(id));
 }
-function drawComments(box, rows) {
-  box.innerHTML = `<h3>Комментарии · ${rows.length}</h3>` + (rows.length ? rows.map(c => {
-    const p = S.profiles.get(c.author_id);
-    return `<div class="cmt"${c.parent_id ? ' style="margin-left:42px"' : ''}><img class="av" src="${esc(avatarUrl(p))}" alt="" loading="lazy"><div class="cmt-main"><div class="cmt-head"><b>${esc(pname(p))}</b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body || '')}</div></div></div>`;
-  }).join('') : '<div class="empty" style="padding:20px">Комментариев пока нет</div>');
+function drawComments(box, rows, cid) {
+  if (cid) box.dataset.cid = cid;
+  // ответы — сразу под своим комментарием
+  const top = rows.filter(c => !c.parent_id || !rows.some(x => x.id === c.parent_id));
+  const kids = id => rows.filter(c => c.parent_id === id);
+  const ordered = []; const walk = (c, d) => { ordered.push([c, d]); kids(c.id).forEach(k => walk(k, Math.min(d + 1, 1))); };
+  top.forEach(c => walk(c, 0));
+  const mod = isMod();
+  const draft = $('.cmt-form textarea', box)?.value || '';
+  box.innerHTML = `<h3>Комментарии · ${rows.length}</h3>` + (rows.length ? ordered.map(([c, d]) => {
+    const p = S.profiles.get(c.author_id), mine = S.uid && c.author_id === S.uid;
+    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}"><img class="av" src="${esc(avatarUrl(p))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'"><div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}">${esc(pname(p))}</b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body || '')}</div>
+      ${S.uid ? `<div class="cmt-acts"><button type="button" data-creply="${c.id}" data-cname="${esc(pname(p))}">Ответить</button>${mine || mod ? `<button type="button" data-cdel="${c.id}">Удалить</button>` : ''}${!mine ? `<button type="button" data-crep="${c.id}">Пожаловаться</button>` : ''}</div>` : ''}</div></div>`;
+  }).join('') : '<div class="empty" style="padding:20px">Комментариев пока нет</div>')
+    + (S.uid ? `<form class="cmt-form" data-cform><div class="cmt-to" hidden></div><div class="cmt-row"><textarea rows="2" maxlength="2000" placeholder="Написать комментарий…" required></textarea><button class="btn accent" type="submit">Отправить</button></div></form>`
+      : `<div class="cmt-login"><button type="button" class="btn accent" data-login>Войти</button><span>чтобы оставить комментарий</span></div>`);
+  const ta = $('.cmt-form textarea', box); if (ta && draft) ta.value = draft;
+}
+page.addEventListener('click', e => { const b = e.target.closest('[data-login]'); if (b) login(); });
+// действия с комментариями работают и в лайтбоксе, и на странице поста
+document.addEventListener('click', async e => {
+  const box = e.target.closest('#comments'); if (!box) return;
+  const cid = box.dataset.cid;
+  const rp = e.target.closest('[data-creply]');
+  if (rp) {
+    const f = $('[data-cform]', box), to = $('.cmt-to', f);
+    f.dataset.parent = rp.dataset.creply; to.hidden = false;
+    to.innerHTML = `Ответ для <b>${esc(rp.dataset.cname)}</b> <button type="button" data-cnoreply aria-label="Отменить ответ">✕</button>`;
+    $('textarea', f).focus(); return;
+  }
+  if (e.target.closest('[data-cnoreply]')) { const f = $('[data-cform]', box); delete f.dataset.parent; $('.cmt-to', f).hidden = true; return; }
+  const del = e.target.closest('[data-cdel]');
+  if (del) {
+    if (!confirm('Удалить комментарий?')) return;
+    try { await api(`comments?id=eq.${del.dataset.cdel}`, { method: 'DELETE' }); bumpComments(cid, -1); drawComments(box, await fetchComments(cid)); toast('Комментарий удалён'); }
+    catch (er) { toast(er.message, true); }
+    return;
+  }
+  const rep = e.target.closest('[data-crep]');
+  if (rep) reportDialog(rep.dataset.crep);
+});
+document.addEventListener('submit', async e => {
+  const f = e.target.closest('[data-cform]'); if (!f) return;
+  e.preventDefault();
+  const box = f.closest('#comments'), cid = box?.dataset.cid, ta = $('textarea', f), body = ta.value.trim();
+  if (!body || !cid) return;
+  const btn = $('button[type=submit]', f); btn.disabled = true;
+  try {
+    await api('comments', { method: 'POST', prefer: 'return=minimal', body: { content_id: cid, author_id: S.uid, body, parent_id: f.dataset.parent || null } });
+    ta.value = ''; bumpComments(cid, 1);
+    drawComments(box, await fetchComments(cid));
+    box.lastElementChild.previousElementSibling?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  } catch (er) { toast(er.message, true); btn.disabled = false; }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.closest?.('[data-cform] textarea')) { e.preventDefault(); e.target.closest('form').requestSubmit(); }
+});
+function bumpComments(cid, d) {
+  const it = S.items.get(cid); if (it) it.comments_count = Math.max(0, (it.comments_count || 0) + d);
+}
+const REPORT_REASONS = [['spam', 'Спам / реклама'], ['insult', 'Оскорбления / угрозы'], ['illegal', 'Запрещённый контент'], ['other', 'Другое']];
+function reportDialog(commentId) {
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal"><h2>Пожаловаться на комментарий</h2>
+    <div class="radios">${REPORT_REASONS.map(([v, t], i) => `<label class="radio"><input type="radio" name="r" value="${v}"${i ? '' : ' checked'}><span>${t}</span></label>`).join('')}</div>
+    <label>Подробности (необязательно)<textarea name="d" rows="2" maxlength="500"></textarea></label>
+    <p class="hint"></p><div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Отправить</button></div></form>`;
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) close(); });
+  $('form', ov).onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target, hint = $('.hint', ov);
+    try {
+      await api('comment_reports', { method: 'POST', prefer: 'return=minimal', body: { comment_id: commentId, reporter_id: S.uid, reason: f.r.value, details: f.d.value.trim() || null } });
+      close(); toast('Жалоба отправлена модераторам');
+    } catch (er) { hint.textContent = /duplicate|unique|409/i.test(er.message) ? 'Вы уже жаловались на этот комментарий.' : 'Ошибка: ' + er.message; }
+  };
+  document.body.append(ov);
 }
 page.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : (location.hash = '#/'); } });
 
@@ -911,7 +985,7 @@ async function viewProfile(key) {
         ${links.length ? `<div class="prof-links">${links.map(([n, u]) => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join('')}</div>` : ''}
       </div>
       <div class="prof-acts">
-        ${own ? `<a class="btn" href="/@${encodeURIComponent(p.username || '')}">Редактировать</a>`
+        ${own ? `<button class="btn" type="button" id="profEdit">Редактировать</button>`
           : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? '✓ Вы подписаны' : 'Подписаться'}</button>` : ''}
         <button class="btn icon-only" id="profCopy" title="Скопировать ссылку">${I.link}</button>
       </div>
@@ -921,6 +995,7 @@ async function viewProfile(key) {
   </div>`;
   wireLazy(page); animateCards(page);
   $('#profCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/@${encodeURIComponent(p.username || p.id)}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
+  const pe = $('#profEdit'); if (pe) pe.onclick = () => { if (!S.me) S.me = p; editProfile(); };
   const sb = $('#subBtn');
   if (sb) sb.onclick = async () => {
     sb.disabled = true;
@@ -1123,20 +1198,39 @@ async function viewSupport(threadArg) {
     <section class="sup-chat" id="supChat">
       <header class="sup-head"><div class="sup-ava"><img src="${COIN}" alt=""></div><div><b>Поддержка renah0cki</b><span>Модераторы ответят здесь. Обычно в течение дня.</span></div></header>
       <div class="sup-msgs" id="supMsgs"><div class="empty">Загрузка…</div></div>
-      <form class="sup-form" id="supForm"><textarea rows="1" maxlength="2000" placeholder="Сообщение…" aria-label="Сообщение"></textarea><button class="btn accent" type="submit" aria-label="Отправить"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></form>
+      <div class="sup-attach" id="supAttach" hidden></div>
+      <form class="sup-form" id="supForm"><label class="btn sup-clip" title="Прикрепить фото" aria-label="Прикрепить фото"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><svg viewBox="0 0 24 24"><path d="M20 11.5 12.6 19a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3"/></svg></label><textarea rows="1" maxlength="2000" placeholder="Сообщение…" aria-label="Сообщение"></textarea><button class="btn accent" type="submit" aria-label="Отправить"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></form>
     </section></div>`;
-  const form = $('#supForm'), ta = $('textarea', form);
+  const form = $('#supForm'), ta = $('textarea', form), fileIn = $('.sup-clip input', form), att = $('#supAttach');
+  SUP.file = null;
+  const setFile = f => {
+    if (f && !/^image\//.test(f.type)) return toast('Можно прикрепить только картинку', true);
+    if (f && f.size > 15 * 1048576) return toast('Картинка больше 15 МБ', true);
+    SUP.file = f || null; fileIn.value = '';
+    if (!f) { att.hidden = true; att.innerHTML = ''; return; }
+    att.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><span>${esc(f.name)}</span><button type="button" class="drop-x" aria-label="Убрать фото">✕</button>`;
+    att.hidden = false;
+  };
+  fileIn.onchange = () => setFile(fileIn.files[0]);
+  att.onclick = e => { if (e.target.closest('.drop-x')) setFile(null); };
+  ta.addEventListener('paste', e => { const f = [...(e.clipboardData?.files || [])].find(x => /^image\//.test(x.type)); if (f) { e.preventDefault(); setFile(f); } });
+  const chat = $('#supChat');
+  chat.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); chat.classList.add('over'); } });
+  chat.addEventListener('dragleave', e => { if (!chat.contains(e.relatedTarget)) chat.classList.remove('over'); });
+  chat.addEventListener('drop', e => { e.preventDefault(); chat.classList.remove('over'); setFile(e.dataTransfer.files[0]); });
   ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; });
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer: fine)').matches) { e.preventDefault(); form.requestSubmit(); } });
   form.onsubmit = async e => {
     e.preventDefault();
-    const body = ta.value.trim(); if (!body || !SUP.thread) return;
-    const btn = $('button', form); btn.disabled = true;
+    const text = ta.value.trim(); if ((!text && !SUP.file) || !SUP.thread) return;
+    const btn = $('button[type=submit]', form); btn.disabled = true;
     try {
-      await api('support_messages', { method: 'POST', prefer: 'return=minimal', body: { thread_id: SUP.thread, sender_id: S.uid, body } });
-      ta.value = ''; ta.style.height = '';
+      const msg = { thread_id: SUP.thread, sender_id: S.uid, body: text || '📷 Фото' };
+      if (SUP.file) { att.classList.add('busy'); msg.image_url = await uploadFile(SUP.file, pct => { att.style.setProperty('--p', pct + '%'); }); }
+      await api('support_messages', { method: 'POST', prefer: 'return=minimal', body: msg });
+      ta.value = ''; ta.style.height = ''; att.classList.remove('busy'); setFile(null);
       await supLoad(true);
-    } catch (er) { toast(er.message, true); }
+    } catch (er) { att.classList.remove('busy'); toast(er.message, true); }
     btn.disabled = false; ta.focus();
   };
   if (mod) { await supThreads(); if (threadArg) supOpen(threadArg); else $('#supMsgs').innerHTML = '<div class="empty">Выберите обращение слева.</div>'; }
@@ -1155,20 +1249,24 @@ async function supThreads() {
 function supOpen(id) { SUP.thread = id; $$('.sup-thread').forEach(b => b.classList.toggle('on', b.dataset.sup === id)); $('#supMsgs').innerHTML = '<div class="empty">Загрузка…</div>'; supLoad(true); }
 async function supLoad(jump) {
   const id = SUP.thread; if (!id) return;
-  const rows = await api(`support_messages?thread_id=eq.${id}&order=created_at.asc&select=id,sender_id,body,created_at`).catch(() => null);
+  const q = `support_messages?thread_id=eq.${id}&order=created_at.asc&select=id,sender_id,body,created_at`;
+  const rows = await api(q + ',image_url').catch(() => api(q)).catch(() => null);
   const box = $('#supMsgs'); if (!box || rows == null || SUP.thread !== id) return;
   await loadProfiles(rows.map(r => r.sender_id));
   const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
   const html = rows.length ? rows.map((m, i) => {
     const mine = m.sender_id === S.uid, prev = rows[i - 1], p = S.profiles.get(m.sender_id);
     const head = !prev || prev.sender_id !== m.sender_id || new Date(m.created_at) - new Date(prev.created_at) > 36e5;
-    return `${head ? `<div class="sup-meta${mine ? ' me' : ''}">${mine ? 'Вы' : esc(pname(p))} · ${when(m.created_at)}</div>` : ''}<div class="sup-bub${mine ? ' me' : ''}">${esc(m.body)}</div>`;
+    return `${head ? `<div class="sup-meta${mine ? ' me' : ''}">${mine ? 'Вы' : esc(pname(p))} · ${when(m.created_at)}</div>` : ''}<div class="sup-bub${mine ? ' me' : ''}${m.image_url ? ' has-img' : ''}">${m.image_url && isOwnFile(m.image_url) ? `<a class="sup-img" href="${esc(m.image_url)}" data-supimg>${imgTag(m.image_url, 480)}</a>` : ''}${m.image_url && m.body === '📷 Фото' ? '' : `<span>${esc(m.body)}</span>`}</div>`;
   }).join('') : '<div class="empty sup-empty">Опишите проблему или вопрос — модераторы ответят здесь.</div>';
   if (box.dataset.h === html) return;
   box.dataset.h = html; box.innerHTML = html;
   if (jump || near) box.scrollTop = box.scrollHeight;
 }
-page.addEventListener('click', e => { const t = e.target.closest('[data-sup]'); if (t) supOpen(t.dataset.sup); });
+page.addEventListener('click', e => {
+  const t = e.target.closest('[data-sup]'); if (t) supOpen(t.dataset.sup);
+  const im = e.target.closest('[data-supimg]'); if (im) { e.preventDefault(); openViewer([im.getAttribute('href')], 0); }
+});
 
 /* ── меню, профиль, монеты ── */
 function setNav(k) { $$('[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
@@ -1194,9 +1292,219 @@ async function loadMe() {
     S.me = me; if (me) S.profiles.set(me.id, me);
     $('#meAva').src = avatarUrl(me);
     $('#meProfile').href = userPath(me);
+    $('#meMod').hidden = !isMod();
+    $('#navMod').hidden = !isMod();
+    if (isMod()) modCount();
     setTimeout(() => { if (!NOTIF.loaded) loadNotifs(); }, 1200); // счётчик на колокольчике
   } catch {}
   try { const v = await rpc('coin_balance'); $('#coinVal').textContent = fmt(v || 0); } catch { $('#coinVal').textContent = '0'; }
+}
+
+/* ── вход / выход (Twitch, как на основном сайте) ── */
+// Вход завершает основной сайт (он принимает ответ Twitch и создаёт профиль), потом возвращает сюда.
+function login() {
+  try { localStorage.setItem('fh_after_login', location.pathname + location.hash); } catch {}
+  location.href = `${SB_URL}/auth/v1/authorize?provider=twitch&redirect_to=${encodeURIComponent(location.origin + '/')}`;
+}
+async function logout() {
+  if (!confirm('Выйти из аккаунта?')) return;
+  const s = readSession();
+  try { if (s?.token) await fetch(`${SB_URL}/auth/v1/logout`, { method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + s.token } }); } catch {}
+  try { localStorage.removeItem(LS_SESSION); } catch {}
+  location.href = '/v2/';
+}
+$('#loginBtn').onclick = login;
+$('#meLogout').onclick = logout;
+$('#meEdit').onclick = () => { $('#meMenu').hidden = true; editProfile(); };
+if (!S.uid) { document.querySelector('.app').classList.add('guest'); $('#loginBtn').hidden = false; }
+
+/* ── редактирование своего профиля ── */
+function editProfile() {
+  const me = S.me; if (!me) return;
+  let ava = me.avatar_url || '', file = null;
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal pe"><h2>Редактировать профиль</h2>
+    <div class="pe-ava"><img src="${esc(avatarUrl(me))}" alt=""><label class="btn">Загрузить фото<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label></div>
+    <label>Никнейм<input name="n" maxlength="40" value="${esc(me.display_name || me.username || '')}" placeholder="Как тебя называть"></label>
+    <label>Описание профиля<textarea name="b" rows="3" maxlength="100" placeholder="Расскажи немного о себе (до 100 символов)">${esc(me.bio || '')}</textarea></label>
+    <p class="hint">Логин Twitch (@${esc(me.username || '')}) не меняется.</p>
+    <div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) close(); });
+  const fi = $('input[type=file]', ov);
+  fi.onchange = () => {
+    const f = fi.files[0]; if (!f) return;
+    if (!/^image\//.test(f.type)) return toast('Нужна картинка', true);
+    if (f.size > 10 * 1048576) return toast('Картинка больше 10 МБ', true);
+    file = f; $('.pe-ava img', ov).src = URL.createObjectURL(f);
+  };
+  $('form', ov).onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target, hint = $('.hint', ov), btn = $('button[type=submit]', f);
+    const name = f.n.value.trim();
+    if (!name) { hint.textContent = 'Никнейм не может быть пустым'; return; }
+    btn.disabled = true;
+    try {
+      if (file) { hint.textContent = 'Загрузка фото…'; ava = await uploadFile(file, p => { hint.textContent = `Загрузка фото: ${p}%`; }); }
+      const patch = { display_name: name, bio: f.b.value.trim() || null, avatar_url: ava || null };
+      await api(`profiles?id=eq.${S.uid}`, { method: 'PATCH', prefer: 'return=minimal', body: patch });
+      Object.assign(me, patch); S.profiles.set(me.id, { ...(S.profiles.get(me.id) || {}), ...patch });
+      // старый сайт держит профиль в сессии — обновим и там
+      try { const s = readSession(); if (s?.user) { Object.assign(s.user, patch); localStorage.setItem(LS_SESSION, JSON.stringify(s)); } } catch {}
+      $('#meAva').src = avatarUrl(me);
+      close(); toast('Профиль сохранён');
+      if (/^#\/u\//.test(location.hash)) route();
+    } catch (er) { hint.textContent = 'Ошибка: ' + er.message; btn.disabled = false; }
+  };
+  document.body.append(ov);
+}
+
+/* ── модерация: работы на проверке и жалобы на комментарии ── */
+const MOD = { tab: 'queue' };
+async function modCount() {
+  const cnt = async q => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/${q}`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; };
+  try {
+    const [a, b] = await Promise.all([cnt('content?select=id&status=eq.draft'), cnt('comment_reports?select=id&status=eq.pending')]);
+    MOD.n = { queue: a, reports: b };
+    const n = a + b, el = $('#modBadge');
+    if (el) { el.textContent = n > 99 ? '99+' : String(n); el.hidden = !n; }
+    $$('[data-modtab]').forEach(t => { const k = t.dataset.modtab, v = MOD.n[k]; const s = $('i', t); if (s) s.textContent = v ? v : ''; });
+  } catch {}
+}
+function viewMod(tab) {
+  setNav('mod');
+  if (!S.me) { page.innerHTML = '<div class="empty">Загрузка…</div>'; return; }
+  if (!isMod()) { page.innerHTML = '<div class="empty">Раздел только для модераторов.</div>'; return; }
+  MOD.tab = tab === 'reports' ? 'reports' : 'queue';
+  page.innerHTML = `<div class="mod"><div class="page-head"><h1>Модерация</h1></div>
+    <div class="tabs mod-tabs"><a class="tab${MOD.tab === 'queue' ? ' on' : ''}" data-modtab="queue" href="#/mod">На проверке <i></i></a><a class="tab${MOD.tab === 'reports' ? ' on' : ''}" data-modtab="reports" href="#/mod/reports">Жалобы <i></i></a></div>
+    <div id="modList">${'<div class="skel" style="aspect-ratio:auto;height:140px;margin-bottom:12px"></div>'.repeat(3)}</div></div>`;
+  modCount();
+  MOD.tab === 'queue' ? modQueue() : modReports();
+}
+function modMedia(it) {
+  const src = it.source_url || '';
+  if (it.content_type === 'art') {
+    const imgs = Array.isArray(it.media_items) && it.media_items.length ? it.media_items.map(m => m.url).filter(Boolean) : [src];
+    return `<div class="mod-imgs">${imgs.map((u, i) => `<a href="${esc(u)}" data-mzoom="${i}">${imgTag(u, 480)}</a>`).join('')}</div>`;
+  }
+  if (it.content_type === 'video') {
+    const y = ytId(src);
+    if (y) return `<div class="mod-video"><iframe src="https://www.youtube.com/embed/${y}" allowfullscreen loading="lazy"></iframe></div>`;
+    if (isOwnFile(src) || isVideoFile(src)) return `<div class="mod-video"><video src="${esc(src)}" controls playsinline preload="metadata"></video></div>`;
+    return src ? `<a class="btn" href="${esc(src)}" target="_blank" rel="noopener noreferrer">Открыть видео</a>` : '';
+  }
+  return `${it.cover_image_url ? `<div class="mod-imgs">${imgTag(it.cover_image_url, 360)}</div>` : ''}${src ? `<a class="btn" href="${esc(src)}" target="_blank" rel="noopener noreferrer">Открыть фанфик</a>` : ''}`;
+}
+async function modQueue() {
+  let rows;
+  try { rows = absorb(await api(`content?status=eq.draft&select=*,${AUTHOR}&order=created_at.asc&limit=50`)); }
+  catch (e) { const b = $('#modList'); if (b) b.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
+  const box = $('#modList'); if (!box || MOD.tab !== 'queue') return;
+  const TN = { art: 'Арт', video: 'Видео', fanfic: 'Фанфик' };
+  box.innerHTML = rows.length ? rows.map(it => {
+    const a = it.author;
+    const meta = [it.fandom && `Фэндом: ${esc(it.fandom)}`, it.pairing && `Пейринг: ${esc(it.pairing)}`, it.age_rating === '18+' && '18+', it.is_blurred && 'Спойлер / пазл'].filter(Boolean);
+    return `<article class="mod-card" data-mid="${it.id}">
+      <div class="mod-top">${avaHtml(a?.avatar_url, pname(a))}<div><b data-user="${esc(a?.username || it.submitted_by)}">${esc(pname(a))}</b><span>${TN[it.content_type] || it.content_type} · ${when(it.created_at)}</span></div></div>
+      <h3>${esc(it.title || 'Без названия')}</h3>
+      ${it.description ? `<p class="mod-desc">${esc(it.description)}</p>` : ''}
+      ${meta.length ? `<div class="mod-meta">${meta.join(' · ')}</div>` : ''}
+      ${Array.isArray(it.tags) && it.tags.length ? `<div class="tags">${it.tags.map(t => `<span class="tag">#${esc(t)}</span>`).join('')}</div>` : ''}
+      ${modMedia(it)}
+      <div class="mod-acts"><button class="btn accent" data-mok="${it.id}">Одобрить</button><button class="btn" data-mno="${it.id}">Отклонить</button></div>
+    </article>`;
+  }).join('') : '<div class="empty">Очередь пуста — всё проверено.</div>';
+}
+async function modReports() {
+  let rows;
+  try { rows = await api('comment_reports?status=eq.pending&order=created_at.desc&select=id,reason,details,created_at,comment_id,reporter_id,comment:comments(id,body,author_id,content_id,created_at)'); }
+  catch (e) { const b = $('#modList'); if (b) b.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
+  await loadProfiles(rows.flatMap(r => [r.reporter_id, r.comment?.author_id]));
+  const ids = [...new Set(rows.map(r => r.comment?.content_id).filter(Boolean))];
+  const posts = ids.length ? await api(`content?id=in.(${ids.join(',')})&select=id,title,short_code`).catch(() => []) : [];
+  const pm = new Map(posts.map(p => [p.id, p]));
+  const box = $('#modList'); if (!box || MOD.tab !== 'reports') return;
+  const RN = Object.fromEntries(REPORT_REASONS);
+  box.innerHTML = rows.length ? rows.map(r => {
+    const c = r.comment, au = S.profiles.get(c?.author_id), rep = S.profiles.get(r.reporter_id), post = pm.get(c?.content_id);
+    return `<article class="mod-card" data-rid="${r.id}">
+      <div class="mod-top"><span class="role role-moderator">${esc(RN[r.reason] || r.reason)}</span><span>от <b data-user="${esc(rep?.username || r.reporter_id)}">${esc(pname(rep))}</b> · ${when(r.created_at)}</span></div>
+      ${r.details ? `<p class="mod-desc">«${esc(r.details)}»</p>` : ''}
+      ${c ? `<div class="cmt">${avaHtml(au?.avatar_url, pname(au))}<div class="cmt-main"><div class="cmt-head"><b data-user="${esc(au?.username || c.author_id)}">${esc(pname(au))}</b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body || '')}</div></div></div>
+        ${post ? `<a class="mod-post" href="#/p/${esc(post.short_code || post.id)}">к посту «${esc(post.title || 'без названия')}»</a>` : ''}` : '<div class="mod-desc">Комментарий уже удалён.</div>'}
+      <div class="mod-acts">${c ? `<button class="btn accent" data-rdel="${r.id}" data-cid="${c.id}">Удалить комментарий</button>` : ''}<button class="btn" data-rno="${r.id}">${c ? 'Оставить' : 'Закрыть жалобу'}</button></div>
+    </article>`;
+  }).join('') : '<div class="empty">Жалоб нет.</div>';
+}
+function modDone(card) { card.classList.add('gone'); setTimeout(() => { card.remove(); if (!$('.mod-card')) (MOD.tab === 'queue' ? modQueue : modReports)(); }, 250); modCount(); }
+function rejectDialog() {
+  return new Promise(res => {
+    const ov = document.createElement('div');
+    ov.className = 'v2-overlay';
+    ov.innerHTML = `<form class="v2-modal"><h2>Отклонить работу</h2><label>Причина (автор её увидит)<textarea name="r" rows="3" maxlength="500" placeholder="Например: нарушает правила, плохое качество, не по теме"></textarea></label><div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Отклонить</button></div></form>`;
+    const close = v => { ov.remove(); res(v); };
+    ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) close(undefined); });
+    $('form', ov).onsubmit = e => { e.preventDefault(); close(e.target.r.value.trim() || null); };
+    document.body.append(ov); setTimeout(() => $('textarea', ov).focus(), 30);
+  });
+}
+page.addEventListener('click', async e => {
+  const z = e.target.closest('[data-mzoom]');
+  if (z) { e.preventDefault(); openViewer($$('[data-mzoom]', z.closest('.mod-imgs')).map(a => a.getAttribute('href')), +z.dataset.mzoom); return; }
+  const ok = e.target.closest('[data-mok]'), no = e.target.closest('[data-mno]');
+  if (ok || no) {
+    const id = (ok || no).dataset[ok ? 'mok' : 'mno'], card = (ok || no).closest('.mod-card');
+    let reason = null;
+    if (no) { reason = await rejectDialog(); if (reason === undefined) return; }
+    $$('button', card).forEach(b => { b.disabled = true; });
+    try {
+      const upd = await api(`content?id=eq.${id}`, { method: 'PATCH', prefer: 'return=representation', body: ok ? { status: 'published', published_at: new Date().toISOString() } : { status: 'rejected', rejection_reason: reason } });
+      if (!upd?.length) throw new Error('Не удалось изменить работу (нет прав?)');
+      await api('moderation_log', { method: 'POST', prefer: 'return=minimal', body: { content_id: id, moderator_id: S.uid, action: ok ? 'approved' : 'rejected', ...(no ? { comment: reason } : {}) } }).catch(() => {});
+      if (no) fetch(CDN_URL + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await getToken()) }, body: JSON.stringify({ contentId: id }) }).catch(() => {});
+      if (ok) Object.keys(localStorage).filter(k => k.startsWith(LSC + 'feed:')).forEach(k => { MEM.delete(k.slice(LSC.length)); });
+      toast(ok ? 'Опубликовано' : 'Отклонено');
+      modDone(card);
+    } catch (er) { toast(er.message, true); $$('button', card).forEach(b => { b.disabled = false; }); }
+    return;
+  }
+  const rd = e.target.closest('[data-rdel]'), rn = e.target.closest('[data-rno]');
+  if (rd || rn) {
+    const card = (rd || rn).closest('.mod-card'), rid = (rd || rn).dataset[rd ? 'rdel' : 'rno'];
+    if (rd && !confirm('Удалить комментарий?')) return;
+    $$('button', card).forEach(b => { b.disabled = true; });
+    try {
+      if (rd) await api(`comments?id=eq.${rd.dataset.cid}`, { method: 'DELETE' });
+      await api(`comment_reports?id=eq.${rid}`, { method: 'PATCH', prefer: 'return=minimal', body: { status: rd ? 'resolved' : 'dismissed' } }).catch(er => { if (!rd) throw er; });
+      toast(rd ? 'Комментарий удалён' : 'Жалоба закрыта');
+      modDone(card);
+    } catch (er) { toast(er.message, true); $$('button', card).forEach(b => { b.disabled = false; }); }
+  }
+});
+
+/* ── правила ── */
+function viewRules() {
+  setNav('rules');
+  page.innerHTML = `<article class="rules">
+    <div class="page-head"><h1>Правила</h1></div>
+    <section class="rules-card"><h2>Правила сайта</h2><ul>
+      <li>Запрещается любой контент, нарушающий правила Twitch: запрещённые слова (банворды), NSFW-контент и т.д.</li>
+      <li>Незнание правил не освобождает от ответственности.</li>
+      <li>Нарушение правил на платформе может повлечь за собой блокировку в чате.</li></ul></section>
+    <section class="rules-card"><h2>renah0cki coin</h2>
+      <p>renah0cki coin — внутренняя игровая валюта сайта. Это не деньги, не электронные деньги и не криптовалюта: монеты нельзя вывести, обменять обратно на деньги или продать вне сайта.</p>
+      <h3>Как получить</h3><ul>
+        <li><b>Добровольный донат</b> через DonationAlerts: 1 ₽ = 1 coin (другие валюты — по курсу). Чтобы монеты пришли, впиши свой код <b>RN-…</b> в сообщение к донату. Донат без кода — просто поддержка проекта.</li>
+        <li>Переводы и подарки от других пользователей, награды от администрации.</li></ul>
+      <h3>Донат — это поддержка, а не покупка</h3><p>Донат делается добровольно, чтобы поддержать сайт; монеты — благодарность за поддержку. Донаты не возвращаются. Если ошибся в коде или монеты не пришли в течение часа — напиши в поддержку.</p>
+      <h3>На что тратить</h3><ul><li>Подписки ГОЙ и VIP в Y (переписки).</li><li>Подарки авторам — монета под постом, её сразу получает автор.</li><li>Переводы другим пользователям.</li></ul>
+      <p>Потраченные, подаренные и переведённые монеты не возвращаются.</p>
+      <h3>Ограничения</h3><ul><li>Запрещено пользоваться ошибками сайта, накручивать монеты, продавать или покупать их за деньги вне сайта, выманивать монеты обманом.</li><li>За нарушения администрация может списать монеты, обнулить баланс или заблокировать аккаунт. Монеты, начисленные по ошибке, могут быть списаны.</li><li>При удалении аккаунта монеты сгорают.</li></ul>
+      <h3>Изменения</h3><p>Цены, курс и то, на что тратятся монеты, могут меняться. Система монет может быть изменена или закрыта; деньги за монеты при этом не возвращаются.</p></section>
+    <p class="rules-foot">Вопросы — в <a href="#/support">поддержку</a>.</p>
+  </article>`;
 }
 
 /* ── роутер ── */
@@ -1219,10 +1527,12 @@ function route() {
   if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'support') return viewSupport(parts[1]);
   if (parts[0] === 'new') return viewNew(parts[1]);
+  if (parts[0] === 'mod') return viewMod(parts[1]);
+  if (parts[0] === 'rules') return viewRules();
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
 loadAllMyLikes();
-loadMe().then(() => { if (/^#\/(suggest|news|u\/)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
+loadMe().then(() => { if (/^#\/(suggest|news|u\/|mod)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
 route();
 })();
