@@ -12169,6 +12169,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
           </span>
           <div class="header-user-dropdown" id="headerUserDropdown">
             <button type="button" id="headerGoProfileBtn">Профиль</button>
+            ${coinSocialOk() ? '<button type="button" id="headerV2Btn">Новый дизайн (бета)</button>' : ''}
             <button type="button" id="headerSettingsBtn">Настройки</button>
             <button type="button" id="headerSignOutBtn" class="danger">Выйти</button>
           </div>
@@ -12177,6 +12178,8 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
 
       const coinChipEl = document.getElementById('coinChip');
       if (coinChipEl) { coinChipEl.addEventListener('click', (e) => { e.stopPropagation(); openCoinWallet(); }); refreshCoinBalance(); }
+      const v2BtnEl = document.getElementById('headerV2Btn');
+      if (v2BtnEl) v2BtnEl.addEventListener('click', () => { location.href = '/v2/'; });
 
       document.getElementById('openProfileBtn').addEventListener('click', (e) => {
         e.stopPropagation();
