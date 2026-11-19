@@ -63,7 +63,7 @@ const S = {
   uid: readSession()?.user?.id || null,
   q: 'wait', qSort: ls.get('auc_qsort') || 'new', flt: { don: true, pts: true },
   startMin: Number(ls.get('auc_startmin')) || 60,
-  search: '', hist: { items: [], end: false },
+  search: '', hist: { items: [], end: false }, busy: 0, ver: 0, tmp: 0, shown: null,
   view: { pct: ls.get('auc_pct') !== '0', bars: ls.get('auc_bars') !== '0', hide: ls.get('auc_hide') === '1' },
 };
 const WH = { rot: 0, spinning: false, lastSpin: null, result: null, stop: null, auto: ls.get('auc_autospin') === '1' };
@@ -86,8 +86,11 @@ function connect() {
   es.addEventListener('spin', ev => { try { onSpin(JSON.parse(ev.data)); } catch {} });
 }
 async function loadAdmin() {
+  if (S.busy) return;                          // ответ на действие сам принесёт свежее состояние
+  const v = S.ver;
   try {
     const d = await aucApi('/auc/admin/state');
+    if (S.busy || v !== S.ver) return;          // пока шёл запрос, на экране уже что-то поменяли
     S.adm = d; S.isAdmin = true; S.off = Date.parse(d.now) - Date.now();
     render();
   } catch (e) {
@@ -140,23 +143,29 @@ function tickClock() {
   else if (a.status === 'paused') left = (a.left_ms || 0) / 1000;
   if (a.started_at) el = ((a.ended_at && a.status !== 'running' && a.status !== 'paused' ? Date.parse(a.ended_at) : now) - Date.parse(a.started_at)) / 1000;
   const big = $('#timer');
-  if (left == null) {
-    big.textContent = a.status === 'idle' ? mmss(S.startMin * 60) : '00:00';
-    big.className = 'clock-big idle';
-    $('#limit').textContent = a.status === 'idle' ? mmss(S.startMin * 60) : mmss(el);
-  } else {
-    big.textContent = mmss(left);
-    big.className = 'clock-big ' + (a.status === 'paused' ? 'pause' : left <= 30 ? 'low' : 'run');
-    $('#limit').textContent = mmss(el + left);
+  const target = left ?? (a.status === 'idle' ? S.startMin * 60 : 0);
+  // при ±минуте цифры плавно «перелетают» к новому значению (~0,35 с), обычный ход — без задержки
+  const tnow = performance.now(), dt = Math.min(500, tnow - (S.shownAt || tnow)); S.shownAt = tnow;
+  let shown = target, jump = false;
+  if (S.ready && S.shown != null && S.shownFor === a.id && Math.abs(target - S.shown) > 1.2) {
+    shown = target + (S.shown - target) * Math.pow(0.8, dt / 16.7); jump = Math.abs(target - shown) > 1.2;
+    if (!jump) shown = target;
   }
-  $('#elapsed').textContent = mmss(el);
+  S.shown = shown; S.shownFor = a.id;
+  const txt = (el2, t) => { if (el2.textContent !== t) el2.textContent = t; };
+  txt(big, mmss(shown));
+  const cls = 'clock-big ' + (left == null ? 'idle' : a.status === 'paused' ? 'pause' : left <= 30 ? 'low' : 'run') + (jump ? ' jump' : '');
+  if (big.className !== cls) big.className = cls;
+  txt($('#limit'), left == null ? (a.status === 'idle' ? mmss(shown) : mmss(el)) : mmss(el + shown));
+  txt($('#elapsed'), mmss(el));
   const p = $('#playBtn'); const run = a.status === 'running';
   p.classList.toggle('on', run);
   const icon = run ? '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z"/></svg>';
   if (p.dataset.i !== String(run)) { p.innerHTML = icon; p.dataset.i = String(run); }
   p.disabled = a.status === 'closed';
 }
-setInterval(tickClock, 250);
+(function frame() { tickClock(); requestAnimationFrame(frame); })();
+setInterval(tickClock, 500);   // если вкладка в фоне и кадры не рисуются
 
 function renderView() {
   const v = $('#view'); const t = S.tab;
@@ -571,12 +580,99 @@ function pop(anchor, html) {
 }
 const closePop = () => { $('#pop').hidden = true; };
 
-async function admDo(body, okMsg) {
-  const r = await aucApi('/auc/admin/do', body);
-  if (okMsg) toast(okMsg);
-  loadAdmin();
-  return r;
+/* мгновенные действия: экран меняется сразу, сервер подтверждает следом */
+const isoAt = ms => new Date(ms).toISOString();
+function applyLocal(b) {
+  const d = S.adm; if (!d) return null;
+  const a = d.auction, now = Date.now() + S.off;
+  const lot = id => d.lots.find(l => l.id === id);
+  const onLot = (id, p) => { const l = lot(id); if (l) { l.total = +l.total + p; l.bids = (+l.bids || 0) + (p > 0 ? 1 : -1); } };
+  const newLot = (name, pts = 0) => {
+    name = String(name || '').trim().slice(0, 80);
+    if (!name) return null;
+    const ex = d.lots.find(l => l.name.toLowerCase() === name.toLowerCase()); if (ex) return ex.id;
+    const id = 'tmp' + (++S.tmp);
+    d.lots.push({ id, num: d.lots.reduce((m, l) => Math.max(m, l.num), 0) + 1, name, total: pts, bids: pts ? 1 : 0 });
+    return id;
+  };
+  let key = null;
+  switch (b.a) {
+    case 'control': {
+      const s = Number(b.sec) || 0;
+      if (b.op === 'start' && a.status === 'idle') Object.assign(a, { status: 'running', ends_at: isoAt(now + s * 1000), started_at: isoAt(now), left_ms: null });
+      else if (b.op === 'start' && a.status === 'paused') Object.assign(a, { status: 'running', ends_at: isoAt(now + Math.max(1000, a.left_ms || 0)), left_ms: null });
+      else if (b.op === 'pause' && a.status === 'running') Object.assign(a, { status: 'paused', left_ms: Math.max(0, Date.parse(a.ends_at) - now), ends_at: null });
+      else if (b.op === 'add' && a.status === 'running') a.ends_at = isoAt(Math.max(now + 1000, Date.parse(a.ends_at) + s * 1000));
+      else if (b.op === 'add' && a.status === 'paused') a.left_ms = Math.max(1000, (a.left_ms || 0) + s * 1000);
+      else if (b.op === 'stop') Object.assign(a, { status: 'ended', ends_at: null, left_ms: null, ended_at: isoAt(now) });
+      else if (b.op === 'reopen') Object.assign(a, { status: 'paused', left_ms: Math.max(10, s) * 1000, ended_at: null });
+      else if (b.op === 'title' && b.title) a.title = String(b.title).trim().slice(0, 80);
+      break;
+    }
+    case 'accept': a.accepting = !!b.on; break;
+    case 'config': {
+      const { wheel, alert, ...rest } = b.config || {};
+      Object.assign(d.config, rest);
+      if (wheel) d.config.wheel = { ...(d.config.wheel || {}), ...wheel };
+      if (alert) d.config.alert = { ...(d.config.alert || {}), ...alert };
+      break;
+    }
+    case 'lot':
+      if (b.op === 'add') { const id = newLot(b.name, +b._pts || 0); if (id && String(id).startsWith('tmp')) { key = id; d.total = +d.total + (+b._pts || 0); } }
+      else if (b.op === 'rename') { const l = lot(b.id); if (l && b.name) l.name = String(b.name).trim().slice(0, 80); }
+      else if (b.op === 'delete') {
+        const l = lot(b.id); if (!l) break;
+        d.lots = d.lots.filter(x => x !== l);
+        (d.bids || []).forEach(x => { if (x.lot_id === l.id && x.status === 'active') { x.lot_id = null; x.status = 'queue'; d.queue_count++; } });
+      }
+      break;
+    case 'manual': if (!b._noLocal && b.lot) { onLot(b.lot, Number(b.points) || 0); d.total = +d.total + (Number(b.points) || 0); } break;
+    case 'assign': {
+      const x = (d.bids || []).find(y => y.id === b.bid); if (!x || !['active', 'queue'].includes(x.status)) break;
+      const to = b.name ? newLot(b.name) : b.lot; if (to == null || !lot(to)) break;
+      if (x.status === 'active' && x.lot_id) onLot(x.lot_id, -x.points);
+      if (x.status === 'queue') d.queue_count = Math.max(0, d.queue_count - 1);
+      x.status = 'active'; x.lot_id = to; onLot(to, +x.points);
+      break;
+    }
+    case 'refund': case 'mark': {
+      const x = (d.bids || []).find(y => y.id === b.bid); if (!x || !['active', 'queue', 'failed'].includes(x.status)) break;
+      if (x.status === 'active' && x.lot_id) onLot(x.lot_id, -x.points);
+      if (x.status !== 'failed') d.total = +d.total - x.points;
+      if (x.status === 'queue') d.queue_count = Math.max(0, d.queue_count - 1);
+      x.status = 'refunded';
+      break;
+    }
+    case 'wallet':
+      if (b.op === 'spend') { const w = (d.wallets || []).find(x => x.name === b.name); if (w) w.balance -= +b.points; if (b.lot) { onLot(b.lot, +b.points); d.total = +d.total + +b.points; } }
+      break;
+    default: return null;
+  }
+  d.lots.sort((x, y) => y.total - x.total || x.num - y.num);
+  S.ver++; render();
+  return key;
 }
+// временный лот получил настоящий номер — переносим ключ, чтобы строка не «перерождалась»
+function rekey(tmp, id) {
+  document.querySelectorAll(`[data-k="${tmp}"]`).forEach(el => { el.dataset.k = String(id); if (el.dataset.lot) el.dataset.lot = id; el._adm = null; });
+}
+function applyState(d) { S.adm = d; S.isAdmin = true; S.off = Date.parse(d.now) - Date.now(); render(); }
+async function admDo(body, okMsg) {
+  const key = applyLocal(body);
+  S.busy++;
+  try {
+    const r = await aucApi('/auc/admin/do', body);
+    if (key && r.id) rekey(key, r.id);
+    if (okMsg) toast(okMsg);
+    if (--S.busy === 0) { if (r.state) applyState(r.state); else loadAdmin(); }
+    return r;
+  } catch (e) {
+    if (--S.busy === 0) { S.ver++; loadAdmin(); }   // откат к тому, что на сервере
+    throw e;
+  }
+}
+// несколько действий подряд: экран не дёргается промежуточными ответами
+async function batch(fn) { S.busy++; try { return await fn(); } finally { if (--S.busy === 0) loadAdmin(); } }
 function finishSheet(winnerId) {
   const d = A(); const top = winnerId ?? d.lots[0]?.id ?? null;
   const live = (S.adm?.bids || []).filter(b => ['active', 'queue', 'failed'].includes(b.status));
@@ -728,9 +824,11 @@ document.addEventListener('submit', async e => {
       const n = String(fd.get('name') || '').trim(); if (!n) return;
       let pts = Number(fd.get('sum')) || 0;
       if (pts > 0 && fd.get('unit') === 'RUB') pts *= Number(S.adm?.config?.rates?.RUB) || 1;
-      const r = await aucApi('/auc/admin/do', { a: 'lot', op: 'add', name: n });
-      if (pts > 0) await aucApi('/auc/admin/do', { a: 'manual', lot: r.id, user: 'Стример', points: pts });
-      f.name.value = ''; f.sum.value = ''; f.name.focus(); loadAdmin();
+      f.name.value = ''; f.sum.value = ''; f.name.focus();
+      await batch(async () => {
+        const r = await admDo({ a: 'lot', op: 'add', name: n, _pts: pts });
+        if (pts > 0 && r.id) await admDo({ a: 'manual', lot: r.id, user: 'Стример', points: pts, _noLocal: true });
+      });
     } else if (f.dataset.form === 'settings') {
       const rates = { ...S.adm.config.rates };
       for (const [k, v] of fd) if (k.startsWith('rate_') && v !== '') rates[k.slice(5)] = Number(v);

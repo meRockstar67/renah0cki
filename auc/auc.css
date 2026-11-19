@@ -55,6 +55,8 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .clock-big.idle { color: var(--muted); }
 .clock-big.low { color: var(--danger); animation: pulse 1s var(--ease) infinite; }
 .clock-big.pause { color: var(--warn); }
+.clock-big { transition: color .25s, transform .25s cubic-bezier(.2,.7,.2,1); }
+.clock-big.jump { color: var(--accent); transform: scale(1.06); }
 @keyframes pulse { 50% { opacity: .5; } }
 .clock-btns { display: flex; gap: 4px; }
 .clock-btns button { min-width: 40px; height: 40px; padding: 0 8px; display: grid; place-items: center; border: 0; border-radius: 8px; background: var(--panel-3); color: var(--text); font-family: var(--mono); font-weight: 700; cursor: pointer; }
