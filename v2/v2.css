@@ -406,3 +406,30 @@ html.lb-lock, html.lb-lock body { overflow: hidden; }
   .lb-nav { position: absolute; bottom: 16px; z-index: 3; width: 44px; height: 44px; }
   .lb-prev { left: 16px; } .lb-next { right: 16px; }
 }
+
+/* ── арт на собственном размытом фоне вместо чёрных полос ── */
+.post-media { background: #070d18; }
+.pm-item { position: relative; display: grid; place-items: center; width: 100%; overflow: hidden; isolation: isolate; }
+.pm-bg { position: absolute; inset: -60px; z-index: -1; background-position: center; background-size: cover; filter: blur(46px) saturate(1.5) brightness(.8); transform: scale(1.15); }
+.pm-item::after { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at center, transparent 55%, rgba(7, 13, 24, .45) 100%); }
+.pm-item img { position: relative; box-shadow: 0 10px 50px rgba(0, 0, 0, .45); }
+.pm-item + .pm-item { border-top: 1px solid var(--border); }
+
+/* ── платная реакция ── */
+.react-wrap { position: relative; }
+.react-btn { gap: 6px; }
+.react-btn img, .react-title img, .react-send img { width: 18px; height: 18px; object-fit: contain; }
+.react-btn.mine { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.react-btn.pop img { animation: coinFlip .7s var(--ease); }
+.react-btn:hover img { animation: coinFlip .6s var(--ease); }
+.react-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: min(340px, calc(100vw - 32px)); padding: 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 18px 44px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 10px; transform-origin: top right; animation: popIn .18s var(--ease); }
+.react-title { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.react-top { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
+.react-top b { color: var(--text); }
+.react-amts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.react-amts .chip { min-width: 44px; height: 34px; font-size: 14px; color: var(--text); }
+.react-custom { width: 78px; height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
+.react-custom:focus { outline: none; border-color: var(--accent); }
+.react-send { width: 100%; }
+.react-hint, .react-status { font-size: 12.5px; color: var(--muted); }
+.react-status:empty { display: none; }

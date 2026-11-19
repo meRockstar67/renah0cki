@@ -354,7 +354,7 @@ async function viewPost(key, root = page) {
     media = y ? `<iframe src="https://www.youtube.com/embed/${y}" allowfullscreen loading="lazy"></iframe>` : isOwnFile(src) || isVideoFile(src) ? `<video src="${esc(src)}" controls playsinline preload="metadata"></video>` : `<a class="btn" href="${esc(src)}" target="_blank" rel="noopener">Открыть видео</a>`;
   } else if (it.content_type === 'art') {
     const imgs = Array.isArray(it.media_items) && it.media_items.length ? it.media_items.map(m => m.url).filter(Boolean) : [src];
-    media = imgs.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener" title="Открыть оригинал">${imgTag(u, 1080).replace(' loading="lazy"', '')}</a>`).join('');
+    media = imgs.map(u => `<a class="pm-item" href="${esc(u)}" target="_blank" rel="noopener" title="Открыть оригинал"><span class="pm-bg" style="background-image:url('${esc(thumbUrl(u, 360))}')"></span>${imgTag(u, 1080).replace(' loading="lazy"', '')}</a>`).join('');
   }
   const liked = S.liked.has(it.id);
   if (inLb && LB.key !== key) return;
@@ -362,7 +362,7 @@ async function viewPost(key, root = page) {
     ${inLb ? '' : `<button class="back" data-back>${I.back} Назад</button>`}
     ${media ? `<div class="post-media${it.is_blurred ? ' blur' : ''}" id="postMedia">${media}</div>` : ''}
     <div class="post-head"><img class="av" src="${esc(avatarUrl(a))}" alt="" data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"><div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${esc(pname(a))}</b><div class="sub">${when(it.published_at || it.created_at)} · ${fmt(it.views)} просмотров</div></div>
-      <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button></div></div>
+      <div class="post-actions"><div class="react-wrap" id="reactWrap"></div><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button></div></div>
     <h1>${esc(it.title || 'Без названия')}</h1>
     ${it.description && it.content_type !== 'fanfic' ? `<p class="post-desc">${esc(it.description)}</p>` : ''}
     ${it.content_type === 'fanfic' ? `<div class="post-text">${esc(it.description || '')}</div>` : ''}
@@ -384,7 +384,54 @@ async function viewPost(key, root = page) {
   $('#copyBtn').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/${it.short_code || '?post=' + it.id}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
   rpc('increment_content_views', { content_id: it.id }).catch(() => {});
   loadComments(it.id);
+  renderReact(it);
 }
+
+/* ── платная реакция: монета renah0cki (как звёзды в Telegram), монеты уходят автору ── */
+const REACT_AMOUNTS = [1, 5, 10, 25, 50, 100];
+async function renderReact(it) {
+  const box = $('#reactWrap'); if (!box) return;
+  let rows = [];
+  try { rows = await api(`coin_reactions?target_kind=eq.content&target_id=eq.${it.id}&select=from_user,amount`); } catch {}
+  if (!$('#reactWrap') || $('#reactWrap') !== box) return;
+  let total = 0, mine = 0; const by = {};
+  rows.forEach(x => { const a = +x.amount || 0; total += a; by[x.from_user] = (by[x.from_user] || 0) + a; if (x.from_user === S.uid) mine += a; });
+  const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  await loadProfiles(top.map(t => t[0]));
+  const own = S.uid && S.uid === it.submitted_by;
+  box.innerHTML = `<button class="btn react-btn${mine ? ' mine' : ''}" data-react-toggle title="${own ? 'Монеты, подаренные этой работе' : 'Подарить автору renah0cki coin'}"><img src="${COIN}" alt=""><span>${total ? fmt(total) : (own ? '0' : 'Подарить')}</span></button>
+    <div class="react-pop" hidden>
+      <div class="react-title">${own ? 'Вашей работе подарили' : 'Подарить автору'} <img src="${COIN}" alt=""> <b>${fmt(total)}</b></div>
+      ${top.length ? `<div class="react-top">${top.map(([uid, a], i) => `<span>${['🥇', '🥈', '🥉'][i]} ${esc(pname(S.profiles.get(uid)))} — <b>${fmt(a)}</b></span>`).join('')}</div>` : ''}
+      ${own || !S.uid ? '' : `<div class="react-amts">${REACT_AMOUNTS.map((a, i) => `<button class="chip${i === 1 ? ' on' : ''}" data-ramt="${a}">${a}</button>`).join('')}<input type="number" min="1" max="100000" step="1" class="react-custom" placeholder="своя"></div>
+      <button class="btn accent react-send" data-react-send>Подарить <img src="${COIN}" alt=""> <span>5</span></button>
+      <div class="react-hint">Монеты сразу получит автор.${mine ? ` Вы уже подарили ${fmt(mine)}.` : ''}</div>`}
+      <div class="react-status"></div>
+    </div>`;
+  const pop = $('.react-pop', box), amt = () => { const c = parseInt($('.react-custom', box)?.value, 10); return c > 0 ? c : +($('[data-ramt].on', box)?.dataset.ramt || 5); };
+  const sync = () => { const sp = $('[data-react-send] span', box); if (sp) sp.textContent = fmt(amt()); };
+  box.onclick = async e => {
+    e.stopPropagation();
+    if (e.target.closest('[data-react-toggle]')) { pop.hidden = !pop.hidden; return; }
+    const ch = e.target.closest('[data-ramt]');
+    if (ch) { $$('[data-ramt]', box).forEach(x => x.classList.toggle('on', x === ch)); $('.react-custom', box).value = ''; sync(); return; }
+    const send = e.target.closest('[data-react-send]');
+    if (send) {
+      const st = $('.react-status', box), a = amt();
+      if (!(a >= 1)) { st.textContent = 'Укажи сумму'; return; }
+      send.disabled = true; st.textContent = '…';
+      try {
+        const bal = await rpc('coin_react', { p_kind: 'content', p_id: it.id, p_emoji: 'coin', p_amount: a });
+        $('#coinVal').textContent = fmt(bal);
+        toast(`Подарено ${fmt(a)} coin автору`);
+        await renderReact(it);
+        $('.react-btn', $('#reactWrap'))?.classList.add('pop');
+      } catch (er) { st.textContent = 'Ошибка: ' + er.message; send.disabled = false; }
+    }
+  };
+  box.oninput = e => { if (e.target.closest('.react-custom')) { if (e.target.value) $$('[data-ramt]', box).forEach(x => x.classList.remove('on')); sync(); } };
+}
+document.addEventListener('click', e => { if (!e.target.closest('.react-wrap')) $$('.react-pop').forEach(p => { p.hidden = true; }); });
 /* ── лайтбокс: пост поверх ленты ── */
 let lbBaseHash = location.hash;
 function closeLightboxUi() {
