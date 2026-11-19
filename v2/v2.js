@@ -174,7 +174,7 @@ function viewFeed(type) {
           <h4>Сортировка</h4><div class="chips"><button class="chip${FEED.sort === 'new' ? ' on' : ''}" data-fsort="new">Новые</button><button class="chip${FEED.sort === 'top' ? ' on' : ''}" data-fsort="top">Популярные</button></div>
         </div></div>
     </div>
-    <div class="grid" id="grid">${'<div class="skel"></div>'.repeat(8)}</div><div class="more" id="more"></div>`;
+    <div class="grid${FEED.type === 'art' ? ' grid-art' : ''}" id="grid">${'<div class="skel"></div>'.repeat(8)}</div><div class="more" id="more"></div>`;
   S.feed = { key: JSON.stringify(FEED), items: [], done: false, loading: false };
   loadMore(true);
 }

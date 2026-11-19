@@ -280,3 +280,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .sg-card .card-media { aspect-ratio: 16 / 9; }
 .sg-card .card-media img { object-fit: cover; }
 @media (max-width: 900px) { .grid.sg-grid { grid-template-columns: 1fr; } }
+
+/* арты: крупнее карточки, меньше в ряду, картинка выше */
+.grid.grid-art { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+.grid-art .card-media { aspect-ratio: 4 / 3; }
+@media (max-width: 900px) { .grid.grid-art { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; } }
