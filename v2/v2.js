@@ -31,6 +31,7 @@ const I = {
   pin: '<svg viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></svg>',
   filter: '<svg viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/></svg>',
   back: '<svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
+  mic: '<svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
   link: '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
 };
 
@@ -224,6 +225,7 @@ function viewFeed(type) {
       <div class="filter-wrap"><button class="filter-btn" data-filter-toggle>${I.filter} Фильтрация</button>
         <div class="filter-pop" hidden>
           <h4>Тип</h4><div class="chips">${Object.entries(TYPE_NAMES).map(([k, v]) => `<button class="chip${FEED.type === k ? ' on' : ''}" data-ftype="${k}">${v}</button>`).join('')}</div>
+          <h4>Ещё</h4><div class="chips"><a class="chip" href="#/collections">🗂️ Сборники</a></div>
           <h4>Сортировка</h4><div class="chips"><button class="chip${FEED.sort === 'new' ? ' on' : ''}" data-fsort="new">Новые</button><button class="chip${FEED.sort === 'top' ? ' on' : ''}" data-fsort="top">Популярные</button></div>
         </div></div>
     </div>
@@ -614,19 +616,20 @@ addEventListener('keydown', e => {
 });
 
 const CMT = new Map();
-async function fetchComments(id) {
+async function fetchComments(id, kind = 'content') {
   let rows;
-  try { rows = await api(`comments?content_id=eq.${id}&is_deleted=eq.false&select=id,body,author_id,created_at,parent_id&order=created_at.asc&limit=500`); }
-  catch { rows = await api(`comments?content_id=eq.${id}&is_deleted=eq.false&select=id,body,author_id,created_at&order=created_at.asc&limit=500`).catch(() => []); }
+  try { rows = await api(`comments?${kind}_id=eq.${id}&is_deleted=eq.false&select=id,body,voice_url,author_id,created_at,parent_id&order=created_at.asc&limit=500`); }
+  catch { rows = await api(`comments?${kind}_id=eq.${id}&is_deleted=eq.false&select=id,body,author_id,created_at&order=created_at.asc&limit=500`).catch(() => []); }
   await loadProfiles(rows.map(r => r.author_id));
   CMT.set(id, rows);
   return rows;
 }
-async function loadComments(id) {
+async function loadComments(id, kind = 'content') {
   const box = $('#comments'); if (!box) return;
+  box.dataset.kind = kind;
   const draw = rows => { if ($('#comments') === box) drawComments(box, rows, id); };
   if (CMT.has(id)) draw(CMT.get(id));
-  draw(await fetchComments(id));
+  draw(await fetchComments(id, kind));
 }
 function drawComments(box, rows, cid) {
   if (cid) box.dataset.cid = cid;
@@ -639,10 +642,10 @@ function drawComments(box, rows, cid) {
   const draft = $('.cmt-form textarea', box)?.value || '';
   box.innerHTML = `<h3>Комментарии · ${rows.length}</h3>` + (rows.length ? ordered.map(([c, d]) => {
     const p = S.profiles.get(c.author_id), mine = S.uid && c.author_id === S.uid;
-    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}"><img class="av" src="${esc(avatarUrl(p))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'"><div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}"><span${nameAttr(p?.name_color)}>${esc(pname(p))}</span></b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body || '')}</div>
+    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}"><img class="av" src="${esc(avatarUrl(p))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'"><div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}"><span${nameAttr(p?.name_color)}>${esc(pname(p))}</span></b><span>${when(c.created_at)}</span></div>${c.voice_url && isOwnFile(c.voice_url) ? `<audio class="cmt-voice" src="${esc(c.voice_url)}" controls preload="none"></audio>` : `<div class="cmt-body">${esc(c.body || '')}</div>`}
       ${S.uid ? `<div class="cmt-acts"><button type="button" data-creply="${c.id}" data-cname="${esc(pname(p))}">Ответить</button>${mine || mod ? `<button type="button" data-cdel="${c.id}">Удалить</button>` : ''}${!mine ? `<button type="button" data-crep="${c.id}">Пожаловаться</button>` : ''}</div>` : ''}</div></div>`;
   }).join('') : '<div class="empty" style="padding:20px">Комментариев пока нет</div>')
-    + (S.uid ? `<form class="cmt-form" data-cform><div class="cmt-to" hidden></div><div class="cmt-row"><textarea rows="2" maxlength="2000" placeholder="Написать комментарий…" required></textarea><button class="btn accent" type="submit">Отправить</button></div></form>`
+    + (S.uid ? `<form class="cmt-form" data-cform><div class="cmt-to" hidden></div><div class="cmt-row"><textarea rows="2" maxlength="2000" placeholder="Написать комментарий…" required></textarea>${canVoice() ? `<button class="btn icon-only" type="button" data-voice title="Голосовое сообщение" aria-label="Записать голосовое">${I.mic}</button>` : ''}<button class="btn accent" type="submit">Отправить</button></div></form>`
       : `<div class="cmt-login"><button type="button" class="btn accent" data-login>Войти</button><span>чтобы оставить комментарий</span></div>`);
   const ta = $('.cmt-form textarea', box); if (ta && draft) ta.value = draft;
 }
@@ -662,12 +665,20 @@ document.addEventListener('click', async e => {
   const del = e.target.closest('[data-cdel]');
   if (del) {
     if (!confirm('Удалить комментарий?')) return;
-    try { await api(`comments?id=eq.${del.dataset.cdel}`, { method: 'DELETE' }); bumpComments(cid, -1); drawComments(box, await fetchComments(cid)); toast('Комментарий удалён'); }
+    try { await api(`comments?id=eq.${del.dataset.cdel}`, { method: 'DELETE' }); bumpComments(cid, -1); drawComments(box, await fetchComments(cid, box.dataset.kind)); toast('Комментарий удалён'); }
     catch (er) { toast(er.message, true); }
     return;
   }
   const rep = e.target.closest('[data-crep]');
   if (rep) reportDialog(rep.dataset.crep);
+  const vb = e.target.closest('[data-voice]');
+  if (vb) {
+    const f = vb.closest('form');
+    recordVoice(f, async url => {
+      await api('comments', { method: 'POST', prefer: 'return=minimal', body: { [`${box.dataset.kind || 'content'}_id`]: cid, author_id: S.uid, body: '🎤 Голосовое сообщение', voice_url: url, parent_id: f.dataset.parent || null } });
+      bumpComments(cid, 1); drawComments(box, await fetchComments(cid, box.dataset.kind));
+    });
+  }
 });
 document.addEventListener('submit', async e => {
   const f = e.target.closest('[data-cform]'); if (!f) return;
@@ -676,9 +687,9 @@ document.addEventListener('submit', async e => {
   if (!body || !cid) return;
   const btn = $('button[type=submit]', f); btn.disabled = true;
   try {
-    await api('comments', { method: 'POST', prefer: 'return=minimal', body: { content_id: cid, author_id: S.uid, body, parent_id: f.dataset.parent || null } });
+    await api('comments', { method: 'POST', prefer: 'return=minimal', body: { [`${box.dataset.kind || 'content'}_id`]: cid, author_id: S.uid, body, parent_id: f.dataset.parent || null } });
     ta.value = ''; bumpComments(cid, 1);
-    drawComments(box, await fetchComments(cid));
+    drawComments(box, await fetchComments(cid, box.dataset.kind));
     box.lastElementChild.previousElementSibling?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   } catch (er) { toast(er.message, true); btn.disabled = false; }
 });
@@ -790,7 +801,7 @@ function newsCardHtml(n) {
 }
 async function viewNews() {
   setNav('news');
-  page.innerHTML = `<div class="page-head"><h1>Новости</h1>${isMod() ? '<a class="btn" href="/?v2=news">Написать</a>' : ''}</div><div class="grid grid-big" id="newsGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
+  page.innerHTML = `<div class="page-head"><h1>Новости</h1>${isMod() ? '<a class="btn accent" href="#/news/new">Написать</a>' : ''}</div><div class="grid grid-big" id="newsGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
   try {
     await swr('news', fetchNews, data => {
       applyNews(data);
@@ -833,7 +844,7 @@ async function viewNewsArticle(key) {
     ${cover ? `<div class="post-media"><img src="${esc(cover)}" alt=""></div>` : ''}
     <h1>${esc(n.title)}</h1>
     <div class="post-head">${avaHtml(by.ava, by.name)}<div><b>${esc(by.name)}</b><div class="sub">${when(n.created_at)} · ${fmt(n.views)} просмотров</div></div>
-      <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="newsLike">${I.heart}<span>${fmt(n.likes_count)}</span></button><button class="btn" id="newsCopy" title="Скопировать ссылку">${I.link}</button></div></div>
+      <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="newsLike">${I.heart}<span>${fmt(n.likes_count)}</span></button><button class="btn" id="newsCopy" title="Скопировать ссылку">${I.link}</button>${isMod() ? `<a class="btn" href="#/news/edit/${n.id}">Изменить</a><button class="btn" id="newsPin">${n.pinned ? 'Открепить' : 'Закрепить'}</button>` : ''}</div></div>
     <div class="news-body">${newsBody(n.body)}</div>
     <section class="comments" id="newsComments"><h3>Комментарии</h3><div class="empty" style="padding:20px">Загрузка…</div></section>
   </article>`;
@@ -850,6 +861,8 @@ async function viewNewsArticle(key) {
     b.disabled = false;
   };
   $('#newsCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/${n.short_code ? 'n/' + n.short_code : '?news=' + n.id}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
+  const np = $('#newsPin');
+  if (np) np.onclick = async () => { try { await api(`news?id=eq.${n.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { pinned: !n.pinned } }); n.pinned = !n.pinned; np.textContent = n.pinned ? 'Открепить' : 'Закрепить'; MEM.delete('news'); toast(n.pinned ? 'Закреплено' : 'Откреплено'); } catch (er) { toast(er.message, true); } };
   newsLoadComments(n);
 }
 async function newsLoadComments(n) {
@@ -1073,7 +1086,7 @@ async function viewNotifs() {
   const box = $('#notifList'); if (!box) return;
   box.innerHTML = list.length ? list.map(n => {
     const unread = new Date(n.at).getTime() > seen;
-    const href = n.type === 'follow' ? userPath(n.actor) : n.target ? (n.coll ? `/?collection=${n.target.id}` : `#/p/${n.target.short_code || n.target.id}`) : '#/';
+    const href = n.type === 'follow' ? userPath(n.actor) : n.target ? (n.coll ? `#/c/${n.target.short_code || n.target.id}` : `#/p/${n.target.short_code || n.target.id}`) : '#/';
     return `<a class="notif${unread ? ' unread' : ''} n-${n.type}" href="${esc(href)}">
       <span class="notif-ic">${NOTIF_ICON[n.type]}</span>
       ${avaHtml(n.actor?.avatar_url, pname(n.actor))}
@@ -1115,7 +1128,7 @@ function viewNew(type) {
       <div class="drop-preview" hidden></div></label>`;
   page.innerHTML = `<div class="up">
     <div class="page-head"><h1>Новая работа</h1></div>
-    <div class="up-tabs">${[['art', 'Арт'], ['video', 'Видео'], ['fanfic', 'Фанфик']].map(([k, v]) => `<a class="up-tab${T === k ? ' on' : ''}" href="#/new/${k}">${v}</a>`).join('')}</div>
+    <div class="up-tabs">${[['art', 'Арт'], ['video', 'Видео'], ['fanfic', 'Фанфик'], ...(isMod() ? [['collection', 'Сборник']] : [])].map(([k, v]) => `<a class="up-tab${T === k ? ' on' : ''}" href="#/new/${k}">${v}</a>`).join('')}</div>
     <form class="up-form" id="upForm" novalidate>
       <label class="fld"><span>Название</span><input name="title" maxlength="120" placeholder="${T === 'fanfic' ? 'Название произведения' : T === 'video' ? 'Название видео' : 'Название арта'}" required></label>
       ${T === 'art' ? drop('upDrop', 'image/png,image/jpeg,image/webp,image/gif', 'Перетащите картинку сюда', 'или нажмите, чтобы выбрать · PNG, JPG, WEBP, GIF') : ''}
@@ -1419,13 +1432,110 @@ function viewMod(tab) {
   setNav('mod');
   if (!S.me) { page.innerHTML = '<div class="empty">Загрузка…</div>'; return; }
   if (!isMod()) { page.innerHTML = '<div class="empty">Раздел только для модераторов.</div>'; return; }
-  MOD.tab = tab === 'reports' ? 'reports' : 'queue';
+  MOD.tab = ['reports', 'users', 'bans'].includes(tab) ? tab : 'queue';
+  const tb = (k, t, h) => `<a class="tab${MOD.tab === k ? ' on' : ''}" data-modtab="${k}" href="#/mod${h}">${t} <i></i></a>`;
   page.innerHTML = `<div class="mod"><div class="page-head"><h1>Модерация</h1></div>
-    <div class="tabs mod-tabs"><a class="tab${MOD.tab === 'queue' ? ' on' : ''}" data-modtab="queue" href="#/mod">На проверке <i></i></a><a class="tab${MOD.tab === 'reports' ? ' on' : ''}" data-modtab="reports" href="#/mod/reports">Жалобы <i></i></a></div>
+    <div class="tabs mod-tabs">${tb('queue', 'На проверке', '')}${tb('reports', 'Жалобы', '/reports')}${tb('users', 'Пользователи', '/users')}${tb('bans', 'Баны', '/bans')}</div>
     <div id="modList">${'<div class="skel" style="aspect-ratio:auto;height:140px;margin-bottom:12px"></div>'.repeat(3)}</div></div>`;
   modCount();
-  MOD.tab === 'queue' ? modQueue() : modReports();
+  ({ queue: modQueue, reports: modReports, users: modUsers, bans: modBans })[MOD.tab]();
 }
+/* пользователи, баны, роли */
+const ROLE_LIST = ['respect_plus', 'sponsor', 'streamer', 'moderator', 'gl_moder'];
+const canRoles = () => hasRole(S.me, 'gl_moder') || hasRole(S.me, 'admin');
+const rolesOf = p => [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && r !== 'user' && a.indexOf(r) === i);
+function userRow(p) {
+  const roles = rolesOf(p), staff = MOD_ROLES.some(r => roles.includes(r));
+  return `<article class="mod-user${p.is_banned ? ' banned' : ''}" data-uid="${p.id}">
+    ${avaHtml(p.avatar_url, pname(p))}
+    <div class="mu-main"><b data-user="${esc(p.username || p.id)}"><span${nameAttr(p.name_color)}>${esc(pname(p))}</span></b>${p.username ? `<span>@${esc(p.username)}</span>` : ''}
+      <div class="mu-roles">${roles.map(r => `<span class="role role-${r}">${ROLE_LABEL[r] || r}</span>`).join('')}${p.is_banned ? '<span class="role role-ban">Заблокирован</span>' : ''}</div></div>
+    <div class="mu-acts">${canRoles() && p.id !== S.uid ? `<button class="btn" data-uroles="${p.id}">Роли</button>` : ''}${p.id === S.uid || (staff && !canRoles()) ? '' : p.is_banned ? `<button class="btn" data-uunban="${p.id}">Разбанить</button>` : `<button class="btn danger" data-uban="${p.id}">Забанить</button>`}</div>
+  </article>`;
+}
+const U_SEL = 'id,username,display_name,avatar_url,role,extra_roles,is_banned,name_color';
+async function modUsers() {
+  const box = $('#modList'); if (!box) return;
+  box.innerHTML = `<label class="search wal-find"><input id="muFind" type="search" placeholder="Поиск по нику" autocomplete="off"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></label>
+    <div class="mu-filter chips"><button class="chip on" data-muf="">Все</button><button class="chip" data-muf="staff">Модераторы</button>${ROLE_LIST.filter(r => !MOD_ROLES.includes(r)).map(r => `<button class="chip" data-muf="${r}">${ROLE_LABEL[r]}</button>`).join('')}</div>
+    <div id="muList"></div>`;
+  let t, f = '';
+  const load = async () => {
+    const q = $('#muFind').value.trim().replace(/[*,()%]/g, '');
+    let url = `profiles?select=${U_SEL}&order=username.asc&limit=60`;
+    const conds = [];
+    if (q) conds.push(`or(username.ilike.*${encodeURIComponent(q)}*,display_name.ilike.*${encodeURIComponent(q)}*)`);
+    if (f === 'staff') conds.push('or(role.in.(moderator,gl_moder,admin),extra_roles.ov.{moderator,gl_moder,admin})');
+    else if (f) conds.push(`or(role.eq.${f},extra_roles.cs.{${f}})`);
+    if (conds.length) url += `&and=(${conds.join(',')})`;
+    const rows = await api(url).catch(e => { toast(e.message, true); return []; });
+    rows.forEach(p => S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p }));
+    const l = $('#muList'); if (l) l.innerHTML = rows.length ? rows.map(userRow).join('') : '<div class="empty">Никого не нашли.</div>';
+  };
+  $('#muFind').oninput = () => { clearTimeout(t); t = setTimeout(load, 300); };
+  box.querySelector('.mu-filter').onclick = e => { const c = e.target.closest('[data-muf]'); if (!c) return; f = c.dataset.muf; $$('[data-muf]', box).forEach(x => x.classList.toggle('on', x === c)); load(); };
+  load();
+}
+async function modBans() {
+  const box = $('#modList'); if (!box) return;
+  const rows = await api(`profiles?is_banned=eq.true&select=${U_SEL}&order=username.asc&limit=200`).catch(e => { toast(e.message, true); return []; });
+  rows.forEach(p => S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p }));
+  box.innerHTML = rows.length ? `<div id="muList">${rows.map(userRow).join('')}</div>` : '<div class="empty">Заблокированных нет.</div>';
+}
+async function banUser(id, on) {
+  const p = S.profiles.get(id);
+  if (!confirm(on ? `Заблокировать ${pname(p)}? Все его работы на проверке будут удалены.` : `Разблокировать ${pname(p)}?`)) return;
+  try {
+    const r = await api(`profiles?id=eq.${id}`, { method: 'PATCH', prefer: 'return=representation', body: { is_banned: on } });
+    if (!r?.length) throw new Error('Нет прав');
+    if (on) {
+      const drafts = await api(`content?submitted_by=eq.${id}&status=eq.draft&select=id`).catch(() => []);
+      const tok = await getToken();
+      for (const d of drafts) {
+        await fetch(CDN_URL + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok }, body: JSON.stringify({ contentId: d.id }) }).catch(() => {});
+        await api(`content?id=eq.${d.id}`, { method: 'DELETE' }).catch(() => {});
+      }
+    }
+    Object.assign(p, { is_banned: on });
+    $$(`.mod-user[data-uid="${id}"]`).forEach(el => { el.outerHTML = userRow(p); });
+    if (MOD.tab === 'bans' && !on) modBans();
+    toast(on ? 'Пользователь заблокирован' : 'Пользователь разблокирован');
+    modCount();
+  } catch (er) { toast(er.message, true); }
+}
+function rolesDialog(id) {
+  const p = S.profiles.get(id); if (!p) return;
+  let roles = rolesOf(p);
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  const draw = () => `<h2>Роли: ${esc(pname(p))}</h2><p class="muted" style="margin:0;font-size:13px">Первая роль — основная (её значок виден у ника).</p>
+    <div class="roles-pick">${ROLE_LIST.map(r => `<label class="sw"><input type="checkbox" data-r="${r}"${roles.includes(r) ? ' checked' : ''}><i></i><div><b>${ROLE_LABEL[r]}</b>${roles[0] === r ? '<span>основная</span>' : roles.includes(r) ? `<span><a href="#" data-main="${r}">сделать основной</a></span>` : ''}</div></label>`).join('')}</div>
+    <p class="hint"></p><div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div>`;
+  ov.innerHTML = `<form class="v2-modal">${draw()}</form>`;
+  const f = $('form', ov);
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-x]')) return ov.remove();
+    const m = e.target.closest('[data-main]'); if (m) { e.preventDefault(); roles = [m.dataset.main, ...roles.filter(x => x !== m.dataset.main)]; f.innerHTML = draw(); }
+  });
+  f.addEventListener('change', e => { const r = e.target.dataset.r; if (!r) return; roles = e.target.checked ? [...roles, r] : roles.filter(x => x !== r); f.innerHTML = draw(); });
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const body = { role: roles[0] || null, extra_roles: roles.slice(1) };
+    try {
+      const r = await api(`profiles?id=eq.${id}`, { method: 'PATCH', prefer: 'return=representation', body });
+      if (!r?.length) throw new Error('Нет прав на смену ролей');
+      Object.assign(p, body); ov.remove(); toast('Роли сохранены');
+      $$(`.mod-user[data-uid="${id}"]`).forEach(el => { el.outerHTML = userRow(p); });
+    } catch (er) { $('.hint', f).textContent = 'Ошибка: ' + er.message; }
+  };
+  document.body.append(ov);
+}
+page.addEventListener('click', e => {
+  const b = e.target.closest('[data-uban]'), u = e.target.closest('[data-uunban]'), r = e.target.closest('[data-uroles]');
+  if (b) banUser(b.dataset.uban, true);
+  if (u) banUser(u.dataset.uunban, false);
+  if (r) rolesDialog(r.dataset.uroles);
+});
 function modMedia(it) {
   const src = it.source_url || '';
   if (it.content_type === 'art') {
@@ -1526,6 +1636,42 @@ page.addEventListener('click', async e => {
     } catch (er) { toast(er.message, true); $$('button', card).forEach(b => { b.disabled = false; }); }
   }
 });
+
+/* ── голосовые сообщения (модераторы, стримеры, спонсоры) ── */
+const VOICE_ROLES = ['gl_moder', 'admin', 'moderator', 'streamer', 'sponsor'];
+const canVoice = () => !!S.me && VOICE_ROLES.some(r => hasRole(S.me, r)) && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
+const VOICE_MAX = 120;
+// запись: панель с таймером поверх формы; «Отправить» загружает файл и вызывает onSend(url)
+async function recordVoice(form, onSend) {
+  if ($('.vrec', form)) return;
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+  catch { return toast('Нет доступа к микрофону', true); }
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find(m => MediaRecorder.isTypeSupported?.(m)) || '';
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined), chunks = [];
+  const bar = document.createElement('div');
+  bar.className = 'vrec';
+  bar.innerHTML = `<span class="vrec-dot"></span><b class="vrec-t">0:00</b><span class="vrec-lbl">Идёт запись…</span><button type="button" class="btn" data-vx>Отмена</button><button type="button" class="btn accent" data-vok>Отправить</button>`;
+  form.append(bar);
+  const t0 = Date.now();
+  let send = false;
+  const stop = ok => { send = ok; clearInterval(tick); if (rec.state !== 'inactive') rec.stop(); stream.getTracks().forEach(x => x.stop()); };
+  const tick = setInterval(() => { const sec = Math.floor((Date.now() - t0) / 1000); $('.vrec-t', bar).textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; if (sec >= VOICE_MAX) stop(true); }, 250);
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = async () => {
+    if (!send || Date.now() - t0 < 400) { bar.remove(); return; }
+    $('.vrec-lbl', bar).textContent = 'Отправляем…'; $$('button', bar).forEach(b => { b.disabled = true; });
+    try {
+      const type = (rec.mimeType || 'audio/webm').split(';')[0];
+      const file = new File(chunks, `voice.${type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : 'webm'}`, { type });
+      const url = await uploadFile(file, p => { $('.vrec-lbl', bar).textContent = `Отправляем… ${p}%`; });
+      await onSend(url);
+      bar.remove();
+    } catch (er) { toast(er.message, true); bar.remove(); }
+  };
+  bar.addEventListener('click', e => { if (e.target.closest('[data-vx]')) stop(false); if (e.target.closest('[data-vok]')) stop(true); });
+  rec.start();
+}
 
 /* ── цвет ника и краски 7TV (модераторы, стримеры, спонсоры) ── */
 const NAME_COLORS = ['#ff4444', '#ff7043', '#ff9800', '#ffca28', '#66bb6a', '#26c6da', '#42a5f5', '#5c6bc0', '#ab47bc', '#ec407a', '#ff80ab', '#80deea', '#a5d6a7', '#fff176', '#ef9a9a', '#b0bec5', '#ffffff'];
@@ -1708,6 +1854,323 @@ function viewSettings() {
   catch (er) { toast(er.message, true); }
 })();
 
+/* ── сборники: смотрят все, создают модераторы и выше (сразу публикуются) ── */
+const COLL_SEL = `id,title,description,short_code,cover_url,cover_type,item_count,views,likes,comments_count,published_at,created_at,submitted_by,author:profiles!collections_submitted_by_fkey(id,username,display_name,avatar_url,name_color)`;
+const COLL = new Map();
+function collCard(c) {
+  const a = c.author || S.profiles.get(c.submitted_by);
+  const cover = c.cover_url ? (c.cover_type === 'video' ? `<video data-lazy="${esc(c.cover_url)}#t=0.5" preload="none" muted playsinline tabindex="-1"></video>` : imgTag(c.cover_url, 480)) : '<div class="news-ph">🗂️</div>';
+  return `<article class="card" data-coll="${esc(c.short_code || c.id)}">
+    <div class="card-media">${cover}<span class="badge type">🗂️ ${fmt(c.item_count || 0)}</span></div>
+    <div class="card-body">
+      <div class="card-author" data-user="${esc(a?.username || c.submitted_by)}">${avaHtml(a?.avatar_url, pname(a))}<span>${esc(pname(a))}</span></div>
+      <h3 class="card-title">${esc(c.title || 'Сборник')}</h3>
+      ${c.description ? `<p class="card-desc">${esc(c.description)}</p>` : ''}
+      <div class="card-stats"><span>${I.views}${fmt(c.views)}</span><span>${I.heart}${fmt(c.likes)}</span><span>${I.comment}${fmt(c.comments_count)}</span><time>${when(c.published_at || c.created_at)}</time></div>
+    </div></article>`;
+}
+async function viewCollections() {
+  setNav('collections');
+  page.innerHTML = `<div class="page-head"><h1>Сборники</h1>${isMod() ? '<a class="btn accent" href="#/new/collection">Новый сборник</a>' : ''}</div><div class="grid grid-big" id="collGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
+  try {
+    await swr('colls', () => api(`collections?status=eq.published&select=${COLL_SEL}&order=published_at.desc.nullslast,created_at.desc&limit=60`), rows => {
+      rows.forEach(c => { COLL.set(c.id, c); if (c.short_code) COLL.set(c.short_code, c); });
+      const g = $('#collGrid'); if (!g) return;
+      g.outerHTML = rows.length ? `<div class="grid grid-big" id="collGrid">${rows.map(collCard).join('')}</div>` : '<div class="empty" id="collGrid">Сборников пока нет.</div>';
+      const ng = $('#collGrid'); if (ng?.classList.contains('grid')) { wireLazy(ng); animateCards(ng); }
+    });
+  } catch (e) { const g = $('#collGrid'); if (g) g.outerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; }
+}
+async function viewCollection(key) {
+  setNav('collections');
+  page.innerHTML = `<div class="post"><div class="skel" style="aspect-ratio:16/7"></div></div>`;
+  let c = COLL.get(key);
+  if (!c) {
+    const f = /^[0-9a-f-]{36}$/i.test(key) ? `id=eq.${key}` : `short_code=eq.${encodeURIComponent(key)}`;
+    try { [c] = await api(`collections?${f}&select=${COLL_SEL}`); } catch {}
+  }
+  if (!c) { page.innerHTML = '<div class="empty">Сборник не найден</div>'; return; }
+  const [items, liked] = await Promise.all([
+    api(`collection_items?collection_id=eq.${c.id}&order=position.asc&select=media_type,media_url`).catch(() => []),
+    S.uid ? api(`collection_likes?collection_id=eq.${c.id}&user_id=eq.${S.uid}&select=collection_id`).then(r => !!r.length).catch(() => false) : false,
+  ]);
+  try { if (!sessionStorage.getItem('cv_' + c.id)) { sessionStorage.setItem('cv_' + c.id, '1'); rpc('increment_collection_views', { collection_id: c.id }).catch(() => {}); } } catch {}
+  const a = c.author || S.profiles.get(c.submitted_by), own = S.uid === c.submitted_by;
+  const imgs = items.filter(x => x.media_type !== 'video' && isOwnFile(x.media_url)).map(x => x.media_url);
+  page.innerHTML = `<div class="post coll-page">
+    <button class="back" data-back>${I.back} Назад</button>
+    <h1>${esc(c.title || 'Сборник')}</h1>
+    <div class="post-head">${avaHtml(a?.avatar_url, pname(a))}<div><b data-user="${esc(a?.username || c.submitted_by)}" style="cursor:pointer"><span${nameAttr(a?.name_color)}>${esc(pname(a))}</span></b><div class="sub">${when(c.published_at || c.created_at)} · ${fmt(items.length)} файлов · ${fmt(c.views)} просмотров</div></div>
+      <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="collLike">${I.heart}<span>${fmt(c.likes)}</span></button>
+      ${S.uid && (own || isMod()) ? `<button class="btn" id="collEdit">Изменить</button><button class="btn danger" id="collDel">Удалить</button>` : ''}</div></div>
+    ${c.description ? `<p class="post-desc">${esc(c.description)}</p>` : ''}
+    <div class="coll-items">${items.map(x => x.media_type === 'video'
+      ? `<div class="coll-item"><video src="${esc(x.media_url)}" controls playsinline preload="metadata"></video></div>`
+      : `<a class="coll-item" href="${esc(x.media_url)}" data-czoom="${imgs.indexOf(x.media_url)}">${imgTag(x.media_url, 720)}</a>`).join('')}</div>
+    <section class="comments" id="comments"><h3>Комментарии</h3><div class="empty" style="padding:20px">Загрузка…</div></section>
+  </div>`;
+  $('.coll-items').onclick = e => { const z = e.target.closest('[data-czoom]'); if (z) { e.preventDefault(); openViewer(imgs, +z.dataset.czoom); } };
+  $('#collLike').onclick = async ev => {
+    if (!S.uid) return login();
+    const b = ev.currentTarget; b.disabled = true;
+    try { const on = await rpc('toggle_collection_like', { p_collection_id: c.id }); c.likes = Math.max(0, (c.likes || 0) + (on ? 1 : -1)); b.classList.toggle('liked', !!on); $('span', b).textContent = fmt(c.likes); }
+    catch (er) { toast(er.message, true); }
+    b.disabled = false;
+  };
+  const ed = $('#collEdit');
+  if (ed) ed.onclick = () => {
+    const ov = document.createElement('div'); ov.className = 'v2-overlay';
+    ov.innerHTML = `<form class="v2-modal"><h2>Изменить сборник</h2><label>Название<input name="t" maxlength="120" value="${esc(c.title || '')}" required></label><label>Описание<textarea name="d" rows="3" maxlength="600">${esc(c.description || '')}</textarea></label><p class="hint"></p><div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
+    ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) ov.remove(); });
+    $('form', ov).onsubmit = async e => {
+      e.preventDefault(); const f = e.target, patch = { title: f.t.value.trim(), description: f.d.value.trim() || null };
+      try { const r = await api(`collections?id=eq.${c.id}`, { method: 'PATCH', prefer: 'return=representation', body: patch }); if (!r?.length) throw new Error('Нет прав'); Object.assign(c, patch); MEM.delete('colls'); ov.remove(); toast('Сохранено'); viewCollection(key); }
+      catch (er) { $('.hint', f).textContent = 'Ошибка: ' + er.message; }
+    };
+    document.body.append(ov);
+  };
+  const dl = $('#collDel');
+  if (dl) dl.onclick = async () => {
+    if (!confirm('Удалить сборник? Это нельзя отменить.')) return;
+    try {
+      await fetch(CDN_URL + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await getToken()) }, body: JSON.stringify({ collectionId: c.id }) }).catch(() => {});
+      await api(`collections?id=eq.${c.id}`, { method: 'DELETE' });
+      COLL.delete(c.id); COLL.delete(c.short_code); MEM.delete('colls'); try { localStorage.removeItem(LSC + 'colls'); } catch {}
+      toast('Сборник удалён'); location.hash = '#/collections';
+    } catch (er) { toast(er.message, true); }
+  };
+  loadComments(c.id, 'collection');
+}
+page.addEventListener('click', e => { const c = e.target.closest('[data-coll]'); if (c && !e.target.closest('[data-user]')) location.hash = '#/c/' + c.dataset.coll; });
+function viewNewCollection() {
+  setNav('');
+  if (!isMod()) { page.innerHTML = '<div class="empty">Сборники создают модераторы.</div>'; return; }
+  const files = [];
+  page.innerHTML = `<div class="up"><div class="page-head"><h1>Новый сборник</h1></div>
+    <div class="up-tabs"><a class="up-tab" href="#/new/art">Арт</a><a class="up-tab" href="#/new/video">Видео</a><a class="up-tab" href="#/new/fanfic">Фанфик</a><a class="up-tab on" href="#/new/collection">Сборник</a></div>
+    <form class="up-form" id="cForm" novalidate>
+      <label class="fld"><span>Название</span><input name="title" maxlength="120" placeholder="Название сборника" required></label>
+      <label class="fld"><span>Описание (необязательно)</span><textarea name="desc" rows="2" maxlength="600"></textarea></label>
+      <label class="drop" id="cDrop"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple hidden>
+        <div class="drop-empty"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg><b>Перетащите файлы сюда</b><span>картинки и видео (до 30 МБ), сразу несколько</span></div></label>
+      <div class="c-files" id="cFiles"></div>
+      <p class="muted" style="margin:0;font-size:13px">Сборник модератора публикуется сразу, без проверки.</p>
+      <div class="up-foot"><div class="up-status" id="cStatus"></div><div class="up-bar" hidden><i id="cBar"></i></div><button class="btn accent up-send" type="submit">Опубликовать</button></div>
+    </form></div>`;
+  const z = $('#cDrop'), inp = $('input', z), list = $('#cFiles');
+  const draw = () => { list.innerHTML = files.map((f, i) => `<div class="c-file">${/^video/.test(f.type) ? `<video src="${f._u}" muted></video>` : `<img src="${f._u}" alt="">`}<button type="button" class="drop-x" data-crm="${i}" aria-label="Убрать">✕</button></div>`).join(''); };
+  const add = fl => { [...fl].forEach(f => { if (!/^(image|video)\//.test(f.type)) return; if (/^video/.test(f.type) && f.size > 30 * 1048576) return toast(`${f.name}: больше 30 МБ`, true); f._u = URL.createObjectURL(f); files.push(f); }); draw(); };
+  inp.onchange = () => { add(inp.files); inp.value = ''; };
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('over'));
+  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('over'); add(e.dataTransfer.files); });
+  list.onclick = e => { const x = e.target.closest('[data-crm]'); if (x) { files.splice(+x.dataset.crm, 1); draw(); } };
+  $('#cForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target, st = $('#cStatus'), bar = $('.up-bar', f), btn = $('.up-send', f);
+    const say = (t, err) => { st.textContent = t; st.classList.toggle('err', !!err); };
+    const title = f.title.value.trim();
+    if (!title) return say('Добавьте название', true);
+    if (!files.length) return say('Добавьте хотя бы один файл', true);
+    btn.disabled = true;
+    try {
+      const urls = [];
+      for (let i = 0; i < files.length; i++) {
+        urls.push(await uploadFile(files[i], p => { bar.hidden = false; $('#cBar').style.width = Math.round((i + p / 100) / files.length * 100) + '%'; say(`Файл ${i + 1} из ${files.length}: ${p}%`); }));
+      }
+      say('Сохраняем…');
+      const [c] = await api('collections', { method: 'POST', prefer: 'return=representation', body: { title, description: f.desc.value.trim() || null, status: 'published', published_at: new Date().toISOString(), submitted_by: S.uid } });
+      const items = urls.map((u, i) => ({ collection_id: c.id, position: i, media_type: /^video/.test(files[i].type) ? 'video' : 'image', media_url: u }));
+      await api('collection_items', { method: 'POST', prefer: 'return=minimal', body: items });
+      await api(`collections?id=eq.${c.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { cover_url: items[0].media_url, cover_type: items[0].media_type, item_count: items.length } });
+      MEM.delete('colls'); toast('Сборник опубликован');
+      location.hash = '#/c/' + (c.short_code || c.id);
+    } catch (er) { say('Ошибка: ' + er.message, true); btn.disabled = false; }
+  };
+}
+
+/* ── редактор новостей (модераторы) ── */
+const NE_TOOLS = [
+  ['b', 'Жирный', '**', '**'], ['i', 'Курсив', '*', '*'], ['u', 'Подчёркнутый', '__', '__'], ['s', 'Зачёркнутый', '~~', '~~'],
+  ['sp', 'Спойлер', '||', '||'], ['h', 'Заголовок', '## ', ''], ['q', 'Цитата', '> ', ''], ['li', 'Список', '- ', ''], ['ln', 'Ссылка', '[', '](https://)'], ['hr', 'Линия', '\n---\n', ''],
+];
+const NE_ICON = { b: '<b>B</b>', i: '<i>I</i>', u: '<u>U</u>', s: '<s>S</s>', sp: '▒', h: 'H', q: '❝', li: '•', ln: '🔗', hr: '—' };
+async function viewNewsEditor(id) {
+  setNav('news');
+  if (!S.me) { page.innerHTML = '<div class="empty">Загрузка…</div>'; await loadMe(); }
+  if (!isMod()) { page.innerHTML = '<div class="empty">Новости пишут модераторы.</div>'; return; }
+  let n = null;
+  if (id) { n = NEWS.cache.get(id) || (await api(`news?id=eq.${id}&select=*`).catch(() => []))[0]; if (!n) { page.innerHTML = '<div class="empty">Новость не найдена</div>'; return; } }
+  let cover = n?.cover_url || '';
+  page.innerHTML = `<div class="up ne">
+    <div class="page-head"><h1>${n ? 'Редактировать новость' : 'Новая новость'}</h1></div>
+    <form class="up-form" id="neForm" novalidate>
+      <label class="fld"><span>Заголовок</span><input name="title" maxlength="160" value="${esc(n?.title || '')}" required></label>
+      <div class="fld"><span>Обложка (необязательно)</span><div class="ne-cover" id="neCover"></div></div>
+      <div class="fld"><span>Текст</span>
+        <div class="ne-tools">${NE_TOOLS.map(([k, t]) => `<button type="button" class="ne-tool" data-ne="${k}" title="${t}">${NE_ICON[k]}</button>`).join('')}<label class="ne-tool" title="Картинка в текст">🖼️<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden data-neimg></label><span class="ne-sp"></span><button type="button" class="chip" data-neprev>Предпросмотр</button></div>
+        <textarea name="body" rows="14" maxlength="20000" placeholder="Текст новости. Ссылку на YouTube на отдельной строке — вставится плеер.">${esc(n?.body || '')}</textarea>
+        <div class="news-body ne-prev" hidden></div></div>
+      <div class="fld-row"><label class="fld"><span>Публиковать от имени</span><select name="chan"><option value="">Моё имя</option></select></label>
+        <label class="sw" style="align-self:end"><input type="checkbox" name="pin"${n?.pinned ? ' checked' : ''}><i></i><div><b>Закрепить</b><span>Будет первой в списке</span></div></label></div>
+      <div class="up-foot"><div class="up-status" id="neStatus"></div>${n ? '<button class="btn danger" type="button" data-nedel>Удалить</button>' : ''}<button class="btn accent up-send" type="submit">${n ? 'Сохранить' : 'Опубликовать'}</button></div>
+    </form></div>`;
+  const f = $('#neForm'), ta = f.body, st = $('#neStatus');
+  const say = (t, err) => { st.textContent = t; st.classList.toggle('err', !!err); };
+  const drawCover = () => { $('#neCover').innerHTML = cover ? `<div class="ne-cover-img"><img src="${esc(cover)}" alt=""><button type="button" class="drop-x" data-necx aria-label="Убрать">✕</button></div>` : `<label class="btn">Загрузить обложку<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden data-necov></label>`; };
+  drawCover();
+  const wrap = (a, b) => { const s0 = ta.selectionStart, s1 = ta.selectionEnd, sel = ta.value.slice(s0, s1); ta.setRangeText(a + sel + b, s0, s1, 'end'); if (!sel) ta.selectionStart = ta.selectionEnd = s0 + a.length; ta.focus(); };
+  f.addEventListener('click', e => {
+    const t = e.target.closest('[data-ne]'); if (t) { const x = NE_TOOLS.find(y => y[0] === t.dataset.ne); wrap(x[2], x[3]); return; }
+    if (e.target.closest('[data-necx]')) { cover = ''; drawCover(); return; }
+    if (e.target.closest('[data-neprev]')) { const pv = $('.ne-prev', f), on = pv.hidden; pv.hidden = !on; ta.hidden = on; if (on) pv.innerHTML = newsBody(ta.value) || '<p class="muted">Пусто</p>'; e.target.textContent = on ? 'Редактировать' : 'Предпросмотр'; }
+  });
+  f.addEventListener('change', async e => {
+    const inp = e.target.closest('[data-necov],[data-neimg]'); if (!inp || !inp.files[0]) return;
+    try {
+      const url = await uploadFile(inp.files[0], p => say(`Загрузка: ${p}%`)); say('');
+      if (inp.matches('[data-necov]')) { cover = url; drawCover(); } else wrap(`\n![](${url})\n`, '');
+    } catch (er) { say('Ошибка: ' + er.message, true); }
+  });
+  api(`news_channels?owner_id=eq.${S.uid}&select=id,name&order=created_at.asc`).then(ch => {
+    ch.forEach(c => f.chan.insertAdjacentHTML('beforeend', `<option value="${c.id}">${esc(c.name)}</option>`));
+    if (n?.channel_name) { if (n.channel_id && ch.some(c => c.id === n.channel_id)) f.chan.value = n.channel_id; else { f.chan.insertAdjacentHTML('beforeend', `<option value="__keep__">${esc(n.channel_name)} (как было)</option>`); f.chan.value = '__keep__'; } }
+  }).catch(() => {});
+  const del = $('[data-nedel]', f);
+  if (del) del.onclick = async () => { if (!confirm('Удалить новость?')) return; try { await api(`news?id=eq.${n.id}`, { method: 'DELETE' }); NEWS.cache.delete(n.id); MEM.delete('news'); try { localStorage.removeItem(LSC + 'news'); } catch {} toast('Новость удалена'); location.hash = '#/news'; } catch (er) { say(er.message, true); } };
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const title = f.title.value.trim(), body = ta.value.trim();
+    if (!title) return say('Нужен заголовок', true);
+    if (!body && !cover) return say('Напишите текст или добавьте картинку', true);
+    const btn = $('.up-send', f); btn.disabled = true; say('Сохраняю…');
+    const payload = { title, body, cover_url: cover || null, pinned: f.pin.checked };
+    if (f.chan.value === '__keep__') {} else if (f.chan.value) { payload.channel_id = f.chan.value; payload.channel_name = f.chan.options[f.chan.selectedIndex].textContent; } else { payload.channel_id = null; payload.channel_name = null; }
+    try {
+      if (n) await api(`news?id=eq.${n.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { ...payload, updated_at: new Date().toISOString() } });
+      else await api('news', { method: 'POST', prefer: 'return=minimal', body: { ...payload, author_id: S.uid } });
+      MEM.delete('news'); try { localStorage.removeItem(LSC + 'news'); } catch {} if (n) NEWS.cache.delete(n.id);
+      toast(n ? 'Новость сохранена' : 'Новость опубликована');
+      location.hash = n ? '#/news/' + n.id : '#/news';
+    } catch (er) { say('Ошибка: ' + er.message, true); btn.disabled = false; }
+  };
+}
+
+/* ── мини-игра «Угадай художника» (как на старом сайте: те же рейтинг и gg_report) ── */
+const GG = { pool: null, authors: [], queue: [], i: 0, cur: null, answered: false, score: 0, streak: 0, best: 0, played: 0, guessed: {}, reported: 0, el: null };
+const ggShuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function ggQueue(arts) {
+  const rest = ggShuffle(arts), cnt = {}; rest.forEach(a => { cnt[a.aid] = (cnt[a.aid] || 0) + 1; });
+  const out = []; let last = null;
+  while (rest.length) {
+    let max = null; Object.keys(cnt).forEach(id => { if (max === null || cnt[id] > cnt[max]) max = id; });
+    let k = max !== last && cnt[max] * 2 > rest.length ? rest.findIndex(a => a.aid === max) : rest.findIndex(a => a.aid !== last);
+    if (k < 0) k = 0;
+    const a = rest.splice(k, 1)[0]; if (!--cnt[a.aid]) delete cnt[a.aid]; last = a.aid; out.push(a);
+  }
+  return out;
+}
+async function ggPool() {
+  if (GG.pool) return;
+  const rows = (await api('content?status=eq.published&content_type=eq.art&select=id,cover_image_url,source_url,submitted_by,is_blurred')).filter(r => !r.is_blurred && r.submitted_by && (r.cover_image_url || r.source_url));
+  await loadProfiles(rows.map(r => r.submitted_by));
+  const by = {}; GG.pool = [];
+  rows.forEach(r => { const p = S.profiles.get(r.submitted_by), name = p && (p.display_name || p.username); if (!name) return; GG.pool.push({ url: r.cover_image_url || r.source_url, aid: r.submitted_by, name }); by[name] = { name }; });
+  GG.authors = Object.values(by);
+}
+const ggBestGet = () => { try { return +localStorage.getItem('gg_best_score') || 0; } catch { return 0; } };
+async function ggReport() {
+  if (!S.uid || (!Object.keys(GG.guessed).length && GG.score <= GG.reported)) return;
+  const body = { p_score: GG.score, p_guessed: GG.guessed }; GG.guessed = {}; GG.reported = Math.max(GG.reported, GG.score);
+  await rpc('gg_report', body).catch(() => {});
+}
+async function ggRating() {
+  try {
+    const [top, au] = await Promise.all([
+      api('guess_game_scores?select=user_id,best_score&best_score=gt.0&order=best_score.desc,updated_at.asc&limit=3'),
+      api('guess_game_author_stats?select=author_id,guessed&guessed=gt.0&order=guessed.desc&limit=1'),
+    ]);
+    await loadProfiles([...top.map(t => t.user_id), ...au.map(a => a.author_id)]);
+    return `<div class="gg-rate"><div class="gg-rate-t">Топ игроков <span>угадано за игру</span></div>${top.length ? top.map((t, i) => `<div class="gg-rate-row${t.user_id === S.uid ? ' me' : ''}"><i>${['🥇', '🥈', '🥉'][i]}</i><span>${esc(pname(S.profiles.get(t.user_id)))}</span><b>${t.best_score}</b></div>`).join('') : '<p class="muted">Пока никто не играл — будь первым.</p>'}
+      ${au[0] ? `<div class="gg-rate-t">Самый узнаваемый художник</div><div class="gg-rate-row"><i>★</i><span>${esc(pname(S.profiles.get(au[0].author_id)))}</span><b>${au[0].guessed}</b></div>` : ''}</div>`;
+  } catch { return ''; }
+}
+function ggOpen() {
+  if (!GG.el) {
+    const el = document.createElement('div'); el.className = 'v2-overlay gg';
+    el.innerHTML = `<div class="gg-box" role="dialog" aria-modal="true"><div class="gg-head"><div><h2>Угадай художника</h2><div class="gg-stats" id="ggStats"></div></div><button class="lb-close" data-ggx aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><div class="gg-prog"><i id="ggBar"></i></div><div class="gg-body" id="ggBody"></div></div>`;
+    el.addEventListener('click', e => {
+      if (e.target === el || e.target.closest('[data-ggx]')) return ggClose();
+      const o = e.target.closest('[data-ggo]'); if (o) return ggAnswer(o);
+      const a = e.target.closest('[data-gga]'); if (!a) return;
+      if (a.dataset.gga === 'next') { GG.i++; ggRound(); } else if (a.dataset.gga === 'start') ggStart(); else ggClose(true);
+    });
+    document.body.append(el); GG.el = el;
+  }
+  GG.el.hidden = false; document.documentElement.classList.add('lb-lock');
+  $('#ggStats').textContent = ''; $('#ggBar').style.width = '0';
+  $('#ggBody').innerHTML = `<div class="gg-msg"><div class="gg-big">🎨</div><p>Мы показываем арт с сайта — угадай, кто его нарисовал. Три варианта, арты не повторяются.</p><p class="muted">Рекорд: ${ggBestGet()}${S.uid ? '' : ' · войдите, чтобы попасть в рейтинг'}</p><div id="ggRate"></div><button class="btn accent" data-gga="start">Играть</button></div>`;
+  ggRating().then(h => { const r = $('#ggRate'); if (r) r.innerHTML = h; });
+}
+async function ggStart() {
+  Object.assign(GG, { i: 0, score: 0, streak: 0, best: 0, played: 0, guessed: {}, reported: 0, done: false });
+  $('#ggBody').innerHTML = '<div class="gg-msg"><p>Загрузка артов…</p></div>';
+  try { await ggPool(); } catch (er) { $('#ggBody').innerHTML = `<div class="gg-msg"><p>Не удалось загрузить: ${esc(er.message)}</p></div>`; return; }
+  if (GG.pool.length < 3 || GG.authors.length < 3) { $('#ggBody').innerHTML = '<div class="gg-msg"><p>Пока мало артов для игры.</p></div>'; return; }
+  GG.queue = ggQueue(GG.pool); ggRound();
+}
+function ggStatus() {
+  $('#ggStats').innerHTML = `Раунд ${Math.min(GG.i + 1, GG.queue.length)} из ${GG.queue.length} · Верно: <b>${GG.score}</b>${GG.streak > 1 ? ` · Серия: <b>${GG.streak}</b>` : ''}`;
+  $('#ggBar').style.width = (GG.i / GG.queue.length * 100) + '%';
+}
+function ggRound() {
+  if (GG.i >= GG.queue.length) return ggFinal();
+  const c = GG.cur = GG.queue[GG.i]; GG.answered = false;
+  const opts = ggShuffle([{ name: c.name }, ...ggShuffle(GG.authors.filter(a => a.name !== c.name)).slice(0, 2)]);
+  $('#ggBody').innerHTML = `<div class="gg-stage"><img id="ggImg" alt="" draggable="false"></div>
+    <p class="gg-q" id="ggQ">Кто это нарисовал?</p>
+    <div class="gg-opts">${opts.map((o, i) => `<button class="gg-opt" data-ggo="${esc(o.name)}"><i>${i + 1}</i>${esc(o.name)}</button>`).join('')}</div>
+    <button class="btn accent gg-next" data-gga="next" hidden>Дальше</button>`;
+  const img = $('#ggImg');
+  img.onload = () => img.classList.add('ld');
+  img.onerror = () => { if (GG.cur !== c || GG.answered) return; GG.queue.splice(GG.i, 1); ggRound(); };
+  img.src = thumbUrl(c.url, 1080);
+  const nx = GG.queue[GG.i + 1]; if (nx) { const p = new Image(); p.src = thumbUrl(nx.url, 1080); }
+  ggStatus();
+}
+function ggAnswer(btn) {
+  if (GG.answered || !GG.cur) return;
+  GG.answered = true; GG.played++;
+  const ok = btn.dataset.ggo === GG.cur.name;
+  if (ok) { GG.score++; GG.streak++; GG.best = Math.max(GG.best, GG.streak); GG.guessed[GG.cur.aid] = (GG.guessed[GG.cur.aid] || 0) + 1; } else GG.streak = 0;
+  if (GG.played % 5 === 0) ggReport();
+  $$('.gg-opt').forEach(b => { b.disabled = true; if (b.dataset.ggo === GG.cur.name) b.classList.add('ok'); else if (b === btn) b.classList.add('bad'); });
+  const q = $('#ggQ'); q.textContent = ok ? 'Верно!' : `Мимо — это ${GG.cur.name}`; q.classList.add(ok ? 'ok' : 'bad');
+  const n = $('.gg-next'); n.textContent = GG.i + 1 >= GG.queue.length ? 'Результат' : 'Дальше'; n.hidden = false; n.focus({ preventScroll: true });
+  ggStatus();
+}
+async function ggFinal() {
+  GG.done = true; GG.cur = null;
+  const pct = GG.played ? Math.round(GG.score / GG.played * 100) : 0, prev = ggBestGet(), rec = GG.score > prev;
+  if (rec) try { localStorage.setItem('gg_best_score', String(GG.score)); } catch {}
+  const title = pct >= 90 ? 'Знаешь всех в лицо' : pct >= 60 ? 'Хороший глаз' : pct >= 30 ? 'Неплохо' : 'Есть куда расти';
+  $('#ggStats').textContent = GG.i >= GG.queue.length ? 'Арты закончились' : 'Игра окончена';
+  $('#ggBody').innerHTML = `<div class="gg-msg"><div class="gg-big">${GG.score}/${GG.played}</div><h3>${title}</h3><p>Угадано ${pct}% · лучшая серия: ${GG.best}</p><p>${rec ? 'Новый личный рекорд!' : `Твой рекорд: ${prev}`}</p><div id="ggRate"></div><div class="gg-acts"><button class="btn accent" data-gga="start">Сыграть ещё</button><button class="btn" data-gga="close">Закрыть</button></div></div>`;
+  await ggReport(); const h = await ggRating(); const r = $('#ggRate'); if (r) r.innerHTML = h;
+}
+function ggClose(force) {
+  if (!force && GG.queue.length && GG.played && !GG.done) return ggFinal();
+  ggReport(); GG.queue = []; GG.cur = null;
+  if (GG.el) GG.el.hidden = true; document.documentElement.classList.remove('lb-lock');
+}
+addEventListener('keydown', e => {
+  if (!GG.el || GG.el.hidden) return;
+  if (e.key === 'Escape') { e.stopImmediatePropagation(); ggClose(); return; }
+  if (!GG.answered && GG.cur && /^[1-3]$/.test(e.key)) { const b = $$('.gg-opt')[+e.key - 1]; if (b) ggAnswer(b); }
+  else if (GG.answered && e.key === 'Enter') $('.gg-next')?.click();
+}, true);
+$('#ggBtn').onclick = ggOpen;
+
 /* ── кошелёк renah0cki coin ── */
 const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const TX = {
@@ -1867,12 +2330,17 @@ function route() {
   page.classList.remove('pg-in'); void page.offsetWidth; page.classList.add('pg-in');
   if (parts[0] === 'p' && parts[1]) return viewPost(parts[1]);
   if (['art', 'video', 'fanfic'].includes(parts[0])) return viewFeed(parts[0]);
+  if (parts[0] === 'news' && parts[1] === 'new') return viewNewsEditor(null);
+  if (parts[0] === 'news' && parts[1] === 'edit' && parts[2]) return viewNewsEditor(parts[2]);
   if (parts[0] === 'news') return parts[1] ? viewNewsArticle(parts[1]) : viewNews();
   if (parts[0] === 'suggest') return viewSuggest();
   if (parts[0] === 'u' && parts[1]) return viewProfile(parts[1]);
   if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'support') return viewSupport(parts[1]);
+  if (parts[0] === 'new' && parts[1] === 'collection') return viewNewCollection();
   if (parts[0] === 'new') return viewNew(parts[1]);
+  if (parts[0] === 'collections') return viewCollections();
+  if (parts[0] === 'c' && parts[1]) return viewCollection(parts[1]);
   if (parts[0] === 'mod') return viewMod(parts[1]);
   if (parts[0] === 'rules') return viewRules();
   if (parts[0] === 'wallet') return viewWallet(parts[1]);
@@ -1881,6 +2349,6 @@ function route() {
 }
 addEventListener('hashchange', route);
 loadAllMyLikes();
-loadMe().then(() => { if (/^#\/(suggest|news|u\/|mod)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
+loadMe().then(() => { if (/^#\/(suggest|news|u\/|mod|collections|new\/collection)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
 route();
 })();
