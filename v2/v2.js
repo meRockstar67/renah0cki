@@ -1003,7 +1003,9 @@ async function viewNotifs() {
 /* ── новая работа: арт / видео / фанфик → на проверку модераторам ── */
 const PRESET_TAGS = ['meowh0cki', 'renamid', 'gl1n', 'EgorTsai', 'MagicKat1', 'BaNaNcHiK1', 'Olezha27', 'gei_angel', 'meRockstar', 'unfeell'];
 const UP = { type: 'art', file: null, cover: null, tags: new Set() };
-function uploadFile(file, onPct) {
+async function uploadFile(file, onPct) {
+  const token = await getToken();
+  if (!token) throw new Error('Нужно войти');
   return new Promise((ok, bad) => {
     const x = new XMLHttpRequest();
     x.open('POST', CDN_URL + '/upload');
@@ -1011,6 +1013,7 @@ function uploadFile(file, onPct) {
     x.setRequestHeader('Content-Type', file.type);
     x.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
     x.setRequestHeader('X-User-Id', S.uid);
+    x.setRequestHeader('Authorization', 'Bearer ' + token);
     x.upload.onprogress = e => { if (e.lengthComputable) onPct(Math.round(e.loaded / e.total * 100)); };
     x.onload = () => { try { const j = JSON.parse(x.responseText); x.status < 300 && j.url ? ok(j.url) : bad(new Error(j.error || 'Ошибка загрузки')); } catch { bad(new Error('Ошибка загрузки')); } };
     x.onerror = () => bad(new Error('Нет соединения'));

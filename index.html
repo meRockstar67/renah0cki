@@ -15780,6 +15780,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       // encodeURIComponent для имени файла в заголовке — HTTP-заголовки требуют ISO-8859-1.
       xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
       xhr.setRequestHeader('X-User-Id', userId);
+      if (currentUserToken) xhr.setRequestHeader('Authorization', 'Bearer ' + currentUserToken); // загрузка — только для вошедших
       if (onProgress) {
         xhr.upload.addEventListener('progress', e => {
           if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100));
