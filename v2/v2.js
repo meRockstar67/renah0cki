@@ -113,7 +113,7 @@ const S = {
 };
 // автор приходит вместе с постом (один запрос вместо двух)
 const AUTHOR = 'author:profiles!content_submitted_by_fkey(id,username,display_name,avatar_url)';
-const CARD_SEL = `id,short_code,title,description,source_url,cover_image_url,media_items,content_type,submitted_by,views,likes,comments_count,is_blurred,published_at,created_at,${AUTHOR}`;
+const CARD_SEL = `id,short_code,title,description,source_url,cover_image_url,media_items,content_type,submitted_by,views,likes,comments_count,is_blurred,puzzle_difficulty,published_at,created_at,${AUTHOR}`;
 function absorb(rows) {
   rows.forEach(r => {
     if (r.author) { S.profiles.set(r.author.id, { ...(S.profiles.get(r.author.id) || {}), ...r.author }); }
@@ -362,7 +362,7 @@ async function viewPost(key, root = page) {
     ${inLb ? '' : `<button class="back" data-back>${I.back} Назад</button>`}
     ${media ? `<div class="post-media${it.is_blurred ? ' blur' : ''}" id="postMedia">${media}</div>` : ''}
     <div class="post-head"><img class="av" src="${esc(avatarUrl(a))}" alt="" data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"><div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${esc(pname(a))}</b><div class="sub">${when(it.published_at || it.created_at)}${it.content_type === 'fanfic' ? '' : ` · ${fmt(it.views)} просмотров`}</div></div>
-      <div class="post-actions"><div class="react-wrap" id="reactWrap"></div><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button></div></div>
+      <div class="post-actions"><div class="react-wrap" id="reactWrap"></div><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button>${postMenuHtml(it)}</div></div>
     <h1>${esc(it.title || 'Без названия')}</h1>
     ${it.description && it.content_type !== 'fanfic' ? `<p class="post-desc">${esc(it.description)}</p>` : ''}
     ${it.content_type === 'fanfic' ? `<div class="post-text">${esc(it.description || '')}</div>` : ''}
@@ -373,7 +373,11 @@ async function viewPost(key, root = page) {
   if (pmEl) pmEl.addEventListener('click', ev => {
     const z = ev.target.closest('[data-zoom]'); if (!z) return;
     ev.preventDefault();
-    if (pmEl.classList.contains('blur')) { pmEl.classList.remove('blur'); return; }  // спойлер: первый клик — открыть
+    if (pmEl.classList.contains('blur')) { // спойлер: пазл (если включён) или просто открыть
+      if ($('.pz-over', pmEl)) return;
+      if (puzzleOn()) startPuzzle(pmEl, z, it.puzzle_difficulty || 'easy'); else pmEl.classList.remove('blur');
+      return;
+    }
     openViewer($$('[data-zoom]', pmEl).map(a => a.getAttribute('href')), +z.dataset.zoom);
   });
   $('#likeBtn').onclick = async ev => {
@@ -388,6 +392,8 @@ async function viewPost(key, root = page) {
     b.disabled = false;
   };
   $('#copyBtn').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/${it.short_code || '?post=' + it.id}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
+  S.curPost = { it, root };
+  wirePostMenu(root, it);
   if (it.content_type !== 'fanfic') { rpc('increment_content_views', { content_id: it.id }).catch(() => {}); loadComments(it.id); }
   renderReact(it);
 }
@@ -633,7 +639,7 @@ function drawComments(box, rows, cid) {
   const draft = $('.cmt-form textarea', box)?.value || '';
   box.innerHTML = `<h3>Комментарии · ${rows.length}</h3>` + (rows.length ? ordered.map(([c, d]) => {
     const p = S.profiles.get(c.author_id), mine = S.uid && c.author_id === S.uid;
-    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}"><img class="av" src="${esc(avatarUrl(p))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'"><div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}">${esc(pname(p))}</b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body || '')}</div>
+    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}"><img class="av" src="${esc(avatarUrl(p))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'"><div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}"><span${nameAttr(p?.name_color)}>${esc(pname(p))}</span></b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body || '')}</div>
       ${S.uid ? `<div class="cmt-acts"><button type="button" data-creply="${c.id}" data-cname="${esc(pname(p))}">Ответить</button>${mine || mod ? `<button type="button" data-cdel="${c.id}">Удалить</button>` : ''}${!mine ? `<button type="button" data-crep="${c.id}">Пожаловаться</button>` : ''}</div>` : ''}</div></div>`;
   }).join('') : '<div class="empty" style="padding:20px">Комментариев пока нет</div>')
     + (S.uid ? `<form class="cmt-form" data-cform><div class="cmt-to" hidden></div><div class="cmt-row"><textarea rows="2" maxlength="2000" placeholder="Написать комментарий…" required></textarea><button class="btn accent" type="submit">Отправить</button></div></form>`
@@ -959,7 +965,7 @@ async function viewProfile(key) {
   let p;
   try {
     const f = /^[0-9a-f-]{36}$/i.test(key) ? `id=eq.${key}` : `username=eq.${encodeURIComponent(key)}`;
-    [p] = await api(`profiles?${f}&select=id,username,display_name,avatar_url,role,extra_roles,bio,stream_twitch_url,stream_social_url,short_code`);
+    [p] = await api(`profiles?${f}&select=id,username,display_name,avatar_url,role,extra_roles,bio,name_color,stream_twitch_url,stream_social_url,stream_donate_url,short_code`);
   } catch {}
   if (!p) { page.innerHTML = '<div class="empty">Пользователь не найден</div>'; return; }
   S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p });
@@ -972,13 +978,13 @@ async function viewProfile(key) {
   await loadAllMyLikes();
   let subscribed = !!followRows[0], subs = subCount;
   const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
-  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && ['Telegram', p.stream_social_url]].filter(Boolean);
+  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && ['Соцсеть', p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url]].filter(x => x && /^https?:\/\//.test(x[1]));
   page.innerHTML = `<div class="prof">
     <section class="prof-card">
       ${avaHtml(p.avatar_url, pname(p), 'prof-ava')}
       <div class="prof-main">
         ${roles.length ? `<div class="prof-roles">${roles.map(r => `<span class="role role-${r}">${ROLE_LABEL[r]}</span>`).join('')}</div>` : ''}
-        <h1>${esc(pname(p))}</h1>
+        <h1><span${nameAttr(p.name_color)}>${esc(pname(p))}</span></h1>
         ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
         ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
         <div class="prof-stats"><span><b>${fmt(works.length)}</b> публикаций</span><span><b id="subsN">${fmt(subs)}</b> подписчиков</span></div>
@@ -986,7 +992,7 @@ async function viewProfile(key) {
       </div>
       <div class="prof-acts">
         ${own ? `<button class="btn" type="button" id="profEdit">Редактировать</button>`
-          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? '✓ Вы подписаны' : 'Подписаться'}</button>` : ''}
+          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? '✓ Вы подписаны' : 'Подписаться'}</button><button class="btn icon-only" id="profSend" title="Перевести coin"><img src="${COIN}" alt="" style="width:20px;height:20px"></button>` : ''}
         <button class="btn icon-only" id="profCopy" title="Скопировать ссылку">${I.link}</button>
       </div>
     </section>
@@ -996,6 +1002,7 @@ async function viewProfile(key) {
   wireLazy(page); animateCards(page);
   $('#profCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/@${encodeURIComponent(p.username || p.id)}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
   const pe = $('#profEdit'); if (pe) pe.onclick = () => { if (!S.me) S.me = p; editProfile(); };
+  const ps = $('#profSend'); if (ps) ps.onclick = () => coinSendDialog(p);
   const sb = $('#subBtn');
   if (sb) sb.onclick = async () => {
     sb.disabled = true;
@@ -1044,7 +1051,8 @@ async function loadNotifs() {
     const or = [cIds.length && `content_id.in.(${cIds.join(',')})`, kIds.length && `collection_id.in.(${kIds.join(',')})`].filter(Boolean).join(',');
     jobs.push(api(`moderation_log?action=eq.rejected&or=(${or})&select=content_id,collection_id,comment,created_at,moderator:profiles(id,username,display_name,avatar_url)&order=created_at.desc&limit=20`).then(r => r.map(x => ({ type: 'reject', target: x.content_id ? t[x.content_id] : tc[x.collection_id], body: x.comment, actor: x.moderator, at: x.created_at }))).catch(() => []));
   }
-  NOTIF.list = (await Promise.all(jobs)).flat().sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 60);
+  const off = { like: S.me?.notify_likes === false, comment: S.me?.notify_comments === false, follow: S.me?.notify_new_followers === false };
+  NOTIF.list = (await Promise.all(jobs)).flat().filter(n => !off[n.type]).sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 60);
   NOTIF.loaded = true;
   updateBell();
   return NOTIF.list;
@@ -1304,13 +1312,14 @@ $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meM
 async function loadMe() {
   if (!S.uid) return;
   try {
-    const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,short_code,role,extra_roles`);
+    const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,short_code,role,extra_roles,name_color,bio,stream_twitch_url,stream_social_url,stream_donate_url,notify_likes,notify_comments,notify_new_followers,notify_new_submission`);
     S.me = me; if (me) S.profiles.set(me.id, me);
     $('#meAva').src = avatarUrl(me);
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
     $('#navMod').hidden = !isMod();
     if (isMod()) modCount();
+    postMenuLate();
     setTimeout(() => { if (!NOTIF.loaded) loadNotifs(); }, 1200); // счётчик на колокольчике
   } catch {}
   try { const v = await rpc('coin_balance'); $('#coinVal').textContent = fmt(v || 0); } catch { $('#coinVal').textContent = '0'; }
@@ -1344,10 +1353,23 @@ function editProfile() {
     <div class="pe-ava"><img src="${esc(avatarUrl(me))}" alt=""><label class="btn">Загрузить фото<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label></div>
     <label>Никнейм<input name="n" maxlength="40" value="${esc(me.display_name || me.username || '')}" placeholder="Как тебя называть"></label>
     <label>Описание профиля<textarea name="b" rows="3" maxlength="100" placeholder="Расскажи немного о себе (до 100 символов)">${esc(me.bio || '')}</textarea></label>
+    ${canColor(me) ? `<div class="pe-color"><span>Цвет ника</span><div class="sw-row" data-colors><button type="button" class="nc-sw none${!me.name_color ? ' on' : ''}" data-nc="" title="Без цвета">✕</button>${NAME_COLORS.map(c => `<button type="button" class="nc-sw${me.name_color === c ? ' on' : ''}" data-nc="${c}" style="background:${c}"></button>`).join('')}</div>
+      <span>Краски (7TV)</span><div class="sw-row">${NAME_PAINTS.map(p => `<button type="button" class="nc-sw${me.name_color === p.css ? ' on' : ''}" data-nc="${esc(p.css)}" title="${esc(p.label)}" style="background:${p.css}"></button>`).join('')}</div>
+      <div class="pe-prev">Предпросмотр: <b id="ncPrev"${nameAttr(me.name_color)}>${esc(pname(me))}</b></div></div>` : ''}
+    ${hasRole(me, 'streamer') ? `<label>Ссылка на Twitch<input name="tw" value="${esc(me.stream_twitch_url || '')}" placeholder="https://twitch.tv/..."></label><label>Соцсеть (Telegram, VK…)<input name="so" value="${esc(me.stream_social_url || '')}" placeholder="https://t.me/..."></label><label>Ссылка на донат<input name="dn" value="${esc(me.stream_donate_url || '')}" placeholder="https://..."></label>` : ''}
     <p class="hint">Логин Twitch (@${esc(me.username || '')}) не меняется.</p>
     <div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
   const close = () => ov.remove();
-  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) close(); });
+  let color = me.name_color || '';
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-x]')) return close();
+    const sw = e.target.closest('[data-nc]'); if (!sw) return;
+    color = sw.dataset.nc; $$('[data-nc]', ov).forEach(b => b.classList.toggle('on', b === sw));
+    const pv = $('#ncPrev', ov); pv.removeAttribute('style'); pv.className = '';
+    const m = nameAttr(color), st = (m.match(/style="([^"]*)"/) || [])[1], cl = (m.match(/class="([^"]*)"/) || [])[1];
+    if (st) pv.setAttribute('style', st); if (cl) pv.className = cl;
+  });
+  $('[name=n]', ov).addEventListener('input', e => { const pv = $('#ncPrev', ov); if (pv) pv.textContent = e.target.value || pname(me); });
   const fi = $('input[type=file]', ov);
   fi.onchange = () => {
     const f = fi.files[0]; if (!f) return;
@@ -1364,6 +1386,11 @@ function editProfile() {
     try {
       if (file) { hint.textContent = 'Загрузка фото…'; ava = await uploadFile(file, p => { hint.textContent = `Загрузка фото: ${p}%`; }); }
       const patch = { display_name: name, bio: f.b.value.trim() || null, avatar_url: ava || null };
+      if (canColor(me)) patch.name_color = okColor(color) ? color : null;
+      if (f.tw) {
+        const u = x => { const v = x.value.trim(); if (v && !/^https?:\/\//.test(v)) throw new Error('Ссылки должны начинаться с https://'); return v || null; };
+        Object.assign(patch, { stream_twitch_url: u(f.tw), stream_social_url: u(f.so), stream_donate_url: u(f.dn) });
+      }
       await api(`profiles?id=eq.${S.uid}`, { method: 'PATCH', prefer: 'return=minimal', body: patch });
       Object.assign(me, patch); S.profiles.set(me.id, { ...(S.profiles.get(me.id) || {}), ...patch });
       // старый сайт держит профиль в сессии — обновим и там
@@ -1500,6 +1527,308 @@ page.addEventListener('click', async e => {
   }
 });
 
+/* ── цвет ника и краски 7TV (модераторы, стримеры, спонсоры) ── */
+const NAME_COLORS = ['#ff4444', '#ff7043', '#ff9800', '#ffca28', '#66bb6a', '#26c6da', '#42a5f5', '#5c6bc0', '#ab47bc', '#ec407a', '#ff80ab', '#80deea', '#a5d6a7', '#fff176', '#ef9a9a', '#b0bec5', '#ffffff'];
+const NAME_PAINTS = [
+  ['#ff9966', '#ff66a3', 'Pastelween'], ['#9b30ff', '#ff1d6b', 'Impish Blush'], ['#ff7b29', '#ff2d2d', 'Hellfire'], ['#ffffff', '#16d2ff', 'Cyber Optics'],
+  ['#3ef2a8', '#7dff5e', 'Elder Dragon'], ['#2ee6b8', '#4a6dff', 'Divided'], ['#ff8fe0', '#fff48f', 'Kawaii'], ['#3ef2a8', '#ffb3c6', 'Mint Cookie'],
+  ['#d9d9d9', '#ff7a59', 'V-Tech'], ['#ffd9a0', '#ff5fcf', 'Shortcake'], ['#ff7b3d', '#ff2d00', 'NNYS 2025'], ['#ffb3b0', '#ff4d4d', 'Little Elf'],
+  ['#d9d9d9', '#ffd700', 'Silver and Gold'], ['#cfe3ff', '#2e4cff', 'Black Ice'], ['#ffffff', '#ffc2c2', 'Health Pack'], ['#6ef2d9', '#a635ff', 'Opal Twilight'],
+  ['#ffd23f', '#ff2d8a', 'Candy Hearts'], ['#ffc2d1', '#ff3d6e', "Valentine's Gifting 2026"], ['#ffffff', '#fff200', 'Electric'], ['#ffffff', '#c084fc', 'Moonberry'],
+  ['#ffffff', '#ffd23f', 'Pixel Confetti'], ['#ff9eea', '#ffe28a', 'Pastellic'], ['#ffffff', '#5b9dff', 'Nano'], ['#5ec8ff', '#4ade80', 'Singularity'], ['#ffc2ec', '#c9a6ff', 'Easter Gifting 2026'],
+].map(([a, b, l]) => ({ css: `linear-gradient(90deg,${a},${b},${a})`, label: l }))
+  .concat([{ css: 'linear-gradient(90deg,#0057b7 50%,#ffd700 50%)', label: 'Флаг Украины' }, { css: 'linear-gradient(180deg,#003c8a 18%,#0074c2 44%,#24ffff 57%,#f4fe6c 66%,#ffff00 100%)', label: 'Invisible' }]);
+const hasRole = (p, r) => !!p && (p.role === r || (p.extra_roles || []).includes(r));
+const canColor = p => !!p && (MOD_ROLES.some(r => hasRole(p, r)) || hasRole(p, 'streamer') || hasRole(p, 'sponsor'));
+const okColor = c => /^#[0-9a-f]{3,8}$/i.test(c || '') || /^linear-gradient\([#0-9a-zA-Z,.%\s()-]{1,240}\)$/.test(c || '');
+// атрибуты для имени: цвет или переливающийся градиент
+function nameAttr(c) {
+  if (!okColor(c)) return '';
+  if (c[0] === '#') return ` style="color:${c}"`;
+  const anim = /^linear-gradient\(90deg,(#\w+),#\w+,\1\)$/.test(c);
+  return ` class="nm-paint${anim ? ' anim' : ''}" style="background-image:${c}"`;
+}
+
+/* ── пазл-спойлер: размытый арт собирается из плиток (можно выключить в настройках) ── */
+const PZ_GRID = { easy: 4, x2: 6, x3: 7, x4: 8 };
+const PZ_NAMES = { easy: 'Лёгкий', x2: '×2', x3: '×3', x4: '×4' };
+const puzzleOn = () => { try { return localStorage.getItem('v2_puzzle') !== '0'; } catch { return true; } };
+function startPuzzle(pmEl, item, setting) {
+  const img = $('img', item); if (!img) { pmEl.classList.remove('blur'); return; }
+  const url = img.currentSrc || img.src;
+  let level = setting === 'choice' ? 'easy' : (PZ_GRID[setting] ? setting : 'easy');
+  const over = document.createElement('div');
+  over.className = 'pz-over';
+  item.append(over);
+  const place = () => {
+    const r = img.getBoundingClientRect(), p = item.getBoundingClientRect();
+    Object.assign(over.style, { left: r.left - p.left + 'px', top: r.top - p.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  };
+  let perm = [], sel = -1, moves = 0;
+  const build = () => {
+    const n = PZ_GRID[level], N = n * n;
+    do { perm = [...Array(N).keys()].sort(() => Math.random() - .5); } while (perm.every((v, i) => v === i));
+    sel = -1; moves = 0; draw();
+  };
+  const draw = () => {
+    const n = PZ_GRID[level];
+    over.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    over.innerHTML = perm.map((v, i) => `<button type="button" class="pz-tile${i === sel ? ' sel' : ''}${v === i ? ' ok' : ''}" data-pz="${i}" style="background-image:url('${esc(url)}');background-size:${n * 100}% ${n * 100}%;background-position:${(v % n) / (n - 1) * 100}% ${Math.floor(v / n) / (n - 1) * 100}%"></button>`).join('')
+      + `<div class="pz-bar">${setting === 'choice' ? Object.keys(PZ_GRID).map(k => `<button type="button" class="chip${k === level ? ' on' : ''}" data-pzl="${k}">${PZ_NAMES[k]}</button>`).join('') : ''}<span>Ходов: ${moves}</span><button type="button" class="chip" data-pzskip>Показать сразу</button></div>`;
+  };
+  const done = () => { over.classList.add('solved'); setTimeout(() => { over.remove(); pmEl.classList.remove('blur'); }, 450); };
+  over.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (e.target.closest('[data-pzskip]')) return done();
+    const lv = e.target.closest('[data-pzl]'); if (lv) { level = lv.dataset.pzl; return build(); }
+    const t = e.target.closest('[data-pz]'); if (!t) return;
+    const i = +t.dataset.pz;
+    if (sel < 0) { sel = i; return draw(); }
+    if (sel !== i) { [perm[sel], perm[i]] = [perm[i], perm[sel]]; moves++; }
+    sel = -1; draw();
+    if (perm.every((v, k) => v === k)) { toast(`Пазл собран за ${moves} ход(ов)!`); done(); }
+  });
+  place(); build();
+  addEventListener('resize', place);
+  if (!img.complete) img.addEventListener('load', place, { once: true });
+}
+
+function postMenuHtml(it) {
+  return S.uid && (S.uid === it.submitted_by || isMod()) ? `<div class="pmenu-wrap"><button class="btn" id="postMenuBtn" title="Управление" aria-label="Управление постом"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg></button><div class="pmenu" hidden><button type="button" data-pedit>Редактировать</button><button type="button" data-pdel class="danger">Удалить</button></div></div>` : '';
+}
+function wirePostMenu(root, it) {
+  const pmb = root.querySelector('#postMenuBtn'); if (!pmb) return;
+  const menu = pmb.nextElementSibling;
+  pmb.onclick = ev => { ev.stopPropagation(); menu.hidden = !menu.hidden; };
+  menu.onclick = ev => {
+    ev.stopPropagation(); menu.hidden = true;
+    if (ev.target.closest('[data-pedit]')) editPost(it);
+    if (ev.target.closest('[data-pdel]')) deletePost(it);
+  };
+}
+// роли загрузились после поста — добавить меню модератора
+function postMenuLate() {
+  const c = S.curPost; if (!c || !c.root.isConnected || c.root.querySelector('#postMenuBtn')) return;
+  const acts = c.root.querySelector('.post-actions'); if (!acts) return;
+  acts.insertAdjacentHTML('beforeend', postMenuHtml(c.it)); wirePostMenu(c.root, c.it);
+}
+/* ── редактирование и удаление работ: автор — свои, модераторы — любые ── */
+document.addEventListener('click', e => { if (!e.target.closest('.pmenu-wrap')) $$('.pmenu').forEach(m => { m.hidden = true; }); });
+function dropFeedCache() { [...MEM.keys()].filter(k => k.startsWith('feed:')).forEach(k => MEM.delete(k)); try { Object.keys(localStorage).filter(k => k.startsWith(LSC + 'feed:')).forEach(k => localStorage.removeItem(k)); } catch {} }
+async function editPost(it) {
+  // в ленте у поста не все поля — для правки берём полную запись
+  try { const [full] = await api(`content?id=eq.${it.id}&select=*`); if (full) Object.assign(it, full); } catch (er) { return toast(er.message, true); }
+  const T = it.content_type;
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal pedit"><h2>Редактировать работу</h2>
+    <label>Название<input name="t" maxlength="120" value="${esc(it.title || '')}" required></label>
+    ${T !== 'art' ? `<label>${T === 'fanfic' ? 'Краткое описание' : 'Описание'}<textarea name="d" rows="3" maxlength="600">${esc(it.description || '')}</textarea></label>` : ''}
+    ${T === 'fanfic' ? `<label>Фэндом<input name="fa" maxlength="80" value="${esc(it.fandom || '')}"></label><label>Пейринг<input name="pa" maxlength="80" value="${esc(it.pairing || '')}"></label>` : ''}
+    <label>Теги через запятую<input name="g" value="${esc((it.tags || []).join(', '))}" placeholder="meowh0cki, renamid"></label>
+    ${T === 'art' ? `<label class="sw"><input type="checkbox" name="bl"${it.is_blurred ? ' checked' : ''}><i></i><div><b>Спойлер / пазл</b><span>Картинка в ленте будет размытой</span></div></label>
+      <label class="pz"${it.is_blurred ? '' : ' hidden'}>Сложность пазла<select name="pz">${[['easy', 'Лёгкий'], ['x2', 'Сложный (×2)'], ['x3', 'Сложный (×3)'], ['x4', 'Очень сложный (×4)'], ['choice', 'На выбор зрителя']].map(([v, n]) => `<option value="${v}"${(it.puzzle_difficulty || 'easy') === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+    ${T === 'fanfic' ? `<label class="sw"><input type="checkbox" name="r18"${it.age_rating === '18+' ? ' checked' : ''}><i></i><div><b>18+</b><span>Иначе рейтинг PG-13</span></div></label>` : ''}
+    <p class="hint"></p><div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
+  const f = $('form', ov);
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) ov.remove(); });
+  if (f.bl) f.bl.onchange = () => { $('.pz', f).hidden = !f.bl.checked; };
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const hint = $('.hint', f), btn = $('button[type=submit]', f);
+    const patch = { title: f.t.value.trim(), tags: f.g.value.split(',').map(x => x.trim().replace(/^#/, '')).filter(Boolean).slice(0, 20) };
+    if (!patch.title) { hint.textContent = 'Добавьте название'; return; }
+    if (f.d) patch.description = f.d.value.trim() || null;
+    if (f.fa) { patch.fandom = f.fa.value.trim() || null; patch.pairing = f.pa.value.trim() || null; patch.age_rating = f.r18.checked ? '18+' : 'pg13'; }
+    if (f.bl) { patch.is_blurred = f.bl.checked; patch.puzzle_difficulty = f.bl.checked ? f.pz.value : 'easy'; }
+    btn.disabled = true;
+    try {
+      const r = await api(`content?id=eq.${it.id}`, { method: 'PATCH', prefer: 'return=representation', body: patch });
+      if (!r?.length) throw new Error('Нет прав на изменение');
+      Object.assign(it, patch); dropFeedCache();
+      ov.remove(); toast('Сохранено');
+      LB.open ? lbRender(LB.key) : viewPost(it.short_code || it.id);
+    } catch (er) { hint.textContent = 'Ошибка: ' + er.message; btn.disabled = false; }
+  };
+  document.body.append(ov);
+}
+async function deletePost(it) {
+  const own = it.submitted_by === S.uid;
+  if (!confirm(own ? 'Удалить вашу работу? Это нельзя отменить.' : `Удалить работу «${it.title || 'без названия'}» как модератор? Это нельзя отменить.`)) return;
+  try {
+    await fetch(CDN_URL + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await getToken()) }, body: JSON.stringify({ contentId: it.id }) }).catch(() => {});
+    await api(`content?id=eq.${it.id}`, { method: 'DELETE' });
+    S.items.delete(it.id); if (it.short_code) S.items.delete(it.short_code);
+    dropFeedCache(); toast('Работа удалена');
+    if (LB.open) closeLightbox();
+    $$(`[data-open="${CSS.escape(it.short_code || it.id)}"]`).forEach(c => c.remove());
+    if (!LB.open && /^#\/p\//.test(location.hash)) location.hash = '#/';
+  } catch (er) { toast(er.message, true); }
+}
+
+/* ── настройки: пазлы, уведомления, Telegram ── */
+const NOTIF_OPTS = [['notify_likes', 'Лайки на моих работах'], ['notify_comments', 'Комментарии к моим работам'], ['notify_new_followers', 'Новые подписчики']];
+function viewSettings() {
+  setNav('settings');
+  if (!S.uid) { page.innerHTML = `<div class="empty">Войдите, чтобы открыть настройки.<br><br><button class="btn accent" data-login>Войти</button></div>`; return; }
+  if (!S.me) { page.innerHTML = '<div class="empty">Загрузка…</div>'; loadMe().then(() => { if (location.hash.startsWith('#/settings')) viewSettings(); }); return; }
+  const me = S.me, sw = (name, title, sub, on) => `<label class="sw"><input type="checkbox" name="${name}"${on ? ' checked' : ''}><i></i><div><b>${title}</b>${sub ? `<span>${sub}</span>` : ''}</div></label>`;
+  const opts = [...NOTIF_OPTS, ...(isMod() ? [['notify_new_submission', 'Новые работы на проверку (модераторам)']] : [])];
+  page.innerHTML = `<div class="sets">
+    <div class="page-head"><h1>Настройки</h1></div>
+    <section class="rules-card sets-card"><h2>Просмотр</h2>
+      ${sw('puzzle', 'Пазлы на спойлерах', 'Размытый арт собирается из кусочков. Выключено — открывается сразу по клику.', puzzleOn())}</section>
+    <section class="rules-card sets-card" id="setNotif"><h2>Уведомления</h2>
+      <p class="muted">Сами события происходят, просто не будут показываться в колокольчике.</p>
+      ${opts.map(([k, t]) => sw(k, t, '', me[k] !== false)).join('')}</section>
+    <section class="rules-card sets-card"><h2>Telegram</h2>
+      <p>Бот <a href="https://t.me/renah0ckibot" target="_blank" rel="noopener">@renah0ckibot</a> присылает уведомления модераторам и открывает Y прямо в Telegram.</p>
+      <ol class="sets-steps"><li>Откройте бота и нажмите <b>/start</b>.</li><li>Бот пришлёт ссылку — откройте её в этом браузере, где вы вошли на сайт.</li><li>Готово: бот сам подтвердит привязку.</li></ol>
+      <a class="btn accent" href="https://t.me/renah0ckibot" target="_blank" rel="noopener">Открыть бота</a></section>
+    <section class="rules-card sets-card"><h2>Аккаунт</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>Редактировать профиль</button><a class="btn" href="#/rules">Правила</a><button class="btn danger" type="button" data-logout>Выйти</button></div></section>
+  </div>`;
+  page.querySelector('[name=puzzle]').onchange = e => { try { localStorage.setItem('v2_puzzle', e.target.checked ? '1' : '0'); } catch {} toast(e.target.checked ? 'Пазлы включены' : 'Пазлы выключены'); };
+  $('#setNotif').onchange = async e => {
+    const k = e.target.name; if (!k) return;
+    const v = e.target.checked; e.target.disabled = true;
+    try { await api(`profiles?id=eq.${S.uid}`, { method: 'PATCH', prefer: 'return=minimal', body: { [k]: v } }); me[k] = v; NOTIF.loaded = false; loadNotifs().catch(() => {}); toast('Сохранено'); }
+    catch (er) { e.target.checked = !v; toast(er.message, true); }
+    e.target.disabled = false;
+  };
+  page.querySelector('[data-editprof]').onclick = editProfile;
+  page.querySelector('[data-logout]').onclick = logout;
+}
+// ссылка привязки из бота: /v2/?tglink=ТОКЕН
+(async () => {
+  const t = new URLSearchParams(location.search).get('tglink');
+  if (!t || !/^[0-9a-f]{32}$/.test(t)) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  if (!S.uid) { try { localStorage.setItem('fh_tglink', t); } catch {} toast('Войдите, чтобы привязать Telegram'); return; }
+  try { const ok = await rpc('claim_tg_link', { p_token: t }); toast(ok ? 'Готово! Вернитесь в Telegram-бота — он подключит вас за пару секунд.' : 'Ссылка из бота устарела. Нажмите /start в боте ещё раз.', !ok); }
+  catch (er) { toast(er.message, true); }
+})();
+
+/* ── кошелёк renah0cki coin ── */
+const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
+const TX = {
+  purchase: ['Пополнение', 'plus'], reward: ['Награда', 'gift'], spend: ['Покупка', 'bag'], admin: ['От администрации', 'gift'],
+  refund: ['Возврат', 'plus'], transfer: ['Перевод', 'swap'], reaction: ['Подарок за пост', 'heart'],
+};
+const TXI = {
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  gift: '<svg viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M3 9h18M12 9v11M12 9c-2-4-6-4-6-1.5S10 9 12 9zm0 0c2-4 6-4 6-1.5S14 9 12 9z"/></svg>',
+  bag: '<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0"/></svg>',
+  swap: '<svg viewBox="0 0 24 24"><path d="M5 9h13l-3-3M19 15H6l3 3"/></svg>',
+  heart: I.heart,
+};
+const DA_RATES_TXT = '1 ₽ = 1 coin · 1 ₴ = 2 · 1 $ = 80 · 1 € = 90 · 1 ₸ = 0,16 · 1 Br = 25';
+function setBalance(v) { $('#coinVal').textContent = fmt(v); const b = $('#walBal'); if (b) b.textContent = fmt(v); }
+async function viewWallet(tab) {
+  setNav('');
+  if (!S.uid) { page.innerHTML = `<div class="empty">Войдите, чтобы открыть кошелёк.<br><br><button class="btn accent" data-login>Войти</button></div>`; return; }
+  const T = ['topup', 'history', 'send'].includes(tab) ? tab : 'topup';
+  page.innerHTML = `<div class="wal">
+    <section class="wal-hero">
+      <div class="wal-coin"><img src="${COIN}" alt=""></div>
+      <div class="wal-sum"><span>Ваш баланс</span><b><i id="walBal">${esc($('#coinVal').textContent)}</i> coin</b></div>
+      <div class="wal-acts">
+        <a class="btn accent" href="#/wallet/topup">${TXI.plus}Пополнить</a>
+        <a class="btn" href="#/wallet/send">${TXI.swap}Перевести</a>
+      </div>
+      <p class="wal-what">renah0cki coin — монеты сайта. Ими можно оплатить подписку в Y, подарить автору монеты за работу или перевести другу. <a href="#/rules">Правила coin</a></p>
+    </section>
+    <div class="tabs wal-tabs"><a class="tab${T === 'topup' ? ' on' : ''}" href="#/wallet/topup">Пополнить</a><a class="tab${T === 'history' ? ' on' : ''}" href="#/wallet/history">История</a><a class="tab${T === 'send' ? ' on' : ''}" href="#/wallet/send">Перевести</a></div>
+    <div id="walBody"></div>
+  </div>`;
+  rpc('coin_balance').then(v => setBalance(v || 0)).catch(() => {});
+  const body = $('#walBody');
+  if (T === 'topup') {
+    body.innerHTML = `<section class="wal-card">
+      <h2>Пополнить через DonationAlerts</h2>
+      <p class="muted">Картой, через СБП и другими способами. Монеты приходят автоматически, обычно за минуту.</p>
+      <ol class="wal-steps">
+        <li><b>Скопируйте свой код</b><div class="wal-code"><span id="walCode">…</span><button class="btn" type="button" id="walCopy">Скопировать</button></div></li>
+        <li><div><b>Откройте страницу доната</b> и укажите сумму.</div><div><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a></div></li>
+        <li><div><b>Вставьте код в сообщение к донату</b> — по нему мы поймём, что монеты ваши.</div></li>
+      </ol>
+      <div class="wal-rate"><img src="${COIN}" alt=""><span>${DA_RATES_TXT}</span></div>
+      <p class="wal-warn">Донат без кода — это просто поддержка сайта, монеты не начисляются. Донат добровольный и не возвращается. Ошиблись в коде — напишите в <a href="#/support">поддержку</a>.</p>
+      <div class="wal-admin" id="walAdmin" hidden></div>
+    </section>`;
+    $('#walCopy').onclick = async () => { const c = $('#walCode').textContent; if (!/^RN-/.test(c)) return; try { await navigator.clipboard.writeText(c); toast('Код скопирован — вставьте его в сообщение к донату'); } catch { prompt('Ваш код', c); } };
+    try {
+      const [info, code] = await Promise.all([fetch(CDN_URL + '/da/info').then(r => r.json()).catch(() => ({})), rpc('coin_da_code')]);
+      if (!$('#walCode')) return;
+      $('#walCode').textContent = code || '—';
+      if (info.url) $('#walGo').href = info.url.replace(/^https:\/\/www\.donationalerts\.com\/r\//, 'https://dalink.to/');
+      else { $('#walGo').classList.add('disabled'); $('#walGo').textContent = 'Пополнение временно недоступно'; }
+      if (S.uid === OWNER_ID) {
+        const a = $('#walAdmin'); a.hidden = false;
+        a.innerHTML = `<span>Админ: DonationAlerts ${info.connected ? '<b class="ok">подключён</b>' : '<b class="bad">не подключён</b>'}. Переподключать, только если донаты перестали начисляться.</span><button class="btn" type="button" id="walDa">${info.connected ? 'Переподключить' : 'Подключить'}</button>`;
+        $('#walDa').onclick = async () => {
+          try { const r = await fetch(CDN_URL + '/da/login-url', { method: 'POST', headers: { Authorization: 'Bearer ' + (await getToken()) } }); const j = await r.json().catch(() => ({})); if (!r.ok || !j.url) throw new Error(j.error || 'ошибка'); location.href = j.url; }
+          catch (er) { toast(er.message, true); }
+        };
+      }
+    } catch (er) { const c = $('#walCode'); if (c) c.textContent = '—'; toast(er.message, true); }
+  } else if (T === 'history') {
+    body.innerHTML = `<section class="wal-card"><div id="walTx">${'<div class="skel" style="aspect-ratio:auto;height:56px;margin-bottom:8px"></div>'.repeat(5)}</div></section>`;
+    let rows = [];
+    try { rows = await api(`coin_tx?user_id=eq.${S.uid}&select=amount,kind,note,created_at&order=created_at.desc&limit=100`); } catch {}
+    const box = $('#walTx'); if (!box) return;
+    box.innerHTML = rows.length ? rows.map(t => { const k = TX[t.kind] || [t.kind, 'swap']; return `<div class="tx"><span class="tx-ic ${t.amount > 0 ? 'in' : 'out'}">${TXI[k[1]]}</span><div class="tx-main"><b>${esc(k[0])}</b>${t.note ? `<span>${esc(t.note)}</span>` : ''}<time>${when(t.created_at)}</time></div><div class="tx-amt ${t.amount > 0 ? 'in' : 'out'}">${t.amount > 0 ? '+' : '−'}${fmt(Math.abs(t.amount))}</div></div>`; }).join('') : '<div class="empty" style="padding:30px">Операций пока нет.</div>';
+  } else {
+    body.innerHTML = `<section class="wal-card"><h2>Перевести монеты</h2><p class="muted">Найдите человека по нику. Перевод сразу и без комиссии, отменить его нельзя.</p>
+      <label class="search wal-find"><input id="walFind" type="search" placeholder="Ник пользователя" autocomplete="off"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></label>
+      <div id="walFound" class="wal-found"></div></section>`;
+    let t;
+    $('#walFind').oninput = e => {
+      clearTimeout(t); const q = e.target.value.trim().replace(/[*,()%]/g, '');
+      t = setTimeout(async () => {
+        const box = $('#walFound'); if (!box) return;
+        if (q.length < 2) { box.innerHTML = ''; return; }
+        const rows = await api(`profiles?or=(username.ilike.*${encodeURIComponent(q)}*,display_name.ilike.*${encodeURIComponent(q)}*)&id=neq.${S.uid}&select=id,username,display_name,avatar_url&limit=8`).catch(() => []);
+        rows.forEach(p => S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p }));
+        box.innerHTML = rows.length ? rows.map(p => `<button type="button" class="wal-user" data-sendto="${p.id}">${avaHtml(p.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b>${p.username ? `<span>@${esc(p.username)}</span>` : ''}</div><i>Перевести →</i></button>`).join('') : '<div class="muted" style="padding:10px">Никого не нашли.</div>';
+      }, 300);
+    };
+    $('#walFind').focus();
+  }
+}
+page.addEventListener('click', e => { const b = e.target.closest('[data-sendto]'); if (b) coinSendDialog(S.profiles.get(b.dataset.sendto)); });
+$('#coinChip').onclick = () => { location.hash = '#/wallet'; };
+const SEND_AMTS = [10, 50, 100, 500];
+function coinSendDialog(p) {
+  if (!S.uid || !p) return;
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal send">
+    <h2>Перевести coin</h2>
+    <div class="send-to">${avaHtml(p.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b><span>Ваш баланс: ${esc($('#coinVal').textContent)} coin</span></div></div>
+    <div class="send-amts">${SEND_AMTS.map((a, i) => `<button type="button" class="chip${i === 1 ? ' on' : ''}" data-samt="${a}">${a}</button>`).join('')}<input type="number" name="c" min="1" max="100000" step="1" placeholder="своя"></div>
+    <label>Сообщение (необязательно)<textarea name="n" rows="2" maxlength="200"></textarea></label>
+    <p class="hint">Перевод нельзя отменить.</p>
+    <div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Перевести <img src="${COIN}" alt="" style="width:16px;height:16px"> <span>50</span></button></div></form>`;
+  const f = $('form', ov), amt = () => { const c = parseInt(f.c.value, 10); return c > 0 ? c : +($('[data-samt].on', f)?.dataset.samt || 0); };
+  const sync = () => { $('button[type=submit] span', f).textContent = fmt(amt()); };
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-x]')) return ov.remove();
+    const ch = e.target.closest('[data-samt]'); if (ch) { $$('[data-samt]', f).forEach(x => x.classList.toggle('on', x === ch)); f.c.value = ''; sync(); }
+  });
+  f.c.oninput = () => { if (f.c.value) $$('[data-samt]', f).forEach(x => x.classList.remove('on')); sync(); };
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const a = amt(), hint = $('.hint', ov), btn = $('button[type=submit]', f);
+    if (!(a >= 1)) { hint.textContent = 'Укажите сумму'; return; }
+    btn.disabled = true; hint.textContent = '…';
+    try {
+      const bal = await rpc('coin_transfer', { p_to: p.id, p_amount: a, p_note: f.n.value.trim() || null });
+      setBalance(bal); ov.remove(); toast(`Переведено ${fmt(a)} coin → ${pname(p)}`);
+    } catch (er) { hint.textContent = 'Ошибка: ' + er.message; btn.disabled = false; }
+  };
+  document.body.append(ov);
+}
+
 /* ── правила ── */
 function viewRules() {
   setNav('rules');
@@ -1546,6 +1875,8 @@ function route() {
   if (parts[0] === 'new') return viewNew(parts[1]);
   if (parts[0] === 'mod') return viewMod(parts[1]);
   if (parts[0] === 'rules') return viewRules();
+  if (parts[0] === 'wallet') return viewWallet(parts[1]);
+  if (parts[0] === 'settings') return viewSettings();
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
