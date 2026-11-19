@@ -4936,17 +4936,25 @@
   .coin-da-code button { margin-left: auto; }
   .coin-da-go { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 10px; background: var(--accent); color: #1b1209; font-weight: 700; text-decoration: none; flex: 1 1 auto; }
   .coin-react-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
-  .coin-react-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); font-size: 14px; }
-  .coin-react-add { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px dashed var(--accent); background: transparent; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
-  .coin-react-add .coin-ico, .coin-react-send .coin-ico { width: 16px; height: 16px; }
+  .coin-react-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; transition: transform .15s; }
+  .coin-react-chip .coin-ico { width: 18px; height: 18px; }
+  .coin-react-chip b:empty { display: none; }
+  .coin-react-chip span { color: var(--muted); font-size: 13px; }
+  .coin-react-chip.mine { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .coin-react-chip:hover { border-color: var(--accent); }
+  .coin-react-chip.pop { transform: scale(1.18); }
   .coin-react-pop { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: min(340px, calc(100vw - 32px)); padding: 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 12px 30px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 10px; }
   .coin-react-pop[hidden] { display: none; }
+  .coin-react-title { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+  .coin-react-title .coin-ico, .coin-react-send .coin-ico { width: 18px; height: 18px; }
+  .coin-react-top { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
+  .coin-react-top b { color: var(--text); }
   .coin-react-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .coin-react-emoji { font-size: 22px; width: 42px; height: 42px; border-radius: 10px; border: 1px solid var(--border); background: transparent; cursor: pointer; padding: 0; }
   .coin-react-amt { min-width: 42px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; padding: 0 8px; }
-  .coin-react-emoji.on, .coin-react-amt.on { border-color: var(--accent); background: var(--panel-2); }
+  .coin-react-amt.on { border-color: var(--accent); background: var(--panel-2); }
   .coin-react-custom { width: 80px; height: 34px; }
   .coin-react-send { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: 10px; border: 0; background: var(--accent); color: #1b1209; font: inherit; font-weight: 700; cursor: pointer; }
+  .coin-react-hint { font-size: 12px; color: var(--muted); }
   .coin-react-status { font-size: 13px; color: var(--muted); }
   .coin-react-status:empty { display: none; }
   .coin-grant-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -12001,56 +12009,60 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
   // ───────────────────────────────────────────────────────────────────────
 
   // ── платные реакции renah0cki coin на посты (монеты уходят автору) ──
-  const COIN_REACT_EMOJI = ['❤️', '🔥', '😂', '😍', '👏', '💎'];
   const COIN_REACT_AMOUNTS = [1, 5, 10, 25, 50, 100];
+  // Реакция одна — монета renah0cki (как звёзды в Telegram): под постом сумма, по клику — выбрать сколько подарить.
   async function renderCoinReactions(bar, id, kind) {
     if (!bar) return;
     bar.dataset.reactId = id || ''; bar.dataset.reactKind = kind;
     if (!id || !coinSocialOk()) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
     let rows = [];
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/coin_reactions?target_kind=eq.${kind}&target_id=eq.${id}&select=emoji,amount`, { headers: coinHeaders() });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/coin_reactions?target_kind=eq.${kind}&target_id=eq.${id}&select=from_user,amount`, { headers: coinHeaders() });
       rows = r.ok ? await r.json() : [];
     } catch (e) {}
     if (bar.dataset.reactId !== id) return; // пост уже сменился
-    const sum = {};
-    rows.forEach(x => { sum[x.emoji] = (sum[x.emoji] || 0) + Number(x.amount); });
-    const chips = COIN_REACT_EMOJI.filter(e => sum[e]).map(e => `<span class="coin-react-chip" title="${fmtCoins(sum[e])} coin">${e} <b>${fmtCoins(sum[e])}</b></span>`).join('');
+    let total = 0, mine = 0; const by = {};
+    rows.forEach(x => { const a = Number(x.amount) || 0; total += a; by[x.from_user] = (by[x.from_user] || 0) + a; if (currentUser && x.from_user === currentUser.id) mine += a; });
+    const top = Object.entries(by).sort((x, y) => y[1] - x[1]).slice(0, 3);
+    let names = {};
+    if (top.length) { try { names = await fetchProfilesByIds(top.map(t => t[0])); } catch (e) {} }
+    if (bar.dataset.reactId !== id) return;
     const own = currentPostAuthor && currentUser && currentPostAuthor.id === currentUser.id;
-    bar.innerHTML = chips + (own ? '' : `<button type="button" class="coin-react-add" data-react-open title="Реакция за renah0cki coin — монеты получит автор">${coinIcoHtml()} Реакция</button>`)
+    const topHtml = top.length ? `<div class="coin-react-top">${top.map(([uid, a], i) => { const p = names[uid] || {}; return `<span>${['🥇', '🥈', '🥉'][i]} ${escapeHtml(p.display_name || p.username || 'кто-то')} — <b>${fmtCoins(a)}</b></span>`; }).join('')}</div>` : '';
+    bar.innerHTML = `<button type="button" class="coin-react-chip${mine ? ' mine' : ''}" data-react-open title="${own ? 'Монеты, подаренные этому посту' : 'Подарить автору renah0cki coin'}">${coinIcoHtml()}<b>${total ? fmtCoins(total) : ''}</b>${!total && !own ? '<span>Подарить</span>' : ''}</button>`
       + `<div class="coin-react-pop" hidden>
-          <div class="coin-react-row">${COIN_REACT_EMOJI.map((e, i) => `<button type="button" class="coin-react-emoji${i === 1 ? ' on' : ''}" data-react-emoji="${e}">${e}</button>`).join('')}</div>
-          <div class="coin-react-row">${COIN_REACT_AMOUNTS.map((a, i) => `<button type="button" class="coin-react-amt${i === 1 ? ' on' : ''}" data-react-amt="${a}">${a}</button>`).join('')}<input type="number" min="1" max="100000" step="1" class="coin-react-custom" placeholder="своя"></div>
-          <button type="button" class="coin-react-send" data-react-send>Отправить ${coinIcoHtml()} <span>5</span></button>
+          <div class="coin-react-title">${own ? 'Вашему посту подарили' : 'Подарить автору'} ${coinIcoHtml()} <b>${fmtCoins(total)}</b></div>
+          ${topHtml}
+          ${own ? '' : `<div class="coin-react-row">${COIN_REACT_AMOUNTS.map((a, i) => `<button type="button" class="coin-react-amt${i === 1 ? ' on' : ''}" data-react-amt="${a}">${a}</button>`).join('')}<input type="number" min="1" max="100000" step="1" class="coin-react-custom" placeholder="своя"></div>
+          <button type="button" class="coin-react-send" data-react-send>Подарить ${coinIcoHtml()} <span>5</span></button>
+          <div class="coin-react-hint">Монеты сразу получит автор поста.${mine ? ` Вы уже подарили ${fmtCoins(mine)}.` : ''}</div>`}
           <div class="coin-react-status"></div>
         </div>`;
-    bar.style.display = (chips || !own) ? '' : 'none';
+    bar.style.display = (total || !own) ? '' : 'none';
   }
   document.addEventListener('click', async (e) => {
     const bar = e.target.closest('.coin-react-bar');
     if (!bar) { document.querySelectorAll('.coin-react-pop:not([hidden])').forEach(x => { x.hidden = true; }); return; }
     const pop = bar.querySelector('.coin-react-pop');
-    const amountNow = () => { const c = parseInt(bar.querySelector('.coin-react-custom').value, 10); return c > 0 ? c : parseInt(bar.querySelector('.coin-react-amt.on')?.dataset.reactAmt || '5', 10); };
-    const sync = () => { bar.querySelector('[data-react-send] span').textContent = fmtCoins(amountNow()); };
+    const amountNow = () => { const c = parseInt(bar.querySelector('.coin-react-custom')?.value, 10); return c > 0 ? c : parseInt(bar.querySelector('.coin-react-amt.on')?.dataset.reactAmt || '5', 10); };
+    const sync = () => { const sp = bar.querySelector('[data-react-send] span'); if (sp) sp.textContent = fmtCoins(amountNow()); };
     if (e.target.closest('[data-react-open]')) { pop.hidden = !pop.hidden; return; }
-    const em = e.target.closest('[data-react-emoji]');
-    if (em) { bar.querySelectorAll('[data-react-emoji]').forEach(b => b.classList.toggle('on', b === em)); return; }
     const am = e.target.closest('[data-react-amt]');
     if (am) { bar.querySelectorAll('[data-react-amt]').forEach(b => b.classList.toggle('on', b === am)); bar.querySelector('.coin-react-custom').value = ''; sync(); return; }
     const send = e.target.closest('[data-react-send]');
     if (send) {
-      const emoji = bar.querySelector('.coin-react-emoji.on')?.dataset.reactEmoji || '🔥';
       const amount = amountNow();
       const st = bar.querySelector('.coin-react-status');
       if (!(amount >= 1)) { st.textContent = 'Укажи сумму'; return; }
       send.disabled = true; st.textContent = '…';
       try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_react`, { method: 'POST', headers: coinHeaders(), body: JSON.stringify({ p_kind: bar.dataset.reactKind, p_id: bar.dataset.reactId, p_emoji: emoji, p_amount: amount }) });
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_react`, { method: 'POST', headers: coinHeaders(), body: JSON.stringify({ p_kind: bar.dataset.reactKind, p_id: bar.dataset.reactId, p_emoji: 'coin', p_amount: amount }) });
         const j = await r.json().catch(() => null);
         if (!r.ok) throw new Error((j && j.message) || 'ошибка');
         coinBalanceCache = Number(j);
         document.querySelectorAll('#coinChipVal, #coinWalletBalance, #profileCoinVal').forEach(el => { el.textContent = fmtCoins(coinBalanceCache); });
         await renderCoinReactions(bar, bar.dataset.reactId, bar.dataset.reactKind);
+        const chip = bar.querySelector('.coin-react-chip'); if (chip) { chip.classList.add('pop'); setTimeout(() => chip.classList.remove('pop'), 600); }
       } catch (er) { st.textContent = 'Ошибка: ' + er.message; send.disabled = false; }
     }
   });
