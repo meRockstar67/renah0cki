@@ -310,7 +310,7 @@ addEventListener('scroll', () => {
 page.addEventListener('click', e => {
   const tab = e.target.closest('[data-tab]');
   if (tab) { FEED.tab = tab.dataset.tab; subsIds = null; return viewFeed(FEED.type); }
-  if (e.target.closest('[data-filter-toggle]')) { const p = $('.filter-pop', page); p.hidden = !p.hidden; return; }
+  if (e.target.closest('[data-filter-toggle]')) { const p = $('.filter-pop', page); p.hidden = !p.hidden; $('[data-filter-toggle]', page).classList.toggle('on', !p.hidden); return; }
   const ft = e.target.closest('[data-ftype]');
   if (ft) { const t = ft.dataset.ftype; location.hash = t === 'all' ? '#/' : '#/' + t; return; }
   const fs = e.target.closest('[data-fsort]');
@@ -354,7 +354,7 @@ async function viewPost(key, root = page) {
     media = y ? `<iframe src="https://www.youtube.com/embed/${y}" allowfullscreen loading="lazy"></iframe>` : isOwnFile(src) || isVideoFile(src) ? `<video src="${esc(src)}" controls playsinline preload="metadata"></video>` : `<a class="btn" href="${esc(src)}" target="_blank" rel="noopener">Открыть видео</a>`;
   } else if (it.content_type === 'art') {
     const imgs = Array.isArray(it.media_items) && it.media_items.length ? it.media_items.map(m => m.url).filter(Boolean) : [src];
-    media = imgs.map(u => `<a class="pm-item" href="${esc(u)}" target="_blank" rel="noopener" title="Открыть оригинал"><span class="pm-bg" style="background-image:url('${esc(thumbUrl(u, 360))}')"></span>${imgTag(u, 1080).replace(' loading="lazy"', '')}</a>`).join('');
+    media = imgs.map((u, i) => `<a class="pm-item" href="${esc(u)}" data-zoom="${i}" title="Открыть на весь экран"><span class="pm-bg" style="background-image:url('${esc(thumbUrl(u, 360))}')"></span>${imgTag(u, 1080).replace(' loading="lazy"', '')}</a>`).join('');
   }
   const liked = S.liked.has(it.id);
   if (inLb && LB.key !== key) return;
@@ -369,7 +369,13 @@ async function viewPost(key, root = page) {
     ${Array.isArray(it.tags) && it.tags.length ? `<div class="tags">${it.tags.map(t => `<span class="tag">#${esc(t)}</span>`).join('')}</div>` : ''}
     <section class="comments" id="comments"><h3>Комментарии</h3><div class="empty" style="padding:20px">Загрузка…</div></section>
   </div>`;
-  if (it.is_blurred) $('#postMedia')?.addEventListener('click', ev => ev.currentTarget.classList.remove('blur'), { once: true });
+  const pmEl = root.querySelector('#postMedia');
+  if (pmEl) pmEl.addEventListener('click', ev => {
+    const z = ev.target.closest('[data-zoom]'); if (!z) return;
+    ev.preventDefault();
+    if (pmEl.classList.contains('blur')) { pmEl.classList.remove('blur'); return; }  // спойлер: первый клик — открыть
+    openViewer($$('[data-zoom]', pmEl).map(a => a.getAttribute('href')), +z.dataset.zoom);
+  });
   $('#likeBtn').onclick = async ev => {
     const b = ev.currentTarget; b.disabled = true;
     try {
@@ -432,6 +438,97 @@ async function renderReact(it) {
   box.oninput = e => { if (e.target.closest('.react-custom')) { if (e.target.value) $$('[data-ramt]', box).forEach(x => x.classList.remove('on')); sync(); } };
 }
 document.addEventListener('click', e => { if (!e.target.closest('.react-wrap')) $$('.react-pop').forEach(p => { p.hidden = true; }); });
+/* ── просмотр фото на весь экран: колесо/щипок — зум, перетаскивание, двойной клик ── */
+const VW = { el: null, list: [], i: 0, z: 1, x: 0, y: 0 };
+function openViewer(list, i = 0) {
+  if (!VW.el) {
+    const el = document.createElement('div');
+    el.className = 'vw';
+    el.innerHTML = `<div class="vw-stage"><img class="vw-img" alt="" draggable="false"></div>
+      <div class="vw-top"><span class="vw-count"></span><div class="vw-tools">
+        <button data-vw="out" aria-label="Уменьшить"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5M8 11h6"/></svg></button>
+        <button data-vw="reset" aria-label="Сбросить" class="vw-pct">100%</button>
+        <button data-vw="in" aria-label="Увеличить"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5M8 11h6M11 8v6"/></svg></button>
+        <a data-vw="orig" target="_blank" rel="noopener" aria-label="Оригинал" title="Открыть оригинал"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+        <button data-vw="close" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div>
+      <button class="vw-nav vw-prev" data-vw="prev" aria-label="Назад"><svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg></button>
+      <button class="vw-nav vw-next" data-vw="next" aria-label="Вперёд"><svg viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></svg></button>`;
+    document.body.append(el);
+    VW.el = el;
+    const img = $('.vw-img', el), stage = $('.vw-stage', el);
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-vw]');
+      if (b) {
+        const a = b.dataset.vw;
+        if (a === 'close') return closeViewer();
+        if (a === 'in') return vwZoom(VW.z * 1.5);
+        if (a === 'out') return vwZoom(VW.z / 1.5);
+        if (a === 'reset') return vwZoom(1);
+        if (a === 'prev') return vwGo(VW.i - 1);
+        if (a === 'next') return vwGo(VW.i + 1);
+        return;
+      }
+      if (e.target === stage && VW.z === 1) closeViewer();
+    });
+    img.addEventListener('dblclick', e => {
+      if (VW.z > 1) return vwZoom(1);
+      const r = img.getBoundingClientRect();
+      vwZoom(2.5, e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+    });
+    stage.addEventListener('wheel', e => { e.preventDefault(); vwZoom(VW.z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); }, { passive: false });
+    // перетаскивание и щипок
+    const pts = new Map(); let start = null;
+    stage.addEventListener('pointerdown', e => { stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); start = { x: VW.x, y: VW.y, z: VW.z, px: e.clientX, py: e.clientY, d: pts.size === 2 ? vwDist(pts) : 0 }; });
+    stage.addEventListener('pointermove', e => {
+      if (!pts.has(e.pointerId) || !start) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) { if (!start.d) start.d = vwDist(pts); vwZoom(start.z * vwDist(pts) / start.d, null, null, false); return; }
+      if (VW.z > 1) { VW.x = start.x + (e.clientX - start.px); VW.y = start.y + (e.clientY - start.py); vwApply(false); }
+    });
+    const up = e => { pts.delete(e.pointerId); start = pts.size ? { x: VW.x, y: VW.y, z: VW.z, px: [...pts.values()][0].x, py: [...pts.values()][0].y, d: 0 } : null; if (VW.z <= 1.02) vwZoom(1); };
+    stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+  }
+  VW.list = list; document.documentElement.classList.add('vw-lock');
+  VW.el.classList.add('show');
+  vwGo(i);
+}
+const vwDist = pts => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+function vwGo(i) {
+  if (i < 0 || i >= VW.list.length) return;
+  VW.i = i; VW.z = 1; VW.x = 0; VW.y = 0;
+  const u = VW.list[i], img = $('.vw-img', VW.el);
+  img.classList.remove('ld'); vwApply(false);
+  const t = thumbUrl(u, 1080);
+  img.src = t; img.onload = () => { img.classList.add('ld'); if (t !== u) { const full = new Image(); full.onload = () => { if (VW.list[VW.i] === u) img.src = u; }; full.src = u; } };
+  img.onerror = () => { img.onerror = null; img.src = u; };
+  $('.vw-count', VW.el).textContent = VW.list.length > 1 ? `${i + 1} / ${VW.list.length}` : '';
+  $('[data-vw="orig"]', VW.el).href = u;
+  $('.vw-prev', VW.el).hidden = i <= 0; $('.vw-next', VW.el).hidden = i >= VW.list.length - 1;
+}
+function vwZoom(z, cx = null, cy = null, anim = true) {
+  const nz = Math.min(8, Math.max(1, z));
+  if (cx != null) { VW.x = -cx * (nz - 1); VW.y = -cy * (nz - 1); }
+  if (nz === 1) { VW.x = 0; VW.y = 0; }
+  VW.z = nz; vwApply(anim);
+}
+function vwApply(anim = true) {
+  const img = $('.vw-img', VW.el);
+  img.style.transition = anim ? 'transform .25s cubic-bezier(.2,.8,.2,1)' : 'none';
+  img.style.transform = `translate(${VW.x}px, ${VW.y}px) scale(${VW.z})`;
+  VW.el.classList.toggle('zoomed', VW.z > 1);
+  $('.vw-pct', VW.el).textContent = Math.round(VW.z * 100) + '%';
+}
+function closeViewer() { if (!VW.el) return; VW.el.classList.remove('show'); document.documentElement.classList.remove('vw-lock'); }
+addEventListener('keydown', e => {
+  if (!VW.el?.classList.contains('show')) return;
+  e.stopImmediatePropagation();
+  if (e.key === 'Escape') closeViewer();
+  else if (e.key === 'ArrowLeft') vwGo(VW.i - 1);
+  else if (e.key === 'ArrowRight') vwGo(VW.i + 1);
+  else if (e.key === '+' || e.key === '=') vwZoom(VW.z * 1.5);
+  else if (e.key === '-') vwZoom(VW.z / 1.5);
+}, true);
+
 /* ── лайтбокс: пост поверх ленты ── */
 let lbBaseHash = location.hash;
 function closeLightboxUi() {
@@ -469,6 +566,20 @@ function lbRender(key) {
   body.scrollTop = 0;
   body.classList.remove('lb-in'); void body.offsetWidth; body.classList.add('lb-in');
   viewPost(key, body);
+  lbPrefetch(keys, i);
+}
+const preloaded = new Set();
+function lbPrefetch(keys, i) {
+  [i + 1, i - 1, i + 2].forEach(j => {
+    const k = keys[j]; if (!k) return;
+    const it = S.items.get(k); if (!it || preloaded.has(it.id)) return;
+    preloaded.add(it.id);
+    if (it.content_type === 'art') {
+      const imgs = Array.isArray(it.media_items) && it.media_items.length ? it.media_items.map(m => m.url).filter(Boolean) : [it.source_url];
+      imgs.slice(0, 3).forEach(u => { if (!u) return; const im = new Image(); im.decoding = 'async'; im.src = thumbUrl(u, 1080); const bg = new Image(); bg.src = thumbUrl(u, 360); });
+    } else if (it.content_type === 'video' && it.cover_image_url) { const im = new Image(); im.src = thumbUrl(it.cover_image_url, 480); }
+    if (!CMT.has(it.id)) fetchComments(it.id).catch(() => {});
+  });
 }
 function openLightbox(key) {
   const el = lbEnsure();
@@ -499,13 +610,22 @@ addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight' && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) lbStep(1);
 });
 
-async function loadComments(id) {
-  const box = $('#comments'); if (!box) return;
-  let rows = [];
+const CMT = new Map();
+async function fetchComments(id) {
+  let rows;
   try { rows = await api(`comments?content_id=eq.${id}&is_deleted=eq.false&select=id,body,author_id,created_at,parent_id&order=created_at.asc&limit=500`); }
   catch { rows = await api(`comments?content_id=eq.${id}&is_deleted=eq.false&select=id,body,author_id,created_at&order=created_at.asc&limit=500`).catch(() => []); }
   await loadProfiles(rows.map(r => r.author_id));
-  if (!$('#comments')) return;
+  CMT.set(id, rows);
+  return rows;
+}
+async function loadComments(id) {
+  const box = $('#comments'); if (!box) return;
+  const draw = rows => { if ($('#comments') === box) drawComments(box, rows); };
+  if (CMT.has(id)) draw(CMT.get(id));
+  draw(await fetchComments(id));
+}
+function drawComments(box, rows) {
   box.innerHTML = `<h3>Комментарии · ${rows.length}</h3>` + (rows.length ? rows.map(c => {
     const p = S.profiles.get(c.author_id);
     return `<div class="cmt"${c.parent_id ? ' style="margin-left:42px"' : ''}><img class="av" src="${esc(avatarUrl(p))}" alt="" loading="lazy"><div class="cmt-main"><div class="cmt-head"><b>${esc(pname(p))}</b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body || '')}</div></div></div>`;
@@ -883,6 +1003,66 @@ async function viewNotifs() {
   setSeen(Date.now()); updateBell();
 }
 
+/* ── поддержка: чат с модераторами (те же таблицы, что у основного сайта) ── */
+const SUP = { thread: null, timer: null, owner: null };
+async function viewSupport(threadArg) {
+  setNav('support');
+  clearInterval(SUP.timer);
+  if (!S.uid) { page.innerHTML = '<div class="empty">Войдите, чтобы написать в поддержку.</div>'; return; }
+  if (!S.me) await loadMe();
+  const mod = isMod();
+  page.innerHTML = `<div class="sup${mod ? ' sup-mod' : ''}">
+    ${mod ? `<aside class="sup-list" id="supList"><div class="sup-list-head">Обращения</div><div id="supThreads">${'<div class="skel" style="aspect-ratio:auto;height:58px;margin:8px"></div>'.repeat(5)}</div></aside>` : ''}
+    <section class="sup-chat" id="supChat">
+      <header class="sup-head"><div class="sup-ava"><img src="${COIN}" alt=""></div><div><b>Поддержка renah0cki</b><span>Модераторы ответят здесь. Обычно в течение дня.</span></div></header>
+      <div class="sup-msgs" id="supMsgs"><div class="empty">Загрузка…</div></div>
+      <form class="sup-form" id="supForm"><textarea rows="1" maxlength="2000" placeholder="Сообщение…" aria-label="Сообщение"></textarea><button class="btn accent" type="submit" aria-label="Отправить"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></form>
+    </section></div>`;
+  const form = $('#supForm'), ta = $('textarea', form);
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; });
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer: fine)').matches) { e.preventDefault(); form.requestSubmit(); } });
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const body = ta.value.trim(); if (!body || !SUP.thread) return;
+    const btn = $('button', form); btn.disabled = true;
+    try {
+      await api('support_messages', { method: 'POST', prefer: 'return=minimal', body: { thread_id: SUP.thread, sender_id: S.uid, body } });
+      ta.value = ''; ta.style.height = '';
+      await supLoad(true);
+    } catch (er) { toast(er.message, true); }
+    btn.disabled = false; ta.focus();
+  };
+  if (mod) { await supThreads(); if (threadArg) supOpen(threadArg); else $('#supMsgs').innerHTML = '<div class="empty">Выберите обращение слева.</div>'; }
+  else { try { SUP.thread = await rpc('support_get_or_create_thread'); SUP.owner = S.uid; await supLoad(true); } catch (er) { $('#supMsgs').innerHTML = `<div class="empty">Ошибка: ${esc(er.message)}</div>`; } }
+  SUP.timer = setInterval(() => { if (!$('#supChat')) return clearInterval(SUP.timer); if (SUP.thread) supLoad(false); if (mod) supThreads(); }, 8000);
+}
+async function supThreads() {
+  const rows = await api('support_threads?select=*&order=last_message_at.desc.nullslast&limit=100').catch(() => []);
+  await loadProfiles(rows.map(r => r.user_id));
+  const box = $('#supThreads'); if (!box) return;
+  box.innerHTML = rows.length ? rows.map(t => {
+    const p = S.profiles.get(t.user_id);
+    return `<button class="sup-thread${t.id === SUP.thread ? ' on' : ''}${t.status === 'in_progress' ? ' new' : ''}" data-sup="${t.id}">${avaHtml(p?.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b><span>${t.last_message_at ? when(t.last_message_at) : ''}${t.support_banned ? ' · 🚫' : ''}</span></div></button>`;
+  }).join('') : '<div class="empty">Обращений нет.</div>';
+}
+function supOpen(id) { SUP.thread = id; $$('.sup-thread').forEach(b => b.classList.toggle('on', b.dataset.sup === id)); $('#supMsgs').innerHTML = '<div class="empty">Загрузка…</div>'; supLoad(true); }
+async function supLoad(jump) {
+  const id = SUP.thread; if (!id) return;
+  const rows = await api(`support_messages?thread_id=eq.${id}&order=created_at.asc&select=id,sender_id,body,created_at`).catch(() => null);
+  const box = $('#supMsgs'); if (!box || rows == null || SUP.thread !== id) return;
+  await loadProfiles(rows.map(r => r.sender_id));
+  const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+  const html = rows.length ? rows.map((m, i) => {
+    const mine = m.sender_id === S.uid, prev = rows[i - 1], p = S.profiles.get(m.sender_id);
+    const head = !prev || prev.sender_id !== m.sender_id || new Date(m.created_at) - new Date(prev.created_at) > 36e5;
+    return `${head ? `<div class="sup-meta${mine ? ' me' : ''}">${mine ? 'Вы' : esc(pname(p))} · ${when(m.created_at)}</div>` : ''}<div class="sup-bub${mine ? ' me' : ''}">${esc(m.body)}</div>`;
+  }).join('') : '<div class="empty sup-empty">Опишите проблему или вопрос — модераторы ответят здесь.</div>';
+  if (box.dataset.h === html) return;
+  box.dataset.h = html; box.innerHTML = html;
+  if (jump || near) box.scrollTop = box.scrollHeight;
+}
+page.addEventListener('click', e => { const t = e.target.closest('[data-sup]'); if (t) supOpen(t.dataset.sup); });
+
 /* ── меню, профиль, монеты ── */
 function setNav(k) { $$('[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
 $('#menuBtn').onclick = () => document.querySelector('.app').classList.toggle('menu-open');
@@ -919,6 +1099,7 @@ function route() {
   if (parts[0] === 'suggest') return viewSuggest();
   if (parts[0] === 'u' && parts[1]) return viewProfile(parts[1]);
   if (parts[0] === 'notifications') return viewNotifs();
+  if (parts[0] === 'support') return viewSupport(parts[1]);
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
