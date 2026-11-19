@@ -227,7 +227,7 @@ function viewFeed(type) {
           <h4>Сортировка</h4><div class="chips"><button class="chip${FEED.sort === 'new' ? ' on' : ''}" data-fsort="new">Новые</button><button class="chip${FEED.sort === 'top' ? ' on' : ''}" data-fsort="top">Популярные</button></div>
         </div></div>
     </div>
-    <div class="grid${FEED.type === 'art' ? ' grid-art' : ''}" id="grid">${'<div class="skel"></div>'.repeat(8)}</div><div class="more" id="more"></div>`;
+    <div class="grid${FEED.type === 'art' ? ' grid-art' : FEED.type === 'video' || FEED.type === 'fanfic' ? ' grid-big' : ''}" id="grid">${'<div class="skel"></div>'.repeat(8)}</div><div class="more" id="more"></div>`;
   S.feed = { key: JSON.stringify(FEED), items: [], done: false, loading: false };
   loadFirst();
 }
@@ -316,7 +316,7 @@ page.addEventListener('click', e => {
   const fs = e.target.closest('[data-fsort]');
   if (fs) { FEED.sort = fs.dataset.fsort; return viewFeed(FEED.type); }
   const card = e.target.closest('[data-open]');
-  if (card) { location.hash = '#/p/' + card.dataset.open; }
+  if (card) { openLightbox(card.dataset.open); }
 });
 document.addEventListener('click', e => {
   if (!e.target.closest('.filter-wrap')) $$('.filter-pop').forEach(p => { p.hidden = true; });
@@ -329,16 +329,18 @@ $('#searchInput').addEventListener('input', e => {
 });
 
 /* ── страница поста ── */
-async function viewPost(key) {
-  setNav('');
+async function viewPost(key, root = page) {
+  const inLb = root !== page;
+  if (!inLb) setNav('');
   let it = S.items.get(key);
   if (!it) {
-    page.innerHTML = `<div class="post"><div class="skel" style="aspect-ratio:16/9"></div></div>`;
+    root.innerHTML = `<div class="post"><div class="skel" style="aspect-ratio:16/9"></div></div>`;
     try {
       const f = /^[0-9a-f-]{36}$/i.test(key) ? `id=eq.${key}` : `short_code=eq.${encodeURIComponent(key)}`;
       [it] = absorb(await api(`content?${f}&select=*,${AUTHOR}`));
-    } catch (e) { page.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
-    if (!it) { page.innerHTML = '<div class="empty">Пост не найден</div>'; return; }
+    } catch (e) { root.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
+    if (!it) { root.innerHTML = '<div class="empty">Пост не найден</div>'; return; }
+    if (inLb && LB.key !== key) return;
     await loadAllMyLikes();
   } else {
     // теги и прочие поля догружаем в фоне, показ — сразу
@@ -355,8 +357,9 @@ async function viewPost(key) {
     media = imgs.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener" title="Открыть оригинал">${imgTag(u, 1080).replace(' loading="lazy"', '')}</a>`).join('');
   }
   const liked = S.liked.has(it.id);
-  page.innerHTML = `<div class="post">
-    <button class="back" data-back>${I.back} Назад</button>
+  if (inLb && LB.key !== key) return;
+  root.innerHTML = `<div class="post">
+    ${inLb ? '' : `<button class="back" data-back>${I.back} Назад</button>`}
     ${media ? `<div class="post-media${it.is_blurred ? ' blur' : ''}" id="postMedia">${media}</div>` : ''}
     <div class="post-head"><img class="av" src="${esc(avatarUrl(a))}" alt="" data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"><div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${esc(pname(a))}</b><div class="sub">${when(it.published_at || it.created_at)} · ${fmt(it.views)} просмотров</div></div>
       <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button></div></div>
@@ -382,6 +385,73 @@ async function viewPost(key) {
   rpc('increment_content_views', { content_id: it.id }).catch(() => {});
   loadComments(it.id);
 }
+/* ── лайтбокс: пост поверх ленты ── */
+let lbBaseHash = location.hash;
+function closeLightboxUi() {
+  if (!LB.el) return;
+  $$('video, iframe', LB.el).forEach(m => { if (m.tagName === 'VIDEO') m.pause(); else m.src = 'about:blank'; });
+  LB.el.classList.remove('show'); LB.key = null;
+  document.documentElement.classList.remove('lb-lock');
+}
+const LB = { el: null, key: null, open: false, skip: false };
+function lbKeys() { return $$('[data-open]', page).map(c => c.dataset.open); }
+function lbEnsure() {
+  if (LB.el) return LB.el;
+  const el = document.createElement('div');
+  el.className = 'lb';
+  el.innerHTML = `<div class="lb-backdrop" data-lb-close></div>
+    <button class="lb-nav lb-prev" data-lb-step="-1" aria-label="Предыдущая работа"><svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg></button>
+    <div class="lb-box" role="dialog" aria-modal="true"><button class="lb-close" data-lb-close aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div class="lb-body" id="lbBody"></div></div>
+    <button class="lb-nav lb-next" data-lb-step="1" aria-label="Следующая работа"><svg viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></svg></button>`;
+  el.addEventListener('click', e => {
+    if (e.target.closest('[data-lb-close]')) return closeLightbox();
+    const st = e.target.closest('[data-lb-step]'); if (st) return lbStep(+st.dataset.lbStep);
+    const u = e.target.closest('[data-user]');
+    if (u) { closeLightbox(true); location.hash = '#/u/' + encodeURIComponent(u.dataset.user); }
+  });
+  document.body.append(el);
+  LB.el = el;
+  return el;
+}
+function lbRender(key) {
+  LB.key = key;
+  const el = lbEnsure(), keys = lbKeys(), i = keys.indexOf(key);
+  $('.lb-prev', el).hidden = i <= 0;
+  $('.lb-next', el).hidden = i < 0 || i >= keys.length - 1;
+  const body = $('#lbBody', el);
+  body.scrollTop = 0;
+  body.classList.remove('lb-in'); void body.offsetWidth; body.classList.add('lb-in');
+  viewPost(key, body);
+}
+function openLightbox(key) {
+  const el = lbEnsure();
+  if (!LB.open) { LB.open = true; history.pushState({ lb: 1 }, '', '#/p/' + key); }
+  else history.replaceState({ lb: 1 }, '', '#/p/' + key);
+  document.documentElement.classList.add('lb-lock');
+  el.classList.add('show');
+  lbRender(key);
+}
+function lbStep(d) {
+  const keys = lbKeys(), i = keys.indexOf(LB.key);
+  const k = keys[i + d]; if (!k) return;
+  history.replaceState({ lb: 1 }, '', '#/p/' + k);
+  lbRender(k);
+  $(`[data-open="${CSS.escape(k)}"]`, page)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+// keepHash: переход по ссылке из лайтбокса (например в профиль) — не откатываем историю
+function closeLightbox(keepHash = false) {
+  if (!LB.open) return;
+  LB.open = false;
+  closeLightboxUi();
+  if (!keepHash && /^#\/p\//.test(location.hash)) { LB.skip = true; history.back(); }
+}
+addEventListener('keydown', e => {
+  if (!LB.open) return;
+  if (e.key === 'Escape') closeLightbox();
+  else if (e.key === 'ArrowLeft' && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) lbStep(-1);
+  else if (e.key === 'ArrowRight' && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) lbStep(1);
+});
+
 async function loadComments(id) {
   const box = $('#comments'); if (!box) return;
   let rows = [];
@@ -476,13 +546,13 @@ function newsCardHtml(n) {
 }
 async function viewNews() {
   setNav('news');
-  page.innerHTML = `<div class="page-head"><h1>Новости</h1>${isMod() ? '<a class="btn" href="/?v2=news">Написать</a>' : ''}</div><div class="grid" id="newsGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
+  page.innerHTML = `<div class="page-head"><h1>Новости</h1>${isMod() ? '<a class="btn" href="/?v2=news">Написать</a>' : ''}</div><div class="grid grid-big" id="newsGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
   try {
     await swr('news', fetchNews, data => {
       applyNews(data);
       const g = $('#newsGrid'); if (!g) return;
       const firstN = !g.querySelector('.card');
-      g.outerHTML = data.rows.length ? `<div class="grid" id="newsGrid">${data.rows.map(newsCardHtml).join('')}</div>` : '<div class="empty" id="newsGrid">Пока новостей нет.</div>';
+      g.outerHTML = data.rows.length ? `<div class="grid grid-big" id="newsGrid">${data.rows.map(newsCardHtml).join('')}</div>` : '<div class="empty" id="newsGrid">Пока новостей нет.</div>';
       if (firstN) animateCards($('#newsGrid'));
     });
   } catch (e) { const g = $('#newsGrid'); if (g) g.outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; }
@@ -787,6 +857,13 @@ async function loadMe() {
 /* ── роутер ── */
 function route() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
+  if (LB.skip) { LB.skip = false; return; }       // закрыли лайтбокс сами — лента остаётся как была
+  if (LB.open) {
+    if (parts[0] === 'p' && parts[1]) { if (parts[1] !== LB.key) lbRender(parts[1]); return; }
+    LB.open = false; closeLightboxUi();
+    if (lbBaseHash === location.hash) return;   // вернулись туда, откуда открыли — ленту не перерисовываем
+  }
+  if (!(parts[0] === 'p')) lbBaseHash = location.hash;
   scrollTo(0, 0);
   page.classList.remove('pg-in'); void page.offsetWidth; page.classList.add('pg-in');
   if (parts[0] === 'p' && parts[1]) return viewPost(parts[1]);
