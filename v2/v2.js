@@ -266,12 +266,13 @@ function cardHtml(it) {
 }
 
 /* ── лента ── */
-const FEED = { tab: 'all', type: 'all', sort: 'new', q: '' };
+const FEED = { tab: 'all', type: 'all', sort: 'new', q: '', tags: [] };
 const TYPE_NAMES = { all: 'Все', art: 'Арты', video: 'Видео', fanfic: 'Фанфики' };
 let subsIds = null;
 async function feedQuery(offset) {
   let q = `content?status=eq.published&select=${CARD_SEL}`;
   if (FEED.type !== 'all') q += `&content_type=eq.${FEED.type}`;
+  if (FEED.tags.length) q += `&tags=ov.${encodeURIComponent('{' + FEED.tags.map(t => '"' + t.replace(/"/g, '') + '"').join(',') + '}')}`;
   if (FEED.q) q += `&title=ilike.${encodeURIComponent('*' + FEED.q.replace(/[*,()]/g, ' ') + '*')}`;
   if (FEED.tab === 'subs') {
     if (!subsIds) subsIds = (await api(`subscriptions?follower_id=eq.${S.uid}&select=following_id`).catch(() => [])).map(r => r.following_id);
@@ -287,8 +288,9 @@ function viewFeed(type) {
   setNav(type && type !== 'all' ? type : 'feed');
   page.innerHTML = `<div class="feed-bar">
       <div class="tabs" role="tablist"><button class="tab${FEED.tab === 'all' ? ' on' : ''}" data-tab="all">Все</button><button class="tab${FEED.tab === 'reviews' ? ' on' : ''}" data-tab="reviews">Отзывы</button><button class="tab${FEED.tab === 'subs' ? ' on' : ''}" data-tab="subs">Подписки</button></div>
-      <div class="filter-wrap"><button class="filter-btn" data-filter-toggle>${I.filter} Фильтрация</button>
+      <div class="filter-wrap"><button class="filter-btn" data-filter-toggle>${I.filter} Фильтрация${FEED.tags.length ? ` <i class="ftag-n">${FEED.tags.length}</i>` : ''}</button>
         <div class="filter-pop" hidden>
+          <h4>Теги${FEED.tags.length ? ` <button class="ftag-clear" data-ftagclear>сбросить</button>` : ''}</h4><div class="chips">${ALL_TAGS.map(t => `<button class="chip${FEED.tags.includes(t) ? ' on' : ''}" data-ftag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>
           <h4>Тип</h4><div class="chips">${Object.entries(TYPE_NAMES).map(([k, v]) => `<button class="chip${FEED.type === k ? ' on' : ''}" data-ftype="${k}">${v}</button>`).join('')}</div>
           <h4>Ещё</h4><div class="chips"><a class="chip" href="#/collections">🗂️ Сборники</a></div>
           <h4>Сортировка</h4><div class="chips"><button class="chip${FEED.sort === 'new' ? ' on' : ''}" data-fsort="new">Новые</button><button class="chip${FEED.sort === 'top' ? ' on' : ''}" data-fsort="top">Популярные</button></div>
@@ -381,6 +383,9 @@ page.addEventListener('click', e => {
   if (e.target.closest('[data-filter-toggle]')) { const p = $('.filter-pop', page); p.hidden = !p.hidden; $('[data-filter-toggle]', page).classList.toggle('on', !p.hidden); return; }
   const ft = e.target.closest('[data-ftype]');
   if (ft) { const t = ft.dataset.ftype; location.hash = t === 'all' ? '#/' : '#/' + t; return; }
+  const ftg = e.target.closest('[data-ftag]');
+  if (ftg) { const t = ftg.dataset.ftag; FEED.tags = FEED.tags.includes(t) ? FEED.tags.filter(x => x !== t) : [...FEED.tags, t]; viewFeed(FEED.type); $('.filter-pop', page).hidden = false; $('[data-filter-toggle]', page)?.classList.add('on'); return; }
+  if (e.target.closest('[data-ftagclear]')) { FEED.tags = []; viewFeed(FEED.type); $('.filter-pop', page).hidden = false; return; }
   const fs = e.target.closest('[data-fsort]');
   if (fs) { FEED.sort = fs.dataset.fsort; return viewFeed(FEED.type); }
   const card = e.target.closest('[data-open]');
@@ -1190,6 +1195,8 @@ async function viewNotifs() {
 
 /* ── новая работа: арт / видео / фанфик → на проверку модераторам ── */
 const PRESET_TAGS = ['meowh0cki', 'renamid', 'gl1n', 'EgorTsai', 'MagicKat1', 'BaNaNcHiK1', 'Olezha27', 'gei_angel', 'meRockstar', 'unfeell'];
+const OTHER_TAG = 'Другое';
+const ALL_TAGS = [...PRESET_TAGS, OTHER_TAG];
 const UP = { type: 'art', file: null, cover: null, tags: new Set() };
 async function uploadFile(file, onPct) {
   const token = await getToken();
@@ -1229,8 +1236,7 @@ function viewNew(type) {
         <div class="fld-row"><label class="fld"><span>Фэндом</span><input name="fandom" maxlength="80" placeholder="например, Гарри Поттер"></label><label class="fld"><span>Пейринг</span><input name="pairing" maxlength="80" placeholder="например, Гарри/Драко"></label></div>
         <label class="fld"><span>Краткое описание</span><textarea name="desc" rows="3" maxlength="600" placeholder="1–2 предложения о том, что внутри"></textarea></label>
         <label class="fld"><span>Обложка (необязательно)</span></label>${drop('upCover', 'image/png,image/jpeg,image/webp,image/gif', 'Обложка', 'необязательно')}` : ''}
-      <div class="fld"><span>Теги</span><div class="chips up-tags">${PRESET_TAGS.map(t => `<button type="button" class="chip" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>
-        <input class="tag-add" placeholder="${T === 'fanfic' ? 'Свои теги через запятую: ангст, AU, романтика' : 'Свой тег и Enter'}"></div>
+      <div class="fld"><span>Теги</span><div class="chips up-tags">${ALL_TAGS.map(t => `<button type="button" class="chip" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div></div>
       ${T === 'art' ? `<label class="sw"><input type="checkbox" name="blur"><i></i><div><b>Спойлер / пазл</b><span>Картинка в ленте будет размытой</span></div></label>
         <label class="fld puzzle" hidden><span>Сложность пазла</span><select name="puzzle"><option value="easy">Лёгкий</option><option value="x2">Сложный (×2)</option><option value="x3">Сложный (×3)</option><option value="x4">Очень сложный (×4)</option><option value="choice">На выбор зрителя</option></select></label>` : ''}
       ${T === 'fanfic' ? `<label class="sw"><input type="checkbox" name="r18"><i></i><div><b>18+</b><span>Иначе рейтинг PG-13</span></div></label>` : ''}
@@ -1259,15 +1265,8 @@ function viewNew(type) {
   };
   wireDrop('upDrop', 'file', T === 'video' ? 'video' : 'image');
   wireDrop('upCover', 'cover', 'image');
-  const tagsBox = $('.up-tags', form), tagAdd = $('.tag-add', form);
+  const tagsBox = $('.up-tags', form);
   tagsBox.onclick = e => { const b = e.target.closest('[data-tag]'); if (!b) return; const t = b.dataset.tag; UP.tags.has(t) ? UP.tags.delete(t) : UP.tags.add(t); b.classList.toggle('on', UP.tags.has(t)); };
-  tagAdd.onkeydown = e => {
-    if (e.key !== 'Enter' || T === 'fanfic') return;
-    e.preventDefault();
-    const t = tagAdd.value.trim().replace(/^#/, '').slice(0, 40); if (!t) return;
-    if (!UP.tags.has(t)) { UP.tags.add(t); tagsBox.insertAdjacentHTML('beforeend', `<button type="button" class="chip on" data-tag="${esc(t)}">#${esc(t)}</button>`); }
-    tagAdd.value = '';
-  };
   if (form.blur) form.blur.onchange = () => { $('.puzzle', form).hidden = !form.blur.checked; };
   form.onsubmit = async e => {
     e.preventDefault();
@@ -1287,7 +1286,6 @@ function viewNew(type) {
       if (UP.cover) cover_image_url = await uploadFile(UP.cover, prog);
       say('Сохраняем…');
       let tags = [...UP.tags];
-      if (T === 'fanfic') tags = [...tags, ...tagAdd.value.split(',').map(t => t.trim()).filter(Boolean)];
       const body = { title, source_url, content_type: T, status: 'draft', submitted_by: S.uid, tags };
       if (T === 'art') { body.is_blurred = !!form.blur.checked; body.puzzle_difficulty = body.is_blurred ? form.puzzle.value : 'easy'; }
       if (T === 'fanfic') Object.assign(body, { fandom: form.fandom.value.trim() || null, pairing: form.pairing.value.trim() || null, description: form.desc.value.trim() || null, age_rating: form.r18.checked ? '18+' : 'pg13', cover_image_url });
@@ -1905,7 +1903,7 @@ async function editPost(it) {
     <label>Название<input name="t" maxlength="120" value="${esc(it.title || '')}" required></label>
     ${T !== 'art' ? `<label>${T === 'fanfic' ? 'Краткое описание' : 'Описание'}<textarea name="d" rows="3" maxlength="600">${esc(it.description || '')}</textarea></label>` : ''}
     ${T === 'fanfic' ? `<label>Фэндом<input name="fa" maxlength="80" value="${esc(it.fandom || '')}"></label><label>Пейринг<input name="pa" maxlength="80" value="${esc(it.pairing || '')}"></label>` : ''}
-    <label>Теги через запятую<input name="g" value="${esc((it.tags || []).join(', '))}" placeholder="meowh0cki, renamid"></label>
+    <div class="pe-color"><span>Теги</span><div class="chips" data-etags>${[...new Set([...ALL_TAGS, ...(it.tags || [])])].map(t => `<button type="button" class="chip${(it.tags || []).includes(t) ? ' on' : ''}" data-etag="${esc(t)}">#${esc(t)}</button>`).join('')}</div></div>
     ${T === 'art' ? `<label class="sw"><input type="checkbox" name="bl"${it.is_blurred ? ' checked' : ''}><i></i><div><b>Спойлер / пазл</b><span>Картинка в ленте будет размытой</span></div></label>
       <label class="pz"${it.is_blurred ? '' : ' hidden'}>Сложность пазла<select name="pz">${[['easy', 'Лёгкий'], ['x2', 'Сложный (×2)'], ['x3', 'Сложный (×3)'], ['x4', 'Очень сложный (×4)'], ['choice', 'На выбор зрителя']].map(([v, n]) => `<option value="${v}"${(it.puzzle_difficulty || 'easy') === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
     ${T === 'fanfic' ? `<label class="sw"><input type="checkbox" name="r18"${it.age_rating === '18+' ? ' checked' : ''}><i></i><div><b>18+</b><span>Иначе рейтинг PG-13</span></div></label>` : ''}
@@ -1913,10 +1911,11 @@ async function editPost(it) {
   const f = $('form', ov);
   ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) ov.remove(); });
   if (f.bl) f.bl.onchange = () => { $('.pz', f).hidden = !f.bl.checked; };
+  $('[data-etags]', f).onclick = e => { const b = e.target.closest('[data-etag]'); if (b) b.classList.toggle('on'); };
   f.onsubmit = async e => {
     e.preventDefault();
     const hint = $('.hint', f), btn = $('button[type=submit]', f);
-    const patch = { title: f.t.value.trim(), tags: f.g.value.split(',').map(x => x.trim().replace(/^#/, '')).filter(Boolean).slice(0, 20) };
+    const patch = { title: f.t.value.trim(), tags: $$('[data-etag].on', f).map(b => b.dataset.etag) };
     if (!patch.title) { hint.textContent = 'Добавьте название'; return; }
     if (f.d) patch.description = f.d.value.trim() || null;
     if (f.fa) { patch.fandom = f.fa.value.trim() || null; patch.pairing = f.pa.value.trim() || null; patch.age_rating = f.r18.checked ? '18+' : 'pg13'; }
