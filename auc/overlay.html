@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Аукцион — оверлей</title>
+<!-- OBS: источник «Браузер», 600×800. Параметры: ?top=8 (сколько лотов), ?scale=1.2 (размер), ?bg=1 (тёмная подложка) -->
+<style>
+  :root { --text: #eaf2ff; --muted: #a9bad4; --accent: #6cc4ff; --ok: #5fd3a0; --danger: #ff6b7d; --panel: rgba(11, 18, 32, .78); }
+  html, body { margin: 0; background: transparent; color: var(--text); overflow: hidden; }
+  body { font: 700 20px/1.3 system-ui, "Segoe UI", Roboto, sans-serif; padding: 12px; zoom: var(--z, 1); text-shadow: 0 2px 6px rgba(0, 0, 0, .6); }
+  body.bg .box { background: var(--panel); border-radius: 18px; padding: 16px; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .title { font-size: 24px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .timer { font-size: 46px; font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .timer.low { color: var(--danger); }
+  .timer.off { color: var(--muted); font-size: 30px; }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  li { position: relative; display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; overflow: hidden; isolation: isolate;
+    background: rgba(11, 18, 32, .72); transition: transform .4s; }
+  li .bar { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, rgba(108, 196, 255, .45), rgba(108, 196, 255, .12)); z-index: -1; transition: width .6s cubic-bezier(.2, .7, .2, 1); }
+  li.win .bar { background: linear-gradient(90deg, rgba(95, 211, 160, .55), rgba(95, 211, 160, .15)); }
+  .rk { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: rgba(255, 255, 255, .12); font-size: 16px; }
+  li:first-child .rk { background: var(--accent); color: #06121f; text-shadow: none; }
+  .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nm small { color: var(--muted); font-weight: 600; margin-right: 6px; }
+  .pt { font-variant-numeric: tabular-nums; font-weight: 900; }
+  .pt small { color: var(--muted); font-weight: 700; font-size: 15px; margin-left: 6px; }
+  .last { margin-top: 10px; font-size: 16px; color: var(--muted); min-height: 22px; }
+  .last b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="head"><div class="title" id="t">Аукцион</div><div class="timer off" id="tm">—</div></div>
+  <ol id="l"></ol>
+  <div class="last" id="last"></div>
+</div>
+<script>
+(() => {
+  const QS = new URLSearchParams(location.search);
+  const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  const API = (LOCAL && QS.get('api')) || 'https://cdn.renah0cki.xyz';
+  const TOP = Math.max(1, Math.min(20, +QS.get('top') || 8));
+  document.body.style.setProperty('--z', +QS.get('scale') || 1);
+  if (QS.get('bg') === '1') document.body.classList.add('bg');
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('ru-RU');
+  const SRC = { da: 'DA', donatepay: 'DonatePay', donatex: 'DonateX', twitch: 'Twitch', site: 'coin', wallet: 'кошелёк', manual: '' };
+  let D = null, off = 0;
+  function draw() {
+    if (!D) return;
+    const a = D.auction, lots = D.lots.slice(0, TOP);
+    const max = Math.max(1, ...lots.map(l => +l.total)), sum = D.lots.reduce((s, l) => s + +l.total, 0) || 1;
+    document.getElementById('t').textContent = a.title;
+    document.getElementById('l').innerHTML = lots.map((l, i) => `<li class="${a.winner_lot === l.id ? 'win' : ''}"><span class="bar" style="width:${(+l.total / max * 100).toFixed(1)}%"></span>
+      <span class="rk">${i + 1}</span><span class="nm"><small>#${l.num}</small>${esc(l.name)}</span><span class="pt">${fmt(l.total)}<small>${(+l.total / sum * 100).toFixed(0)}%</small></span></li>`).join('');
+    const b = D.recent?.[0];
+    document.getElementById('last').innerHTML = b ? `Последняя: <b>${esc(b.user_name)}</b> +${fmt(b.points)} ${SRC[b.source] ? '· ' + SRC[b.source] : ''}` : '';
+  }
+  function tick() {
+    if (!D) return;
+    const a = D.auction, el = document.getElementById('tm');
+    let ms = a.status === 'running' && a.ends_at ? Date.parse(a.ends_at) - (Date.now() + off) : a.status === 'paused' ? a.left_ms : null;
+    if (ms == null) { el.textContent = { idle: 'скоро', ended: 'ставки закрыты', closed: 'итоги' }[a.status] || ''; el.className = 'timer off'; return; }
+    const s = Math.ceil(Math.max(0, ms) / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    el.textContent = (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(s % 60).padStart(2, '0') + (a.status === 'paused' ? ' ⏸' : '');
+    el.className = 'timer' + (a.status === 'running' && s <= 30 ? ' low' : '');
+  }
+  const es = new EventSource(API + '/auc/events');
+  es.onmessage = e => { try { D = JSON.parse(e.data); off = Date.parse(D.now) - Date.now(); draw(); tick(); } catch {} };
+  setInterval(tick, 250);
+})();
+</script>
+</body>
+</html>
