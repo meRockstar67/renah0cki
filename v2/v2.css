@@ -11,7 +11,7 @@
   --accent-2: #3b9eff;
   --on-accent: #06121f;
   --danger: #ff6b7d;
-  --side-w: 210px;
+  --side-w: 240px;
   --radius: 14px;
   color-scheme: dark;
 }
@@ -31,12 +31,12 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .logo { display: flex; align-items: center; gap: 8px; padding: 2px 6px 18px; font-weight: 800; font-size: 21px; letter-spacing: .2px; white-space: nowrap; }
 .logo img { width: 34px; height: 34px; object-fit: contain; }
 .logo b { color: var(--accent); }
-.nav { display: flex; flex-direction: column; gap: 2px; }
-.nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.nav { display: flex; flex-direction: column; gap: 6px; }
+.nav-item { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 10px; color: var(--muted); font-weight: 600; font-size: 15.5px; white-space: nowrap; }
 .nav-item:hover { background: var(--panel); color: var(--text); }
 .nav-item.active { background: var(--panel-2); color: var(--text); }
 .nav-item.active svg { color: var(--accent); }
-.nav-item .ylogo { width: 16px; height: 20px; }
+.nav-item .ylogo { width: 13px; height: 16px; margin: 0 3.5px; }
 .side-bottom { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .side-bottom .nav-item { flex: 1; }
 .collapse-btn { background: none; border: 0; color: var(--muted); padding: 8px; border-radius: 8px; cursor: pointer; }
