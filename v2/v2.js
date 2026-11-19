@@ -1295,7 +1295,7 @@ function loadTopDonors() {
   }, rows => {
     const box = $('#topDonList'); if (!box) return;
     if (!rows?.length) { $('#topDon').hidden = true; return; }
-    box.innerHTML = rows.map((r, i) => `<a class="spons-item" href="${userPath(r.p || { id: r.user_id })}" title="${esc(pname(r.p))}"><span class="medal">${['🥇', '🥈', '🥉'][i] || ''}</span>${imgTag(avatarUrl(r.p), 360, ' width="28" height="28"')}<span>${esc(pname(r.p))}</span><span class="don-sum"><img src="${COIN}" alt="">${fmt(r.balance)}</span></a>`).join('');
+    box.innerHTML = rows.map((r, i) => `<a class="spons-item" href="${userPath(r.p || { id: r.user_id })}" title="${esc(pname(r.p))}"><span class="medal">${['🥇', '🥈', '🥉'][i] || ''}</span>${imgTag(avatarUrl(r.p), 360, ' width="28" height="28"')}<span>${esc(pname(r.p))}</span></a>`).join('');
     $('#topDon').hidden = false;
   }).catch(() => {});
 }
