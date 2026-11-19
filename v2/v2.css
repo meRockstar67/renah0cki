@@ -169,3 +169,53 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .card-stats time { margin-left: 0; width: 100%; white-space: nowrap; }
   .post h1 { font-size: 20px; }
 }
+
+/* ── заголовки разделов ── */
+.page-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.page-head h1 { margin: 0; font-size: 24px; }
+.page-head .btn { margin-left: auto; }
+.page-sub { margin: 0 0 16px; color: var(--muted); }
+.page-head + .grid, .page-head + .empty { margin-top: 14px; }
+.av-ph { display: inline-grid; place-items: center; font-weight: 700; font-size: 12px; color: var(--text); }
+.post-head > .av-ph { width: 40px; height: 40px; font-size: 16px; }
+.cmt > .av-ph { width: 32px; height: 32px; }
+
+/* ── новости ── */
+.news-ph { display: grid; place-items: center; height: 100%; font-size: 40px; background: linear-gradient(160deg, #1b2b4a, #0f1830); }
+.news-article h1 { margin-top: 16px; }
+.news-body { font-size: 16.5px; line-height: 1.65; color: #d7e3f5; overflow-wrap: anywhere; }
+.news-body p { margin: 0 0 14px; }
+.news-body h3 { font-size: 21px; margin: 24px 0 10px; color: var(--text); }
+.news-body h4 { font-size: 17px; margin: 18px 0 8px; color: var(--text); }
+.news-body a { color: var(--accent); text-decoration: underline; }
+.news-body blockquote { margin: 0 0 14px; padding: 8px 14px; border-left: 3px solid var(--accent); background: var(--panel); border-radius: 0 10px 10px 0; }
+.news-body figure { margin: 0 0 16px; }
+.news-body figure img { max-width: 100%; border-radius: 12px; margin: 0 auto; }
+.news-body figcaption { margin-top: 6px; text-align: center; color: var(--muted); font-size: 14px; }
+.news-body ul, .news-body ol { margin: 0 0 14px; padding-left: 22px; }
+.news-body hr { border: 0; border-top: 1px solid var(--border); margin: 22px 0; }
+.news-body code { padding: 1px 6px; border-radius: 6px; background: var(--panel-2); font-size: .92em; }
+.embed { margin: 0 0 16px; }
+.embed iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px; }
+.spoiler { background: var(--muted); color: transparent; border-radius: 4px; cursor: pointer; transition: .15s; }
+.spoiler.open { background: var(--panel-2); color: inherit; }
+.cmt-form { display: flex; gap: 10px; align-items: flex-end; margin-top: 12px; }
+.cmt-form textarea { flex: 1; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; resize: vertical; }
+.cmt-form textarea:focus { outline: none; border-color: var(--accent); }
+
+/* ── предложка ── */
+.sg-card .card-media { display: block; }
+.badge.warn { background: #f0b44c; color: #1d1302; }
+.sg-card .card-title a:hover { color: var(--accent); }
+.sg-acts { display: flex; gap: 8px; margin-top: 10px; }
+.sg-acts .btn { height: 34px; padding: 0 12px; font-size: 13px; }
+
+/* ── окно ── */
+.v2-overlay { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(3, 7, 15, .7); }
+.v2-modal { width: min(440px, 100%); padding: 22px; border-radius: 16px; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 24px 60px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 12px; }
+.v2-modal h2 { margin: 0; font-size: 20px; }
+.v2-modal label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 14px; }
+.v2-modal input { height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
+.v2-modal input:focus { outline: none; border-color: var(--accent); }
+.v2-modal .hint { margin: 0; min-height: 1.2em; color: var(--muted); font-size: 13px; }
+.v2-modal-acts { display: flex; justify-content: flex-end; gap: 8px; }

@@ -277,6 +277,224 @@ async function loadComments(id) {
 }
 page.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : (location.hash = '#/'); } });
 
+/* ── роли (модераторы видят «Одобрить» в предложке) ── */
+const MOD_ROLES = ['moderator', 'gl_moder', 'admin'];
+const isMod = () => !!S.me && [S.me.role, ...(S.me.extra_roles || [])].some(r => MOD_ROLES.includes(r));
+
+/* ── новости ── */
+const NEWS = { cache: new Map(), liked: new Set(), chans: new Map() };
+function newsFmt(s) {
+  return s.replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*\w])\*([^*\n]+)\*(?![*\w])/g, '$1<em>$2</em>')
+    .replace(/__([^_\n]+)__/g, '<u>$1</u>')
+    .replace(/~~([^~\n]+)~~/g, '<s>$1</s>')
+    .replace(/\|\|([^|\n]+)\|\|/g, '<span class="spoiler" data-spoiler>$1</span>');
+}
+function newsInline(raw) {
+  const links = [];
+  const s = newsFmt(esc(raw).replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => { links.push([t, u]); return `\u0000${links.length - 1}\u0000`; }));
+  return s.replace(/\u0000(\d+)\u0000/g, (m, i) => `<a href="${links[i][1]}" target="_blank" rel="noopener noreferrer">${newsFmt(links[i][0])}</a>`);
+}
+function newsBody(md) {
+  const lines = String(md || '').replace(/\r/g, '').split('\n');
+  const out = []; let para = [], list = null, quote = [];
+  const fP = () => { if (para.length) { out.push('<p>' + para.map(newsInline).join('<br>') + '</p>'); para = []; } };
+  const fL = () => { if (list) { out.push(`<${list.t}>` + list.items.map(i => '<li>' + newsInline(i) + '</li>').join('') + `</${list.t}>`); list = null; } };
+  const fQ = () => { if (quote.length) { out.push('<blockquote>' + quote.map(newsInline).join('<br>') + '</blockquote>'); quote = []; } };
+  const fA = () => { fP(); fL(); fQ(); };
+  for (const line of lines) {
+    const t = line.trim(); let m;
+    if (!t) { fA(); continue; }
+    if ((m = t.match(/^!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)$/))) { fA(); out.push(`<figure><img src="${esc(m[2])}" alt="${esc(m[1])}" loading="lazy">${m[1] ? `<figcaption>${newsInline(m[1])}</figcaption>` : ''}</figure>`); continue; }
+    if ((m = t.match(/^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/watch\?(?:\S*&)?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{11})\S*$/))) { fA(); out.push(`<div class="embed"><iframe src="https://www.youtube-nocookie.com/embed/${m[1]}" allowfullscreen loading="lazy"></iframe></div>`); continue; }
+    if (/^-{3,}$/.test(t)) { fA(); out.push('<hr>'); continue; }
+    if ((m = t.match(/^(#{1,3})\s+(.+)$/))) { fA(); out.push(m[1].length === 3 ? `<h4>${newsInline(m[2])}</h4>` : `<h3>${newsInline(m[2])}</h3>`); continue; }
+    if ((m = t.match(/^>\s?(.*)$/))) { fP(); fL(); quote.push(m[1]); continue; }
+    if ((m = t.match(/^[-*•]\s+(.+)$/))) { fP(); fQ(); if (list && list.t !== 'ul') fL(); (list ||= { t: 'ul', items: [] }).items.push(m[1]); continue; }
+    if ((m = t.match(/^\d+[.)]\s+(.+)$/))) { fP(); fQ(); if (list && list.t !== 'ol') fL(); (list ||= { t: 'ol', items: [] }).items.push(m[1]); continue; }
+    fL(); fQ(); para.push(t);
+  }
+  fA();
+  return out.join('');
+}
+const newsPlain = md => String(md || '').replace(/!\[[^\]]*\]\([^)]*\)/g, ' ').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/g, ' ').replace(/[*_~`|#>]/g, '').replace(/\s+/g, ' ').trim();
+const newsCover = n => n.cover_url || (String(n.body || '').match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/) || [])[1] || '';
+function newsBy(n) {
+  if (n.channel_name) {
+    const c = n.channel_id && NEWS.chans.get(n.channel_id);
+    return { name: n.channel_name, ava: c?.avatar_url || '' };
+  }
+  return { name: pname(n.author) || 'Редакция', ava: n.author?.avatar_url || '' };
+}
+async function newsLoadChans(items) {
+  const ids = [...new Set(items.map(x => x.channel_id).filter(i => i && !NEWS.chans.has(i)))];
+  if (!ids.length) return;
+  (await api(`news_channels?id=in.(${ids.join(',')})&select=id,name,avatar_url`).catch(() => [])).forEach(c => NEWS.chans.set(c.id, c));
+}
+async function newsLoadLiked(ids) {
+  if (!S.uid || !ids.length) return;
+  (await api(`news_likes?user_id=eq.${S.uid}&news_id=in.(${ids.join(',')})&select=news_id`).catch(() => [])).forEach(x => NEWS.liked.add(x.news_id));
+}
+const avaHtml = (url, name, cls = 'av') => url ? `<img class="${cls}" src="${esc(url)}" alt="" loading="lazy">` : `<span class="${cls} av-ph">${esc((Array.from(name || '?')[0] || '?').toUpperCase())}</span>`;
+function newsCardHtml(n) {
+  const cover = newsCover(n), by = newsBy(n), liked = NEWS.liked.has(n.id);
+  return `<article class="card" data-news="${esc(n.id)}">
+    <div class="card-media">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy">` : '<div class="news-ph">📰</div>'}
+      ${n.pinned ? `<span class="badge pin">${I.pin} Закреплено</span>` : ''}<span class="badge type">Новость</span></div>
+    <div class="card-body">
+      <div class="card-author">${avaHtml(by.ava, by.name)}<span>${esc(by.name)}</span></div>
+      <h3 class="card-title">${esc(n.title)}</h3>
+      <p class="card-desc">${esc(newsPlain(n.body).slice(0, 160))}</p>
+      <div class="card-stats">
+        <span title="Просмотры">${I.views}${fmt(n.views)}</span>
+        <span class="${liked ? 'liked' : ''}" title="Лайки">${I.heart}${fmt(n.likes_count)}</span>
+        <span title="Комментарии">${I.comment}${fmt(n.comments_count)}</span>
+        <time>${when(n.created_at)}</time>
+      </div>
+    </div>
+  </article>`;
+}
+async function viewNews() {
+  setNav('news');
+  page.innerHTML = `<div class="page-head"><h1>Новости</h1>${isMod() ? '<a class="btn" href="/?v2=news">Написать</a>' : ''}</div><div class="grid" id="newsGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
+  let rows = [];
+  try { rows = await api('news?select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)&order=pinned.desc,created_at.desc&limit=60'); }
+  catch (e) { $('#newsGrid').outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; return; }
+  rows.forEach(n => NEWS.cache.set(n.id, n));
+  await Promise.all([newsLoadChans(rows), newsLoadLiked(rows.map(r => r.id))]);
+  const g = $('#newsGrid'); if (!g) return;
+  g.outerHTML = rows.length ? `<div class="grid" id="newsGrid">${rows.map(newsCardHtml).join('')}</div>` : '<div class="empty">Пока новостей нет.</div>';
+}
+async function viewNewsArticle(key) {
+  setNav('news');
+  page.innerHTML = `<div class="post"><div class="skel" style="aspect-ratio:16/7"></div></div>`;
+  let n = NEWS.cache.get(key);
+  if (!n) {
+    const f = /^[0-9a-f-]{36}$/i.test(key) ? `id=eq.${key}` : `short_code=eq.${encodeURIComponent(key)}`;
+    try { [n] = await api(`news?${f}&select=*,author:profiles!news_author_id_fkey(username,display_name,avatar_url)`); } catch {}
+    if (n) NEWS.cache.set(n.id, n);
+  }
+  if (!n) { page.innerHTML = '<div class="empty">Новость не найдена</div>'; return; }
+  await Promise.all([newsLoadChans([n]), newsLoadLiked([n.id])]);
+  try { if (!sessionStorage.getItem('nv_' + n.id)) { sessionStorage.setItem('nv_' + n.id, '1'); n.views = (n.views || 0) + 1; rpc('news_view', { p_id: n.id }).catch(() => {}); } } catch {}
+  const by = newsBy(n), cover = n.cover_url || '', liked = NEWS.liked.has(n.id);
+  page.innerHTML = `<article class="post news-article">
+    <button class="back" data-back>${I.back} Назад</button>
+    ${cover ? `<div class="post-media"><img src="${esc(cover)}" alt=""></div>` : ''}
+    <h1>${esc(n.title)}</h1>
+    <div class="post-head">${avaHtml(by.ava, by.name)}<div><b>${esc(by.name)}</b><div class="sub">${when(n.created_at)} · ${fmt(n.views)} просмотров</div></div>
+      <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="newsLike">${I.heart}<span>${fmt(n.likes_count)}</span></button><button class="btn" id="newsCopy" title="Скопировать ссылку">${I.link}</button></div></div>
+    <div class="news-body">${newsBody(n.body)}</div>
+    <section class="comments" id="newsComments"><h3>Комментарии</h3><div class="empty" style="padding:20px">Загрузка…</div></section>
+  </article>`;
+  $('#newsLike').onclick = async ev => {
+    if (!S.uid) return toast('Нужно войти', true);
+    const b = ev.currentTarget, was = NEWS.liked.has(n.id); b.disabled = true;
+    try {
+      if (was) await api(`news_likes?news_id=eq.${n.id}&user_id=eq.${S.uid}`, { method: 'DELETE' });
+      else await api('news_likes', { method: 'POST', body: { news_id: n.id, user_id: S.uid }, prefer: 'return=minimal' });
+      was ? NEWS.liked.delete(n.id) : NEWS.liked.add(n.id);
+      n.likes_count = Math.max(0, (n.likes_count || 0) + (was ? -1 : 1));
+      b.classList.toggle('liked', !was); $('span', b).textContent = fmt(n.likes_count);
+    } catch (er) { toast(er.message, true); }
+    b.disabled = false;
+  };
+  $('#newsCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/${n.short_code ? 'n/' + n.short_code : '?news=' + n.id}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
+  newsLoadComments(n);
+}
+async function newsLoadComments(n) {
+  const box = $('#newsComments'); if (!box) return;
+  const rows = await api(`news_comments?news_id=eq.${n.id}&select=id,user_id,body,created_at,profiles(username,display_name,avatar_url)&order=created_at.asc&limit=300`).catch(() => []);
+  if (!$('#newsComments')) return;
+  box.innerHTML = `<h3>Комментарии · ${rows.length}</h3>`
+    + (rows.length ? rows.map(c => `<div class="cmt">${avaHtml(c.profiles?.avatar_url, pname(c.profiles))}<div class="cmt-main"><div class="cmt-head"><b>${esc(pname(c.profiles))}</b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body)}</div></div></div>`).join('') : '<div class="empty" style="padding:16px">Комментариев пока нет</div>')
+    + (S.uid ? `<form class="cmt-form" id="newsCmtForm"><textarea rows="2" maxlength="1000" placeholder="Написать комментарий…" required></textarea><button class="btn accent" type="submit">Отправить</button></form>` : '');
+  const f = $('#newsCmtForm');
+  if (f) f.onsubmit = async ev => {
+    ev.preventDefault();
+    const ta = $('textarea', f), body = ta.value.trim(); if (!body) return;
+    const btn = $('button', f); btn.disabled = true;
+    try {
+      await api('news_comments', { method: 'POST', body: { news_id: n.id, user_id: S.uid, body }, prefer: 'return=minimal' });
+      n.comments_count = (n.comments_count || 0) + 1;
+      newsLoadComments(n);
+    } catch (er) { toast(er.message, true); btn.disabled = false; }
+  };
+}
+page.addEventListener('click', e => {
+  const nc = e.target.closest('[data-news]'); if (nc) { location.hash = '#/news/' + nc.dataset.news; return; }
+  const sp = e.target.closest('[data-spoiler]'); if (sp) sp.classList.toggle('open');
+});
+
+/* ── предложка (видео с YouTube) ── */
+const YT_KEY = 'AIzaSyDc4J-Y8jO5FrvKZD8QuLd0x33LIKtvV_E';
+function ytDuration(iso) {
+  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || ''); if (!m) return '';
+  const sec = (+m[1] || 0) * 86400 + (+m[2] || 0) * 3600 + (+m[3] || 0) * 60 + (+m[4] || 0); if (!sec) return 'LIVE';
+  const h = Math.floor(sec / 3600), mi = Math.floor(sec % 3600 / 60), se = sec % 60, p = x => String(x).padStart(2, '0');
+  return h ? `${h}:${p(mi)}:${p(se)}` : `${mi}:${p(se)}`;
+}
+async function viewSuggest() {
+  setNav('suggest');
+  page.innerHTML = `<div class="page-head"><h1>Предложка</h1>${S.uid ? `<button class="btn accent" data-sg-add><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Предложить видео</button>` : ''}</div>
+    <div class="grid" id="sgGrid">${'<div class="skel"></div>'.repeat(8)}</div>`;
+  let rows = [];
+  try { rows = await api('suggestions?select=*&order=approved_at.desc.nullsfirst,created_at.desc&limit=100'); }
+  catch (e) { $('#sgGrid').outerHTML = `<div class="empty">Не удалось загрузить: ${esc(e.message)}</div>`; return; }
+  const yt = {};
+  try {
+    const ids = [...new Set(rows.map(r => r.video_id))].slice(0, 50).join(',');
+    if (ids) (await (await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids}&key=${YT_KEY}`)).json()).items?.forEach(it => { yt[it.id] = it; });
+  } catch {}
+  const g = $('#sgGrid'); if (!g) return;
+  const mod = isMod();
+  g.outerHTML = rows.length ? `<div class="grid" id="sgGrid">${rows.map(r => {
+    const id = encodeURIComponent(r.video_id), y = yt[r.video_id], dur = ytDuration(y?.contentDetails?.duration);
+    const pending = r.status !== 'approved', canDel = S.uid && (S.uid === r.user_id || mod);
+    return `<article class="card sg-card">
+      <a class="card-media" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer"><img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" alt="" loading="lazy">
+        ${pending ? '<span class="badge pin warn">На проверке</span>' : ''}${dur ? `<span class="badge type">${dur}</span>` : ''}</a>
+      <div class="card-body">
+        ${r.author_name ? `<div class="card-author"><span>${esc(r.author_name)}</span></div>` : ''}
+        <h3 class="card-title"><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer">${esc(r.title || 'Видео')}</a></h3>
+        <div class="card-stats">${y?.statistics?.viewCount != null ? `<span title="Просмотры на YouTube">${I.views}${fmt(y.statistics.viewCount)}</span>` : ''}<time>${when(r.approved_at || r.created_at)}</time></div>
+        ${(pending && mod) || canDel ? `<div class="sg-acts">${pending && mod ? `<button class="btn accent" data-sg-ok="${r.id}">Одобрить</button>` : ''}${canDel ? `<button class="btn" data-sg-del="${r.id}">Удалить</button>` : ''}</div>` : ''}
+      </div></article>`;
+  }).join('')}</div>` : '<div class="empty">Пока пусто — предложи первое видео.</div>';
+}
+async function sgTitle(id) {
+  try { const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + id)}&format=json`); if (r.ok) return (await r.json()).title; } catch {}
+  try { const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${YT_KEY}`); if (r.ok) return (await r.json()).items?.[0]?.snippet?.title; } catch {}
+  return null;
+}
+function sgAddDialog() {
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal"><h2>Предложить видео</h2><label>Ссылка на видео с YouTube<input type="url" placeholder="https://www.youtube.com/watch?v=..." required></label><p class="hint"></p><div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Отправить</button></div></form>`;
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) close(); });
+  $('form', ov).onsubmit = async e => {
+    e.preventDefault();
+    const hint = $('.hint', ov), id = ytId($('input', ov).value.trim());
+    if (!id) { hint.textContent = 'Нужна ссылка на видео с YouTube'; return; }
+    hint.textContent = 'Добавляю…';
+    const mod = isMod();
+    try {
+      await api('suggestions', { method: 'POST', prefer: 'return=minimal', body: { user_id: S.uid, video_id: id, title: (await sgTitle(id)) || 'Видео', author_name: S.me?.display_name || S.me?.username || '', status: mod ? 'approved' : 'pending', approved_at: mod ? new Date().toISOString() : null } });
+      close(); toast(mod ? 'Видео добавлено' : 'Отправлено на проверку модераторам'); viewSuggest();
+    } catch (er) { hint.textContent = 'Ошибка: ' + er.message; }
+  };
+  document.body.append(ov); setTimeout(() => $('input', ov).focus(), 30);
+}
+page.addEventListener('click', async e => {
+  if (e.target.closest('[data-sg-add]')) return sgAddDialog();
+  const ok = e.target.closest('[data-sg-ok]');
+  if (ok) { ok.disabled = true; try { await api(`suggestions?id=eq.${ok.dataset.sgOk}`, { method: 'PATCH', body: { status: 'approved', approved_at: new Date().toISOString() } }); viewSuggest(); } catch (er) { toast(er.message, true); ok.disabled = false; } return; }
+  const del = e.target.closest('[data-sg-del]');
+  if (del) { if (!confirm('Удалить видео из предложки?')) return; try { await api(`suggestions?id=eq.${del.dataset.sgDel}`, { method: 'DELETE' }); viewSuggest(); } catch (er) { toast(er.message, true); } }
+});
+
 /* ── меню, профиль, монеты ── */
 function setNav(k) { $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
 $('#menuBtn').onclick = () => document.querySelector('.app').classList.toggle('menu-open');
@@ -286,7 +504,7 @@ $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meM
 async function loadMe() {
   if (!S.uid) return;
   try {
-    const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,short_code`);
+    const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,short_code,role,extra_roles`);
     S.me = me; if (me) S.profiles.set(me.id, me);
     $('#meAva').src = avatarUrl(me);
     $('#meProfile').href = me?.username ? `/@${encodeURIComponent(me.username)}` : '/';
@@ -300,9 +518,11 @@ function route() {
   scrollTo(0, 0);
   if (parts[0] === 'p' && parts[1]) return viewPost(parts[1]);
   if (['art', 'video', 'fanfic'].includes(parts[0])) return viewFeed(parts[0]);
+  if (parts[0] === 'news') return parts[1] ? viewNewsArticle(parts[1]) : viewNews();
+  if (parts[0] === 'suggest') return viewSuggest();
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
-loadMe();
+loadMe().then(() => { if (/^#\/(suggest|news)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
 route();
 })();
