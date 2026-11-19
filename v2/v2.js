@@ -128,7 +128,7 @@ function cardHtml(it) {
       ${b ? `<span class="badge type">${b[0]} ${b[1]}</span>` : ''}
     </div>
     <div class="card-body">
-      <div class="card-author"><img class="av" src="${esc(avatarUrl(a))}" alt="" loading="lazy"><span>${esc(pname(a))}</span></div>
+      <div class="card-author" data-user="${esc(a?.username || it.submitted_by)}"><img class="av" src="${esc(avatarUrl(a))}" alt="" loading="lazy"><span>${esc(pname(a))}</span></div>
       <h3 class="card-title">${esc(it.title || 'Без названия')}</h3>
       ${it.description && it.content_type !== 'fanfic' ? `<p class="card-desc">${esc(it.description)}</p>` : ''}
       <div class="card-stats">
@@ -240,7 +240,7 @@ async function viewPost(key) {
   page.innerHTML = `<div class="post">
     <button class="back" data-back>${I.back} Назад</button>
     ${media ? `<div class="post-media${it.is_blurred ? ' blur' : ''}" id="postMedia">${media}</div>` : ''}
-    <div class="post-head"><img class="av" src="${esc(avatarUrl(a))}" alt=""><div><b>${esc(pname(a))}</b><div class="sub">${when(it.published_at || it.created_at)} · ${fmt(it.views)} просмотров</div></div>
+    <div class="post-head"><img class="av" src="${esc(avatarUrl(a))}" alt="" data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"><div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${esc(pname(a))}</b><div class="sub">${when(it.published_at || it.created_at)} · ${fmt(it.views)} просмотров</div></div>
       <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button></div></div>
     <h1>${esc(it.title || 'Без названия')}</h1>
     ${it.description && it.content_type !== 'fanfic' ? `<p class="post-desc">${esc(it.description)}</p>` : ''}
@@ -495,8 +495,131 @@ page.addEventListener('click', async e => {
   if (del) { if (!confirm('Удалить видео из предложки?')) return; try { await api(`suggestions?id=eq.${del.dataset.sgDel}`, { method: 'DELETE' }); viewSuggest(); } catch (er) { toast(er.message, true); } }
 });
 
+/* ── профиль ── */
+const ROLE_LABEL = { moderator: 'Модератор', gl_moder: 'Главный модератор', admin: 'Админ', sponsor: 'Спонсор', respect_plus: 'Respect+', streamer: 'Стример' };
+const userPath = p => '#/u/' + encodeURIComponent(p?.username || p?.id || '');
+async function viewProfile(key) {
+  setNav(S.me && (key === S.me.username || key === S.me.id) ? 'me' : '');
+  page.innerHTML = `<div class="prof"><div class="skel" style="aspect-ratio:auto;height:180px"></div></div>`;
+  let p;
+  try {
+    const f = /^[0-9a-f-]{36}$/i.test(key) ? `id=eq.${key}` : `username=eq.${encodeURIComponent(key)}`;
+    [p] = await api(`profiles?${f}&select=id,username,display_name,avatar_url,role,extra_roles,bio,stream_twitch_url,stream_social_url,short_code`);
+  } catch {}
+  if (!p) { page.innerHTML = '<div class="empty">Пользователь не найден</div>'; return; }
+  S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p });
+  const own = S.uid === p.id;
+  const [works, subCount, followRows] = await Promise.all([
+    api(`content?submitted_by=eq.${p.id}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=id,short_code,title,description,source_url,cover_image_url,media_items,content_type,submitted_by,views,likes,comments_count,is_blurred,published_at,created_at`).catch(() => []),
+    (async () => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/subscriptions?following_id=eq.${p.id}&select=id`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; })().catch(() => 0),
+    S.uid && !own ? api(`subscriptions?follower_id=eq.${S.uid}&following_id=eq.${p.id}&select=id`).catch(() => []) : Promise.resolve([]),
+  ]);
+  await loadMyLikes(works.map(w => w.id));
+  let subscribed = !!followRows[0], subs = subCount;
+  const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
+  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && ['Telegram', p.stream_social_url]].filter(Boolean);
+  page.innerHTML = `<div class="prof">
+    <section class="prof-card">
+      ${avaHtml(p.avatar_url, pname(p), 'prof-ava')}
+      <div class="prof-main">
+        ${roles.length ? `<div class="prof-roles">${roles.map(r => `<span class="role role-${r}">${ROLE_LABEL[r]}</span>`).join('')}</div>` : ''}
+        <h1>${esc(pname(p))}</h1>
+        ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
+        ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
+        <div class="prof-stats"><span><b>${fmt(works.length)}</b> публикаций</span><span><b id="subsN">${fmt(subs)}</b> подписчиков</span></div>
+        ${links.length ? `<div class="prof-links">${links.map(([n, u]) => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join('')}</div>` : ''}
+      </div>
+      <div class="prof-acts">
+        ${own ? `<a class="btn" href="/@${encodeURIComponent(p.username || '')}">Редактировать</a>`
+          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? '✓ Вы подписаны' : 'Подписаться'}</button>` : ''}
+        <button class="btn icon-only" id="profCopy" title="Скопировать ссылку">${I.link}</button>
+      </div>
+    </section>
+    <div class="tabs prof-tabs"><button class="tab on">Работы</button></div>
+    ${works.length ? `<div class="grid">${works.map(cardHtml).join('')}</div>` : `<div class="empty">${own ? 'У вас пока нет опубликованных работ.' : 'Пока нет опубликованных работ.'}</div>`}
+  </div>`;
+  $('#profCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/@${encodeURIComponent(p.username || p.id)}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
+  const sb = $('#subBtn');
+  if (sb) sb.onclick = async () => {
+    sb.disabled = true;
+    try {
+      const on = await rpc('toggle_subscription', { p_following_id: p.id });
+      subscribed = !!on; subs = Math.max(0, subs + (subscribed ? 1 : -1)); subsIds = null;
+      sb.textContent = subscribed ? '✓ Вы подписаны' : 'Подписаться'; sb.classList.toggle('accent', !subscribed);
+      $('#subsN').textContent = fmt(subs);
+    } catch (er) { toast(er.message, true); }
+    sb.disabled = false;
+  };
+}
+page.addEventListener('click', e => {
+  const au = e.target.closest('[data-user]');
+  if (au) { e.stopPropagation(); location.hash = '#/u/' + encodeURIComponent(au.dataset.user); }
+});
+
+/* ── уведомления ── */
+const NOTIF = { list: [], loaded: false };
+const seenKey = () => S.uid ? `fh_notif_seen_${S.uid}` : null; // общий со старым сайтом
+const getSeen = () => { try { return parseInt(localStorage.getItem(seenKey()) || '0', 10) || 0; } catch { return 0; } };
+const setSeen = ts => { try { localStorage.setItem(seenKey(), String(ts)); } catch {} };
+async function loadNotifs() {
+  if (!S.uid) return [];
+  const prof = 'profiles(id,username,display_name,avatar_url)';
+  const [mine, colls] = await Promise.all([
+    api(`content?submitted_by=eq.${S.uid}&select=id,title,short_code`).catch(() => []),
+    api(`collections?submitted_by=eq.${S.uid}&select=id,title,short_code`).catch(() => []),
+  ]);
+  const t = {}; mine.forEach(c => { t[c.id] = c; }); const tc = {}; colls.forEach(c => { tc[c.id] = c; });
+  const cIds = mine.map(c => c.id), kIds = colls.map(c => c.id);
+  const jobs = [];
+  if (cIds.length) {
+    jobs.push(api(`content_likes?content_id=in.(${cIds.join(',')})&user_id=neq.${S.uid}&select=content_id,user_id,created_at,${prof}&order=created_at.desc&limit=30`).then(r => r.map(x => ({ type: 'like', target: t[x.content_id], actor: x.profiles, at: x.created_at }))).catch(() => []));
+    jobs.push(api(`comments?content_id=in.(${cIds.join(',')})&is_deleted=eq.false&author_id=neq.${S.uid}&select=content_id,author_id,body,created_at,${prof}&order=created_at.desc&limit=30`).then(r => r.map(x => ({ type: 'comment', target: t[x.content_id], body: x.body, actor: x.profiles, at: x.created_at }))).catch(() => []));
+  }
+  if (kIds.length) {
+    jobs.push(api(`collection_likes?collection_id=in.(${kIds.join(',')})&user_id=neq.${S.uid}&select=collection_id,user_id,created_at,${prof}&order=created_at.desc&limit=30`).then(r => r.map(x => ({ type: 'like', target: tc[x.collection_id], coll: true, actor: x.profiles, at: x.created_at }))).catch(() => []));
+    jobs.push(api(`comments?collection_id=in.(${kIds.join(',')})&is_deleted=eq.false&author_id=neq.${S.uid}&select=collection_id,author_id,body,created_at,${prof}&order=created_at.desc&limit=30`).then(r => r.map(x => ({ type: 'comment', target: tc[x.collection_id], coll: true, body: x.body, actor: x.profiles, at: x.created_at }))).catch(() => []));
+  }
+  jobs.push(api(`subscriptions?following_id=eq.${S.uid}&select=follower_id,created_at&order=created_at.desc&limit=30`).then(async r => {
+    await loadProfiles(r.map(x => x.follower_id));
+    return r.map(x => ({ type: 'follow', actor: S.profiles.get(x.follower_id), at: x.created_at }));
+  }).catch(() => []));
+  if (cIds.length || kIds.length) {
+    const or = [cIds.length && `content_id.in.(${cIds.join(',')})`, kIds.length && `collection_id.in.(${kIds.join(',')})`].filter(Boolean).join(',');
+    jobs.push(api(`moderation_log?action=eq.rejected&or=(${or})&select=content_id,collection_id,comment,created_at,moderator:profiles(id,username,display_name,avatar_url)&order=created_at.desc&limit=20`).then(r => r.map(x => ({ type: 'reject', target: x.content_id ? t[x.content_id] : tc[x.collection_id], body: x.comment, actor: x.moderator, at: x.created_at }))).catch(() => []));
+  }
+  NOTIF.list = (await Promise.all(jobs)).flat().sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 60);
+  NOTIF.loaded = true;
+  updateBell();
+  return NOTIF.list;
+}
+function updateBell() {
+  const seen = getSeen(), n = NOTIF.list.filter(x => new Date(x.at).getTime() > seen).length;
+  const b = $('#bellBadge'); if (!b) return;
+  b.textContent = n > 99 ? '99+' : String(n); b.hidden = !n;
+}
+const NOTIF_TEXT = { like: 'лайкнул(а) вашу работу', comment: 'прокомментировал(а)', follow: 'подписался(ась) на вас', reject: 'отклонил(а) вашу работу' };
+const NOTIF_ICON = { like: I.heart, comment: I.comment, follow: '<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 19.5c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M18 8v6M15 11h6"/></svg>', reject: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>' };
+async function viewNotifs() {
+  setNav('notifs');
+  page.innerHTML = `<div class="notifs"><div class="page-head"><h1>Уведомления</h1></div><div id="notifList">${'<div class="skel" style="aspect-ratio:auto;height:64px;margin-bottom:8px"></div>'.repeat(5)}</div></div>`;
+  if (!S.uid) { $('#notifList').innerHTML = '<div class="empty">Войдите, чтобы видеть уведомления.</div>'; return; }
+  const seen = getSeen();
+  const list = await loadNotifs();
+  const box = $('#notifList'); if (!box) return;
+  box.innerHTML = list.length ? list.map(n => {
+    const unread = new Date(n.at).getTime() > seen;
+    const href = n.type === 'follow' ? userPath(n.actor) : n.target ? (n.coll ? `/?collection=${n.target.id}` : `#/p/${n.target.short_code || n.target.id}`) : '#/';
+    return `<a class="notif${unread ? ' unread' : ''} n-${n.type}" href="${esc(href)}">
+      <span class="notif-ic">${NOTIF_ICON[n.type]}</span>
+      ${avaHtml(n.actor?.avatar_url, pname(n.actor))}
+      <div class="notif-main"><div><b>${esc(pname(n.actor))}</b> ${NOTIF_TEXT[n.type]}${n.target ? ` <span class="notif-target">«${esc(n.target.title || 'без названия')}»</span>` : ''}</div>
+        ${n.body ? `<div class="notif-body">${esc(n.body)}</div>` : ''}<time>${when(n.at)}</time></div></a>`;
+  }).join('') : '<div class="empty">Пока уведомлений нет.</div>';
+  setSeen(Date.now()); updateBell();
+}
+
 /* ── меню, профиль, монеты ── */
-function setNav(k) { $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
+function setNav(k) { $$('[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
 $('#menuBtn').onclick = () => document.querySelector('.app').classList.toggle('menu-open');
 $('#collapseBtn').onclick = () => { const a = document.querySelector('.app'); a.classList.toggle('collapsed'); try { localStorage.setItem('v2_side', a.classList.contains('collapsed') ? '1' : '0'); } catch {} };
 try { if (localStorage.getItem('v2_side') === '1') document.querySelector('.app').classList.add('collapsed'); } catch {}
@@ -507,7 +630,8 @@ async function loadMe() {
     const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,short_code,role,extra_roles`);
     S.me = me; if (me) S.profiles.set(me.id, me);
     $('#meAva').src = avatarUrl(me);
-    $('#meProfile').href = me?.username ? `/@${encodeURIComponent(me.username)}` : '/';
+    $('#meProfile').href = userPath(me);
+    setTimeout(() => { if (!NOTIF.loaded) loadNotifs(); }, 1200); // счётчик на колокольчике
   } catch {}
   try { const v = await rpc('coin_balance'); $('#coinVal').textContent = fmt(v || 0); } catch { $('#coinVal').textContent = '0'; }
 }
@@ -520,9 +644,11 @@ function route() {
   if (['art', 'video', 'fanfic'].includes(parts[0])) return viewFeed(parts[0]);
   if (parts[0] === 'news') return parts[1] ? viewNewsArticle(parts[1]) : viewNews();
   if (parts[0] === 'suggest') return viewSuggest();
+  if (parts[0] === 'u' && parts[1]) return viewProfile(parts[1]);
+  if (parts[0] === 'notifications') return viewNotifs();
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
-loadMe().then(() => { if (/^#\/(suggest|news)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
+loadMe().then(() => { if (/^#\/(suggest|news|u\/)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
 route();
 })();
