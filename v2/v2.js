@@ -1003,14 +1003,14 @@ async function viewProfile(key) {
   const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && ['Соцсеть', p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url]].filter(x => x && /^https?:\/\//.test(x[1]));
   page.innerHTML = `<div class="prof">
     <section class="prof-card">
-      ${avaHtml(p.avatar_url, pname(p), 'prof-ava')}
+      <div class="prof-left">${avaHtml(p.avatar_url, pname(p), 'prof-ava')}
+        ${links.length ? `<div class="prof-links">${links.map(([n, u]) => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join('')}</div>` : ''}</div>
       <div class="prof-main">
         ${roles.length ? `<div class="prof-roles">${roles.map(r => `<span class="role role-${r}">${ROLE_LABEL[r]}</span>`).join('')}</div>` : ''}
         <h1><span${nameAttr(p.name_color)}>${esc(pname(p))}</span></h1>
         ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
         ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
         <div class="prof-stats"><span><b>${fmt(works.length)}</b> публикаций</span><span><b id="subsN">${fmt(subs)}</b> подписчиков</span></div>
-        ${links.length ? `<div class="prof-links">${links.map(([n, u]) => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join('')}</div>` : ''}
       </div>
       <div class="prof-acts">
         ${own ? `<button class="btn" type="button" id="profEdit">Редактировать</button>`
@@ -2443,6 +2443,30 @@ function viewRules() {
     <p class="rules-foot">Вопросы — в <a href="#/support">поддержку</a>.</p>
   </article>`;
 }
+
+/* ── потянуть вниз для обновления (телефон) ── */
+(() => {
+  if (!('ontouchstart' in window)) return;
+  const ind = document.createElement('div');
+  ind.className = 'ptr'; ind.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>';
+  document.body.append(ind);
+  let y0 = null, d = 0;
+  const blocked = () => document.documentElement.classList.contains('lb-lock') || document.documentElement.classList.contains('vw-lock') || document.querySelector('.v2-overlay:not([hidden])') || document.querySelector('.app.menu-open');
+  addEventListener('touchstart', e => { y0 = scrollY <= 0 && e.touches.length === 1 && !blocked() ? e.touches[0].clientY : null; d = 0; }, { passive: true });
+  addEventListener('touchmove', e => {
+    if (y0 == null) return;
+    d = Math.max(0, e.touches[0].clientY - y0);
+    if (scrollY > 0) { y0 = null; d = 0; }
+    const k = Math.min(d / 90, 1);
+    ind.style.opacity = d > 10 ? String(k) : '0';
+    ind.style.transform = `translate(-50%, ${Math.min(d * .6, 70)}px) rotate(${d * 3}deg)`;
+    ind.classList.toggle('ready', d > 90);
+  }, { passive: true });
+  addEventListener('touchend', () => {
+    if (y0 != null && d > 90) { ind.classList.add('spin'); setTimeout(() => location.reload(), 150); return; }
+    y0 = null; ind.style.opacity = '0'; ind.style.transform = 'translate(-50%, 0)'; ind.classList.remove('ready');
+  }, { passive: true });
+})();
 
 /* ── роутер ── */
 function route() {
