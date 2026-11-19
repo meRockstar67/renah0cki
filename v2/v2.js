@@ -1319,6 +1319,9 @@ page.addEventListener('click', e => {
 /* ── меню, профиль, монеты ── */
 function setNav(k) { $$('[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
 $('#menuBtn').onclick = () => document.querySelector('.app').classList.toggle('menu-open');
+// свернуть боковую панель (на компьютере), запоминаем выбор
+$('#collapseBtn').onclick = () => { const a = document.querySelector('.app'); a.classList.toggle('collapsed'); const c = a.classList.contains('collapsed'); $('#collapseBtn').title = c ? 'Развернуть меню' : 'Свернуть меню'; try { localStorage.setItem('v2_side', c ? '1' : '0'); } catch {} };
+try { if (localStorage.getItem('v2_side') === '1') { document.querySelector('.app').classList.add('collapsed'); $('#collapseBtn').title = 'Развернуть меню'; } } catch {}
 // спонсоры в левом меню: список (видно 5), листается, порядок случайный
 function loadSponsors() {
   swr('sponsors', () => api(`profiles?or=(role.eq.sponsor,extra_roles.cs.{sponsor})&select=id,username,display_name,avatar_url`), rows => {
