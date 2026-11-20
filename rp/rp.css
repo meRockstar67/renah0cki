@@ -709,3 +709,53 @@ audio.voice { display: block; width: 100%; max-width: 300px; height: 38px; margi
 @keyframes vrecPulse { 50% { opacity: .3; transform: scale(.8); } }
 .vrec-t { font-variant-numeric: tabular-nums; }
 .vrec-lbl { flex: 1; opacity: .7; font-size: 13px; }
+
+/* ── вид переписок ── */
+.bub-time { display: none; }
+.chat-pick b { font-size: 14px; text-align: center; }
+.cl-prev { display: flex; flex-direction: column; gap: 5px; padding: 10px; border-radius: 10px; background: var(--placeholder); height: 70px; justify-content: flex-end; }
+.cl-prev i { display: block; height: 12px; border-radius: 10px; width: 55%; }
+.cl-prev i:nth-child(odd) { background: var(--chat-them); }
+.cl-prev i:nth-child(2) { background: var(--chat-me); align-self: flex-end; width: 45%; }
+.cl-tg { background: linear-gradient(160deg,#4f7fb5,#8fb3d9 50%,#c7d9a7); }
+.cl-tg i { border-radius: 8px 8px 8px 3px; }
+.cl-tg i:nth-child(odd) { background: #fff; }
+.cl-tg i:nth-child(2) { background: #effdde; border-radius: 8px 8px 3px 8px; }
+.wall-h { font-size: 16px; font-weight: 800; margin: 20px 0 10px; display: flex; align-items: center; gap: 8px; }
+.wall-lock { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--placeholder); color: var(--muted); }
+.wall-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+.wall { position: relative; aspect-ratio: 3/4; border-radius: 14px; border: 2px solid var(--border); background: var(--bg); cursor: pointer; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; padding: 0; transition: transform .15s, border-color .15s; }
+.wall:hover:not(:disabled) { transform: translateY(-2px); }
+.wall.on { border-color: var(--accent, #1d9bf0); box-shadow: 0 0 0 2px var(--accent, #1d9bf0); }
+.wall span { margin: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.45); color: #fff; font-size: 11px; font-weight: 700; }
+.wall-own { border-style: dashed; }
+.wall-grid.locked .wall { opacity: .45; cursor: not-allowed; filter: grayscale(.4); }
+.wall-note { margin: 10px 0 0 !important; }
+.wall-note a { color: var(--accent, #1d9bf0); }
+
+/* фон чата (ГОЙ+) */
+html.has-wall body.chat-mode { background: var(--chat-wall); background-attachment: fixed; }
+html.has-wall body.chat-mode .chat { background: transparent; }
+html.has-wall body.chat-mode .chat-time { display: table; margin-left: auto; margin-right: auto; padding: 3px 10px; border-radius: 12px; background: rgba(0,0,0,.35); color: #fff; }
+/* хвостики, которые не рисуют «заплатку» поверх фона */
+html.has-wall .bub.tail::after, html[data-chat="tg"] .bub.tail::after { display: none; }
+html.has-wall .bub-row.me .bub.tail::before, html[data-chat="tg"] .bub-row.me .bub.tail::before { right: -6px; width: 10px; height: 14px; border-radius: 0; clip-path: polygon(0 0, 0 100%, 100% 100%); }
+html.has-wall .bub-row.them .bub.tail::before, html[data-chat="tg"] .bub-row.them .bub.tail::before { left: -6px; width: 10px; height: 14px; border-radius: 0; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+
+/* как в Telegram */
+html[data-chat="tg"] { --chat-me: #2b5278; --chat-them: #182533; --chat-them-text: #e9eef3; }
+html[data-chat="tg"][data-theme="light"] { --chat-me: #effdde; --chat-them: #ffffff; --chat-them-text: #000; }
+html[data-chat="tg"] body.chat-mode:not(.has-wall-x) { }
+html[data-chat="tg"]:not(.has-wall) body.chat-mode { background: #0e1621; }
+html[data-chat="tg"][data-theme="light"]:not(.has-wall) body.chat-mode { background: #99ba92; }
+html[data-chat="tg"] .bub { border-radius: 14px; padding: 6px 10px 6px 11px; font-size: 15px; line-height: 1.35; box-shadow: 0 1px 1px rgba(0,0,0,.18); }
+html[data-chat="tg"] .bub-row.me .bub.tail { border-bottom-right-radius: 4px; }
+html[data-chat="tg"] .bub-row.them .bub.tail { border-bottom-left-radius: 4px; }
+html[data-chat="tg"][data-theme="light"] .bub-row.me .bub { color: #000; }
+html[data-chat="tg"][data-theme="light"] .bub-row.me .bub a, html[data-chat="tg"][data-theme="light"] .bub-row.me .bub .mention { color: #168acd; }
+html[data-chat="tg"] .bub-text { display: inline; }
+html[data-chat="tg"] .bub-time { display: inline-block; float: right; margin: 6px 0 -4px 10px; font-size: 11px; line-height: 1; opacity: .6; font-variant-numeric: tabular-nums; }
+html[data-chat="tg"] .bub-row.me .bub-time { color: inherit; }
+html[data-chat="tg"] .bub-row { margin-top: 3px; }
+html[data-chat="tg"] .chat-time { display: table; margin-left: auto; margin-right: auto; padding: 3px 10px; border-radius: 12px; background: rgba(0,0,0,.3); color: #fff; }
+html[data-chat="tg"] .bub-imgs { border-radius: 12px; }

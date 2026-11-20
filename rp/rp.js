@@ -1965,6 +1965,7 @@ function viewSettings() {
         <label class="theme-opt dark${t === 'dark' ? ' on' : ''}"><input type="radio" name="theme" value="dark"${t === 'dark' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Тёмная</span></label>
         <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Светлая</span></label>
       </div></div>
+    ${chatLookHtml()}
     <div class="set-sec"><h2>Аккаунт</h2>
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
       <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
@@ -1973,10 +1974,79 @@ function viewSettings() {
     + (shopVisible() ? shopHtml() : '');
   fillCoinBalance(main);
   bindShop(main);
+  bindChatLook(main);
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
     setTheme(inp.value);
     $$('.theme-opt', main).forEach(l => l.classList.toggle('on', $('input', l).checked));
   });
+}
+
+/* ── вид переписок: как в X или как в Telegram; фон чата — с роли ГОЙ ── */
+const CHAT_WALLS = [
+  ['none', 'Без фона', ''],
+  ['sky', 'Небо', 'linear-gradient(160deg,#4f7fb5,#8fb3d9 50%,#c7d9a7)'],
+  ['night', 'Ночь', 'radial-gradient(circle at 20% 20%,#3a2d6b,transparent 45%),radial-gradient(circle at 80% 75%,#1d4e6b,transparent 50%),#0b0f1d'],
+  ['tg', 'Телеграм', 'radial-gradient(rgba(255,255,255,.07) 1.2px,transparent 1.3px) 0 0/18px 18px,linear-gradient(160deg,#0e1621,#1b2a3a)'],
+  ['mint', 'Мята', 'linear-gradient(135deg,#a8e6cf,#dcedc1 50%,#ffd3b6)'],
+  ['sunset', 'Закат', 'linear-gradient(160deg,#ff9a8b,#ff6a88 45%,#ff99ac)'],
+  ['lilac', 'Сирень', 'linear-gradient(160deg,#c3a6ff,#8ec5fc)'],
+  ['ice', 'Лёд', 'radial-gradient(rgba(255,255,255,.35) 1px,transparent 1.2px) 0 0/22px 22px,linear-gradient(170deg,#0b1220,#1d3557 60%,#457b9d)'],
+];
+const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
+const wallOk = () => rank() >= 1;
+function wallCss() {
+  const w = lsGet('rp_chat_wall') || 'none';
+  if (w.startsWith('img:')) { const u = w.slice(4); return /^https:\/\/cdn\.renah0cki\.xyz\/file\/[^"'()\s]+$/.test(u) ? `url("${u}") center/cover no-repeat` : ''; }
+  return (CHAT_WALLS.find(x => x[0] === w) || CHAT_WALLS[0])[2];
+}
+function applyChatLook() {
+  const de = document.documentElement;
+  de.dataset.chat = lsGet('rp_chat_style') === 'tg' ? 'tg' : 'x';
+  const css = wallOk() ? wallCss() : '';
+  if (css) { de.style.setProperty('--chat-wall', css); de.classList.add('has-wall'); }
+  else { de.style.removeProperty('--chat-wall'); de.classList.remove('has-wall'); }
+}
+function chatLookHtml() {
+  const st = lsGet('rp_chat_style') === 'tg' ? 'tg' : 'x', w = lsGet('rp_chat_wall') || 'none', ok = wallOk();
+  const own = w.startsWith('img:') ? w.slice(4) : '';
+  return `<div class="set-sec"><h2>Переписки</h2><p>Как выглядят личные сообщения. Запоминается на этом устройстве.</p>
+    <div class="theme-pick chat-pick" role="radiogroup" aria-label="Вид переписок">
+      <label class="theme-opt${st === 'x' ? ' on' : ''}"><input type="radio" name="chatstyle" value="x"${st === 'x' ? ' checked' : ''}><span class="cl-prev cl-x"><i></i><i></i><i></i></span><b>Как в X</b></label>
+      <label class="theme-opt${st === 'tg' ? ' on' : ''}"><input type="radio" name="chatstyle" value="tg"${st === 'tg' ? ' checked' : ''}><span class="cl-prev cl-tg"><i></i><i></i><i></i></span><b>Как в Telegram</b></label>
+    </div>
+    <h3 class="wall-h">Фон чата ${ok ? '' : '<span class="wall-lock">с роли ГОЙ</span>'}</h3>
+    <div class="wall-grid${ok ? '' : ' locked'}">
+      ${CHAT_WALLS.map(([id, name, css]) => `<button type="button" class="wall${w === id ? ' on' : ''}" data-wall="${id}" title="${name}" style="${css ? `background:${css}` : ''}"${ok ? '' : ' disabled'}><span>${name}</span></button>`).join('')}
+      <label class="wall wall-own${own ? ' on' : ''}" title="Своя картинка" style="${own ? `background:url('${esc(own)}') center/cover` : ''}"><input type="file" accept="image/*" hidden${ok ? '' : ' disabled'}><span>${own ? 'Своя' : '+ Своя картинка'}</span></label>
+    </div>
+    ${ok ? '' : `<p class="wall-note">Свой фон в переписках — привилегия ГОЙ и выше. <a href="#" data-to-shop>Оформить подписку</a></p>`}</div>`;
+}
+function bindChatLook(root) {
+  $$('input[name="chatstyle"]', root).forEach(inp => inp.onchange = () => {
+    lsSet('rp_chat_style', inp.value === 'tg' ? 'tg' : null); applyChatLook();
+    $$('.chat-pick .theme-opt', root).forEach(l => l.classList.toggle('on', $('input', l).checked));
+  });
+  const grid = $('.wall-grid', root); if (!grid) return;
+  grid.onclick = e => {
+    const b = e.target.closest('[data-wall]'); if (!b || !wallOk()) return;
+    lsSet('rp_chat_wall', b.dataset.wall === 'none' ? null : b.dataset.wall); applyChatLook();
+    $$('.wall', grid).forEach(x => x.classList.toggle('on', x === b));
+    toast('Фон чата изменён');
+  };
+  const fi = $('.wall-own input', root);
+  if (fi) fi.onchange = async () => {
+    const f = fi.files[0]; fi.value = ''; if (!f || !wallOk()) return;
+    const lbl = fi.parentElement; $('span', lbl).textContent = 'Загрузка…';
+    try {
+      const url = await uploadImage(f);
+      lsSet('rp_chat_wall', 'img:' + url); applyChatLook();
+      lbl.style.background = `url('${url}') center/cover`; $('span', lbl).textContent = 'Своя';
+      $$('.wall', grid).forEach(x => x.classList.toggle('on', x === lbl)); toast('Фон чата изменён');
+    } catch (e) { $('span', lbl).textContent = '+ Своя картинка'; toast(errText(e), true); }
+  };
+  const ts = $('[data-to-shop]', root);
+  if (ts) ts.onclick = e => { e.preventDefault(); $('.shop-grid', root)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
 }
 
 /* ── подписка Y за renah0cki coin (пока только meRockstar) ── */
@@ -2238,7 +2308,7 @@ function drawChat(jump = false) {
     html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}"><div class="bub${tail ? ' tail' : ''}" title="${esc(fullDate(m.created_at))}">`
       + (m.images?.length ? `<div class="bub-imgs n${m.images.length}">${m.images.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-zoom>`).join('')}</div>` : '')
       + voiceHtml(m.voice_url)
-      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + '</div></div>';
+      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + `<span class="bub-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span></div></div>`;
     prev = m;
   });
   box.innerHTML = html;
@@ -2482,7 +2552,7 @@ async function init() {
   if (token && sess?.user?.id) {
     S.uid = sess.user.id;
     await Promise.all([
-      rpc('ensure_profile').then(me => { S.me = me; }).catch(e => console.warn('rp profile', e)),
+      rpc('ensure_profile').then(me => { S.me = me; applyChatLook(); }).catch(e => console.warn('rp profile', e)),
       loadMySlots().catch(() => {}), loadUserReposts().catch(() => {}), loadUserLikes().catch(() => {}),
     ]);
     loadUnread();
