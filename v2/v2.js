@@ -1446,6 +1446,7 @@ async function loadMe() {
     $('#meAva').src = avatarUrl(me);
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
+    $('#navAwards').hidden = me?.id !== OWNER_ID; // OvosheAwards — пока только владельцу
     $('#meOld').hidden = !(hasRole(me, 'gl_moder') || me?.id === OWNER_ID); // старый дизайн — только главному модератору
     $('#navMod').hidden = !isMod();
     if (isMod()) modCount();
