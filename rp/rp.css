@@ -734,7 +734,7 @@ audio.voice { display: block; width: 100%; max-width: 300px; height: 38px; margi
 .wall-note a { color: var(--accent, #1d9bf0); }
 
 /* фон чата (ГОЙ+) */
-html.has-wall body.chat-mode { background: var(--chat-wall); background-attachment: fixed; }
+html.has-wall body.chat-mode .main { background: var(--chat-wall); background-attachment: fixed; }
 html.has-wall body.chat-mode .chat { background: transparent; }
 html.has-wall body.chat-mode .chat-time { display: table; margin-left: auto; margin-right: auto; padding: 3px 10px; border-radius: 12px; background: rgba(0,0,0,.35); color: #fff; }
 /* хвостики, которые не рисуют «заплатку» поверх фона */
@@ -745,9 +745,8 @@ html.has-wall .bub-row.them .bub.tail::before, html[data-chat="tg"] .bub-row.the
 /* как в Telegram */
 html[data-chat="tg"] { --chat-me: #2b5278; --chat-them: #182533; --chat-them-text: #e9eef3; }
 html[data-chat="tg"][data-theme="light"] { --chat-me: #effdde; --chat-them: #ffffff; --chat-them-text: #000; }
-html[data-chat="tg"] body.chat-mode:not(.has-wall-x) { }
-html[data-chat="tg"]:not(.has-wall) body.chat-mode { background: #0e1621; }
-html[data-chat="tg"][data-theme="light"]:not(.has-wall) body.chat-mode { background: #99ba92; }
+html[data-chat="tg"]:not(.has-wall) body.chat-mode .main { background: #0e1621; }
+html[data-chat="tg"][data-theme="light"]:not(.has-wall) body.chat-mode .main { background: #99ba92; }
 html[data-chat="tg"] .bub { border-radius: 14px; padding: 6px 10px 6px 11px; font-size: 15px; line-height: 1.35; box-shadow: 0 1px 1px rgba(0,0,0,.18); }
 html[data-chat="tg"] .bub-row.me .bub.tail { border-bottom-right-radius: 4px; }
 html[data-chat="tg"] .bub-row.them .bub.tail { border-bottom-left-radius: 4px; }
@@ -759,3 +758,15 @@ html[data-chat="tg"] .bub-row.me .bub-time { color: inherit; }
 html[data-chat="tg"] .bub-row { margin-top: 3px; }
 html[data-chat="tg"] .chat-time { display: table; margin-left: auto; margin-right: auto; padding: 3px 10px; border-radius: 12px; background: rgba(0,0,0,.3); color: #fff; }
 html[data-chat="tg"] .bub-imgs { border-radius: 12px; }
+
+/* узорный фон (рисунок окрашен градиентом, только в окне чата) */
+html.wall-doodle body.chat-mode .main { position: relative; isolation: isolate; }
+html.wall-doodle body.chat-mode .main::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--wall-grad); background-attachment: fixed; -webkit-mask: var(--wall-mask) 0 0 / 340px 340px repeat; mask: var(--wall-mask) 0 0 / 340px 340px repeat; opacity: .6; }
+.wall-dd { position: relative; isolation: isolate; }
+.wall-dd::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--pv-grad); -webkit-mask: var(--pv-mask) 0 0 / 200px 200px repeat; mask: var(--pv-mask) 0 0 / 200px 200px repeat; opacity: .75; }
+.wall span { position: relative; }
+/* галочки */
+.ticks { display: inline-flex; margin-left: 3px; vertical-align: -1px; }
+.ticks svg { width: 16px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+html[data-chat="tg"] .bub-row.me .ticks.read { color: #6ec2ff; opacity: 1; }
+html[data-chat="tg"][data-theme="light"] .bub-row.me .ticks.read { color: #4fae4e; }

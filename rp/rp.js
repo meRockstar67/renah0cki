@@ -25,6 +25,8 @@ const I = {
   like: '<svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-9-9.3C2 7.3 4.3 4.5 7.3 4.5c2 0 3.5 1.1 4.7 2.8 1.2-1.7 2.7-2.8 4.7-2.8 3 0 5.3 2.8 4.3 6.2-1.5 4.7-9 9.3-9 9.3z"/></svg>',
   share: '<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13"/></svg>',
   more: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/></svg>',
+  check1: '<svg viewBox="0 0 18 12"><path d="M2 6.5 5.5 10 12.5 2"/></svg>',
+  check2: '<svg viewBox="0 0 18 12"><path d="M1 6.5 4.5 10 11.5 2M7.5 9 8.5 10 15.5 2"/></svg>',
   mic: '<svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
   image: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8.5 8.5"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
@@ -274,6 +276,7 @@ async function subscribeRoom(id) {
   c.realtime.setAuth((await getToken()) || SB_KEY);
   chan = c.channel('rp-room-' + id)
     .on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'dms', filter: 'room_id=eq.' + id }, p => onDmInsert(p.new))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'rp', table: 'dms', filter: 'room_id=eq.' + id }, p => onDmUpdate(p.new))
     .on('postgres_changes', { event: '*', schema: 'rp', table: 'slots', filter: 'room_id=eq.' + id }, () => onSlotsChange())
     .on('postgres_changes', { event: 'UPDATE', schema: 'rp', table: 'rooms', filter: 'id=eq.' + id }, p => { S.room = { ...S.room, ...p.new }; renderRight(); })
     .subscribe();
@@ -1982,16 +1985,44 @@ function viewSettings() {
 }
 
 /* ── вид переписок: как в X или как в Telegram; фон чата — с роли ГОЙ ── */
+// узорные фоны: тёмная основа + рисунок из символов, окрашенный градиентом (как в Telegram)
+const DOODLES = {
+  space: ['★', '✦', '☾', '✧', '✶', '☄', '⊙', '✷', '✺'],
+  math: ['π', '∑', '√', '∞', '∫', 'x²', '≠', '÷', 'Δ', 'θ', '%', '∂', 'λ'],
+  love: ['♥', '♡', '✿', '❀', '✧', '❥', '☁', '✦'],
+  games: ['✕', '○', '△', '□', '♠', '♣', '♦', '★', '⚑', '✚'],
+  music: ['♪', '♫', '♬', '♩', '✦', '☆', '♯', '♭'],
+  snow: ['❄', '❅', '❆', '✦', '·', '✧', '❉'],
+};
+function doodleSvg(kind) {
+  const g = DOODLES[kind] || DOODLES.space, N = 90, W = 340;
+  let seed = [...kind].reduce((a, c) => a + c.charCodeAt(0), 7);
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  let out = '';
+  for (let k = 0; k < N; k++) {
+    const x = (rnd() * W).toFixed(1), y = (rnd() * W).toFixed(1), sz = (13 + rnd() * 15).toFixed(0), r = (rnd() * 60 - 30).toFixed(0);
+    out += `<text x="${x}" y="${y}" font-size="${sz}" transform="rotate(${r} ${x} ${y})">${g[k % g.length]}</text>`;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${W}" font-family="Segoe UI Symbol,Apple Symbols,Noto Sans Symbols 2,DejaVu Sans,sans-serif" fill="#000">${out}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+// [id, название, фон (css) | узор, градиент рисунка]
 const CHAT_WALLS = [
   ['none', 'Без фона', ''],
+  ['d-space', 'Космос', { d: 'space', base: '#0b0b16', grad: 'linear-gradient(160deg,#6a5cff,#2ad4ff 60%,#8c52ff)' }],
+  ['d-math', 'Формулы', { d: 'math', base: '#0d0f0d', grad: 'linear-gradient(160deg,#e7f59a,#9be15d 50%,#f9d976)' }],
+  ['d-love', 'Сказка', { d: 'love', base: '#110b17', grad: 'linear-gradient(160deg,#ff6ec4,#7873f5 55%,#4adede)' }],
+  ['d-games', 'Игры', { d: 'games', base: '#0a0f12', grad: 'linear-gradient(160deg,#f6d365,#45e3a7 45%,#b56cff)' }],
+  ['d-music', 'Музыка', { d: 'music', base: '#120d0a', grad: 'linear-gradient(160deg,#ffb36b,#ff5e62 55%,#ffd86b)' }],
+  ['d-snow', 'Снежинки', { d: 'snow', base: '#0a0f17', grad: 'linear-gradient(160deg,#5ee7df,#3f8cff 50%,#b490ca)' }],
   ['sky', 'Небо', 'linear-gradient(160deg,#4f7fb5,#8fb3d9 50%,#c7d9a7)'],
   ['night', 'Ночь', 'radial-gradient(circle at 20% 20%,#3a2d6b,transparent 45%),radial-gradient(circle at 80% 75%,#1d4e6b,transparent 50%),#0b0f1d'],
-  ['tg', 'Телеграм', 'radial-gradient(rgba(255,255,255,.07) 1.2px,transparent 1.3px) 0 0/18px 18px,linear-gradient(160deg,#0e1621,#1b2a3a)'],
   ['mint', 'Мята', 'linear-gradient(135deg,#a8e6cf,#dcedc1 50%,#ffd3b6)'],
   ['sunset', 'Закат', 'linear-gradient(160deg,#ff9a8b,#ff6a88 45%,#ff99ac)'],
   ['lilac', 'Сирень', 'linear-gradient(160deg,#c3a6ff,#8ec5fc)'],
-  ['ice', 'Лёд', 'radial-gradient(rgba(255,255,255,.35) 1px,transparent 1.2px) 0 0/22px 22px,linear-gradient(170deg,#0b1220,#1d3557 60%,#457b9d)'],
 ];
+// превью в настройках — та же картинка, что и в чате
+const wallPreview = w => !w ? '' : typeof w === 'string' ? `background:${w}` : `background:${w.base}; --pv-grad:${w.grad}; --pv-mask:${doodleSvg(w.d)}`;
 const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
 const wallOk = () => rank() >= 1;
@@ -2003,9 +2034,13 @@ function wallCss() {
 function applyChatLook() {
   const de = document.documentElement;
   de.dataset.chat = lsGet('rp_chat_style') === 'tg' ? 'tg' : 'x';
-  const css = wallOk() ? wallCss() : '';
-  if (css) { de.style.setProperty('--chat-wall', css); de.classList.add('has-wall'); }
-  else { de.style.removeProperty('--chat-wall'); de.classList.remove('has-wall'); }
+  const w = wallOk() ? wallCss() : '';
+  ['--chat-wall', '--wall-grad', '--wall-mask'].forEach(v => de.style.removeProperty(v));
+  de.classList.remove('has-wall', 'wall-doodle');
+  if (!w) return;
+  de.classList.add('has-wall');
+  if (typeof w === 'string') de.style.setProperty('--chat-wall', w);
+  else { de.classList.add('wall-doodle'); de.style.setProperty('--chat-wall', w.base); de.style.setProperty('--wall-grad', w.grad); de.style.setProperty('--wall-mask', doodleSvg(w.d)); }
 }
 function chatLookHtml() {
   const st = lsGet('rp_chat_style') === 'tg' ? 'tg' : 'x', w = lsGet('rp_chat_wall') || 'none', ok = wallOk();
@@ -2017,7 +2052,7 @@ function chatLookHtml() {
     </div>
     <h3 class="wall-h">Фон чата ${ok ? '' : '<span class="wall-lock">с роли ГОЙ</span>'}</h3>
     <div class="wall-grid${ok ? '' : ' locked'}">
-      ${CHAT_WALLS.map(([id, name, css]) => `<button type="button" class="wall${w === id ? ' on' : ''}" data-wall="${id}" title="${name}" style="${css ? `background:${css}` : ''}"${ok ? '' : ' disabled'}><span>${name}</span></button>`).join('')}
+      ${CHAT_WALLS.map(([id, name, css]) => `<button type="button" class="wall${typeof css === 'object' ? ' wall-dd' : ''}${w === id ? ' on' : ''}" data-wall="${id}" title="${name}" style="${esc(wallPreview(css))}"${ok ? '' : ' disabled'}><span>${name}</span></button>`).join('')}
       <label class="wall wall-own${own ? ' on' : ''}" title="Своя картинка" style="${own ? `background:url('${esc(own)}') center/cover` : ''}"><input type="file" accept="image/*" hidden${ok ? '' : ' disabled'}><span>${own ? 'Своя' : '+ Своя картинка'}</span></label>
     </div>
     ${ok ? '' : `<p class="wall-note">Свой фон в переписках — привилегия ГОЙ и выше. <a href="#" data-to-shop>Оформить подписку</a></p>`}</div>`;
@@ -2286,12 +2321,13 @@ async function viewDmChat(roomKey, peerId) {
       <button class="chat-send" type="submit" disabled aria-label="Отправить">${I.send}</button>
     </form>`;
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${me.id},to_slot.eq.${peer.id}),and(from_slot.eq.${peer.id},to_slot.eq.${me.id}))&select=id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.asc&limit=1000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${me.id},to_slot.eq.${peer.id}),and(from_slot.eq.${peer.id},to_slot.eq.${me.id}))&select=id,from_slot,to_slot,body,images,voice_url,read_at,created_at&order=created_at.asc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dm') return;
   rows.forEach(m => { chat.msgs.push(m); chat.ids.add(m.id); });
   drawChat(true);
   wireChatBar();
+  markDmRead();
 }
 function drawChat(jump = false) {
   const box = $('#chat'); if (!box) return;
@@ -2308,7 +2344,7 @@ function drawChat(jump = false) {
     html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}"><div class="bub${tail ? ' tail' : ''}" title="${esc(fullDate(m.created_at))}">`
       + (m.images?.length ? `<div class="bub-imgs n${m.images.length}">${m.images.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-zoom>`).join('')}</div>` : '')
       + voiceHtml(m.voice_url)
-      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + `<span class="bub-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span></div></div>`;
+      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + `<span class="bub-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${mine && S.view === 'dm' ? `<i class="ticks${m.read_at ? ' read' : ''}" title="${m.read_at ? 'Прочитано' : 'Отправлено'}">${m.read_at ? I.check2 : I.check1}</i>` : ''}</span></div></div>`;
     prev = m;
   });
   box.innerHTML = html;
@@ -2366,6 +2402,22 @@ function wireChatBar() {
 function addChatMsg(m) {
   if (chat.ids.has(m.id)) return;
   chat.ids.add(m.id); chat.msgs.push(m); drawChat();
+  if (m.from_slot === chat.peer) markDmRead();
+}
+// собеседник прочитал: открыт свой чат и вкладка видна
+let readT;
+function markDmRead() {
+  clearTimeout(readT);
+  readT = setTimeout(() => {
+    if (S.view !== 'dm' || document.hidden || !chat.me || !chat.msgs.some(m => m.from_slot === chat.peer && !m.read_at)) return;
+    rpc('dm_mark_read', { p_room: S.room.id, p_me: chat.me, p_peer: chat.peer }).then(() => { chat.msgs.forEach(m => { if (m.from_slot === chat.peer && !m.read_at) m.read_at = new Date().toISOString(); }); }).catch(() => {});
+  }, 400);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) markDmRead(); });
+function onDmUpdate(row) {
+  if (S.view !== 'dm') return;
+  const m = chat.msgs.find(x => x.id === row.id); if (!m || m.read_at === row.read_at) return;
+  m.read_at = row.read_at; drawChat();
 }
 let dmListT;
 function onDmInsert(row) {
