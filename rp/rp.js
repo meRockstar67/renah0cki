@@ -2177,19 +2177,24 @@ async function viewDmHub() {
 }
 // чужие переписки из всех комнат, которые видны по роли — без захода в комнату
 async function fillPeekAll(mySlotIds) {
-  let rows;
-  try { rows = await api(`dms?select=room_id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.desc&limit=2000`); }
-  catch (e) { const b = $('#peekAll'); if (b) b.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
-  const pairs = new Map();
-  rows.forEach(m => {
-    if (mySlotIds.has(m.from_slot) || mySlotIds.has(m.to_slot)) return;
-    const [a, b] = [m.from_slot, m.to_slot].sort();
-    const k = a + '|' + b;
-    if (!pairs.has(k)) pairs.set(k, { room: m.room_id, a, b, m, n: 0 });
-    pairs.get(k).n++;
-  });
-  const items = [...pairs.values()];
-  const slotIds = [...new Set(items.flatMap(x => [x.a, x.b]))], roomIds = [...new Set(items.map(x => x.room))];
+  // сначала — прошлый список из памяти (мгновенно), потом свежий
+  const ck = 'rp_peek_' + (S.uid || '');
+  try { const c = JSON.parse(localStorage.getItem(ck) || 'null'); if (c) drawPeekAll(c); } catch {}
+  let pairs;
+  try {
+    // быстрый путь: база сама собирает по одной строке на переписку
+    const r = await rpc('dm_pairs');
+    pairs = r.map(x => ({ room: x.room_id, a: x.a, b: x.b, at: x.created_at, n: +x.cnt, m: { body: x.body, voice_url: x.has_voice ? 1 : null, images: x.n_imgs ? [1] : [] } }));
+  } catch {
+    let rows;
+    try { rows = await api(`dms?select=room_id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.desc&limit=1000`); }
+    catch (e) { const b = $('#peekAll'); if (b) b.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
+    const map = new Map();
+    rows.forEach(m => { const [a, b] = [m.from_slot, m.to_slot].sort(), k = m.room_id + a + b; if (!map.has(k)) map.set(k, { room: m.room_id, a, b, at: m.created_at, m, n: 0 }); map.get(k).n++; });
+    pairs = [...map.values()];
+  }
+  pairs = pairs.filter(x => !mySlotIds.has(x.a) && !mySlotIds.has(x.b)).sort((x, y) => new Date(y.at) - new Date(x.at)).slice(0, 150);
+  const slotIds = [...new Set(pairs.flatMap(x => [x.a, x.b]))], roomIds = [...new Set(pairs.map(x => x.room))];
   const chunk = (arr, n) => arr.reduce((acc, v, i) => (i % n ? acc[acc.length - 1].push(v) : acc.push([v]), acc), []);
   let slots = [], rooms = [];
   try {
@@ -2198,13 +2203,16 @@ async function fillPeekAll(mySlotIds) {
       Promise.all(chunk(roomIds, 80).map(c => api(`rooms?id=in.(${c.join(',')})&select=id,title,short_code,image_url`))).then(r => r.flat()),
     ]);
   } catch {}
+  const sm = new Map(slots.map(x => [x.id, x])), rm = new Map(rooms.map(r => [r.id, r]));
+  const data = pairs.filter(x => sm.has(x.a) && sm.has(x.b) && rm.has(x.room)).map(x => ({ ...x, A: sm.get(x.a), B: sm.get(x.b), R: rm.get(x.room) }));
+  try { localStorage.setItem(ck, JSON.stringify(data)); } catch {}
+  drawPeekAll(data);
+}
+function drawPeekAll(vis) {
   const box = $('#peekAll'); if (!box || S.view !== 'dmhub') return;
-  const sm = new Map(slots.map(s => [s.id, s])), rm = new Map(rooms.map(r => [r.id, r]));
-  const vis = items.filter(x => sm.has(x.a) && sm.has(x.b) && rm.has(x.room));
-  box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + (vis.length ? vis.map(({ room, a, b, m, n }) => {
-    const A = sm.get(a), B = sm.get(b), R = rm.get(room);
+  box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + (vis.length ? vis.map(({ a, b, m, n, A, B, R, at }) => {
     const txt = m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
-    return `<a class="dm-row" href="${roomPath(R, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
+    return `<a class="dm-row" href="${roomPath(R, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(at)}</time></div>
       <div class="dm-last"><span class="dm-none">${esc(R.title)} ·</span> ${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
   }).join('') : '<div class="empty"><p>Пока нет переписок, доступных вам по роли.</p></div>');
 }
@@ -2277,7 +2285,7 @@ async function viewDmPeek(roomKey, aId, bId) {
     <div class="peek-note">Вы читаете чужую переписку — только просмотр. Справа сообщения ${esc(A.char_name)}.</div>
     <div class="chat" id="chat">${loader()}</div>`;
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${A.id},to_slot.eq.${B.id}),and(from_slot.eq.${B.id},to_slot.eq.${A.id}))&select=id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.asc&limit=1000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${A.id},to_slot.eq.${B.id}),and(from_slot.eq.${B.id},to_slot.eq.${A.id}))&select=id,from_slot,to_slot,body,images,voice_url,read_at,created_at&order=created_at.asc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dmpeek') return;
   if (!rows.length) { $('#chat').innerHTML = '<div class="empty"><h2>Нет доступа или пусто</h2><p>Переписка видна только ролям выше обоих участников.</p></div>'; return; }
@@ -2344,9 +2352,11 @@ function drawChat(jump = false) {
     html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}"><div class="bub${tail ? ' tail' : ''}" title="${esc(fullDate(m.created_at))}">`
       + (m.images?.length ? `<div class="bub-imgs n${m.images.length}">${m.images.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-zoom>`).join('')}</div>` : '')
       + voiceHtml(m.voice_url)
-      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + `<span class="bub-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${mine && S.view === 'dm' ? `<i class="ticks${m.read_at ? ' read' : ''}" title="${m.read_at ? 'Прочитано' : 'Отправлено'}">${m.read_at ? I.check2 : I.check1}</i>` : ''}</span></div></div>`;
+      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + `<span class="bub-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${mine && (S.view === 'dm' || S.view === 'dmpeek') ? `<i class="ticks${m.read_at ? ' read' : ''}" title="${m.read_at ? 'Прочитано' : 'Отправлено'}">${m.read_at ? I.check2 : I.check1}</i>` : ''}</span></div></div>`;
     prev = m;
   });
+  const lastM = chat.msgs[chat.msgs.length - 1];
+  if ((S.view === 'dm' || S.view === 'dmpeek') && lastM && lastM.from_slot === chat.me) html += `<div class="bub-status${lastM.read_at ? ' read' : ''}">${lastM.read_at ? I.check2 + 'Прочитано' : I.check1 + 'Отправлено'}</div>`;
   box.innerHTML = html;
   if (jump || nearBottom) requestAnimationFrame(() => scrollTo({ top: document.body.scrollHeight, behavior: jump ? 'auto' : 'smooth' }));
 }

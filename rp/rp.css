@@ -770,3 +770,9 @@ html.wall-doodle body.chat-mode .main::before { content: ""; position: absolute;
 .ticks svg { width: 16px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 html[data-chat="tg"] .bub-row.me .ticks.read { color: #6ec2ff; opacity: 1; }
 html[data-chat="tg"][data-theme="light"] .bub-row.me .ticks.read { color: #4fae4e; }
+
+/* статус последнего своего сообщения (вид «как в X») */
+.bub-status { display: flex; justify-content: flex-end; align-items: center; gap: 4px; padding: 3px 14px 0; font-size: 12px; color: var(--muted); }
+.bub-status svg { width: 16px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.bub-status.read { color: var(--accent); }
+html[data-chat="tg"] .bub-status { display: none; }
