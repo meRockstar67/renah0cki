@@ -59,7 +59,7 @@ async function upload(file, onPct) {
 }
 
 /* ── состояние ── */
-const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0 };
+const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0, homeScroll: 0, view: '', lastVoted: null };
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
 const thumb = (u, w = 720) => { const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+\.(?:jpe?g|png|webp))$/i); return m ? `${CDN}/thumb/${w}/${m[1]}` : u; };
 const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return n > 10 && n < 20 ? c : k > 1 && k < 5 ? b : k === 1 ? a : c; };
@@ -268,7 +268,7 @@ async function loadMe() {
 function slayCardHtml(n, idx) {
   const list = neesOf(n.id), mine = S.votes.get(n.id), pick = list.find(x => x.id === mine);
   const sub = pick ? `✓ Ваш голос: ${pick.title}` : (!n.is_open ? 'Голосование закрыто' : 'Сделай выбор');
-  return `<article class="slay-card" style="--i:${idx}">
+  return `<article class="slay-card sr" style="--i:${idx};--sd:${(idx % 3) * 85}ms">
     <a class="slay-emblem" href="#/n/${n.id}" aria-label="${esc(n.title)}">${crystalSvg(n, idx)}</a>
     <h3 class="slay-card-t"><a href="#/n/${n.id}">${esc(n.title)}</a></h3>
     <div class="slay-card-sub${pick ? ' picked' : ''}">${esc(sub)}</div>
@@ -350,8 +350,39 @@ function tickCountdown() {
   if (ml) ml.textContent = plural(m, 'минута', 'минуты', 'минут');
 }
 
+const EMBERS_HTML = Array.from({ length: 24 }, (_, i) => {
+  const left = ((i * 37 + 11) % 94) + 3;
+  const sz = 2.5 + (i % 4) * 1.2;
+  const d = (5.5 + (i % 5) * 1.35).toFixed(2);
+  const dl = (-((i * 1.17) % 7)).toFixed(2);
+  const dx = ((i % 2 ? 1 : -1) * (18 + (i % 4) * 16));
+  return `<span class="slay-ember" style="left:${left}%;width:${sz}px;height:${sz}px;--d:${d}s;--dl:${dl}s;--dx:${dx}px"></span>`;
+}).join('');
+
+let revealObs = null;
+function initReveal(instantAbove = false) {
+  revealObs?.disconnect();
+  const els = [...page.querySelectorAll('.sr')];
+  if (!els.length) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+    els.forEach(el => el.classList.add('in'));
+    return;
+  }
+  if (instantAbove) {
+    const vh = innerHeight;
+    els.forEach(el => { if (el.getBoundingClientRect().top < vh * 1.05) el.classList.add('in'); });
+  }
+  revealObs = new IntersectionObserver(entries => {
+    for (const en of entries) {
+      if (en.isIntersecting) { en.target.classList.add('in'); revealObs.unobserve(en.target); }
+    }
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+  els.forEach(el => { if (!el.classList.contains('in')) revealObs.observe(el); });
+}
+
 /* ── главная: все секции SLAY ── */
-function viewHome() {
+function viewHome(restoreScroll = false) {
+  S.view = 'home';
   const total = S.noms.length, voted = S.noms.filter(n => S.votes.has(n.id)).length;
   const top2 = S.noms.slice(0, 2);
   const top3 = S.noms.slice(2, 5);
@@ -359,6 +390,7 @@ function viewHome() {
   page.innerHTML = `
     <section class="slay-hero" id="sec-hero">
       <div class="slay-hero-bg" aria-hidden="true"></div>
+      <div class="slay-embers" aria-hidden="true">${EMBERS_HTML}</div>
       <div class="slay-hero-in">
         <div class="slay-hero-pill"><b>OvosheAwards 2026</b><i></i></div>
         <h1>OVOSHE<br>AWARDS</h1>
@@ -368,15 +400,15 @@ function viewHome() {
       </div>
     </section>
 
-    ${S.admin ? `<div class="aw-admin-wrap"><div class="aw-admin-bar"><span>Модерация</span>
+    ${S.admin ? `<div class="aw-admin-wrap sr"><div class="aw-admin-bar"><span>Модерация</span>
       <button class="aw-btn gold" data-add-nom>＋ Номинация</button>
       <label class="aw-sw"><input type="checkbox" data-show-res${S.showRes ? ' checked' : ''}><i></i>Показывать голоса</label>
       <label class="aw-sw"><input type="checkbox" data-flat-grid${S.flatGrid ? ' checked' : ''}><i></i>Все номинации сеткой</label>
     </div></div>` : ''}
 
     <section class="slay-sec" id="sec-noms">
-      <h2 class="slay-h2">Номинации 2026</h2>
-      <p class="slay-sub">Поддержи любимых участников и моменты года. Голосуй за лучших в каждой номинации</p>
+      <h2 class="slay-h2 sr">Номинации 2026</h2>
+      <p class="slay-sub sr" style="--sd:80ms">Поддержи любимых участников и моменты года. Голосуй за лучших в каждой номинации</p>
       ${!S.noms.length ? '<div class="aw-empty">Номинаций пока нет.</div>' : S.flatGrid
         ? `<div class="slay-all-grid">${S.noms.map((n, i) => slayCardHtml(n, i)).join('')}</div>`
         : `${top2.length ? `<div class="slay-top2">${top2.map((n, i) => slayCardHtml(n, i)).join('')}</div>` : ''}
@@ -384,11 +416,11 @@ function viewHome() {
     </section>
 
     ${!S.flatGrid && more.length ? `<section class="slay-sec slay-more" id="sec-more">
-      <h2 class="slay-h2">Больше номинаций</h2>
-      <div id="slayCarBox"></div>
+      <h2 class="slay-h2 sr">Больше номинаций</h2>
+      <div id="slayCarBox" class="sr" style="--sd:90ms"></div>
     </section>` : ''}
 
-    <section class="slay-sec slay-cd" id="sec-cd">
+    <section class="slay-sec slay-cd sr" id="sec-cd">
       <div class="slay-cd-k">До итогов</div>
       <div class="slay-cd-h">Премии</div>
       <div class="slay-cd-grid">
@@ -401,11 +433,11 @@ function viewHome() {
       <a class="slay-btn" href="#/" data-jump="noms">К НОМИНАЦИЯМ</a>
     </section>
 
-    <section class="slay-faq" id="sec-faq">
+    <section class="slay-faq sr" id="sec-faq">
       <h2 class="slay-h2 white">Вопрос-ответ</h2>
       <div class="slay-faq-list">${FAQ.map(([q, a]) => `<div class="slay-faq-item">
         <button type="button" class="slay-faq-q" data-faq><span>${esc(q)}</span>${STAR_SVG()}</button>
-        <div class="slay-faq-a">${esc(a)}</div>
+        <div class="slay-faq-a"><div>${esc(a)}</div></div>
       </div>`).join('')}</div>
     </section>`;
 
@@ -413,6 +445,14 @@ function viewHome() {
   tickCountdown();
   clearInterval(cdT);
   cdT = setInterval(tickCountdown, 15000);
+  if (restoreScroll && S.homeScroll > 0) {
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: S.homeScroll, behavior: 'instant' });
+      initReveal(true);
+    });
+  } else {
+    initReveal(window.scrollY > 10);
+  }
 }
 
 /* ── номинация (#/n/<id>) ── */
@@ -425,12 +465,15 @@ function mediaHtml(x, big) {
   return `<div class="aw-media aw-nomedia">${esc((x.title || '?').slice(0, 1).toUpperCase())}</div>`;
 }
 function viewNom(id) {
+  S.view = 'nom';
   clearInterval(cdT);
+  revealObs?.disconnect();
   const n = S.noms.find(x => x.id === id);
   if (!n) { page.innerHTML = '<div class="aw-empty">Номинация не найдена. <a href="#/">Ко всем номинациям</a></div>'; return; }
   const list = neesOf(id), mine = S.votes.get(id), idx = S.noms.indexOf(n);
   const prev = S.noms[idx - 1], next = S.noms[idx + 1];
   const max = S.results ? Math.max(1, ...list.map(x => S.results.get(x.id) || 0)) : 1;
+  const just = S.lastVoted; S.lastVoted = null;
   page.innerHTML = `<div class="aw-nom-wrap">
     <a class="aw-crumb" href="#/">← Все номинации</a>
     <section class="aw-nom-head">
@@ -447,7 +490,7 @@ function viewNom(id) {
     </section>
     <div class="aw-nees">${list.map((x, i) => {
       const on = mine === x.id, v = S.results?.get(x.id) || 0;
-      return `<article class="aw-nee${on ? ' on' : ''}" style="--i:${i}">
+      return `<article class="aw-nee${on ? ' on' : ''}${just === x.id ? ' just-voted' : ''}" style="--i:${i}">
         ${mediaHtml(x)}
         <div class="aw-nee-body"><h3>${esc(x.title)}</h3>${x.description ? `<p>${esc(x.description)}</p>` : ''}
           ${S.results && S.showRes ? `<div class="aw-res"><div class="aw-res-bar"><i style="width:${v / max * 100}%"></i></div><span>${v} ${plural(v, 'голос', 'голоса', 'голосов')}</span></div>` : ''}
@@ -467,7 +510,7 @@ async function vote(id) {
   const x = S.nees.find(y => y.id === id); if (!x) return;
   try {
     const r = await rpc('aw_vote', { p_nominee: id });
-    if (r) { S.votes.set(x.nomination_id, r); toast('Голос учтён'); } else { S.votes.delete(x.nomination_id); toast('Голос снят'); }
+    if (r) { S.votes.set(x.nomination_id, r); S.lastVoted = r; toast('Голос учтён'); } else { S.votes.delete(x.nomination_id); toast('Голос снят'); }
     if (S.admin) { const res = await rpc('aw_results').catch(() => null); S.results = res ? new Map(res.map(z => [z.nominee_id, +z.votes])) : null; }
     route();
   } catch (e) { toast(e.message, true); }
@@ -526,12 +569,18 @@ function neeDialog(nomId, x) {
 
 function jumpTo(id) {
   const go = () => { const el = $(`#sec-${id}`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-  if (location.hash && location.hash !== '#/' && location.hash !== '#') { location.hash = '#/'; setTimeout(go, 60); }
-  else go();
+  if (location.hash && location.hash !== '#/' && location.hash !== '#') {
+    S.homeScroll = 0;
+    location.hash = '#/';
+    setTimeout(go, 70);
+  } else go();
 }
 document.addEventListener('click', e => {
   const j = e.target.closest('[data-jump]');
-  if (j) { e.preventDefault(); jumpTo(j.dataset.jump); }
+  if (j) { e.preventDefault(); jumpTo(j.dataset.jump); return; }
+  // запоминаем позицию скролла на главной перед переходом в номинацию
+  const nomLink = e.target.closest('a[href^="#/n/"]');
+  if (nomLink && S.view === 'home') S.homeScroll = window.scrollY;
 });
 page.addEventListener('click', async e => {
   const t = e.target;
@@ -581,12 +630,30 @@ page.addEventListener('touchend', e => {
   }
 }, { passive: true });
 
-/* ── роутер ── */
-function route() {
-  const p = location.hash.replace(/^#\/?/, '').split('/');
-  if (p[0] === 'n' && p[1]) viewNom(p[1]); else viewHome();
+/* ── лёгкий параллакс фонового кристалла на скролле ── */
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  let praf = 0;
+  addEventListener('scroll', () => {
+    if (praf || S.view !== 'home') return;
+    praf = requestAnimationFrame(() => {
+      praf = 0;
+      const bg = $('.slay-hero-bg');
+      if (bg && scrollY < innerHeight * 1.2) bg.style.transform = `translate3d(0,${(scrollY * 0.16).toFixed(1)}px,0)`;
+    });
+  }, { passive: true });
 }
-addEventListener('hashchange', () => { route(); scrollTo(0, 0); });
+
+/* ── роутер ── */
+function route(fromNav = false) {
+  const p = location.hash.replace(/^#\/?/, '').split('/');
+  if (p[0] === 'n' && p[1]) {
+    viewNom(p[1]);
+    if (fromNav) window.scrollTo({ top: 0, behavior: 'instant' });
+  } else {
+    viewHome(fromNav);
+  }
+}
+addEventListener('hashchange', () => route(true));
 page.innerHTML = `<div class="aw-load"><div class="aw-load-cr">${crystalSvg({ title: 'king' }, 0)}</div></div>`;
 loadMe().then(ok => { if (!ok) return; return loadAll().then(route); }).catch(e => { page.innerHTML = `<div class="aw-empty">Не удалось загрузить: ${esc(e.message)}</div>`; });
 })();
