@@ -5,6 +5,7 @@ const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
 const CDN = 'https://cdn.renah0cki.xyz';
 const OWNER = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
+const STAFF_ROLES = ['moderator', 'gl_moder', 'admin'];
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -75,13 +76,15 @@ async function loadAll() {
   S.results = res ? new Map(res.map(r => [r.nominee_id, +r.votes])) : null;
 }
 async function loadMe() {
-  if (!S.uid) return;
+  if (!S.uid) { location.replace('/'); return false; }
   try {
     const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,role,extra_roles`);
     S.me = me;
-    S.admin = S.uid === OWNER || me?.role === 'admin' || (me?.extra_roles || []).includes('admin');
+    S.admin = S.uid === OWNER || (!!me && [me.role, ...(me.extra_roles || [])].some(r => STAFF_ROLES.includes(r)));
+    if (!S.admin) { location.replace('/'); return false; }
     $('#awMe').innerHTML = me ? `<img src="${esc(me.avatar_url || '/icon-32.png')}" alt=""><span>${esc(me.display_name || me.username)}</span>` : '';
-  } catch {}
+    return true;
+  } catch { location.replace('/'); return false; }
 }
 
 /* ── главная: все номинации ── */
@@ -234,5 +237,5 @@ function route() {
 }
 addEventListener('hashchange', () => { route(); scrollTo(0, 0); });
 page.innerHTML = '<div class="aw-load"><span>🥕</span></div>';
-loadMe().then(loadAll).then(route).catch(e => { page.innerHTML = `<div class="aw-empty">Не удалось загрузить: ${esc(e.message)}</div>`; });
+loadMe().then(ok => { if (!ok) return; return loadAll().then(route); }).catch(e => { page.innerHTML = `<div class="aw-empty">Не удалось загрузить: ${esc(e.message)}</div>`; });
 })();
