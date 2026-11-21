@@ -166,7 +166,7 @@ function tickClock() {
   p.classList.toggle('on', run);
   const icon = run ? '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z"/></svg>';
   if (p.dataset.i !== String(run)) { p.innerHTML = icon; p.dataset.i = String(run); }
-  p.disabled = a.status === 'closed';
+  p.disabled = false;
 }
 (function frame() { tickClock(); requestAnimationFrame(frame); })();
 setInterval(tickClock, 500);   // если вкладка в фоне и кадры не рисуются
@@ -246,10 +246,9 @@ function renderLots(v) {
   }
   const f = $('.addbar', v);
   if (f) {
-    const canAdd = S.isAdmin && A().auction.status !== 'closed';
     f.hidden = !S.isAdmin;
-    f.classList.toggle('is-closed', !canAdd);
-    f.querySelectorAll('input,select,button').forEach(x => { x.disabled = !canAdd; });
+    f.classList.toggle('is-closed', A().auction.status === 'closed');
+    f.querySelectorAll('input,select,button').forEach(x => { x.disabled = false; });
   }
   const d = A(); const all = d.lots;
   const max = Math.max(1, ...all.map(l => +l.total)); const sum = all.reduce((s, l) => s + +l.total, 0) || 1;
@@ -1041,6 +1040,14 @@ document.addEventListener('click', async e => {
   try {
     switch (act) {
       case 'play':
+        if (a.status === 'closed') {
+          WH.result = null;
+          await batch(async () => {
+            await admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' });
+            await admDo({ a: 'control', op: 'start', sec: S.startMin * 60 });
+          });
+          return toast('Новый аукцион запущен');
+        }
         if (a.status === 'idle') return admDo({ a: 'control', op: 'start', sec: S.startMin * 60 }, 'Аукцион начался');
         if (a.status === 'running') return admDo({ a: 'control', op: 'pause' });
         if (a.status === 'paused') return admDo({ a: 'control', op: 'start' });
@@ -1048,12 +1055,21 @@ document.addEventListener('click', async e => {
         return;
       case 'minus': case 'plus': case 'plus2': {
         const dlt = act === 'plus2' ? 2 : act === 'plus' ? 1 : -1;
+        if (a.status === 'closed') {
+          WH.result = null;
+          S.startMin = Math.max(1, Math.min(600, S.startMin + dlt)); ls.set('auc_startmin', S.startMin);
+          await admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' }, 'Открыт новый аукцион');
+          return tickClock();
+        }
         if (a.status === 'idle') { S.startMin = Math.max(1, Math.min(600, S.startMin + dlt)); ls.set('auc_startmin', S.startMin); return tickClock(); }
+        if (a.status === 'ended') return admDo({ a: 'control', op: 'reopen', sec: Math.max(60, 60 * dlt) }, 'Ставки снова открыты');
         if (['running', 'paused'].includes(a.status)) return admDo({ a: 'control', op: 'add', sec: 60 * dlt });
         return;
       }
       case 'reset':
+        if (a.status === 'closed') { WH.result = null; return admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' }, 'Открыт новый аукцион'); }
         if (['running', 'paused'].includes(a.status)) return admDo({ a: 'control', op: 'set', sec: S.startMin * 60 }, 'Таймер сброшен');
+        if (a.status === 'ended') return admDo({ a: 'control', op: 'reopen', sec: S.startMin * 60 }, 'Таймер сброшен');
         if (a.status === 'idle') { S.startMin = 60; ls.set('auc_startmin', 60); return tickClock(); }
         return;
       case 'acceptOn': return admDo({ a: 'accept', on: true }, 'Приём донатов включён');
@@ -1226,6 +1242,7 @@ document.addEventListener('submit', async e => {
       if (pts > 0 && fd.get('unit') === 'RUB') pts *= Number(S.adm?.config?.rates?.RUB) || 1;
       f.name.value = ''; f.sum.value = ''; f.name.focus();
       await batch(async () => {
+        if (A()?.auction?.status === 'closed') { WH.result = null; await admDo({ a: 'new', title: activePreset()?.title || A()?.auction?.title || 'Аукцион' }); }
         const r = await admDo({ a: 'lot', op: 'add', name: n, _pts: pts });
         if (pts > 0 && r.id) await admDo({ a: 'manual', lot: r.id, user: 'Стример', points: pts, _noLocal: true });
       });
