@@ -1114,18 +1114,20 @@ async function viewProfile(key) {
   S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p });
   const own = S.uid === p.id;
   const isOwner = S.uid === OWNER_ID;
-  const [works, subCount, followRows, adminBal] = await Promise.all([
+  const [works, subCount, followRows, adminBal, coinTarget] = await Promise.all([
     api(`content?submitted_by=eq.${p.id}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=${CARD_SEL}`).then(absorb).catch(() => []),
     (async () => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/subscriptions?following_id=eq.${p.id}&select=id`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; })().catch(() => 0),
     S.uid && !own ? api(`subscriptions?follower_id=eq.${S.uid}&following_id=eq.${p.id}&select=id`).catch(() => []) : Promise.resolve([]),
     isOwner && !own ? rpc('coin_admin_balance', { p_user: p.id }).catch(() => null) : Promise.resolve(null),
+    p.username ? rpc('coin_donate_target', { p_username: p.username }).catch(() => null) : Promise.resolve(null),
     eqReady,
   ]);
   await loadAllMyLikes();
   let subscribed = !!followRows[0], subs = subCount;
   const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
   const socialLabel = u => { try { return /^(?:.+\.)?(?:t\.me|telegram\.(?:me|dog|org))$/i.test(new URL(u).hostname) ? 'Телеграм' : 'Соцсеть'; } catch { return 'Соцсеть'; } };
-  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url]].filter(x => x && /^https?:\/\//.test(x[1]));
+  const coinDonateLink = p.username && coinTarget?.coin_donate_enabled !== false ? `${location.origin}/donate/?u=${encodeURIComponent(p.username)}` : null;
+  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url], coinDonateLink && ['Донат coin', coinDonateLink]].filter(x => x && /^https?:\/\//.test(x[1]));
   const eq = eqOf(p), bgCls = eq?.banner && /^bg_[a-z0-9_]+$/i.test(eq.banner) ? ` cbg cbg-${esc(eq.banner)}` : '';
   page.innerHTML = `<div class="prof">
     <section class="prof-card${bgCls}">
@@ -1569,6 +1571,9 @@ function editProfile() {
       <span>Краски (7TV)</span><div class="sw-row">${NAME_PAINTS.map(p => `<button type="button" class="nc-sw${me.name_color === p.css ? ' on' : ''}" data-nc="${esc(p.css)}" title="${esc(p.label)}" style="background:${p.css}"></button>`).join('')}</div>
       <div class="pe-prev">Предпросмотр: <b id="ncPrev"${nameAttr(me.name_color)}>${esc(pname(me))}</b></div></div>` : ''}
     ${hasRole(me, 'streamer') ? `<label>Ссылка на Twitch<input name="tw" value="${esc(me.stream_twitch_url || '')}" placeholder="https://twitch.tv/..."></label><label>Соцсеть (Telegram, VK…)<input name="so" value="${esc(me.stream_social_url || '')}" placeholder="https://t.me/..."></label><label>Ссылка на донат<input name="dn" value="${esc(me.stream_donate_url || '')}" placeholder="https://..."></label>` : ''}
+    ${me.username ? `<div class="pe-color" style="gap:8px"><span>Личная ссылка для доната renah0cki coin</span>
+      <div style="display:flex;gap:6px;align-items:center"><input type="text" readonly value="${esc(location.origin + '/donate/?u=' + encodeURIComponent(me.username))}" style="flex:1;min-width:0;opacity:.85"><button type="button" class="btn" id="peCopyDn" style="flex:none">Копировать</button></div>
+      <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:500"><input type="checkbox" name="cdon" checked style="width:16px;height:16px;flex:none"><span>Принимать донаты renah0cki coin по моей ссылке</span></label></div>` : ''}
     <p class="hint">Логин Twitch (@${esc(me.username || '')}) не меняется.</p>
     <div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
   const close = () => ov.remove();
@@ -1604,6 +1609,7 @@ function editProfile() {
         Object.assign(patch, { stream_twitch_url: u(f.tw), stream_social_url: u(f.so), stream_donate_url: u(f.dn) });
       }
       await api(`profiles?id=eq.${S.uid}`, { method: 'PATCH', prefer: 'return=minimal', body: patch });
+      if (f.cdon) await rpc('coin_donate_toggle', { p_enabled: !!f.cdon.checked }).catch(() => {});
       Object.assign(me, patch); S.profiles.set(me.id, { ...(S.profiles.get(me.id) || {}), ...patch });
       // старый сайт держит профиль в сессии — обновим и там
       try { const s = readSession(); if (s?.user) { Object.assign(s.user, patch); localStorage.setItem(LS_SESSION, JSON.stringify(s)); } } catch {}
@@ -1613,6 +1619,11 @@ function editProfile() {
     } catch (er) { hint.textContent = 'Ошибка: ' + er.message; btn.disabled = false; }
   };
   document.body.append(ov);
+  if (me.username) {
+    const cp = $('#peCopyDn', ov);
+    if (cp) cp.onclick = () => navigator.clipboard.writeText(`${location.origin}/donate/?u=${encodeURIComponent(me.username)}`).then(() => toast('Ссылка скопирована'), () => {});
+    rpc('coin_donate_target', { p_username: me.username }).then(t => { if (t && $('[name=cdon]', ov)) $('[name=cdon]', ov).checked = t.coin_donate_enabled !== false; }).catch(() => {});
+  }
 }
 
 /* ── модерация: работы на проверке и жалобы на комментарии ── */

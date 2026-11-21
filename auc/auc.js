@@ -828,7 +828,9 @@ function settingsHtml() {
   const st = s => `<span class="dot ${s?.state || ''}"></span>`;
   const r = c.rates || {};
   const rate = (k, label) => `<label>${label}<input class="in" name="rate_${k}" type="number" step="any" min="0" inputmode="decimal" value="${esc(r[k] ?? '')}"></label>`;
-  const donate = `${location.origin}/donate/`;
+  const siteOn = c.site_enabled !== false;
+  const sNick = d.streamer?.name || '';
+  const donate = sNick ? `${location.origin}/donate/?u=${encodeURIComponent(sNick)}` : `${location.origin}/donate/`;
   return `<div class="box"><h2 class="h2">Подключения</h2><div class="ints">
     <div class="int"><div class="int-h">${st(I.twitch)}<b>Twitch — баллы канала</b><span class="muted">${esc(I.twitch?.login || '')}</span></div>
       <p>${esc(I.twitch?.text || '')}${I.twitch?.rewards?.length ? ` · награды: ${I.twitch.rewards.join(', ')}` : ''}</p>
@@ -840,8 +842,8 @@ function settingsHtml() {
       <div class="row"><button class="btn sm ${I.donatepay?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatepay">${I.donatepay?.connected ? 'Сменить ключ' : 'Ввести ключ'}</button>${I.donatepay?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatepay">Отключить</button>' : ''}</div></div>
     <div class="int"><div class="int-h">${st(I.donatex)}<b>DonateX</b></div><p>${esc(I.donatex?.text || '')} · токен: donatex.gg → Настройки → API и доступ</p>
       <div class="row"><button class="btn sm ${I.donatex?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatex">${I.donatex?.connected ? 'Сменить токен' : 'Ввести токен'}</button>${I.donatex?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatex">Отключить</button>' : ''}</div></div>
-    <div class="int"><div class="int-h"><span class="dot ok"></span><b>renah0cki coin</b></div><p>Зрители донатят coin по личной ссылке и могут выбрать лот. Там же — виджет для OBS.</p>
-      <div class="row"><code class="code">${esc(donate)}</code><button class="btn sm" data-act="copy" data-id="${esc(donate)}">Копировать</button><a class="btn sm ghost" href="/donate/">Открыть</a></div></div>
+    <div class="int"><div class="int-h"><span class="dot ${siteOn ? 'ok' : ''}"></span><b>renah0cki coin</b><span class="muted">${esc(sNick)}</span></div><p>${siteOn ? 'Подключён · зрители донатят coin по личной ссылке и могут выбрать лот.' : 'Отключён · приём донатов coin по личной ссылке остановлен.'}</p>
+      <div class="row"><code class="code">${esc(donate)}</code><button class="btn sm" data-act="copy" data-id="${esc(donate)}">Копировать</button><a class="btn sm ghost" href="${esc(donate)}">Открыть</a><button class="btn sm ${siteOn ? 'ghost' : 'pri'}" data-act="siteToggle" data-id="${siteOn ? '0' : '1'}">${siteOn ? 'Отключить' : 'Подключить'}</button></div></div>
   </div></div>
   <form class="box" id="setForm" data-form="settings"><h2 class="h2">Курсы и таймер</h2>
     <p class="hint">Сколько баллов аукциона даёт 1 единица. Донат с кодом RN-… — пополнение coin, аукцион его не трогает.</p>
@@ -1191,6 +1193,7 @@ document.addEventListener('click', async e => {
       case 'csv': return exportCsv();
       case 'conn': { const r = await admDo({ a: 'connect', service: id }); location.href = r.url; return; }
       case 'disc': return admDo({ a: 'disconnect', service: id }, 'Отключено');
+      case 'siteToggle': { const on = id === '1'; return admDo({ a: 'config', config: { site_enabled: on } }, on ? 'Донаты renah0cki coin подключены' : 'Донаты renah0cki coin отключены'); }
       case 'tok': return sheet(id === 'donatepay' ? 'Ключ DonatePay' : 'Токен DonateX', `<p class="hint">Хранится только на сервере и больше нигде не показывается.</p>
         <label class="field"><span>${id === 'donatepay' ? 'API-ключ' : 'Внешний токен'}</span><input class="in" name="t" type="password" autocomplete="off" required></label>${acts('Сохранить')}`,
         f => admDo({ a: 'token', service: id, token: f.get('t') }, 'Подключено'));

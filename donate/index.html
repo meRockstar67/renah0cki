@@ -6,14 +6,12 @@
 <meta name="theme-color" content="#0b1220">
 <meta name="robots" content="noindex">
 <title>Донат coin — renah0cki</title>
-<script>/* донаты coin — пока только для владельца */
-(function(){if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))return;try{var s=JSON.parse(localStorage.getItem('fh_session')||'null');if(!s||!s.user||s.user.id!=='23c6cb47-27b0-45ac-8fd9-c43b84d57aba')location.replace('/');}catch(e){location.replace('/');}})();</script>
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
 <link rel="preconnect" href="https://api.renah0cki.xyz" crossorigin>
 <link rel="preconnect" href="https://cdn.renah0cki.xyz" crossorigin>
-<link rel="stylesheet" href="/auc/auc.css?v=20261120b">
-<link rel="stylesheet" href="/donate/donate.css?v=20261120b">
-<script src="/donate/donate.js?v=20261120b" defer></script>
+<link rel="stylesheet" href="/auc/auc.css?v=20261121q">
+<link rel="stylesheet" href="/donate/donate.css?v=20261121q">
+<script src="/donate/donate.js?v=20261121q" defer></script>
 </head>
 <body>
 <header class="top">
@@ -38,6 +36,14 @@
   </section>
 
   <form class="card" id="dForm" novalidate>
+    <div id="notFound" hidden>
+      <p class="hint">Пользователь не найден. Проверь ссылку.</p>
+      <a class="btn wide" href="/">На главную</a>
+    </div>
+    <div id="disabledBox" hidden>
+      <p class="hint">Этот пользователь отключил приём донатов renah0cki coin.</p>
+      <button type="button" class="btn pri wide" id="enableSelf" hidden>Подключить приём донатов</button>
+    </div>
     <div id="needLogin" hidden>
       <p class="hint">Чтобы отправить coin, войди на renah0cki — потом вернись по этой ссылке.</p>
       <a class="btn pri wide" href="/">Войти на renah0cki</a>
@@ -76,21 +82,27 @@
   </section>
 
   <section class="card" id="streamer" hidden>
-    <h2 class="h2">Для стримера</h2>
-    <p class="hint">Это видно только тебе.</p>
-    <div class="field"><span class="lbl">Твоя ссылка для донатов</span>
+    <h2 class="h2">Твоя ссылка для донатов coin</h2>
+    <p class="hint">Это видно только тебе. По этой ссылке другие пользователи могут донатить тебе renah0cki coin.</p>
+    <div class="field"><span class="lbl">Личная ссылка</span>
       <div class="row"><code class="code grow" id="myLink"></code><button type="button" class="btn sm" data-copy="myLink">Копировать</button></div></div>
-    <div class="field"><span class="lbl">Виджет для OBS (источник «Браузер», 800×300)</span>
-      <div class="row"><code class="code grow" id="widgetLink"></code><button type="button" class="btn sm" data-copy="widgetLink">Копировать</button></div></div>
-    <form id="wForm" class="wset">
-      <div class="rates">
-        <label>Показывать (сек)<input class="in" name="duration" type="number" min="3" max="60" inputmode="numeric"></label>
-        <label>Мин. сумма (coin)<input class="in" name="min" type="number" min="1" inputmode="numeric"></label>
-      </div>
-      <label class="check"><input type="checkbox" name="show_message"><span>Показывать сообщение</span></label>
-      <label class="check"><input type="checkbox" name="sound"><span>Звук при донате</span></label>
-      <div class="row"><button class="btn pri">Сохранить</button><button type="button" class="btn" id="testAlert">Тестовый донат</button></div>
-    </form>
+    <div class="row" style="margin-bottom:14px">
+      <span class="dot" id="myDot"></span><span id="myState" class="grow muted"></span>
+      <button type="button" class="btn sm" id="myToggle">Отключить</button>
+    </div>
+    <div id="obsWrap" hidden>
+      <div class="field"><span class="lbl">Виджет для OBS (источник «Браузер», 800×300)</span>
+        <div class="row"><code class="code grow" id="widgetLink"></code><button type="button" class="btn sm" data-copy="widgetLink">Копировать</button></div></div>
+      <form id="wForm" class="wset">
+        <div class="rates">
+          <label>Показывать (сек)<input class="in" name="duration" type="number" min="3" max="60" inputmode="numeric"></label>
+          <label>Мин. сумма (coin)<input class="in" name="min" type="number" min="1" inputmode="numeric"></label>
+        </div>
+        <label class="check"><input type="checkbox" name="show_message"><span>Показывать сообщение</span></label>
+        <label class="check"><input type="checkbox" name="sound"><span>Звук при донате</span></label>
+        <div class="row"><button class="btn pri">Сохранить</button><button type="button" class="btn" id="testAlert">Тестовый донат</button></div>
+      </form>
+    </div>
   </section>
 </main>
 

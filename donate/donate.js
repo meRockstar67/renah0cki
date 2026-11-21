@@ -1,4 +1,5 @@
-/* renah0cki — донат coin по личной ссылке. Пока идёт аукцион, донат можно поставить на лот. */
+/* renah0cki — личная ссылка для донатов renah0cki coin (/donate/?u=<username>).
+   Для ссылки стримера во время аукциона можно выбрать лот. Каждый аккаунт может включать и отключать приём донатов. */
 (() => {
 'use strict';
 
@@ -9,6 +10,7 @@ const QS = new URLSearchParams(location.search);
 const API = (LOCAL && QS.get('api')) || 'https://cdn.renah0cki.xyz';
 const SB = (LOCAL && QS.get('sb')) || SB_URL;
 const LS_SESSION = 'fh_session';
+const TARGET_U = (QS.get('u') || '').trim().replace(/^@/, '');
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -35,10 +37,12 @@ async function getToken() {
   })();
   return refreshing;
 }
-async function sb(path, body) {
+async function sb(path, body, strict = false) {
   const t = await getToken();
-  const r = await fetch(`${SB}/rest/v1/${path}`, { method: body ? 'POST' : 'GET', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
-  return r.ok ? r.json() : null;
+  const r = await fetch(`${SB}/rest/v1/${path}`, { method: body !== undefined ? 'POST' : 'GET', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, body: body !== undefined ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) { if (strict) throw new Error(j?.message || j?.error || 'HTTP ' + r.status); return null; }
+  return j;
 }
 async function aucApi(path, body) {
   const t = await getToken();
@@ -48,25 +52,51 @@ async function aucApi(path, body) {
   return d;
 }
 
-const S = { pub: null, off: 0, uid: readSession()?.user?.id || null, balance: null, lot: '' };
-const open = () => ['running', 'paused'].includes(S.pub?.auction?.status);
+const S = { pub: null, off: 0, uid: readSession()?.user?.id || null, me: null, target: null, targetLoaded: false, balance: null, lot: '' };
+const aucOpen = () => {
+  const a = S.pub?.auction;
+  return !!a && (['running', 'paused'].includes(a.status) || (a.status === 'idle' && a.accepting));
+};
+const canUseAuc = () => !!(S.target?.is_streamer && S.target.site_enabled !== false && S.pub?.config?.site_enabled !== false && aucOpen());
+const targetEnabled = () => {
+  if (!S.target) return true;
+  if (S.target.coin_donate_enabled === false) return false;
+  if (S.target.is_streamer && (S.target.site_enabled === false || S.pub?.config?.site_enabled === false)) return false;
+  return true;
+};
 
 /* ── отрисовка ── */
 function render() {
-  const d = S.pub; if (!d) return;
-  if (d.streamer) {
-    $('#sName').textContent = d.streamer.name || 'стримера';
-    if (d.streamer.avatar) $('#sAva').src = d.streamer.avatar;
-    document.title = `Донат coin для ${d.streamer.name || 'стримера'} — renah0cki`;
+  const d = S.pub;
+  const t = S.target || (d?.streamer && !TARGET_U ? { id: d.streamer.id, username: d.streamer.name, display_name: d.streamer.name, avatar_url: d.streamer.avatar, coin_donate_enabled: d.config?.site_enabled !== false, is_streamer: true, site_enabled: d.config?.site_enabled !== false } : null);
+  if (S.targetLoaded && !t) {
+    $('#sName').textContent = TARGET_U || 'не найден';
+    $('#notFound').hidden = false; $('#disabledBox').hidden = true; $('#needLogin').hidden = true; $('#formBody').hidden = true;
+    renderOwn(); return;
   }
-  const min = d.config?.min_site_bid || 1;
+  $('#notFound').hidden = true;
+  if (t) {
+    const label = t.display_name || t.username || 'пользователя';
+    $('#sName').textContent = label;
+    if (t.avatar_url) $('#sAva').src = t.avatar_url;
+    document.title = `Донат coin для ${label} — renah0cki`;
+  }
+  const on = targetEnabled();
+  $('#disabledBox').hidden = on;
+  $('#enableSelf').hidden = !(S.uid && t && S.uid === t.id && !on);
+  $('#needLogin').hidden = !on || !!S.uid;
+  $('#formBody').hidden = !on || !S.uid;
+
+  const min = (t?.is_streamer ? d?.config?.min_site_bid : 1) || 1;
   $('#amount').min = min;
   const chips = [min, 50, 100, 250, 500, 1000].filter((v, i, a) => v >= min && a.indexOf(v) === i).slice(0, 6);
   const ch = chips.join(',');
   if ($('#chips').dataset.v !== ch) { $('#chips').dataset.v = ch; $('#chips').innerHTML = chips.map(n => `<button type="button" data-amt="${n}">${n}</button>`).join(''); }
-  // аукцион
-  const box = $('#aucBox'); box.hidden = !open();
-  if (open()) {
+
+  // аукцион — только на личной ссылке стримера, пока аукцион открыт
+  const showAuc = canUseAuc() && !!d;
+  $('#aucBox').hidden = !showAuc;
+  if (showAuc) {
     const lots = d.lots.slice().sort((a, b) => a.num - b.num);
     if (S.lot && S.lot !== 'own' && !lots.some(l => String(l.id) === S.lot)) S.lot = '';
     const html = `<li><label><input type="radio" name="lot" value="" ${S.lot === '' ? 'checked' : ''}><span class="grow">Просто донат, без лота</span></label></li>` +
@@ -75,9 +105,9 @@ function render() {
     if ($('#lotPick').dataset.h !== html) { $('#lotPick').innerHTML = html; $('#lotPick').dataset.h = html; }
     $('#ownLot').hidden = S.lot !== 'own';
   } else S.lot = '';
-  $('#note').textContent = open() && S.lot ? 'coin спишутся сейчас; вернутся, если лот проиграет' : 'coin сразу уйдут стримеру';
+  $('#note').textContent = showAuc && S.lot ? 'coin спишутся сейчас; вернутся, если лот проиграет' : `coin сразу уйдут ${t?.display_name || t?.username || 'получателю'}`;
   tick();
-  renderStreamer();
+  renderOwn();
 }
 function tick() {
   const a = S.pub?.auction; const el = $('#aTimer'); if (!a || !el) return;
@@ -89,27 +119,74 @@ function tick() {
 setInterval(tick, 500);
 
 let wFilled = false;
-function renderStreamer() {
-  const d = S.pub; const me = S.uid && d?.config?.streamer_id === S.uid;
-  $('#streamer').hidden = !me; if (!me) return;
-  $('#myLink').textContent = `${location.origin}/donate/`;
-  $('#widgetLink').textContent = `${location.origin}/auc/alert.html`;
-  if (!wFilled) {
-    const a = d.config.alert || {}; const f = $('#wForm');
-    f.duration.value = a.duration ?? 8; f.min.value = a.min ?? 1;
-    f.show_message.checked = a.show_message !== false; f.sound.checked = a.sound !== false;
-    wFilled = true;
+function renderOwn() {
+  const me = S.me;
+  if (!S.uid || !me?.username) { $('#streamer').hidden = true; return; }
+  $('#streamer').hidden = false;
+  const link = `${location.origin}/donate/?u=${encodeURIComponent(me.username)}`;
+  $('#myLink').textContent = link;
+  const on = me.coin_donate_enabled !== false;
+  $('#myDot').className = 'dot' + (on ? ' ok' : '');
+  $('#myState').textContent = on ? 'Приём донатов coin включён' : 'Приём донатов coin отключён';
+  const tb = $('#myToggle');
+  tb.textContent = on ? 'Отключить' : 'Подключить';
+  tb.className = 'btn sm ' + (on ? 'ghost' : 'pri');
+
+  const isStr = S.pub?.config?.streamer_id === S.uid;
+  $('#obsWrap').hidden = !isStr;
+  if (isStr) {
+    $('#widgetLink').textContent = `${location.origin}/auc/alert.html`;
+    if (!wFilled && S.pub?.config) {
+      const a = S.pub.config.alert || {}; const f = $('#wForm');
+      f.duration.value = a.duration ?? 8; f.min.value = a.min ?? 1;
+      f.show_message.checked = a.show_message !== false; f.sound.checked = a.sound !== false;
+      wFilled = true;
+    }
   }
+}
+
+async function toggleMyDonate(nextOn) {
+  try {
+    const r = await sb('rpc/coin_donate_toggle', { p_enabled: !!nextOn }, true);
+    const val = r?.coin_donate_enabled ?? !!nextOn;
+    if (S.me) S.me.coin_donate_enabled = val;
+    if (S.target && S.target.id === S.uid) { S.target.coin_donate_enabled = val; if (S.target.is_streamer) S.target.site_enabled = val; }
+    if (S.pub?.config && S.pub.config.streamer_id === S.uid) S.pub.config.site_enabled = val;
+    toast(val ? 'Приём донатов coin подключён' : 'Приём донатов coin отключён');
+    render();
+  } catch (err) { toast(err.message, true); }
+}
+
+async function loadTarget() {
+  try {
+    const r = await sb('rpc/coin_donate_target', { p_username: TARGET_U || null });
+    S.target = r || null;
+  } catch { S.target = null; }
+  S.targetLoaded = true;
+  render();
 }
 
 async function loadMe() {
   if (!S.uid) return;
-  const [bal, mine] = await Promise.all([sb('rpc/coin_balance', {}), sb('auc_donations?select=id,amount,message,kind,lot_label,created_at,bid_id&order=id.desc&limit=10')]);
+  const [bal, profs, mine] = await Promise.all([
+    sb('rpc/coin_balance', {}),
+    sb(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,coin_donate_enabled`),
+    sb('auc_donations?select=id,user_id,recipient_id,user_name,amount,message,kind,lot_label,created_at,bid_id&order=id.desc&limit=15'),
+  ]);
   if (bal != null) { S.balance = bal; $('#bal').hidden = false; $('#balN').textContent = fmt(bal); }
+  if (Array.isArray(profs) && profs[0]) { S.me = profs[0]; renderOwn(); }
   if (Array.isArray(mine) && mine.length) {
     $('#mineBox').hidden = false;
-    $('#mine').innerHTML = mine.map(m => `<li class="item"><span class="main"><b>${fmt(m.amount)} coin</b> ${m.kind === 'bid' ? `<span class="src site">ставка${m.lot_label ? ': ' + esc(m.lot_label) : ''}</span>` : '<span class="src">донат</span>'}</span>
-      <span class="side muted">${new Date(m.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>${m.message ? `<span class="meta">«${esc(m.message)}»</span>` : ''}</li>`).join('');
+    $('#mine').innerHTML = mine.map(m => {
+      const incoming = m.recipient_id === S.uid && m.user_id !== S.uid;
+      const tag = incoming
+        ? `<span class="src wallet">получено от ${esc(m.user_name)}</span>`
+        : m.kind === 'bid'
+          ? `<span class="src site">ставка${m.lot_label ? ': ' + esc(m.lot_label) : ''}</span>`
+          : '<span class="src">донат</span>';
+      return `<li class="item"><span class="main"><b>${incoming ? '+' : ''}${fmt(m.amount)} coin</b> ${tag}</span>
+        <span class="side muted">${new Date(m.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>${m.message ? `<span class="meta">«${esc(m.message)}»</span>` : ''}</li>`;
+    }).join('');
   }
 }
 
@@ -120,23 +197,29 @@ document.addEventListener('click', e => {
   const c = e.target.closest('[data-copy]'); if (c) navigator.clipboard.writeText($('#' + c.dataset.copy).textContent).then(() => toast('Скопировано'), () => {});
 });
 $('#lotPick').addEventListener('change', e => { if (e.target.name === 'lot') { S.lot = e.target.value; render(); if (S.lot === 'own') $('#ownLot input').focus(); } });
+$('#myToggle').addEventListener('click', () => toggleMyDonate(!(S.me?.coin_donate_enabled !== false)));
+$('#enableSelf').addEventListener('click', () => toggleMyDonate(true));
 
 $('#dForm').addEventListener('submit', async e => {
   e.preventDefault();
   const amount = Math.floor(Number($('#amount').value));
-  const min = S.pub?.config?.min_site_bid || 1;
+  const min = (S.target?.is_streamer ? S.pub?.config?.min_site_bid : 1) || 1;
   if (!amount || amount < min) return toast(`Минимум — ${min} coin`, true);
   if (S.balance != null && amount > S.balance) return toast('Не хватает coin', true);
   const lotName = S.lot === 'own' ? $('#ownLot input').value.trim() : '';
   if (S.lot === 'own' && !lotName) return toast('Напиши свой вариант лота', true);
   const btn = $('#send'); btn.disabled = true; btn.textContent = 'Отправляю…';
   try {
-    const r = await aucApi('/auc/donate', { amount, message: $('#msg').value.trim(), lot_id: S.lot && S.lot !== 'own' ? Number(S.lot) : null, lot_name: lotName || null });
+    const recId = S.target?.id || null;
+    const isStr = !S.target || !!S.target.is_streamer;
+    const r = isStr
+      ? await aucApi('/auc/donate', { amount, message: $('#msg').value.trim(), lot_id: S.lot && S.lot !== 'own' ? Number(S.lot) : null, lot_name: lotName || null, recipient_id: recId })
+      : await sb('rpc/auc_coin_donate', { p_amount: amount, p_message: $('#msg').value.trim() || null, p_lot_id: null, p_lot_name: null, p_recipient_id: recId }, true);
     $('#dForm').hidden = true; $('#done').hidden = false;
     $('#doneT').textContent = `${fmt(r.amount)} coin отправлено!`;
     $('#doneS').textContent = r.kind === 'bid'
       ? (r.status === 'queue' ? 'Ставка принята — стример добавит твой лот. Если он не победит, coin вернутся.' : `Ставка на ${r.lot}. Если лот не победит, coin вернутся.`)
-      : 'Спасибо! Донат уже у стримера.';
+      : `Спасибо! Донат уже у ${S.target?.display_name || S.target?.username || 'получателя'}.`;
     S.balance = r.balance; $('#balN').textContent = fmt(r.balance);
     loadMe();
   } catch (err) { toast(err.message, true); }
@@ -158,9 +241,9 @@ $('#testAlert').addEventListener('click', async () => {
 });
 
 /* ── старт ── */
-if (!S.uid) { $('#needLogin').hidden = false; $('#formBody').hidden = true; }
+loadTarget();
+loadMe();
 const es = new EventSource(API + '/auc/events');
 es.onmessage = ev => { try { const d = JSON.parse(ev.data); if (d) { S.pub = d; S.off = Date.parse(d.now) - Date.now(); render(); } } catch {} };
 fetch(API + '/auc/state').then(r => r.json()).then(d => { if (!S.pub && d?.auction) { S.pub = d; S.off = Date.parse(d.now) - Date.now(); render(); } }).catch(() => {});
-loadMe();
 })();
