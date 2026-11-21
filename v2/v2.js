@@ -1062,10 +1062,12 @@ async function viewProfile(key) {
   if (!p) { page.innerHTML = '<div class="empty">Пользователь не найден</div>'; return; }
   S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p });
   const own = S.uid === p.id;
-  const [works, subCount, followRows] = await Promise.all([
+  const isOwner = S.uid === OWNER_ID;
+  const [works, subCount, followRows, adminBal] = await Promise.all([
     api(`content?submitted_by=eq.${p.id}&status=eq.published&order=published_at.desc.nullslast,created_at.desc&select=${CARD_SEL}`).then(absorb).catch(() => []),
     (async () => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/subscriptions?following_id=eq.${p.id}&select=id`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; })().catch(() => 0),
     S.uid && !own ? api(`subscriptions?follower_id=eq.${S.uid}&following_id=eq.${p.id}&select=id`).catch(() => []) : Promise.resolve([]),
+    isOwner && !own ? rpc('coin_admin_balance', { p_user: p.id }).catch(() => null) : Promise.resolve(null),
   ]);
   await loadAllMyLikes();
   let subscribed = !!followRows[0], subs = subCount;
@@ -1080,7 +1082,7 @@ async function viewProfile(key) {
         <h1><span${nameAttr(p.name_color)}>${esc(pname(p))}</span></h1>
         ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
         ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
-        <div class="prof-stats"><span><b>${fmt(works.length)}</b> публикаций</span><span><b id="subsN">${fmt(subs)}</b> подписчиков</span></div>
+        <div class="prof-stats"><span><b>${fmt(works.length)}</b> публикаций</span><span><b id="subsN">${fmt(subs)}</b> подписчиков</span>${adminBal != null ? `<span class="prof-coin" title="Баланс пользователя (видно только вам)"><img src="${COIN}" alt=""><b id="profCoinVal" data-uid="${esc(p.id)}">${fmt(adminBal)}</b> coin</span>` : ''}</div>
       </div>
       <div class="prof-acts">
         ${own ? `<button class="btn" type="button" id="profEdit">Редактировать</button>`
@@ -1423,10 +1425,10 @@ function loadSponsors() {
 loadSponsors();
 // затухание снизу у списка спонсоров — пока есть что листать
 $('#sponsList').addEventListener('scroll', e => { const l = e.currentTarget; l.classList.toggle('end', l.scrollTop + l.clientHeight >= l.scrollHeight - 2); }, { passive: true });
-// топ 3 по балансу renah0cki coin (главный админ не учитывается — это на стороне базы)
+// топ 3 донатера по сумме пополнений через DonationAlerts (главный админ не учитывается)
 function loadTopDonors() {
   swr('topdon', async () => {
-    const rows = await rpc('coin_top', { p_limit: 3 });
+    const rows = await rpc('coin_top_donors', { p_limit: 3 });
     await loadProfiles(rows.map(r => r.user_id));
     return rows.map(r => ({ ...r, p: S.profiles.get(r.user_id) || null }));
   }, rows => {
@@ -2504,6 +2506,7 @@ function coinSendDialog(p) {
     try {
       const bal = await rpc('coin_transfer', { p_to: p.id, p_amount: a, p_note: f.n.value.trim() || null });
       setBalance(bal); ov.remove(); toast(`Переведено ${fmt(a)} coin → ${pname(p)}`);
+      const pc = $('#profCoinVal'); if (pc && pc.dataset.uid === p.id) rpc('coin_admin_balance', { p_user: p.id }).then(v => { if (v != null) pc.textContent = fmt(v); }).catch(() => {});
     } catch (er) { hint.textContent = 'Ошибка: ' + er.message; btn.disabled = false; }
   };
   document.body.append(ov);

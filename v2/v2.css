@@ -256,8 +256,10 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .role-sponsor { background: #3a3117; color: #ffd36b; }
 .role-respect_plus { background: #2a1d45; color: #c3a3ff; }
 .role-streamer { background: #2b1946; color: #b48bff; }
-.prof-stats { display: flex; gap: 18px; margin-top: 12px; color: var(--muted); font-size: 14px; }
+.prof-stats { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; color: var(--muted); font-size: 14px; }
 .prof-stats b { color: var(--text); }
+.prof-coin { display: inline-flex; align-items: center; gap: 5px; }
+.prof-coin img { width: 16px; height: 16px; object-fit: contain; }
 .prof-links { display: flex; gap: 6px; margin-top: 12px; }
 .prof-acts { display: flex; gap: 8px; flex: none; }
 .btn.icon-only { width: 40px; padding: 0; }

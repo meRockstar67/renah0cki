@@ -132,6 +132,7 @@ async function api(path, { method = 'GET', body, prefer, schema = 'rp' } = {}) {
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
 /* ── renah0cki coin: баланс в своём профиле — для всех вошедших ── */
+const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const COIN_LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
 const coinsVisible = () => !!S.uid;
 const coinIco = () => `<img class="coin-ico" src="${COIN_LOGO}" alt="coin">`;
@@ -141,6 +142,14 @@ async function fillCoinBalance(root) {
     const v = await api('rpc/coin_balance', { method: 'POST', body: {}, schema: 'public' });
     $$('[data-coin-bal]', root).forEach(el => { el.textContent = Number(v || 0).toLocaleString('ru-RU'); });
   } catch {}
+}
+async function fillUserCoinBalance(root, userId) {
+  if (S.uid !== OWNER_ID || !userId) return;
+  try {
+    const v = await api('rpc/coin_admin_balance', { method: 'POST', body: { p_user: userId }, schema: 'public' });
+    if (v == null) { $$('[data-admin-coin-wrap]', root).forEach(el => el.remove()); return; }
+    $$('[data-admin-coin-bal]', root).forEach(el => { el.textContent = Number(v || 0).toLocaleString('ru-RU'); });
+  } catch { $$('[data-admin-coin-wrap]', root).forEach(el => el.remove()); }
 }
 
 /* ── короткие ссылки ────────────────────────────────────── */
@@ -1712,7 +1721,7 @@ async function viewUser(key) {
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
       <div class="cp-stats"><span><b data-fcount>${followers.length}</b> <span data-fword>${plural(followers.length, 'подписчик', 'подписчика', 'подписчиков')}</span></span><span><b>${following.length}</b> ${plural(following.length, 'подписка', 'подписки', 'подписок')}</span></div>
-      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> coin</span>` : ''}</div>
+      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> coin</span>` : (!isMe && S.uid === OWNER_ID ? `<span class="cp-coin" data-admin-coin-wrap title="Баланс пользователя (видно только вам)">${coinIco()} <b data-admin-coin-bal>…</b> coin</span>` : '')}</div>
       ${isMe ? '<button class="btn ghost cp-edit only-m" data-edit-profile>Редактировать профиль</button>' : ''}</div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
     <div id="uList"></div>`;
@@ -1736,6 +1745,7 @@ async function viewUser(key) {
   };
   $$('[data-edit-profile]', main).forEach(b => { b.onclick = () => profileEditor(u, () => viewUser(key)); });
   if (isMe) fillCoinBalance(main);
+  else if (S.uid === OWNER_ID) fillUserCoinBalance(main, u.user_id);
   const fb = $('[data-follow]', main);
   if (fb) fb.onclick = async () => {
     fb.disabled = true;

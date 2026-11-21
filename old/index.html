@@ -12135,6 +12135,14 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
       if (!r.ok) throw new Error((j && j.message) || 'ошибка');
       coinBalanceCache = Number(j);
       document.querySelectorAll('#coinChipVal, #coinWalletBalance, #profileCoinVal, #coinSendBal').forEach(el => { el.textContent = fmtCoins(coinBalanceCache); });
+      const adminValEl = document.getElementById('profileAdminCoinVal');
+      if (adminValEl && coinSendTo && adminValEl.dataset.uid === coinSendTo.id) {
+        const targetId = coinSendTo.id;
+        fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_admin_balance`, { method: 'POST', headers: coinHeaders(), body: JSON.stringify({ p_user: targetId }) })
+          .then(r => r.ok ? r.json() : null)
+          .then(v => { const el = document.getElementById('profileAdminCoinVal'); if (v != null && el && el.dataset.uid === targetId) el.textContent = fmtCoins(v); })
+          .catch(() => {});
+      }
       st.textContent = `Готово! ${coinSendTo.name} получил ${fmtCoins(amt)} coin.`;
       setTimeout(() => closeOverlay('coinSendOverlay'), 1400);
     } catch (e) { st.textContent = 'Ошибка: ' + e.message; btn.disabled = false; }
@@ -15086,6 +15094,7 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
             <span><b>${totalCount}</b> публикаций</span>
             <span><b id="profileSubscriberCount">${subscriberCount}</b> подписчиков</span>
             ${(coinsVisible() && currentUser.id === profile.id) ? `<span class="profile-coin-stat" id="profileCoinStat" style="cursor:pointer;" title="Открыть кошелёк">${coinIcoHtml()} <b id="profileCoinVal">${coinBalanceCache == null ? '…' : fmtCoins(coinBalanceCache)}</b> coin</span>` : ''}
+            ${(coinsVisible() && COIN_DEV_IDS.includes(currentUser.id) && currentUser.id !== profile.id) ? `<span class="profile-coin-stat" id="profileAdminCoinStat" title="Баланс пользователя (видно только вам)">${coinIcoHtml()} <b id="profileAdminCoinVal" data-uid="${escapeHtml(profile.id)}">…</b> coin</span>` : ''}
           </div>
           ${(coinsVisible() && hasRole(currentUser, 'admin') && currentUser.id !== profile.id) ? `<div class="coin-grant-row"><input type="number" id="coinGrantAmount" placeholder="Монеты (− списать)" step="1"><input type="text" id="coinGrantNote" placeholder="За что" maxlength="300"><button type="button" class="secondary small" id="coinGrantBtn">${coinIcoHtml()} Выдать</button></div><div class="hint" id="coinGrantStatus"></div>` : ''}
           <div class="profile-header-buttons">
@@ -15109,6 +15118,18 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
 
     const profileCoinStatEl = document.getElementById('profileCoinStat');
     if (profileCoinStatEl) { profileCoinStatEl.addEventListener('click', openCoinWallet); refreshCoinBalance(); }
+    const profileAdminCoinStatEl = document.getElementById('profileAdminCoinStat');
+    if (profileAdminCoinStatEl) {
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/coin_admin_balance`, { method: 'POST', headers: coinHeaders(), body: JSON.stringify({ p_user: profile.id }) })
+        .then(r => r.ok ? r.json() : null)
+        .then(v => {
+          const valEl = document.getElementById('profileAdminCoinVal');
+          if (!valEl || valEl.dataset.uid !== profile.id) return;
+          if (v == null) { profileAdminCoinStatEl.style.display = 'none'; return; }
+          valEl.textContent = fmtCoins(v);
+        })
+        .catch(() => { profileAdminCoinStatEl.style.display = 'none'; });
+    }
     const coinGrantBtnEl = document.getElementById('coinGrantBtn');
     if (coinGrantBtnEl) coinGrantBtnEl.addEventListener('click', async () => {
       const amt = parseInt(document.getElementById('coinGrantAmount').value, 10);
@@ -15122,6 +15143,8 @@ sc();var mo=new MutationObserver(u);b.forEach(function(x){mo.observe(x,{attribut
         const j = await r.json().catch(() => null);
         if (!r.ok) throw new Error((j && j.message) || 'ошибка');
         st.textContent = `Готово. Баланс пользователя: ${fmtCoins(j)}`;
+        const adminValEl = document.getElementById('profileAdminCoinVal');
+        if (adminValEl && adminValEl.dataset.uid === profile.id) adminValEl.textContent = fmtCoins(j);
         document.getElementById('coinGrantAmount').value = ''; document.getElementById('coinGrantNote').value = '';
       } catch (e) { st.textContent = 'Ошибка: ' + e.message; }
       coinGrantBtnEl.disabled = false;
