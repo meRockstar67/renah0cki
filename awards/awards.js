@@ -69,158 +69,53 @@ const thumb = (u, w = 720) => { const m = String(u || '').match(/^https:\/\/cdn\
 const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return n > 10 && n < 20 ? c : k > 1 && k < 5 ? b : k === 1 ? a : c; };
 const neesOf = id => S.nees.filter(x => x.nomination_id === id).sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
 
-/* ── кристаллические 3D-эмблемы в стиле SLAY (янтарь + расплавленный рубин) ── */
+/* ── официальные 3D-иконки номинаций SLAY 2026 ── */
 let svgUid = 0;
-const CR_BASE = (id) => `
-  <defs>
-    <linearGradient id="gA${id}" x1="15%" y1="0%" x2="85%" y2="100%">
-      <stop offset="0%" stop-color="#ffe099"/>
-      <stop offset="28%" stop-color="#ff7a14"/>
-      <stop offset="68%" stop-color="#b8160c"/>
-      <stop offset="100%" stop-color="#3e0604"/>
-    </linearGradient>
-    <linearGradient id="gB${id}" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff5e14"/>
-      <stop offset="50%" stop-color="#9c0e08"/>
-      <stop offset="100%" stop-color="#2c0403"/>
-    </linearGradient>
-    <linearGradient id="gC${id}" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#fff4cc"/>
-      <stop offset="40%" stop-color="#ff9926"/>
-      <stop offset="100%" stop-color="#cc240a"/>
-    </linearGradient>
-    <linearGradient id="gD${id}" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#610906"/>
-      <stop offset="55%" stop-color="#e0430c"/>
-      <stop offset="100%" stop-color="#ffd27a"/>
-    </linearGradient>
-  </defs>`;
-const SHARDS = (id) => `
-  <polygon points="32,162 18,118 44,126 56,162" fill="url(#gB${id})" stroke="#ffad54" stroke-width="1.2"/>
-  <polygon points="18,118 32,162 34,132" fill="url(#gD${id})" opacity=".75"/>
-  <polygon points="168,162 182,118 156,126 144,162" fill="url(#gB${id})" stroke="#ffad54" stroke-width="1.2"/>
-  <polygon points="182,118 168,162 166,132" fill="url(#gA${id})" opacity=".65"/>
-  <polygon points="56,166 44,134 74,142 82,174" fill="url(#gA${id})" stroke="#ffc675" stroke-width="1.2"/>
-  <polygon points="144,166 156,134 126,142 118,174" fill="url(#gA${id})" stroke="#ffc675" stroke-width="1.2"/>
-  <polygon points="100,144 122,164 100,186 78,164" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.5"/>
-  <polygon points="100,144 122,164 100,164" fill="#fff0c4" opacity=".45"/>
-  <polygon points="100,164 122,164 100,186" fill="#7a0a06" opacity=".6"/>`;
+const SLAY_ICONS = [
+  ['i:king',  'king.png',    'Король'],
+  ['i:queen', 'queen.png',   'Королева'],
+  ['i:irl',   'irl.png',     'IRL'],
+  ['i:pair',  'pair.png',    'Пара / Шип'],
+  ['i:clown', 'clown.png',   'Мем'],
+  ['i:cosp',  'cosplay.png', 'Косплей'],
+  ['i:game',  'game.png',    'Игры / Кооп'],
+  ['i:cup',   'cup.png',     'Шоу / Проект'],
+  ['i:yt',    'youtube.png', 'Клип / Ютуб'],
+  ['i:next',  'next.png',    'Next Gen / ТикТок'],
+  ['i:bot',   'bot.png',     'Аудитория / 7TV'],
+  ['i:w',     'w.png',       'Завоз'],
+  ['i:song',  'song.png',    'Трек'],
+  ['i:cs',    'cs.png',      'CS'],
+  ['i:dota',  'dota.png',    'Dota'],
+  ['i:mc',    'mc.png',      'Minecraft'],
+];
+const SLAY_ICON_MAP = Object.fromEntries(SLAY_ICONS.map(([k, f]) => [k, f]));
 
-function crystalKind(nom, idx) {
-  const s = `${nom.title || ''} ${nom.emoji || ''}`.toLowerCase();
-  if (/king|корол/.test(s)) return 'crownKing';
-  if (/queen|королев/.test(s)) return 'crownQueen';
-  if (/ирл|irl|тикток|tiktok|телеф|📹|📱/.test(s)) return 'phone';
-  if (/шип|любов|пара|💞|❤/.test(s)) return 'heart';
-  if (/игр|кооп|гейм|мульти|🎮/.test(s)) return 'gamepad';
-  if (/мем|эмоут|7tv|клоун|😺|🤡/.test(s)) return 'jester';
-  if (/косплей|шоу|театр|🎭|🎬/.test(s)) return 'mask';
-  if (/клип|видео|момент|🎞/.test(s)) return 'film';
-  if (/dota|cs|шутер|меч/.test(s)) return 'sword';
-  const order = ['crownKing', 'crownQueen', 'phone', 'gamepad', 'sword', 'heart', 'mask', 'film', 'jester', 'trophy'];
-  return order[idx % order.length];
+function resolveSlayIcon(nom, idx = 0) {
+  if (nom?.emoji && SLAY_ICON_MAP[nom.emoji]) return nom.emoji;
+  const s = `${nom?.title || ''} ${nom?.emoji || ''}`.toLowerCase();
+  if (/king|корол/.test(s)) return 'i:king';
+  if (/queen|королев/.test(s)) return 'i:queen';
+  if (/\bcs\b|кс|шутер|counter/.test(s)) return 'i:cs';
+  if (/dota|дота|меч/.test(s)) return 'i:dota';
+  if (/minecraft|майнкрафт|кирк/.test(s)) return 'i:mc';
+  if (/ирл|irl|телеф|📹|📱/.test(s)) return 'i:irl';
+  if (/шип|любов|пара|💞|❤/.test(s)) return 'i:pair';
+  if (/мем|клоун|🤡/.test(s)) return 'i:clown';
+  if (/7tv|эмоут|аудитор|чат|бот|😺/.test(s)) return 'i:bot';
+  if (/косплей|маск|🎭/.test(s)) return 'i:cosp';
+  if (/игр|кооп|гейм|мульти|🎮/.test(s)) return 'i:game';
+  if (/шоу|проект|кубок|преми|🎬|🏆/.test(s)) return 'i:cup';
+  if (/клип|ютуб|youtube|видео|момент|🎞/.test(s)) return 'i:yt';
+  if (/тикток|tiktok|next|прорыв|открыт|нович/.test(s)) return 'i:next';
+  if (/трек|песн|музык|альбом|🎵|🎤/.test(s)) return 'i:song';
+  if (/завоз|вин|побед|хайлайт|\bw\b/.test(s)) return 'i:w';
+  return SLAY_ICONS[Math.abs(idx) % SLAY_ICONS.length][0];
 }
 
-function crystalSvg(nom, idx) {
-  const id = ++svgUid;
-  const k = crystalKind(nom, idx);
-  let body = '';
-  if (k === 'crownKing') {
-    body = `
-      <polygon points="100,22 119,64 100,118 81,64" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.6"/>
-      <polygon points="100,22 119,64 100,64" fill="#fff4d0" opacity=".5"/>
-      <polygon points="100,64 119,64 100,118" fill="#6b0805" opacity=".55"/>
-      <polygon points="48,46 78,86 74,132 42,102" fill="url(#gA${id})" stroke="#ffbe6b" stroke-width="1.4"/>
-      <polygon points="152,46 122,86 126,132 158,102" fill="url(#gA${id})" stroke="#ffbe6b" stroke-width="1.4"/>
-      <polygon points="24,84 56,118 56,154 24,142" fill="url(#gB${id})" stroke="#ffa348" stroke-width="1.4"/>
-      <polygon points="176,84 144,118 144,154 176,142" fill="url(#gB${id})" stroke="#ffa348" stroke-width="1.4"/>
-      <polygon points="26,148 92,148 92,168 38,168" fill="url(#gD${id})" stroke="#ffcf82" stroke-width="1.5"/>
-      <polygon points="174,148 108,148 108,168 162,168" fill="url(#gD${id})" stroke="#ffcf82" stroke-width="1.5"/>
-      <polygon points="100,112 118,140 100,168 82,140" fill="url(#gC${id})" stroke="#ffe6ad" stroke-width="1.5"/>`;
-  } else if (k === 'crownQueen') {
-    body = `
-      <polygon points="100,24 118,68 100,130 82,68" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.6"/>
-      <polygon points="100,24 118,68 100,68" fill="#fff5d6" opacity=".55"/>
-      <polygon points="62,48 84,82 78,128 52,96" fill="url(#gA${id})" stroke="#ffba66" stroke-width="1.4"/>
-      <polygon points="138,48 116,82 122,128 148,96" fill="url(#gA${id})" stroke="#ffba66" stroke-width="1.4"/>
-      <polygon points="34,76 58,104 54,136 28,116" fill="url(#gB${id})" stroke="#ff9c40" stroke-width="1.3"/>
-      <polygon points="166,76 142,104 146,136 172,116" fill="url(#gB${id})" stroke="#ff9c40" stroke-width="1.3"/>
-      <path d="M24,146 Q100,114 176,146 L160,168 Q100,140 40,168 Z" fill="url(#gD${id})" stroke="#ffd284" stroke-width="1.5"/>
-      <polygon points="100,122 114,144 100,166 86,144" fill="url(#gC${id})" stroke="#ffebbc" stroke-width="1.4"/>`;
-  } else if (k === 'phone') {
-    body = `
-      ${SHARDS(id)}
-      <g transform="rotate(14 100 94)">
-        <rect x="64" y="30" width="72" height="122" rx="14" fill="url(#gA${id})" stroke="#ffcf82" stroke-width="2"/>
-        <polygon points="64,62 136,36 136,106 64,132" fill="url(#gC${id})" opacity=".35"/>
-        <polygon points="64,30 104,30 82,152 64,152" fill="#fff0c4" opacity=".14"/>
-        <rect x="74" y="42" width="28" height="28" rx="7" fill="#4f0705" stroke="#ff9b3d" stroke-width="1.4"/>
-        <circle cx="82" cy="50" r="4.5" fill="url(#gC${id})"/>
-        <circle cx="94" cy="50" r="4.5" fill="url(#gC${id})"/>
-        <circle cx="88" cy="61" r="4.5" fill="url(#gC${id})"/>
-        <polygon points="100,86 116,108 100,130 84,108" fill="url(#gC${id})" opacity=".55"/>
-      </g>`;
-  } else if (k === 'gamepad') {
-    body = `
-      ${SHARDS(id)}
-      <g transform="rotate(-10 100 92)">
-        <path d="M44,70 C54,54 74,56 84,64 L116,64 C126,56 146,54 156,70 L168,112 C172,126 158,136 146,128 L128,112 L72,112 L54,128 C42,136 28,126 32,112 Z" fill="url(#gA${id})" stroke="#ffcf82" stroke-width="1.8"/>
-        <polygon points="50,68 100,64 92,112 42,112" fill="#ffe29c" opacity=".18"/>
-        <polygon points="100,64 152,68 158,112 92,112" fill="#5e0705" opacity=".4"/>
-        <path d="M58,88 h18 M67,79 v18" stroke="#ffe5a8" stroke-width="4.5" stroke-linecap="square"/>
-        <circle cx="132" cy="80" r="4.2" fill="#ffe5a8"/>
-        <circle cx="142" cy="88" r="4.2" fill="#ffad42"/>
-        <circle cx="122" cy="88" r="4.2" fill="#ffad42"/>
-        <circle cx="132" cy="96" r="4.2" fill="#ffe5a8"/>
-      </g>`;
-  } else if (k === 'heart') {
-    body = `
-      ${SHARDS(id)}
-      <polygon points="100,152 44,96 50,54 76,40 100,64 124,40 150,54 156,96" fill="url(#gA${id})" stroke="#ffd48a" stroke-width="1.8"/>
-      <polygon points="100,64 76,40 50,54 76,94" fill="#ffe9b3" opacity=".32"/>
-      <polygon points="100,64 124,40 150,54 124,94" fill="#ff8424" opacity=".36"/>
-      <polygon points="100,64 76,94 100,152 124,94" fill="url(#gC${id})" opacity=".65"/>
-      <polygon points="100,152 124,94 156,96" fill="#590604" opacity=".55"/>`;
-  } else if (k === 'jester') {
-    body = `
-      ${SHARDS(id)}
-      <polygon points="100,26 120,76 172,94 120,112 100,162 80,112 28,94 80,76" fill="url(#gA${id})" stroke="#ffd791" stroke-width="1.8"/>
-      <polygon points="100,26 120,76 100,94 80,76" fill="#fff0c4" opacity=".52"/>
-      <polygon points="100,94 172,94 120,112" fill="#700906" opacity=".52"/>
-      <polygon points="100,56 122,94 100,132 78,94" fill="url(#gC${id})" stroke="#ffebbc" stroke-width="1.4"/>`;
-  } else if (k === 'mask') {
-    body = `
-      ${SHARDS(id)}
-      <polygon points="52,44 100,32 148,44 142,108 100,150 58,108" fill="url(#gA${id})" stroke="#ffd48a" stroke-width="1.8"/>
-      <polygon points="100,32 148,44 142,108 100,150" fill="#5c0805" opacity=".42"/>
-      <polygon points="68,78 90,72 86,88 70,88" fill="#1a0202" stroke="#ffb85c" stroke-width="1.2"/>
-      <polygon points="132,78 110,72 114,88 130,88" fill="#1a0202" stroke="#ffb85c" stroke-width="1.2"/>
-      <path d="M78,112 Q100,130 122,112" stroke="#ffe5a8" stroke-width="3.2" fill="none"/>`;
-  } else if (k === 'film') {
-    body = `
-      ${SHARDS(id)}
-      <polygon points="44,48 156,48 164,136 36,136" fill="url(#gA${id})" stroke="#ffd48a" stroke-width="1.8"/>
-      <polygon points="44,48 156,48 100,92" fill="#ffe6a8" opacity=".2"/>
-      <polygon points="84,66 132,92 84,118" fill="url(#gC${id})" stroke="#fff2cc" stroke-width="1.8"/>`;
-  } else if (k === 'sword') {
-    body = `
-      ${SHARDS(id)}
-      <g transform="rotate(34 100 94)">
-        <polygon points="100,18 116,44 110,122 90,122 84,44" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.6"/>
-        <polygon points="100,18 116,44 100,122" fill="#730906" opacity=".48"/>
-        <polygon points="68,120 132,120 124,132 76,132" fill="url(#gD${id})" stroke="#ffd282" stroke-width="1.5"/>
-        <rect x="94" y="132" width="12" height="28" rx="3" fill="url(#gB${id})" stroke="#ffa348" stroke-width="1.3"/>
-        <polygon points="100,158 110,168 100,178 90,168" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.3"/>
-      </g>`;
-  } else {
-    body = `
-      ${SHARDS(id)}
-      <polygon points="56,36 144,36 132,102 100,126 68,102" fill="url(#gA${id})" stroke="#ffd48a" stroke-width="1.8"/>
-      <polygon points="56,36 100,36 100,126 68,102" fill="#ffe6a8" opacity=".24"/>
-      <polygon points="90,124 110,124 116,154 84,154" fill="url(#gD${id})" stroke="#ffbe6b" stroke-width="1.4"/>
-      <polygon points="66,154 134,154 142,168 58,168" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.5"/>`;
-  }
-  return `<svg viewBox="0 0 200 200" aria-hidden="true">${CR_BASE(id)}${body}</svg>`;
+function nomIconHtml(nom, idx = 0) {
+  const file = SLAY_ICON_MAP[resolveSlayIcon(nom, idx)] || 'king.png';
+  return `<img class="slay-ico" src="/awards/icons/${file}?v=1" alt="" loading="lazy" decoding="async" draggable="false">`;
 }
 
 const ARROW_SVG = (dir) => {
@@ -273,7 +168,7 @@ function slayCardHtml(n, idx) {
   const list = neesOf(n.id), mine = S.votes.get(n.id), pick = list.find(x => x.id === mine);
   const sub = pick ? `✓ Ваш голос: ${pick.title}` : (!n.is_open ? 'Голосование закрыто' : 'Сделай выбор');
   return `<article class="slay-card sr" style="--i:${idx};--sd:${(idx % 3) * 85}ms">
-    <a class="slay-emblem" href="#/n/${n.id}" aria-label="${esc(n.title)}">${crystalSvg(n, idx)}</a>
+    <a class="slay-emblem" href="#/n/${n.id}" aria-label="${esc(n.title)}">${nomIconHtml(n, idx)}</a>
     <h3 class="slay-card-t"><a href="#/n/${n.id}">${esc(n.title)}</a></h3>
     <div class="slay-card-sub${pick ? ' picked' : ''}">${esc(sub)}</div>
     <a class="slay-btn${pick ? ' voted' : ''}" href="#/n/${n.id}">${pick ? 'ИЗМЕНИТЬ ВЫБОР' : 'ПРОГОЛОСОВАТЬ'}</a>
@@ -300,7 +195,7 @@ function mountCarousel(more) {
     const list = neesOf(n.id), mine = S.votes.get(n.id), pick = list.find(x => x.id === mine);
     const sub = pick ? `✓ Ваш голос: ${pick.title}` : (!n.is_open ? 'Голосование закрыто' : 'Сделай выбор');
     return `<article class="slay-car-item" data-cidx="${i}" data-pos="${carOffset(i, S.carIdx, len, 1)}">
-      <a class="slay-emblem" href="#/n/${n.id}" aria-label="${esc(n.title)}">${crystalSvg(n, absIdx)}</a>
+      <a class="slay-emblem" href="#/n/${n.id}" aria-label="${esc(n.title)}">${nomIconHtml(n, absIdx)}</a>
       <h3 class="slay-card-t"><a href="#/n/${n.id}">${esc(n.title)}</a></h3>
       <div class="slay-card-sub${pick ? ' picked' : ''}">${esc(sub)}</div>
       <a class="slay-btn${pick ? ' voted' : ''}" href="#/n/${n.id}">${pick ? 'ИЗМЕНИТЬ ВЫБОР' : 'ПРОГОЛОСОВАТЬ'}</a>
@@ -490,7 +385,7 @@ function viewNom(id) {
   page.innerHTML = `<div class="aw-nom-wrap">
     <a class="aw-crumb" href="#/">← Все номинации</a>
     <section class="aw-nom-head">
-      <div class="slay-emblem">${crystalSvg(n, idx)}</div>
+      <div class="slay-emblem">${nomIconHtml(n, idx)}</div>
       <div class="aw-kicker">Номинация ${String(idx + 1).padStart(2, '0')} из ${String(S.noms.length).padStart(2, '0')}${n.is_open ? '' : ' · голосование закрыто'}</div>
       <h1>${esc(n.title)}</h1>
       ${n.description ? `<p>${esc(n.description)}</p>` : ''}
@@ -544,13 +439,25 @@ function modal(html, onSubmit) {
   return f;
 }
 function nomDialog(n) {
-  modal(`<h2>${n ? 'Изменить номинацию' : 'Новая номинация'}</h2>
-    <div class="aw-row"><label style="flex:0 0 80px">Эмодзи<input name="e" maxlength="8" value="${esc(n?.emoji || '🏅')}"></label><label>Название<input name="t" maxlength="120" required value="${esc(n?.title || '')}" placeholder="Мем года"></label></div>
+  const curIdx = n ? Math.max(0, S.noms.indexOf(n)) : S.noms.length;
+  let picked = resolveSlayIcon(n || {}, curIdx);
+  const f = modal(`<h2>${n ? 'Изменить номинацию' : 'Новая номинация'}</h2>
+    <label>Название<input name="t" maxlength="120" required value="${esc(n?.title || '')}" placeholder="Мем года"></label>
+    <div class="aw-ico-field"><span>Иконка номинации</span>
+      <input type="hidden" name="e" value="${esc(picked)}">
+      <div class="aw-ico-pick">${SLAY_ICONS.map(([k, file, label]) => `<button type="button" class="aw-ico-opt${k === picked ? ' on' : ''}" data-ico="${k}" title="${esc(label)}"><img src="/awards/icons/${file}?v=1" alt="${esc(label)}" draggable="false"></button>`).join('')}</div>
+    </div>
     <label>Описание (необязательно)<textarea name="d" rows="2" maxlength="600">${esc(n?.description || '')}</textarea></label>`, async f => {
     const body = { title: f.t.value.trim(), emoji: f.e.value.trim() || null, description: f.d.value.trim() || null };
     if (n) await api(`aw_nominations?id=eq.${n.id}`, { method: 'PATCH', prefer: 'return=minimal', body });
     else await api('aw_nominations', { method: 'POST', prefer: 'return=minimal', body: { ...body, position: (Math.max(0, ...S.noms.map(x => x.position)) + 1) } });
     toast('Сохранено'); await loadAll(); route();
+  });
+  $('.aw-ico-pick', f).addEventListener('click', ev => {
+    const btn = ev.target.closest('[data-ico]'); if (!btn) return;
+    picked = btn.dataset.ico;
+    f.e.value = picked;
+    f.querySelectorAll('.aw-ico-opt').forEach(b => b.classList.toggle('on', b === btn));
   });
 }
 function neeDialog(nomId, x) {
@@ -683,6 +590,6 @@ function route(fromNav = false) {
   }
 }
 addEventListener('hashchange', () => route(true));
-page.innerHTML = `<div class="aw-load"><div class="aw-load-cr">${crystalSvg({ title: 'king' }, 0)}</div></div>`;
+page.innerHTML = `<div class="aw-load"><div class="aw-load-cr">${nomIconHtml({ emoji: 'i:king' }, 0)}</div></div>`;
 loadMe().then(ok => { if (!ok) return; return loadAll().then(route); }).catch(e => { page.innerHTML = `<div class="aw-empty">Не удалось загрузить: ${esc(e.message)}</div>`; });
 })();
