@@ -15,13 +15,24 @@
   --serif: "Forum", "Cinzel", Georgia, serif;
   --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ease: cubic-bezier(.22, 1, .36, 1);
+  --cur-def: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23fff2c2'/%3E%3Cstop offset='35%25' stop-color='%23ff851b'/%3E%3Cstop offset='78%25' stop-color='%23c9180c'/%3E%3Cstop offset='100%25' stop-color='%234a0504'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='4,2 25,14 16,17 13,27' fill='url(%23a)' stroke='%23ffe5a3' stroke-width='1.3' stroke-linejoin='round'/%3E%3Cpolygon points='4,2 25,14 14,14' fill='%23fff6d6' opacity='.55'/%3E%3Cpolygon points='4,2 14,14 13,27' fill='%23700705' opacity='.45'/%3E%3C/svg%3E") 4 2, auto;
+  --cur-ptr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23ffffff'/%3E%3Cstop offset='35%25' stop-color='%23ffb838'/%3E%3Cstop offset='75%25' stop-color='%23ff4808'/%3E%3Cstop offset='100%25' stop-color='%238c0c04'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='5,3 26,14 17,17 14,27' fill='url(%23b)' stroke='%23ffffff' stroke-width='1.4' stroke-linejoin='round'/%3E%3Cpolygon points='5,3 26,14 15,14' fill='%23ffffff' opacity='.6'/%3E%3Cpolygon points='24,22 27,25 24,28 21,25' fill='%23ff9e2c' stroke='%23fff2c2' stroke-width='.9'/%3E%3C/svg%3E") 5 3, pointer;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); overflow-x: hidden; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); overflow-x: hidden; cursor: var(--cur-def); }
 body { min-height: 100dvh; }
+a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-car-arr, .slay-faq-q, .aw-btn, .aw-sw, .aw-drop, .aw-media, .aw-zoom { cursor: var(--cur-ptr); }
+input[type=text], input:not([type]), textarea { cursor: text; }
+.aw-cur-glow { position: fixed; top: 0; left: 0; width: 42px; height: 42px; margin: -21px 0 0 -21px; border-radius: 50%; pointer-events: none; z-index: 999;
+  background: radial-gradient(circle, rgba(255, 138, 36, .34), rgba(224, 46, 12, .12) 48%, transparent 72%);
+  opacity: 0; will-change: transform, opacity; transition: opacity .25s, width .2s, height .2s, margin .2s; }
+.aw-cur-glow.on { opacity: 1; }
+.aw-cur-glow.hot { width: 58px; height: 58px; margin: -29px 0 0 -29px;
+  background: radial-gradient(circle, rgba(255, 184, 72, .45), rgba(255, 76, 16, .18) 52%, transparent 74%); }
+@media (hover: none), (pointer: coarse) { .aw-cur-glow { display: none !important; } }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; }
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -178,25 +189,31 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .slay-card-sub.picked { color: #ffbe5c; font-weight: 600; }
 .slay-card .slay-btn { margin-top: 6px; }
 
-/* ── БОЛЬШЕ НОМИНАЦИЙ — 3-слотная карусель 1 в 1 (скрины 4 и 5) ── */
+/* ── БОЛЬШЕ НОМИНАЦИЙ — 3-слотная карусель 1 в 1 (скрины 4 и 5), фиксированная высота без прыжков стрелок ── */
 .slay-more { padding-top: 104px; }
+#slayCarBox { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .slay-car { display: grid; grid-template-columns: 1fr minmax(260px, 380px) 1fr; align-items: center; gap: 20px;
-  max-width: 960px; margin: 48px auto 0; min-height: 360px; }
+  max-width: 960px; margin: 44px auto 0; height: 420px; }
 .slay-car-side { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  border: 0; background: none; cursor: pointer; opacity: .28; transform: scale(.68);
+  border: 0; background: none; opacity: .28; transform: scale(.68);
   filter: saturate(.75) brightness(.65); transition: opacity .25s, transform .3s var(--ease), filter .25s; }
 .slay-car-side:hover { opacity: .62; transform: scale(.76); filter: saturate(1) brightness(.9); }
 .slay-car-side .slay-emblem { width: 170px; height: 170px; }
 .slay-car-side span { font-family: var(--serif); font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: #c46e38; max-width: 170px; }
-.slay-car-center { display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fade .32s var(--ease); }
-.slay-car-center .slay-emblem { width: 224px; height: 224px; }
-.slay-car-center .slay-card-t { font-size: clamp(28px, 3.8vw, 40px); }
-.slay-car-nav { display: inline-flex; align-items: center; gap: 22px; margin-top: 26px; }
-.slay-car-arr { width: 40px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; cursor: pointer;
-  position: relative; transition: transform .18s, filter .2s; filter: drop-shadow(0 0 10px rgba(255, 72, 16, .45)); }
+.slay-car-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: 100%; animation: fade .28s var(--ease); }
+.slay-car-center .slay-emblem { width: 210px; height: 210px; flex: none; }
+.slay-car-center .slay-card-t { font-size: clamp(24px, 3.6vw, 38px); height: 2.5em; display: flex; align-items: center; justify-content: center;
+  margin: 4px 0 0; overflow: hidden; }
+.slay-car-center .slay-card-t a { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.slay-car-center .slay-card-sub { height: 22px; line-height: 22px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slay-car-nav { display: inline-flex; align-items: center; justify-content: center; gap: 20px; margin-top: 18px; }
+.slay-car-arr { width: 52px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent;
+  position: relative; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: transform .18s, filter .2s; filter: drop-shadow(0 0 10px rgba(255, 72, 16, .45)); }
 .slay-car-arr:hover { transform: scale(1.12); filter: drop-shadow(0 0 16px rgba(255, 108, 28, .85)); }
+.slay-car-arr:active { transform: scale(.92); }
 .slay-car-arr svg { width: 32px; height: 32px; }
-.slay-car-cnt { font-family: var(--serif); font-size: 20px; letter-spacing: .12em; color: #6e6761; font-variant-numeric: tabular-nums; }
+.slay-car-cnt { font-family: var(--serif); font-size: 20px; letter-spacing: .12em; color: #6e6761; font-variant-numeric: tabular-nums; min-width: 78px; text-align: center; }
 .slay-car-cnt b { color: #ff8c2c; font-weight: 400; }
 
 /* ── ДО НАЧАЛА / ИТОГОВ ПРЕМИИ (скрин 6) ── */
@@ -322,7 +339,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .aw-edge { display: none; }
   .aw-nav .aw-nav-l:not(:first-child) { display: none; }
   .slay-top2, .slay-top3, .slay-all-grid { grid-template-columns: 1fr; gap: 52px; }
-  .slay-car { grid-template-columns: 1fr; }
+  .slay-car { grid-template-columns: 1fr; height: 380px; margin-top: 28px; }
+  .slay-car-center .slay-emblem { width: 184px; height: 184px; }
   .slay-car-side { display: none; }
 }
 @media (max-width: 600px) {
@@ -333,3 +351,5 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .slay-btn { min-width: 196px; height: 44px; font-size: 12.5px; }
   .aw-nees { grid-template-columns: 1fr; }
 }
+a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-car-arr, .slay-faq-q, .aw-btn, .aw-sw, .aw-drop, .aw-link, .aw-add, .aw-media { cursor: var(--cur-ptr); }
+.slay-btn.static, .aw-nom-head .slay-emblem, .aw-media video, .aw-media.yt, .aw-nomedia { cursor: var(--cur-def); }
