@@ -1042,8 +1042,20 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .cfx-fx_glitch { color: #f1f7ff; animation: cfxGlitch 3.2s steps(1) infinite; }
 .cfx-fx_rainbow { background: linear-gradient(90deg, #ff4d6d, #ffbe0b, #38ef7d, #38bdf8, #a855f7, #ff4d6d); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 3.5s linear infinite; }
 
-/* ── значок у ника ── */
-.cb-ico { display: inline-block; margin-left: 4px; font-size: .92em; line-height: 1; vertical-align: -1px; font-style: normal; font-weight: 400; }
+/* ── значок у ника (векторные бейджи) ── */
+.cb-ico { display: inline-flex; align-items: center; justify-content: center; width: 1.05em; height: 1.05em; margin-left: 5px; vertical-align: -0.15em; flex: none; overflow: visible !important; }
+.cb-ico svg { width: 100%; height: 100%; display: block; fill: none; stroke: none; overflow: visible; }
+.card-author .cb-ico { margin-left: -3px; }
+.cb-badge_snow svg { filter: drop-shadow(0 0 5px rgba(108,196,255,.65)); }
+.cb-badge_paw svg { filter: drop-shadow(0 0 5px rgba(244,114,182,.55)); }
+.cb-badge_star svg { filter: drop-shadow(0 0 6px rgba(250,204,21,.65)); }
+.cb-badge_bunny svg { filter: drop-shadow(0 0 5px rgba(108,196,255,.55)); }
+.cb-badge_sakura svg { filter: drop-shadow(0 0 5px rgba(255,133,179,.6)); }
+.cb-badge_bolt svg { filter: drop-shadow(0 0 6px rgba(56,189,248,.7)); }
+.cb-badge_fire svg { filter: drop-shadow(0 0 6px rgba(255,115,0,.7)); }
+.cb-badge_cyber svg { filter: drop-shadow(0 0 6px rgba(168,85,247,.7)); }
+.cb-badge_gem svg { filter: drop-shadow(0 0 6px rgba(56,189,248,.75)); }
+.cb-badge_crown svg { filter: drop-shadow(0 0 7px rgba(250,204,21,.75)); }
 
 /* ── фоны карточки профиля ── */
 .cbg { position: relative; overflow: hidden; }
@@ -1087,8 +1099,8 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .shop-prev .prof-ava { width: 72px; height: 72px; border-radius: 18px; }
 .shop-prev .cf-wrap.cf-lg { border-radius: 22px; }
 .shop-prev-nick { font-size: 20px; font-weight: 800; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.shop-prev-badge { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; }
-.shop-prev-badge .cb-ico { font-size: 24px; margin-left: 2px; }
+.shop-prev-badge { display: flex; align-items: center; gap: 4px; font-size: 18px; font-weight: 700; }
+.shop-prev-badge .cb-ico { width: 24px; height: 24px; margin-left: 3px; }
 .shop-prev-bg { width: 100%; height: 100%; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
 .shop-prev-bg img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; flex: none; }
 .shop-prev-bg b { font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

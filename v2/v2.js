@@ -211,10 +211,16 @@ const avatarUrl = p => p?.avatar_url || COIN;
 /* ── косметика и магазин (пока магазин только для владельца; эффекты видны всем) ── */
 const EQ = new Map();
 const SHOP_BADGES = {
-  badge_snow: ['❄️', 'Снежинка'], badge_paw: ['🐾', 'Лапка'], badge_star: ['⭐', 'Звезда'],
-  badge_bunny: ['🐰', 'Зайчик'], badge_sakura: ['🌸', 'Сакура'], badge_bolt: ['⚡', 'Молния'],
-  badge_fire: ['🔥', 'Огонёк'], badge_cyber: ['👾', 'Кибер'], badge_gem: ['💎', 'Алмаз'],
-  badge_crown: ['👑', 'Корона'],
+  badge_snow: ['Снежинка', '<svg viewBox="0 0 24 24"><path fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round" d="M12 2.5v19M3.8 7.2l16.4 9.6M20.2 7.2 3.8 16.8"/><path fill="none" stroke="#e0f2fe" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m9.5 4.8 2.5 2.4 2.5-2.4M9.5 19.2 12 16.8l2.5 2.4M4.8 10.6l3.2-.8-.8-3.2M19.2 10.6 16 9.8l.8-3.2M4.8 13.4l3.2.8-.8 3.2M19.2 13.4l-3.2.8.8 3.2"/><polygon points="12,9.2 14.8,12 12,14.8 9.2,12" fill="#fff"/></svg>'],
+  badge_paw: ['Лапка', '<svg viewBox="0 0 24 24"><ellipse cx="6.2" cy="9.6" rx="2.3" ry="3" transform="rotate(-18 6.2 9.6)" fill="#f472b6"/><ellipse cx="10.2" cy="6.4" rx="2.2" ry="3" transform="rotate(-6 10.2 6.4)" fill="#f9a8d4"/><ellipse cx="14.6" cy="6.6" rx="2.2" ry="3" transform="rotate(8 14.6 6.6)" fill="#f9a8d4"/><ellipse cx="18.2" cy="10.1" rx="2.3" ry="3" transform="rotate(20 18.2 10.1)" fill="#f472b6"/><path fill="#ec4899" d="M12 11.2c-3.4 0-6 2.8-6 5.6 0 2 1.5 3.4 3.4 3.4 1.1 0 1.8-.4 2.6-.4s1.5.4 2.6.4c1.9 0 3.4-1.4 3.4-3.4 0-2.8-2.6-5.6-6-5.6z"/><path fill="#fbcfe8" opacity=".6" d="M12 12.6c-1.8 0-3.2 1.2-3.4 2.6 1.2-.6 2.3-.9 3.4-.9s2.2.3 3.4.9c-.2-1.4-1.6-2.6-3.4-2.6z"/></svg>'],
+  badge_star: ['Звезда', '<svg viewBox="0 0 24 24"><path fill="#f59e0b" d="M11 2.2 13.4 8.6 19.8 11 13.4 13.4 11 19.8 8.6 13.4 2.2 11 8.6 8.6z"/><path fill="#fde047" d="M11 4.4 12.7 9.3 17.6 11 12.7 12.7 11 17.6 9.3 12.7 4.4 11 9.3 9.3z"/><circle cx="11" cy="11" r="2" fill="#fffbeb"/><path fill="#fef08a" d="M19 3.5 19.9 5.6 22 6.5 19.9 7.4 19 9.5 18.1 7.4 16 6.5 18.1 5.6z"/><path fill="#fde047" d="M18.2 16 18.8 17.4 20.2 18 18.8 18.6 18.2 20 17.6 18.6 16.2 18 17.6 17.4z"/></svg>'],
+  badge_bunny: ['Зайчик', '<svg viewBox="0 0 24 24"><ellipse cx="8.6" cy="7.2" rx="2.3" ry="5.4" transform="rotate(-10 8.6 7.2)" fill="#e2f1ff"/><ellipse cx="15.4" cy="7.2" rx="2.3" ry="5.4" transform="rotate(10 15.4 7.2)" fill="#e2f1ff"/><ellipse cx="8.7" cy="7.4" rx="1.1" ry="3.4" transform="rotate(-10 8.7 7.4)" fill="#6cc4ff"/><ellipse cx="15.3" cy="7.4" rx="1.1" ry="3.4" transform="rotate(10 15.3 7.4)" fill="#6cc4ff"/><ellipse cx="12" cy="15.4" rx="6.6" ry="5.6" fill="#f0f7ff"/><circle cx="9.6" cy="15" r="1.15" fill="#0b1220"/><circle cx="14.4" cy="15" r="1.15" fill="#0b1220"/><circle cx="9.9" cy="14.6" r=".38" fill="#fff"/><circle cx="14.7" cy="14.6" r=".38" fill="#fff"/><ellipse cx="12" cy="17.1" rx="1.1" ry=".75" fill="#ff8ec7"/></svg>'],
+  badge_sakura: ['Сакура', '<svg viewBox="0 0 24 24"><g fill="#ff85b3"><path d="M12 12C9.3 8.8 9.2 4.4 11.4 3.1c.4.8.6 1.3.6 1.3s.2-.5.6-1.3c2.2 1.3 2.1 5.7-.6 8.9z"/><path d="M12 12C9.3 8.8 9.2 4.4 11.4 3.1c.4.8.6 1.3.6 1.3s.2-.5.6-1.3c2.2 1.3 2.1 5.7-.6 8.9z" transform="rotate(72 12 12)"/><path d="M12 12C9.3 8.8 9.2 4.4 11.4 3.1c.4.8.6 1.3.6 1.3s.2-.5.6-1.3c2.2 1.3 2.1 5.7-.6 8.9z" transform="rotate(144 12 12)"/><path d="M12 12C9.3 8.8 9.2 4.4 11.4 3.1c.4.8.6 1.3.6 1.3s.2-.5.6-1.3c2.2 1.3 2.1 5.7-.6 8.9z" transform="rotate(216 12 12)"/><path d="M12 12C9.3 8.8 9.2 4.4 11.4 3.1c.4.8.6 1.3.6 1.3s.2-.5.6-1.3c2.2 1.3 2.1 5.7-.6 8.9z" transform="rotate(288 12 12)"/></g><circle cx="12" cy="12" r="2.7" fill="#ffd6e7"/><circle cx="12" cy="12" r="1.4" fill="#fde047"/></svg>'],
+  badge_bolt: ['Молния', '<svg viewBox="0 0 24 24"><polygon points="14,2 5.2,13.2 11.4,13.2 9.8,22 18.8,10.4 12.6,10.4" fill="#38bdf8"/><polygon points="13.4,4.4 7.4,12.2 12.4,12.2 11.2,19.4 16.8,11.4 11.8,11.4" fill="#fde047"/><polygon points="13,6.6 9.5,11.5 12.4,11.5" fill="#fff"/></svg>'],
+  badge_fire: ['Огонёк', '<svg viewBox="0 0 24 24"><path fill="#ff4d2e" d="M12.6 2.2c.6 3.2-1.8 5.2-1.2 7.2 1.2-1.1 2-2.6 2.2-4.2 3.1 2.2 5.2 5.6 5.2 9.2 0 4.1-3.1 7.4-6.8 7.4S5.2 18.5 5.2 14.4c0-3.5 2-6.6 4.4-8.8 1.2-1.1 2.4-2.1 3-3.4z"/><path fill="#ff9e1b" d="M12.1 8.4c2.4 1.8 4 4.1 4 6.7 0 2.9-1.9 5.3-4.2 5.3s-4.2-2.4-4.2-5.3c0-2.1 1-4.1 2.5-5.6.2 1 .8 1.7 1.6 2 .1-1 .2-2.1.3-3.1z"/><path fill="#fff3b0" d="M12 13.4c1.2 1.1 2 2.4 2 3.8 0 1.4-.9 2.4-2 2.4s-2-1-2-2.4c0-1.4.8-2.7 2-3.8z"/></svg>'],
+  badge_cyber: ['Кибер', '<svg viewBox="0 0 24 24"><polygon points="12,2.2 21,8.5 18.2,19.8 5.8,19.8 3,8.5" fill="#7c3aed"/><polygon points="12,4.4 18.8,9.2 16.7,18 7.3,18 5.2,9.2" fill="#1e1b4b"/><polygon points="6.6,10.6 17.4,10.6 16.4,14.4 12,13.2 7.6,14.4" fill="#22d3ee"/><polygon points="7.8,11.2 13.5,11.2 12.2,12.5 7.4,12.5" fill="#e0f2fe" opacity=".85"/><circle cx="12" cy="7.2" r="1.2" fill="#f472b6"/></svg>'],
+  badge_gem: ['Алмаз', '<svg viewBox="0 0 24 24"><polygon points="6.5,4 17.5,4 22,9.8 12,21 2,9.8" fill="#0284c7"/><polygon points="6.5,4 17.5,4 15.2,9.8 8.8,9.8" fill="#bae6fd"/><polygon points="6.5,4 8.8,9.8 2,9.8" fill="#7dd3fc"/><polygon points="17.5,4 22,9.8 15.2,9.8" fill="#38bdf8"/><polygon points="8.8,9.8 15.2,9.8 12,21" fill="#38bdf8"/><polygon points="2,9.8 8.8,9.8 12,21" fill="#0ea5e9"/><polygon points="8.8,9.8 12,5.6 15.2,9.8" fill="#fff" opacity=".65"/></svg>'],
+  badge_crown: ['Корона', '<svg viewBox="0 0 24 24"><path fill="#d97706" d="M3 8.2 7.8 12 12 5l4.2 7L21 8.2 19.2 18.5H4.8z"/><path fill="#fde047" d="M4.6 9.8 8.2 13 12 6.8 15.8 13 19.4 9.8 18.1 17H5.9z"/><rect x="4.8" y="17" width="14.4" height="2.4" rx="1.2" fill="#f59e0b"/><circle cx="12" cy="4.4" r="1.5" fill="#fffbeb"/><circle cx="3.2" cy="7.6" r="1.3" fill="#fde047"/><circle cx="20.8" cy="7.6" r="1.3" fill="#fde047"/><circle cx="12" cy="13.8" r="1.4" fill="#ef4444"/><circle cx="8.2" cy="14.6" r="1" fill="#38bdf8"/><circle cx="15.8" cy="14.6" r="1" fill="#38bdf8"/></svg>'],
 };
 const SHOP_ITEMS = new Map();
 function absorbEq(rows) { EQ.clear(); (rows || []).forEach(r => EQ.set(r.user_id, r)); }
@@ -223,11 +229,13 @@ let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner&limit
   .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
-const badgeMeta = id => {
-  if (!id) return null;
-  const it = SHOP_ITEMS.get(id);
-  if (it?.meta?.icon) return [it.meta.icon, it.title];
-  return SHOP_BADGES[id] || null;
+const badgeHtml = id => {
+  if (!id || !/^badge_[a-z0-9_]+$/i.test(id)) return '';
+  const b = SHOP_BADGES[id], it = SHOP_ITEMS.get(id);
+  const title = it?.title || b?.[0] || '';
+  if (b) return `<span class="cb-ico cb-${esc(id)}" title="${esc(title)}">${b[1]}</span>`;
+  if (it?.meta?.icon) return `<span class="cb-ico" title="${esc(title)}">${esc(it.meta.icon)}</span>`;
+  return '';
 };
 function applyMeFrame() {
   const b = $('#meBtn'); if (!b) return;
@@ -248,8 +256,7 @@ function cosName(p, overrideFx, overrideBadge) {
   const eq = eqOf(p);
   const fx = overrideFx !== undefined ? overrideFx : eq?.nick_fx;
   const bg = overrideBadge !== undefined ? overrideBadge : eq?.badge;
-  const bm = badgeMeta(bg);
-  return `<span${nameAttr(p?.name_color, fx)}>${esc(pname(p))}</span>${bm ? `<span class="cb-ico" title="${esc(bm[1])}">${bm[0]}</span>` : ''}`;
+  return `<span${nameAttr(p?.name_color, fx)}>${esc(pname(p))}</span>${badgeHtml(bg)}`;
 }
 
 /* ── время ── */
@@ -2636,7 +2643,7 @@ async function viewShop(tab) {
   const cardPreview = it => {
     if (it.category === 'frame') return cosAva(me, 'prof-ava', '', it.id);
     if (it.category === 'nick_fx') return `<div class="shop-prev-nick"><span${nameAttr(null, it.id)}>${esc(pname(me))}</span></div>`;
-    if (it.category === 'badge') return `<div class="shop-prev-badge"><span>${esc(pname(me))}</span><span class="cb-ico">${esc(it.meta?.icon || '')}</span></div>`;
+    if (it.category === 'badge') return `<div class="shop-prev-badge"><span>${esc(pname(me))}</span>${badgeHtml(it.id)}</div>`;
     if (it.category === 'banner') return `<div class="shop-prev-bg cbg cbg-${esc(it.id)}"><img src="${esc(avatarUrl(me))}" alt=""><div><b>${esc(pname(me))}</b><span>Фон профиля</span></div></div>`;
     return '';
   };
