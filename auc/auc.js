@@ -314,14 +314,16 @@ function findSimilarLot(msg, lots) {
   }
   return bestScore >= 0.35 ? best : null;
 }
-function donHtml(b, opts, lots) {
+function donHtml(b, opts, lots, idx = -1) {
   const msg = b.message || b.meta?.message || '';
   const unit = b.orig_amount != null && !['manual', 'wallet'].includes(b.source) ? `${fmt(b.orig_amount)} ${esc(b.orig_unit || '')}` : '';
   const sim = S.isAdmin && b.status === 'queue' ? findSimilarLot(msg, lots) : null;
-  return `<span class="who">${esc(b.user_name)}</span><span class="amt">+${fmt(b.points)}${unit ? `<small>${unit}</small>` : ''}</span>
+  const isQ = S.isAdmin && b.status === 'queue';
+  return `${isQ ? `<span class="pa-only pa-bh"><span class="pa-bt">${fmt(b.points)} ${esc(b.user_name)}</span><button class="pa-bx" data-act="dismiss" data-id="${b.id}" title="Удалить" aria-label="Удалить">✕</button></span>` : ''}
+    <span class="who${isQ ? ' pa-hide' : ''}">${esc(b.user_name)}</span><span class="amt${isQ ? ' pa-hide' : ''}">+${fmt(b.points)}${unit ? `<small>${unit}</small>` : ''}</span>
     ${msg ? `<span class="msg">${esc(msg)}</span>` : ''}
-    <span class="meta"><span class="src ${b.source}">${SRC[b.source]}</span>${b.status !== 'queue' ? `<span class="st ${b.status}">${ST[b.status]}</span>${b.lot_id ? ' ' + esc(lotLabel(b.lot_id)) : ''}` : ''}<span>${time(b.created_at)}</span>${b.refund_to ? `<span>→ ${esc(b.refund_to)}</span>` : ''}</span>
-    ${S.isAdmin && b.status === 'queue' ? `<span class="q-btns">${sim ? `<button class="btn sm ok q-sim" data-act="assignSim" data-id="${b.id}" data-lot="${sim.id}" title="Вкинуть в похожий лот #${sim.num} «${esc(sim.name)}»">→ #${sim.num} ${esc(sim.name)}</button>` : ''}<button class="btn sm outline q-new" data-act="assignNew" data-id="${b.id}" title="${msg ? `Создать новый лот «${esc(msg.slice(0, 60))}»` : 'Создать новый лот'}">+ Новый лот</button><button class="ib bad" data-act="dismiss" data-id="${b.id}" title="Удалить из ожидающих (без возврата)" aria-label="Удалить">✕</button></span><span class="acts"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
+    <span class="meta${isQ ? ' pa-hide' : ''}"><span class="src ${b.source}">${SRC[b.source]}</span>${b.status !== 'queue' ? `<span class="st ${b.status}">${ST[b.status]}</span>${b.lot_id ? ' ' + esc(lotLabel(b.lot_id)) : ''}` : ''}<span>${time(b.created_at)}</span>${b.refund_to ? `<span>→ ${esc(b.refund_to)}</span>` : ''}</span>
+    ${isQ ? `<span class="q-btns">${sim ? `<button class="btn sm ok q-sim" data-act="assignSim" data-id="${b.id}" data-lot="${sim.id}" title="Вкинуть в похожий лот #${sim.num} «${esc(sim.name)}»"><span class="pa-hide">→ #${sim.num} ${esc(sim.name)}</span><span class="pa-only">К ${esc(sim.name)}</span></button>` : ''}<span class="pa-split"><button class="btn sm outline q-new" data-act="assignNew" data-id="${b.id}" title="${msg ? `Создать новый лот «${esc(msg.slice(0, 60))}»` : 'Создать новый лот'}">${idx === 0 ? '<kbd class="pa-only pa-hk">1</kbd>' : ''}<span class="pa-hide">+ Новый лот</span><span class="pa-only">Новый</span></button><select class="pa-only pa-drop" data-assign="${b.id}" aria-label="Выбрать лот"><option value="">▾</option>${opts}</select></span><button class="ib bad pa-hide" data-act="dismiss" data-id="${b.id}" title="Удалить из ожидающих (без возврата)" aria-label="Удалить">✕</button></span><span class="acts pa-hide"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
     ${S.isAdmin && b.status === 'failed' ? `<span class="acts"><button class="btn sm" data-act="retry">Повторить</button><button class="btn sm ghost" data-act="markDone" data-id="${b.id}">Уже вернул</button></span>` : ''}`;
 }
 function renderRight() {
@@ -342,9 +344,9 @@ function renderRight() {
   keyed($('#dlist'), list, b => S.q + b.id,
     () => document.createElement('div'),
     (el, b) => {
-      el.className = 'don' + (Date.parse(b.created_at) > fresh ? ' fresh' : '') + (el.classList.contains('enter') ? ' enter' : '');
+      el.className = 'don don-' + (b.source || 'manual') + (b.status === 'queue' ? ' don-q' : '') + (Date.parse(b.created_at) > fresh ? ' fresh' : '') + (el.classList.contains('enter') ? ' enter' : '');
       if (S.isAdmin && b.status === 'queue') { el.draggable = true; el.dataset.bid = b.id; } else { el.draggable = false; delete el.dataset.bid; }
-      const h = donHtml(b, opts, d.lots);
+      const h = donHtml(b, opts, d.lots, list.indexOf(b));
       if (el._h !== h && !el.contains(document.activeElement)) { el.innerHTML = h; el._h = h; }
     }, empty);
   if (S.isAdmin && S.adm) {
@@ -355,6 +357,9 @@ function renderRight() {
     $('#acceptTg').disabled = ['running', 'paused', 'ended', 'closed'].includes(a.status);
     $('#noRefTg').checked = !!c.no_refund;
     document.querySelectorAll('.flt').forEach(b => b.classList.toggle('on', S.flt[b.dataset.flt]));
+    const pDa = $('#paPillDa'), pTw = $('#paPillTw');
+    if (pDa) pDa.classList.toggle('on', !!S.flt.don);
+    if (pTw) pTw.classList.toggle('on', !!S.flt.pts);
   }
 }
 
@@ -1025,6 +1030,8 @@ document.addEventListener('click', async e => {
     const k = pa.dataset.pa;
     if (k === 'connect') return setTab('settings');
     if (k === 'int') { document.body.classList.toggle('pa-int-open'); return; }
+    if (k === 'pillDon') { S.flt.don = !S.flt.don; return renderRight(); }
+    if (k === 'pillPts') { S.flt.pts = !S.flt.pts; return renderRight(); }
     S.view[k] = !S.view[k]; ls.set('auc_' + k, S.view[k] ? '1' : '0'); return render();
   }
   const fl = e.target.closest('.flt'); if (fl) { S.flt[fl.dataset.flt] = !S.flt[fl.dataset.flt]; return renderRight(); }

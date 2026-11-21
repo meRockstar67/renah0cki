@@ -15,9 +15,9 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/auc/auc.css?v=20261121m">
-<script src="/auc/wheel.js?v=20261121m" defer></script>
-<script src="/auc/auc.js?v=20261121m" defer></script>
+<link rel="stylesheet" href="/auc/auc.css?v=20261121n">
+<script src="/auc/wheel.js?v=20261121n" defer></script>
+<script src="/auc/auc.js?v=20261121n" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -82,6 +82,10 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
   <aside class="right" id="right">
     <div class="pa-int pa-only" data-adm hidden>
       <button type="button" class="pa-int-h" data-pa="int"><span>Интеграции</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="pa-pills">
+        <button type="button" class="pa-pill" id="paPillDa" data-pa="pillDon" title="Приём донатов / фильтр донатов"><i class="pa-dot"></i><span class="pa-pcur">₽</span><span class="pa-pbadge da">DA</span></button>
+        <button type="button" class="pa-pill on" id="paPillTw" data-pa="pillPts" title="Баллы канала Twitch"><i class="pa-dot"></i><span class="pa-pcur">✦</span><span class="pa-pbadge tw">Tw</span></button>
+      </div>
       <button type="button" class="pa-int-card" data-pa="connect">
         <span class="pa-int-t">Подключить Сервисы</span>
         <span class="pa-int-dots"><i style="background:#9146ff">T</i><i style="background:#f57507">DA</i><i style="background:#ff4f8b">DP</i><i style="background:#ffd166;color:#111">DX</i><i style="background:#228be6">RC</i></span>
@@ -93,6 +97,7 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
       <button data-q="done" role="tab"><span class="pa-hide">Выполненные</span><span class="pa-only">История</span></button>
     </div>
     <div class="dlist" id="dlist"></div>
+    <button type="button" class="pa-only pa-clear" data-act="finish" data-adm hidden>Очистить</button>
     <div class="right-foot" data-adm hidden>
       <div class="rf-row">
         <label class="sel"><svg viewBox="0 0 24 24"><path d="M4 7h10M4 12h7M4 17h4M17 5v14M14 16l3 3 3-3"/></svg><select id="qSort" aria-label="Сортировка"><option value="new">Сначала новые</option><option value="old">Сначала старые</option></select></label>
