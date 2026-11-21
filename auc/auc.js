@@ -499,7 +499,50 @@ async function doSpin() {
     setTimeout(() => { if (WH.lastSpin !== ev.id) onSpin(ev); }, 1200);
   } catch (e) { toast(e.message, true); }
 }
+let winFxStop = null;
+function burstConfetti(accentHex) {
+  winFxStop?.();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv = $('#winFx'); if (!cv) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = innerWidth, H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cols = [accentHex || '#a78bfa', '#fde047', '#38bdf8', '#f472b6', '#4ade80', '#ffffff'];
+  const ps = Array.from({ length: 78 }, (_, i) => {
+    const left = i % 2 === 0;
+    const ang = left ? (-0.95 + Math.random() * 0.7) : (-2.19 - Math.random() * 0.7);
+    const spd = 7 + Math.random() * 11;
+    return {
+      x: left ? W * 0.14 : W * 0.86, y: H * 0.62,
+      vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 3,
+      w: 5 + Math.random() * 6, h: 3 + Math.random() * 4,
+      r: Math.random() * 6.28, vr: (Math.random() - .5) * .25,
+      col: cols[i % cols.length], life: 1,
+    };
+  });
+  let dead = false;
+  const step = () => {
+    if (dead) return;
+    ctx.clearRect(0, 0, W, H);
+    let alive = 0;
+    for (const p of ps) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.24; p.vx *= 0.99; p.r += p.vr;
+      if (p.y > H * 0.72) p.life -= 0.022;
+      if (p.life <= 0 || p.y > H + 30) continue;
+      alive++;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      ctx.fillStyle = p.col; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (alive) requestAnimationFrame(step); else ctx.clearRect(0, 0, W, H);
+  };
+  requestAnimationFrame(step);
+  winFxStop = () => { dead = true; ctx.clearRect(0, 0, W, H); };
+}
 function hideWinner() {
+  winFxStop?.(); winFxStop = null;
   const ov = $('#winOver'); if (ov) ov.hidden = true;
 }
 function showWinner(lot) {
@@ -512,14 +555,20 @@ function showWinner(lot) {
   const pctStr = pct.toFixed(1);
   const bids = S.isAdmin ? (S.adm?.bids || []) : (d?.recent || []);
   const donCount = bids.filter(b => b.lot_id === lot.id && ['active', 'won'].includes(b.status)).length;
-  card.innerHTML = `<div class="win-sub">★ ПОБЕДИТЕЛЬ РОЗЫГРЫША ★</div>
-    <div class="win-title-row">
-      <h2 class="win-title">${esc(lot.name)}</h2>
-      <button type="button" class="win-copy" data-act="copy" data-id="${esc(lot.name)}" title="Скопировать название" aria-label="Скопировать название"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+  const segCol = lot.color || W_.colorOf(lot.num, wcfg().palette);
+  card.style.setProperty('--win-glow', segCol);
+  card.innerHTML = `<div class="win-badge"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4"/></svg></div>
+    <div class="win-sub">Победитель розыгрыша</div>
+    <div class="win-title-wrap">
+      ${lot.num ? `<span class="win-lotno">Лот #${lot.num}</span>` : ''}
+      <div class="win-title-row">
+        <h2 class="win-title">${esc(lot.name)}</h2>
+        <button type="button" class="win-copy" data-act="copy" data-id="${esc(lot.name)}" title="Скопировать название" aria-label="Скопировать название"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      </div>
     </div>
     <div class="win-stats">
-      <div class="win-stat ok"><span>Сумма</span><b>${fmt(sum)} <small>б.</small></b></div>
-      <div class="win-stat ok"><span>Доля</span><b>${pctStr}%</b></div>
+      <div class="win-stat hi"><span>Сумма</span><b>${fmt(sum)} <small>б.</small></b></div>
+      <div class="win-stat hi"><span>Доля</span><b>${pctStr}%</b></div>
       <div class="win-stat"><span>Донатов</span><b>${donCount}</b></div>
     </div>
     <div class="win-share">
@@ -527,13 +576,14 @@ function showWinner(lot) {
       <div class="win-bar"><i style="width:0%" data-w="${pct.toFixed(2)}%"></i></div>
     </div>
     ${S.isAdmin ? `<div class="win-acts">
+      <button type="button" class="btn win-pri" data-act="winFinish">✓ Подтвердить и завершить аукцион</button>
       <div class="win-acts-row">
-        <button type="button" class="btn win-pri" data-act="winOk">Подтвердить</button>
-        <button type="button" class="btn win-sec" data-act="winReroll">Реролл</button>
+        <button type="button" class="btn win-out" data-act="winOk">Подтвердить</button>
+        <button type="button" class="btn win-sec" data-act="winReroll">↻ Реролл</button>
       </div>
-      <button type="button" class="btn win-pri win-full" data-act="winFinish">Подтвердить и завершить аукцион</button>
     </div>` : `<div class="win-acts"><button type="button" class="btn win-sec" data-act="winOk">Закрыть</button></div>`}`;
   ov.hidden = false;
+  burstConfetti(segCol);
   requestAnimationFrame(() => requestAnimationFrame(() => { const bar = $('.win-bar i', ov); if (bar) bar.style.width = bar.dataset.w; }));
 }
 function onSpin(ev) {
