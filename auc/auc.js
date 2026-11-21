@@ -375,8 +375,8 @@ function syncCenterImg() {
   const ci = $('#wCenterImg'); if (ci && ci.dataset.src !== src) { ci.dataset.src = src; ci.src = src; }
   const pr = $('#wImgPrev'); if (pr && pr.dataset.src !== src) { pr.dataset.src = src; pr.src = src; }
 }
-/* ── базовый набор и поиск 7TV эмодзи для центра колеса ── */
-const STV = { base: null, list: [], loading: false, q: '' };
+/* ── 7TV эмодзи канала meowh0cki для центра колеса ── */
+const STV = { all: null, loading: false, q: '' };
 function stvUrl(e) {
   const h = e.host || e.data?.host;
   if (h?.url) {
@@ -390,34 +390,34 @@ function stvUrl(e) {
 function render7tv() {
   const g = $('#w7tvGrid'); if (!g) return;
   if (STV.loading) { g.innerHTML = '<div class="w7tv-msg">Загрузка 7TV…</div>'; return; }
-  if (!STV.list.length) { g.innerHTML = '<div class="w7tv-msg">Ничего не нашлось</div>'; return; }
+  const ql = STV.q.toLowerCase();
+  const list = (STV.all || []).filter(e => !ql || e.name.toLowerCase().includes(ql));
+  if (!list.length) { g.innerHTML = '<div class="w7tv-msg">Ничего не нашлось</div>'; return; }
   const cur = wcfg().image || '';
-  g.innerHTML = STV.list.map(e => `<button type="button" class="w7tv-btn${cur === e.url ? ' on' : ''}" data-act="set7tv" data-url="${esc(e.url)}" title="${esc(e.name)}"><img src="${esc(e.url)}" alt="${esc(e.name)}" loading="lazy"></button>`).join('');
+  g.innerHTML = list.map(e => `<button type="button" class="w7tv-btn${cur === e.url ? ' on' : ''}" data-act="set7tv" data-url="${esc(e.url)}" title="${esc(e.name)}"><img src="${esc(e.url)}" alt="${esc(e.name)}" loading="lazy"></button>`).join('');
 }
 async function load7tv(q = '') {
   STV.q = q.trim();
-  if (!STV.q && STV.base) { STV.list = STV.base; return render7tv(); }
+  if (STV.all) return render7tv();
   STV.loading = true; render7tv();
   try {
-    let items = [];
-    try {
-      const r = await fetch('https://7tv.io/v3/gql', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: 'query($q:String!,$n:Int!){emotes(query:$q,limit:$n){items{id name host{url files{name format}}}}}', variables: { q: STV.q, n: 24 } }),
-      });
-      const j = r.ok ? await r.json() : null;
-      items = (j?.data?.emotes?.items || []).map(e => ({ id: e.id, name: e.name, url: stvUrl(e) }));
-    } catch {}
-    if (!items.length) {
-      const r = await fetch('https://7tv.io/v3/emote-sets/global');
-      const j = r.ok ? await r.json() : null;
-      const all = (j?.emotes || []).map(e => ({ id: e.id, name: e.name, url: stvUrl(e) }));
-      const ql = STV.q.toLowerCase();
-      items = ql ? all.filter(e => e.name.toLowerCase().includes(ql)).slice(0, 24) : all.slice(0, 24);
+    let emotes = null;
+    for (const url of ['https://7tv.io/v3/users/twitch/926384072', 'https://7tv.io/v3/users/01HTCNBS6R0004PQK0CR95YHP0']) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) continue;
+        const d = await r.json();
+        emotes = d.emote_set?.emotes;
+        const setId = d.emote_set?.id || (d.connections || []).map(c => c.emote_set_id).find(Boolean);
+        if ((!emotes || !emotes.length) && setId) {
+          const r2 = await fetch(`https://7tv.io/v3/emote-sets/${setId}`);
+          if (r2.ok) emotes = (await r2.json()).emotes;
+        }
+        if (emotes && emotes.length) break;
+      } catch {}
     }
-    if (!STV.q && items.length) STV.base = items;
-    STV.list = items;
-  } catch { STV.list = []; }
+    STV.all = (emotes || []).map(e => ({ id: e.id, name: e.name, url: stvUrl(e) }));
+  } catch { STV.all = []; }
   STV.loading = false; render7tv();
 }
 // лоты на колесе: в «Выбывании» сектор обратно пропорционален баллам и выбывшие убраны
@@ -467,7 +467,7 @@ function renderWheelTab() {
     if (document.activeElement !== $('#wSound')) $('#wSound').value = c.sound;
     if (document.activeElement !== $('#wVol')) $('#wVol').value = c.volume;
     syncCenterImg();
-    if (!STV.base && !STV.loading) load7tv(''); else render7tv();
+    if (!STV.all && !STV.loading) load7tv(''); else render7tv();
     $('#autoSpin').checked = WH.auto;
     if (document.activeElement !== $('#spinSec')) $('#spinSec').value = WH.sec ?? d.config?.wheel_sec ?? 20;
     $('#spinBtn').disabled = WH.spinning;
@@ -937,7 +937,7 @@ document.addEventListener('change', async e => {
 let hqT, stvT;
 document.addEventListener('input', e => {
   if (e.target.id === 'hq') { clearTimeout(hqT); hqT = setTimeout(() => loadHistory(), 300); }
-  if (e.target.id === 'w7tvSearch') { clearTimeout(stvT); stvT = setTimeout(() => load7tv(e.target.value), 320); }
+  if (e.target.id === 'w7tvSearch') { STV.q = e.target.value.trim(); render7tv(); }
   if (e.target.id === 'lotSearch') { S.search = e.target.value; renderLots($('#view')); }
   if (e.target.id === 'wVol') setW({ volume: Number(e.target.value) });
 });
