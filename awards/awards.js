@@ -560,7 +560,7 @@ page.addEventListener('change', e => {
   if (e.target.matches('[data-flat-grid]')) { S.flatGrid = e.target.checked; route(); }
 });
 
-/* ── свайп карусели на телефоне + огненное свечение курсора на десктопе ── */
+/* ── свайп карусели на телефоне ── */
 let touchX = null, touchY = null;
 page.addEventListener('touchstart', e => {
   if (!e.target.closest('#slayCarBox') || e.touches.length !== 1) return;
@@ -575,24 +575,6 @@ page.addEventListener('touchend', e => {
     if (more.length > 1) { const d = dx < 0 ? 1 : -1; S.carIdx += d; renderCarousel(more, d); }
   }
 }, { passive: true });
-
-if (matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-  const glow = document.createElement('div'); glow.className = 'aw-cur-glow'; document.body.append(glow);
-  let tx = -100, ty = -100, cx = -100, cy = -100, raf = 0;
-  const loop = () => {
-    cx += (tx - cx) * 0.24; cy += (ty - cy) * 0.24;
-    glow.style.transform = `translate3d(${cx.toFixed(1)}px,${cy.toFixed(1)}px,0)`;
-    if (Math.abs(tx - cx) > 0.3 || Math.abs(ty - cy) > 0.3) raf = requestAnimationFrame(loop); else raf = 0;
-  };
-  document.addEventListener('pointermove', e => {
-    if (e.pointerType !== 'mouse') return;
-    tx = e.clientX; ty = e.clientY;
-    if (!glow.classList.contains('on')) { cx = tx; cy = ty; glow.classList.add('on'); }
-    glow.classList.toggle('hot', !!e.target?.closest?.('a,button,label,[role=button],.slay-emblem,.slay-btn,.aw-media'));
-    if (!raf) raf = requestAnimationFrame(loop);
-  }, { passive: true });
-  document.addEventListener('pointerleave', () => glow.classList.remove('on'));
-}
 
 /* ── роутер ── */
 function route() {
