@@ -1503,8 +1503,6 @@ async function loadMe() {
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
     $('#navAwards').hidden = me?.id !== OWNER_ID; // OvosheAwards — пока только владельцу
-    $('#navShop').hidden = me?.id !== OWNER_ID;   // Магазин косметики — пока только владельцу
-    $('#meShop').hidden = me?.id !== OWNER_ID;
     $('#meOld').hidden = !(hasRole(me, 'gl_moder') || me?.id === OWNER_ID); // старый дизайн — только главному модератору
     applyMeFrame();
     $('#navMod').hidden = !isMod();
@@ -2584,18 +2582,14 @@ const SHOP_SLOT_LBL = { frame: 'Рамка', nick_fx: 'Ник', badge: 'Знач
 const SHOP_RAR_LBL = { common: 'Обычный', rare: 'Редкий', epic: 'Эпический', legendary: 'Легендарный' };
 async function viewShop(tab) {
   setNav('shop');
-  if (!S.uid || S.uid !== OWNER_ID) {
-    page.innerHTML = '<div class="empty">Магазин косметики скоро откроется ✨</div>';
-    return;
-  }
   const T = SHOP_CATS.some(c => c[0] === tab) ? tab : 'all';
   page.innerHTML = `<div class="shop"><div class="shop-head"><h1>Магазин косметики</h1></div><div class="skel" style="aspect-ratio:auto;height:150px;margin-bottom:16px"></div><div class="shop-grid">${'<div class="skel" style="aspect-ratio:auto;height:220px"></div>'.repeat(8)}</div></div>`;
   let items = [], owned = new Set();
   try {
     const [rows, ownRows, bal] = await Promise.all([
       api('shop_items?select=*&order=sort_order.asc,price.asc'),
-      api(`user_cosmetics?user_id=eq.${S.uid}&select=item_id`),
-      rpc('coin_balance').catch(() => null),
+      S.uid ? api(`user_cosmetics?user_id=eq.${S.uid}&select=item_id`).catch(() => []) : Promise.resolve([]),
+      S.uid ? rpc('coin_balance').catch(() => null) : Promise.resolve(null),
       eqReady,
     ]);
     items = rows || [];
@@ -2603,12 +2597,12 @@ async function viewShop(tab) {
     (ownRows || []).forEach(r => owned.add(r.item_id));
     if (bal != null) setBalance(bal);
   } catch (e) {
-    page.innerHTML = `<div class="empty">Не удалось загрузить магазин (${esc(e.message)}). Убедитесь, что применена миграция 043_cosmetics_shop.sql.</div>`;
+    page.innerHTML = `<div class="empty">Не удалось загрузить магазин (${esc(e.message)}).</div>`;
     return;
   }
-  const me = S.me || readSession()?.user || { id: S.uid, username: 'meRockstar' };
+  const me = S.me || readSession()?.user || { id: S.uid || '', username: 'Гость', display_name: 'Гость' };
   const tryOn = {};
-  const myEq = () => EQ.get(S.uid) || { user_id: S.uid, frame: null, nick_fx: null, badge: null, banner: null };
+  const myEq = () => (S.uid && EQ.get(S.uid)) || { user_id: S.uid || '', frame: null, nick_fx: null, badge: null, banner: null };
   const activeVal = cat => (cat in tryOn ? tryOn[cat] : myEq()[cat] || null);
   const saveEqLocal = row => {
     EQ.set(S.uid, row);
@@ -2653,7 +2647,7 @@ async function viewShop(tab) {
     page.innerHTML = `<div class="shop">
       <div class="shop-head">
         <h1>Магазин косметики</h1>
-        <div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> coin<a href="#/wallet/topup">Пополнить</a></div>
+        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> coin<a href="#/wallet/topup">Пополнить</a></div>` : '<button type="button" class="btn accent" data-login>Войти, чтобы покупать</button>'}
       </div>
       ${renderPreview()}
       <div class="tabs shop-tabs">${SHOP_CATS.map(([k, l]) => `<a class="tab${T === k ? ' on' : ''}" href="#/shop${k === 'all' ? '' : '/' + k}">${l}${k === 'mine' ? ` (${owned.size})` : ''}</a>`).join('')}</div>
@@ -2715,6 +2709,7 @@ async function viewShop(tab) {
       }
       const buyBtn = e.target.closest('[data-shbuy]');
       if (buyBtn) {
+        if (!S.uid) return login();
         const it = SHOP_ITEMS.get(buyBtn.dataset.shbuy); if (!it) return;
         if (!confirm(`Купить «${it.title}» за ${fmt(it.price)} coin? Предмет останется у вас навсегда.`)) return;
         buyBtn.disabled = true;
