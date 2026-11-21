@@ -58,15 +58,27 @@ async function aucApi(path, body) {
 }
 
 /* ── состояние ── */
+const _sMin = ls.get('auc_startmin');
+const _sSec = ls.get('auc_startsec');
+const _initSec = _sSec !== null && _sSec !== '' && Number.isFinite(Number(_sSec))
+  ? Math.max(0, Math.min(36000, Math.round(Number(_sSec))))
+  : (_sMin !== null && _sMin !== '' && Number.isFinite(Number(_sMin)) ? Math.max(0, Math.min(600, Number(_sMin))) * 60 : 600);
 const S = {
   pub: null, adm: null, isAdmin: false, tab: 'lots', off: 0, prevStatus: null,
   uid: readSession()?.user?.id || null,
   q: 'wait', qSort: ls.get('auc_qsort') || 'new', flt: { don: true, pts: true },
-  startMin: Number(ls.get('auc_startmin')) || 60,
+  fltSvc: { da: true, twitch: true, site: true, donatepay: true, donatex: true },
+  startMin: Math.floor(_initSec / 60), startSec: _initSec,
   search: '', hist: { items: [], end: false }, busy: 0, ver: 0, tmp: 0, shown: null,
   view: { pct: ls.get('auc_pct') !== '0', bars: ls.get('auc_bars') !== '0', hide: ls.get('auc_hide') === '1', rules: ls.get('auc_rules') !== '0', compact: ls.get('auc_compact') === '1' },
 };
-const WH = { rot: 0, spinning: false, lastSpin: null, result: null, stop: null, auto: ls.get('auc_autospin') === '1' };
+const setStartSec = sec => {
+  S.startSec = Math.max(0, Math.min(36000, Math.round(Number(sec) || 0)));
+  S.startMin = Math.floor(S.startSec / 60);
+  ls.set('auc_startsec', String(S.startSec));
+  ls.set('auc_startmin', String(S.startMin));
+};
+const WH = { rot: 0, spinning: false, lastSpin: null, result: null, stop: null, auto: ls.get('auc_autospin') === '1', hoverId: null, hideOut: false, custom: null, elimQueue: null, elimKey: '', dropInfoHidden: ls.get('auc_drop_info_off') === '1' };
 const A = () => S.adm || S.pub;
 const lotsMap = () => new Map((A()?.lots || []).map(l => [l.id, l]));
 const lotLabel = id => { const l = lotsMap().get(id); return l ? `#${l.num} ${l.name}` : '—'; };
@@ -117,9 +129,8 @@ function render() {
   document.querySelectorAll('#tabs [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
   $('#aTitle').textContent = a.title;
   const ch = $('#aStatus');
-  ch.textContent = a.status === 'idle' && a.accepting ? 'приём донатов' : (AST[a.status] || a.status);
-  ch.className = 'chip ' + (a.status === 'idle' && a.accepting ? 'accept' : a.status);
-  $('#aTotal').textContent = `${fmt(d.total)} б.`;
+  if (ch) { ch.textContent = a.status === 'idle' && a.accepting ? 'приём донатов' : (AST[a.status] || a.status); ch.className = 'chip ' + (a.status === 'idle' && a.accepting ? 'accept' : a.status); }
+  const at = $('#aTotal'); if (at) at.textContent = `${fmt(d.total)} б.`;
   const lft = $('#lfTotal'); if (lft) lft.innerHTML = `<span class="dim">Всего:</span> <b>${fmt(d.total)}</b> <span class="dim">₽</span>`;
   const rh = rulesHtml(d.config?.rules);
   if ($('#rules').dataset.h !== rh) { $('#rules').innerHTML = rh; $('#rules').dataset.h = rh; }
@@ -147,7 +158,7 @@ function tickClock() {
   else if (a.status === 'paused') left = (a.left_ms || 0) / 1000;
   if (a.started_at) el = ((a.ended_at && a.status !== 'running' && a.status !== 'paused' ? Date.parse(a.ended_at) : now) - Date.parse(a.started_at)) / 1000;
   const big = $('#timer');
-  const target = left ?? (a.status === 'idle' ? S.startMin * 60 : 0);
+  const target = left ?? (a.status === 'idle' ? S.startSec : 0);
   // при ±минуте цифры плавно «перелетают» к новому значению (~0,35 с), обычный ход — без задержки
   const tnow = performance.now(), dt = Math.min(500, tnow - (S.shownAt || tnow)); S.shownAt = tnow;
   let shown = target, jump = false;
@@ -158,7 +169,7 @@ function tickClock() {
   S.shown = shown; S.shownFor = a.id;
   const txt = (el2, t) => { if (el2.textContent !== t) el2.textContent = t; };
   txt(big, mmss(shown));
-  const cls = 'clock-big ' + (left == null ? 'idle' : a.status === 'paused' ? 'pause' : left <= 30 ? 'low' : 'run') + (jump ? ' jump' : '');
+  const cls = 'clock-big ' + (a.status === 'running' ? (left <= 30 ? 'low' : 'run') : 'idle') + (jump ? ' jump' : '');
   if (big.className !== cls) big.className = cls;
   txt($('#limit'), left == null ? (a.status === 'idle' ? mmss(shown) : mmss(el)) : mmss(el + shown));
   txt($('#elapsed'), mmss(el));
@@ -325,6 +336,31 @@ function donHtml(b, opts, lots, idx = -1) {
     ${isQ ? `<span class="q-btns">${sim ? `<button class="btn sm ok q-sim" data-act="assignSim" data-id="${b.id}" data-lot="${sim.id}" title="Вкинуть в похожий лот #${sim.num} «${esc(sim.name)}»"><span class="pa-hide">→ #${sim.num} ${esc(sim.name)}</span><span class="pa-only">К ${esc(sim.name)}</span></button>` : ''}<span class="pa-split"><button class="btn sm outline q-new" data-act="assignNew" data-id="${b.id}" title="${msg ? `Создать новый лот «${esc(msg.slice(0, 60))}»` : 'Создать новый лот'}">${idx === 0 ? '<kbd class="pa-only pa-hk">1</kbd>' : ''}<span class="pa-hide">+ Новый лот</span><span class="pa-only">Новый</span></button><select class="pa-only pa-drop" data-assign="${b.id}" aria-label="Выбрать лот"><option value="">▾</option>${opts}</select></span><button class="ib bad pa-hide" data-act="dismiss" data-id="${b.id}" title="Удалить из ожидающих (без возврата)" aria-label="Удалить">✕</button></span><span class="acts pa-hide"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
     ${S.isAdmin && b.status === 'failed' ? `<span class="acts"><button class="btn sm" data-act="retry">Повторить</button><button class="btn sm ghost" data-act="markDone" data-id="${b.id}">Уже вернул</button></span>` : ''}`;
 }
+const PA_SVCS = [
+  { id: 'da', title: 'DonationAlerts', sym: '₽', connected: d => !!d.integrations?.da?.name,
+    logo: '<svg class="pa-plogo" viewBox="0 0 69 80" title="DonationAlerts"><path fill="#f57507" stroke="none" d="M34.86 46.59h-5.42a1.1 1.1 0 0 1-1.11-1.1l.48-4.89a1.1 1.1 0 0 1 1.11-.91h5.42a1.1 1.1 0 0 1 1.11 1.1l-.48 4.88a1.1 1.1 0 0 1-1.11.92zm.87-9.57h-5.52a1.1 1.1 0 0 1-1.11-1.06l1.5-16.51a1.1 1.1 0 0 1 1.11-.94h5.52a1.1 1.1 0 0 1 1.1 1.06l-1.54 16.52a1.1 1.1 0 0 1-1.06.93zm32.46-19.25c.59.68.88 1.57.8 2.46l-2.16 24.53c-.07.8-.43 1.55-1.01 2.11L48.17 63.91a3.3 3.3 0 0 1-2.35.94H27.04L10.5 80l1.28-15.16H3.37A3.37 3.37 0 0 1 .01 61.2L5.15 3.01A3.38 3.38 0 0 1 8.5 0h42.83c.99 0 1.92.43 2.56 1.17l14.3 16.6zM55.11 40.08l1.37-15.14a3.3 3.3 0 0 0-.86-2.45l-8.07-9.25a3.3 3.3 0 0 0-2.54-1.16H19.6a3.38 3.38 0 0 0-3.36 3.01l-3.03 34.07a3.37 3.37 0 0 0 3.36 3.64h24.99c.87 0 1.7-.33 2.33-.92l10.21-9.67c.59-.56.94-1.32 1.01-2.13z"/></svg>' },
+  { id: 'twitch', title: 'Twitch — баллы канала', sym: '✦', connected: d => !!d.integrations?.twitch?.login,
+    logo: '<svg class="pa-plogo" viewBox="0 0 2400 2800" title="Twitch"><path fill="#9146ff" stroke="none" d="M500 0 0 500v1800h600v500l500-500h400l900-900V0H500zm1700 1300-400 400h-400l-350 350v-350H600V200h1600v1100z"/><rect fill="#9146ff" stroke="none" x="1700" y="550" width="200" height="600"/><rect fill="#9146ff" stroke="none" x="1150" y="550" width="200" height="600"/></svg>' },
+  { id: 'site', title: 'renah0cki coin', sym: '₽', connected: d => d.config?.site_enabled !== false,
+    logo: '<img class="pa-plogo" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="renah0cki coin" title="renah0cki coin">' },
+  { id: 'donatepay', title: 'DonatePay', sym: '₽', connected: d => !!d.integrations?.donatepay?.connected,
+    logo: '<svg class="pa-plogo wide" viewBox="0 0 29 15" title="DonatePay"><path fill="#44AB4F" stroke="none" d="M21.063 5.802a.91.91 0 1 1 1.832 0 .91.91 0 0 1-1.832 0zm-1.984 1.957a.91.91 0 1 1 1.831 0 .91.91 0 0 1-1.831 0zm4.884-.904a.91.91 0 1 1 0 1.807.91.91 0 0 1 0-1.807zm-2.9 2.861a.91.91 0 1 1 1.832 0 .91.91 0 0 1-1.832 0z"/><path fill="#44AB4F" stroke="none" fill-rule="evenodd" d="M15.704 11.208C17.135 13.245 18.946 14.834 21.903 14.834 25.816 14.834 29 11.694 29 7.834S25.81.834 21.903.834c-2.175 0-3.859.918-5.1 2.189-1.215 1.243-2.068 2.788-2.909 4.313l-.084.153c-.86 1.557-1.729 3.077-2.758 4.138-.514.53-1.057.965-1.7 1.264-.645.301-1.375.46-2.255.46-3.1 0-5.592-2.459-5.592-5.517 0-3.043 2.507-5.516 5.592-5.516 2.504 0 3.992 1.398 5.237 3.266.263-.456.543-.92.84-1.39C11.764 2.293 9.96.835 7.097.835 3.184.834 0 3.974 0 7.834s3.19 7 7.097 7c2.155 0 3.838-.918 5.067-2.189.83-.857 1.488-1.862 2.093-2.908l.28-.485.257.497c.195.377.574 1.007.91 1.459zm.647-1.69c1.31 2.135 2.844 3.832 5.552 3.832 3.085 0 5.593-2.473 5.593-5.516 0-3.059-2.492-5.516-5.593-5.516-1.807 0-2.97.646-4.02 1.722-.857.876-1.65 2.257-2.35 3.497l-.054.096.02.108c.047.236.207.579.366.889.166.323.354.655.486.888z"/><path fill="#44AB4F" stroke="none" d="M6.41 5.35h1.222v1.807h1.831V8.36H7.632v1.806H6.41V8.361H4.579V7.157H6.41z"/></svg>' },
+  { id: 'donatex', title: 'DonateX', sym: '₽', connected: d => !!d.integrations?.donatex?.connected,
+    logo: '<svg class="pa-plogo" viewBox="0 0 2000 2000" title="DonateX"><circle fill="#020203" stroke="none" cx="1000" cy="996" r="820"/><path fill="#5d7be8" stroke="none" d="M1000.3 847.9 770.6 560c-7.6-9.5-19.1-15-31.3-15.1l-225-.1 364.4 455.4 121.6 152 232.6 290.7c7.7 9.6 19.3 15.1 31.6 15l221.2-2L1122 1000.3z"/><path fill="#b172f4" stroke="none" d="M1125.4 960.1c4.1 4.8 18.3 3.5 22.3-1.3l344.2-414.9-216.4.1c-11.7 0-22.8 5.5-30.1 15.1L1028.1 827c-3.5 4.3-3.4 10.5.2 14.8z"/><path fill="#4fa2f1" stroke="none" d="M857.3 1033.5c-6.3-7.6-18-7.7-24.4-.1l-355.6 423.3 216.4-.3c11.8.1 26.5-9.1 33.9-18.6l223.9-269.6c3.4-4.2 6.6-12.7 3.2-16.9z"/></svg>' },
+];
+function renderPaIntegrations() {
+  const d = S.adm; if (!d) return;
+  const pillsEl = $('#paPills'), cardEl = $('#paConnectCard'), logosEl = $('#paConnectLogos');
+  if (!pillsEl || !cardEl || !logosEl) return;
+  const conn = PA_SVCS.filter(s => s.connected(d));
+  const unconn = PA_SVCS.filter(s => !s.connected(d));
+  const ph = conn.map(s => `<button type="button" class="pa-pill${S.fltSvc[s.id] !== false ? ' on' : ''}" data-pa-svc="${s.id}" title="${esc(s.title)}"><i class="pa-dot"></i><span class="pa-pcur">${s.sym}</span>${s.logo}</button>`).join('');
+  if (pillsEl.dataset.h !== ph) { pillsEl.innerHTML = ph; pillsEl.dataset.h = ph; }
+  pillsEl.hidden = !conn.length;
+  const lh = unconn.map(s => s.logo.replace('class="pa-plogo ', 'class="').replace('class="pa-plogo"', '')).join('');
+  if (logosEl.dataset.h !== lh) { logosEl.innerHTML = lh; logosEl.dataset.h = lh; }
+  cardEl.hidden = !unconn.length;
+}
 function renderRight() {
   document.querySelectorAll('.seg2 button').forEach(b => b.classList.toggle('on', b.dataset.q === S.q));
   const d = A();
@@ -332,7 +368,7 @@ function renderRight() {
   const pending = bids.filter(b => b.status === 'queue');
   $('#qN').textContent = pending.length || '';
   let list = S.q === 'wait' ? pending : bids.filter(b => b.status !== 'queue');
-  list = list.filter(b => PTS.has(b.source) ? S.flt.pts : S.flt.don);
+  list = list.filter(b => (PTS.has(b.source) ? S.flt.pts : S.flt.don) && (b.source in S.fltSvc ? S.fltSvc[b.source] !== false : true));
   list = list.slice().sort((x, y) => S.qSort === 'old' ? x.id - y.id : y.id - x.id).slice(0, 150);
   const a = d.auction;
   const empty = S.q === 'wait' && S.isAdmin && !accepting() && a.status === 'idle'
@@ -356,9 +392,7 @@ function renderRight() {
     $('#acceptTg').disabled = ['running', 'paused', 'ended', 'closed'].includes(a.status);
     $('#noRefTg').checked = !!c.no_refund;
     document.querySelectorAll('.flt').forEach(b => b.classList.toggle('on', S.flt[b.dataset.flt]));
-    const pDa = $('#paPillDa'), pTw = $('#paPillTw');
-    if (pDa) pDa.classList.toggle('on', !!S.flt.don);
-    if (pTw) pTw.classList.toggle('on', !!S.flt.pts);
+    renderPaIntegrations();
   }
 }
 
@@ -382,7 +416,7 @@ function activePreset() {
 async function applyPreset(p) {
   if (!p) return;
   WH.rerollCount = 0;
-  if (p.start_min > 0) { S.startMin = Math.max(1, Math.min(600, Math.round(p.start_min))); ls.set('auc_startmin', S.startMin); }
+  if (p.start_min != null && p.start_min >= 0) { setStartSec(Math.max(0, Math.min(600, Math.round(p.start_min))) * 60); }
   const wheelPatch = {
     active_preset: p.id,
     mode: p.mode === 'elim' ? 'elim' : 'normal',
@@ -402,14 +436,14 @@ async function applyPreset(p) {
 function openPresetEditor(p, isNew = false) {
   const c = wcfg(), cfg = A()?.config || {};
   const cur = isNew
-    ? { id: 'p_' + Date.now().toString(36), title: '', rules: cfg.rules || '', start_min: S.startMin || 30, mode: c.mode || 'normal', no_refund: !!cfg.no_refund, reroll_on: !!c.reroll_on, reroll_price: c.reroll_price ?? 1000, reroll_sec: c.reroll_sec ?? 60, reroll_x2: !!c.reroll_x2 }
+    ? { id: 'p_' + Date.now().toString(36), title: '', rules: cfg.rules || '', start_min: S.startMin ?? 30, mode: c.mode || 'normal', no_refund: !!cfg.no_refund, reroll_on: !!c.reroll_on, reroll_price: c.reroll_price ?? 1000, reroll_sec: c.reroll_sec ?? 60, reroll_x2: !!c.reroll_x2 }
     : { ...p };
   const list = getPresets();
   const delBtn = !isNew && list.length > 1 ? `<button type="button" class="btn bad" data-act="presetDel" data-id="${esc(cur.id)}">Удалить</button>` : '';
   sheet(isNew ? 'Новый пресет' : `Пресет «${cur.title}»`, `
     <label class="field"><span>Название пресета</span><input class="in" name="title" maxlength="80" required placeholder="Например: Аук на фильм" value="${esc(cur.title)}"></label>
     <div class="rates">
-      <label>Таймер (мин)<input class="in" name="start_min" type="number" min="1" max="600" inputmode="numeric" value="${esc(cur.start_min || 30)}"></label>
+      <label>Таймер (мин)<input class="in" name="start_min" type="number" min="0" max="600" inputmode="numeric" value="${esc(cur.start_min ?? 30)}"></label>
       <label>Режим колеса<select class="in" name="mode"><option value="normal" ${cur.mode !== 'elim' ? 'selected' : ''}>Обычный</option><option value="elim" ${cur.mode === 'elim' ? 'selected' : ''}>Выбывание</option></select></label>
     </div>
     <label class="check"><input type="checkbox" name="no_refund" ${cur.no_refund ? 'checked' : ''}><span>Без возврата баллов проигравшим</span></label>
@@ -424,10 +458,11 @@ function openPresetEditor(p, isNew = false) {
     async f => {
       const title = String(f.get('title') || '').trim().slice(0, 80);
       if (!title) throw new Error('Укажи название пресета');
+      const rawMin = f.get('start_min');
       const next = {
         id: cur.id, title,
         rules: String(f.get('rules') || ''),
-        start_min: Math.max(1, Math.min(600, Math.round(Number(f.get('start_min')) || 30))),
+        start_min: Math.max(0, Math.min(600, Math.round(rawMin === '' ? 0 : Number(rawMin) || 0))),
         mode: f.get('mode') === 'elim' ? 'elim' : 'normal',
         no_refund: f.get('no_refund') === 'on',
         reroll_on: f.get('reroll_on') === 'on',
@@ -443,8 +478,8 @@ function openPresetEditor(p, isNew = false) {
     });
 }
 
-const WDEF = { mode: 'normal', palette: 'rainbow', labels: 'radial', hide_sum: false, full_text: false, image: '', accel: false, sound: 'ticks', volume: 0.5, reroll_on: false, reroll_price: 1000, reroll_sec: 60, reroll_x2: false };
-const PAL_NAMES = { rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар', cyber: 'Кибер', pastel: 'Пастель', berry: 'Ягода', gold: 'Золото', ice: 'Лёд', pointauc: 'PointAuc' };
+const WDEF = { mode: 'normal', elim_kind: 'new', split: 10, palette: 'rainbow', labels: 'radial', hide_sum: false, full_text: false, image: '', accel: false, sound: 'ticks', volume: 0.5, reroll_on: false, reroll_price: 1000, reroll_sec: 60, reroll_x2: false };
+const PAL_NAMES = { pointauc: 'Обычный', rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар', cyber: 'Кибер', pastel: 'Пастель', berry: 'Ягода', gold: 'Золото', ice: 'Лёд' };
 const THEMES = [
   ['violet',   'Фиолетовый', '#a78bfa'],
   ['pointauc', 'PointAuc',   '#228be6'],
@@ -460,10 +495,13 @@ function applyTheme(t) {
   if (!t || t === 'violet') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = t;
   ls.set('auc_theme', t || 'violet');
+  if (S.tab === 'wheel') renderWheelTab();
 }
 WH.local = {}; WH.out = new Set(); WH.lastSeg = null; WH.lastTick = 0; WH.msg = ''; WH.rerollCount = 0; WH.rerollAuc = null;
 WH.wl = { num: ls.get('auc_wl_num') !== '0', pct: ls.get('auc_wl_pct') !== '0', sum: ls.get('auc_wl_sum') === '1' };
 const wcfg = () => ({ ...WDEF, ...(A()?.config?.wheel || {}), ...WH.local });
+const wheelPal = c => (curTheme() === 'pointauc' && !A()?.config?.wheel?.palette && !WH.local.palette) ? 'pointauc' : (c.palette || (curTheme() === 'pointauc' ? 'pointauc' : 'rainbow'));
+const wheelSplit = c => Math.max(0.1, Math.min(1, (Number(c.split) || 10) / 10));
 function syncCenterImg() {
   const src = wcfg().image || LOGO;
   const ci = $('#wCenterImg'); if (ci && ci.dataset.src !== src) { ci.dataset.src = src; ci.src = src; }
@@ -482,13 +520,20 @@ function stvUrl(e) {
   return `https://cdn.7tv.app/emote/${e.id}/3x.webp`;
 }
 function render7tv() {
-  const g = $('#w7tvGrid'); if (!g) return;
-  if (STV.loading) { g.innerHTML = '<div class="w7tv-msg">Загрузка 7TV…</div>'; return; }
-  const ql = STV.q.toLowerCase();
-  const list = (STV.all || []).filter(e => !ql || e.name.toLowerCase().includes(ql));
-  if (!list.length) { g.innerHTML = '<div class="w7tv-msg">Ничего не нашлось</div>'; return; }
-  const cur = wcfg().image || '';
-  g.innerHTML = list.map(e => `<button type="button" class="w7tv-btn${cur === e.url ? ' on' : ''}" data-act="set7tv" data-url="${esc(e.url)}" title="${esc(e.name)}"><img src="${esc(e.url)}" alt="${esc(e.name)}" loading="lazy"></button>`).join('');
+  const grids = [$('#w7tvGrid'), $('#pa7tvGrid')].filter(Boolean);
+  if (!grids.length) return;
+  let html;
+  if (STV.loading) html = '<div class="w7tv-msg">Загрузка 7TV…</div>';
+  else {
+    const ql = STV.q.toLowerCase();
+    const list = (STV.all || []).filter(e => !ql || e.name.toLowerCase().includes(ql));
+    if (!list.length) html = '<div class="w7tv-msg">Ничего не нашлось</div>';
+    else {
+      const cur = wcfg().image || '';
+      html = list.map(e => `<button type="button" class="w7tv-btn${cur === e.url ? ' on' : ''}" data-act="set7tv" data-url="${esc(e.url)}" title="${esc(e.name)}"><img src="${esc(e.url)}" alt="${esc(e.name)}" loading="lazy"></button>`).join('');
+    }
+  }
+  for (const g of grids) g.innerHTML = html;
 }
 async function load7tv(q = '') {
   STV.q = q.trim();
@@ -514,49 +559,91 @@ async function load7tv(q = '') {
   } catch { STV.all = []; }
   STV.loading = false; render7tv();
 }
-// лоты на колесе: в «Выбывании» сектор обратно пропорционален баллам и выбывшие убраны
+const wheelSourceLots = () => WH.custom || (A()?.lots || []);
+const isElimMode = m => m === 'elim' || m === 'battle';
+// лоты на колесе: Обычное / Выбывание (Новое или Классическое) / Батл рояль
 function wheelLots() {
   const c = wcfg();
-  const lots = (A()?.lots || []).filter(l => +l.total > 0 && !(c.mode === 'elim' && WH.out.has(l.id)));
-  return c.mode === 'elim' ? lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total, w: 1 / +l.total })) : lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total }));
+  const elim = isElimMode(c.mode);
+  const lots = wheelSourceLots().filter(l => +l.total > 0 && !(elim && WH.out.has(l.id)));
+  if (c.mode === 'battle') return lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total, w: 1 }));
+  if (c.mode === 'elim' && c.elim_kind === 'classic') return lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total, w: 1 / +l.total }));
+  return lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total }));
 }
-const drawOpts = hi => { const c = wcfg(); syncCenterImg(); return { hi, labels: c.labels, hideSum: c.hide_sum, fullText: c.full_text, htmlImg: true, accel: c.accel }; };
+const drawOpts = hi => { const c = wcfg(); syncCenterImg(); return { hi, labels: c.labels, hideSum: curTheme() === 'pointauc' ? true : c.hide_sum, fullText: c.full_text, htmlImg: true, accel: c.accel, pointauc: curTheme() === 'pointauc' }; };
 function drawStatic() {
   if (S.tab !== 'wheel' || WH.spinning) return;
-  const S2 = W_.segs(wheelLots(), wcfg().palette);
-  W_.draw($('#wheelCv'), S2, WH.rot, drawOpts(WH.result?.id));
+  const c = wcfg();
+  const S2 = W_.segs(wheelLots(), wheelPal(c), wheelSplit(c));
+  W_.draw($('#wheelCv'), S2, WH.rot, drawOpts(WH.hoverId ?? WH.result?.id));
   if (!WH.result && !WH.msg) { const s = W_.at(S2, WH.rot); setTop(s ? s.name : ' ', false); }
 }
 function setTop(text, win) { const t = $('#wTop'); if (t.textContent !== text) t.textContent = text; t.classList.toggle('win', !!win); }
 
 function renderWheelTab() {
   const c = wcfg(); const d = A(); if (!d) return;
-  const segs = W_.segs(wheelLots(), c.palette); const wsum = segs.reduce((x, s) => x + s.weight, 0) || 1;
-  const chance = new Map(segs.map(s => [s.id, s.weight / wsum * 100]));
+  const pal = wheelPal(c), elim = isElimMode(c.mode);
+  const activeLots = wheelLots();
+  const segs = W_.segs(activeLots, pal, wheelSplit(c));
+  const wsum = segs.reduce((x, s) => x + s.weight, 0) || 1;
+  const chance = new Map();
+  for (const s of segs) chance.set(s.id, (chance.get(s.id) || 0) + s.weight / wsum * 100);
   // список лотов слева
-  const lots = d.lots.filter(l => +l.total > 0).slice().sort((x, y) => (chance.get(y.id) ?? -1) - (chance.get(x.id) ?? -1) || y.total - x.total);
-  $('#wlN').textContent = lots.length;
+  const allLots = wheelSourceLots().filter(l => +l.total > 0);
+  const shownLots = (elim && WH.hideOut ? allLots.filter(l => !WH.out.has(l.id)) : allLots)
+    .slice().sort((x, y) => {
+      const ox = elim && WH.out.has(x.id) ? 1 : 0, oy = elim && WH.out.has(y.id) ? 1 : 0;
+      if (ox !== oy) return ox - oy;
+      return (+y.total - +x.total) || ((chance.get(y.id) ?? -1) - (chance.get(x.id) ?? -1));
+    });
+  $('#wlN').textContent = allLots.length;
+  const tn = $('#wlTotalN'); if (tn) tn.textContent = activeLots.length;
+  const ho = $('#paHideOut'); if (ho) { ho.checked = WH.hideOut; ho.closest('.pa-whide').style.visibility = elim ? 'visible' : 'hidden'; }
   document.querySelectorAll('[data-wl]').forEach(b => b.classList.toggle('on', WH.wl[b.dataset.wl]));
-  keyed($('#wlItems'), lots, l => l.id,
-    () => { const el = document.createElement('div'); el.className = 'wli'; el.innerHTML = '<i></i><span class="no"></span><span class="nm"></span><span class="pc"></span>'; return el; },
+  keyed($('#wlItems'), shownLots, l => l.id,
+    () => {
+      const el = document.createElement('div'); el.className = 'wli';
+      el.innerHTML = `<i class="pa-hide"></i><span class="no pa-hide"></span><span class="nm"></span><span class="am pa-only"></span><span class="pa-wdiv pa-only"></span><span class="pc"></span><span class="pa-wcap pa-only"><svg class="pa-wflash" viewBox="0 0 24 24"><path d="m6 14 3 3v5h6v-5l3-3V9H6zm5-12h2v3h-2zM3.5 5.88 4.91 4.47 7.04 6.59 5.62 8zm13.46.71 2.12-2.12 1.41 1.41-2.12 2.12z"/></svg><span class="pa-wglow"></span></span>`;
+      return el;
+    },
     (el, l) => {
-      const col = W_.colorOf(l.num, c.palette);
-      $('i', el).style.background = col;
-      const no = $('.no', el); no.hidden = !WH.wl.num; no.textContent = '#' + l.num; no.style.color = col;
+      el.dataset.wlid = l.id;
+      const col = W_.colorOf(l.num, pal);
+      const dot = $('i', el); if (dot) dot.style.background = col;
+      const no = $('.no', el); if (no) { no.hidden = !WH.wl.num; no.textContent = '#' + l.num; no.style.color = col; }
       $('.nm', el).textContent = l.name;
-      const out = c.mode === 'elim' && WH.out.has(l.id);
+      const out = elim && WH.out.has(l.id);
       el.classList.toggle('out', out); el.classList.toggle('hot', !out && WH.result?.id === l.id);
-      $('.pc', el).innerHTML = (WH.wl.pct ? (out ? '—' : (chance.get(l.id) ?? 0).toFixed(1) + '%') : '') + (WH.wl.sum ? `<small>${fmt(l.total)}</small>` : '');
-    }, '<div class="empty" style="min-height:120px;padding:20px">Нет лотов с баллами</div>');
+      const am = $('.am', el); if (am) am.textContent = fmt(l.total);
+      const pctTxt = out ? '—' : (chance.get(l.id) ?? 0).toFixed(1) + ' %';
+      $('.pc', el).innerHTML = curTheme() === 'pointauc'
+        ? pctTxt
+        : (WH.wl.pct ? (out ? '—' : (chance.get(l.id) ?? 0).toFixed(1) + '%') : '') + (WH.wl.sum ? `<small>${fmt(l.total)}</small>` : '');
+      const gl = $('.pa-wglow', el); if (gl) gl.style.color = col;
+    }, '<div class="empty" style="min-height:120px;padding:20px">Нет участников</div>');
   const outBox = $('#wlOut');
-  outBox.hidden = !(c.mode === 'elim' && WH.out.size);
-  if (!outBox.hidden) outBox.innerHTML = `<span>Выбыло: ${WH.out.size}</span>${S.isAdmin ? '<button class="btn sm" data-act="elimReset">Вернуть всех на колесо</button>' : ''}`;
+  outBox.hidden = !(elim && WH.out.size);
+  if (!outBox.hidden) outBox.innerHTML = `<span>Выбыло: ${WH.out.size}</span>${S.isAdmin ? '<button class="btn sm" data-act="elimReset">Вернуть всех</button>' : ''}`;
   // настройки справа
   if (S.isAdmin) {
     document.querySelectorAll('[data-wv]').forEach(b => { const [k, v] = b.dataset.wv.split(':'); b.classList.toggle('on', c[k] === v); });
     const pals = $('#wPals');
-    if (!pals.children.length) pals.innerHTML = Object.keys(W_.PALETTES).map(p => `<button class="pal" data-pal="${p}"><i style="background:linear-gradient(90deg,${W_.PALETTES[p].slice(0, 5).join(',')})"></i>${PAL_NAMES[p]}</button>`).join('');
-    pals.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.pal === c.palette));
+    if (pals && !pals.children.length) pals.innerHTML = Object.keys(W_.PALETTES).map(p => `<button class="pal" data-pal="${p}"><i style="background:linear-gradient(90deg,${W_.PALETTES[p].slice(0, 5).join(',')})"></i>${PAL_NAMES[p] || p}</button>`).join('');
+    pals?.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.pal === pal));
+    const stSel = $('#paWheelStyle');
+    if (stSel) {
+      if (!stSel.options.length) stSel.innerHTML = ['pointauc', ...Object.keys(W_.PALETTES).filter(k => k !== 'pointauc')].map(p => `<option value="${p}">${PAL_NAMES[p] || p}</option>`).join('');
+      if (document.activeElement !== stSel) stSel.value = pal;
+    }
+    const db = $('#paDropBox'); if (db) db.hidden = c.mode !== 'elim';
+    const da = $('#paDropAlert'); if (da) {
+      da.hidden = WH.dropInfoHidden;
+      const dt = $('#paDropText');
+      if (dt) dt.textContent = c.elim_kind === 'classic'
+        ? 'Классическое выбывание: чем дороже лот, тем меньше его сектор и ниже шанс выбыть в текущем раунде.'
+        : 'Только финальный победитель выбирается пропорционально его стоимости. Очередь выбывания генерируется после этого для создания интриги.';
+    }
+    const sp = $('#paSplit'); if (sp && document.activeElement !== sp) sp.value = c.split ?? 10;
     document.querySelectorAll('[data-wb]').forEach(i => { i.checked = !!c[i.dataset.wb]; });
     if (document.activeElement !== $('#wSound')) $('#wSound').value = c.sound;
     if (document.activeElement !== $('#wVol')) $('#wVol').value = c.volume;
@@ -565,10 +652,13 @@ function renderWheelTab() {
     syncCenterImg();
     if (!STV.all && !STV.loading) load7tv(''); else render7tv();
     $('#autoSpin').checked = WH.auto;
-    if (document.activeElement !== $('#spinSec')) $('#spinSec').value = WH.sec ?? d.config?.wheel_sec ?? 20;
+    const secVal = WH.sec ?? d.config?.wheel_sec ?? 10;
+    if (document.activeElement !== $('#spinSec')) $('#spinSec').value = secVal;
+    if (document.activeElement !== $('#paSpinSec') && $('#paSpinSec')) $('#paSpinSec').value = secVal;
     $('#spinBtn').disabled = WH.spinning;
+    if ($('#paSpinBtn')) $('#paSpinBtn').disabled = WH.spinning;
     const res = $('#wRes');
-    const can = WH.result && !WH.spinning && d.auction.status !== 'closed';
+    const can = WH.result && !WH.spinning && !WH.custom && d.auction.status !== 'closed';
     const h = can ? `<button class="btn ok" data-act="finishWin">Завершить: победил «${esc(WH.result.name)}»</button>` : '';
     if (res.dataset.h !== h) { res.innerHTML = h; res.dataset.h = h; }
   }
@@ -578,20 +668,52 @@ function renderWheelTab() {
 }
 window.addEventListener('resize', drawStatic);
 
+function ensureNewDropoutQueue(lots) {
+  const key = lots.map(l => `${l.id}:${l.total}`).join('|');
+  if (WH.elimQueue && WH.elimQueue.length && WH.elimKey === key) return WH.elimQueue;
+  // честно выбираем финального победителя пропорционально сумме, остальных перемешиваем в очередь выбывания
+  const total = lots.reduce((s, l) => s + +l.total, 0) || 1;
+  let x = (crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32) * total;
+  let finalWin = lots[lots.length - 1];
+  for (const l of lots) { if ((x -= +l.total) < 0) { finalWin = l; break; } }
+  const rest = lots.filter(l => l.id !== finalWin.id).slice();
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32) * (i + 1));
+    [rest[i], rest[j]] = [rest[j], rest[i]];
+  }
+  WH.elimQueue = rest.map(l => l.id);
+  WH.elimKey = key;
+  return WH.elimQueue;
+}
 async function doSpin() {
   if (WH.spinning) return;
   const c = wcfg();
   const lots = wheelLots();
-  if (!lots.length) return toast('На лотах нет баллов', true);
-  if (c.mode === 'elim' && lots.length === 1) { WH.result = { ...lots[0] }; WH.msg = ''; toast(`Победитель: ${lots[0].name}`); return renderWheelTab(); }
-  const segs = W_.segs(lots, c.palette);
-  const sec = Math.min(120, Math.max(3, Number($('#spinSec')?.value) || A().config?.wheel_sec || 20));
+  if (!lots.length) return toast('Нет участников для прокрута', true);
+  const elim = isElimMode(c.mode);
+  if (elim && lots.length === 1) { WH.result = { ...lots[0] }; WH.msg = ''; toast(`Победитель: ${lots[0].name}`); return renderWheelTab(); }
+  const segs = W_.segs(lots, wheelPal(c), wheelSplit(c));
+  const rawSec = curTheme() === 'pointauc' ? $('#paSpinSec')?.value : $('#spinSec')?.value;
+  const sec = Math.min(120, Math.max(3, Number(rawSec) || A().config?.wheel_sec || 10));
   WH.sec = sec;
-  const win = W_.pick(segs);
+  let winSeg;
+  if (c.mode === 'elim' && c.elim_kind !== 'classic') {
+    const q = ensureNewDropoutQueue(lots);
+    const nextId = q.find(id => lots.some(l => l.id === id));
+    const matches = segs.filter(s => s.id === nextId);
+    winSeg = matches.length ? matches[Math.floor(Math.random() * matches.length)] : W_.pick(segs);
+  } else {
+    winSeg = W_.pick(segs);
+  }
   const from = WH.rot % (Math.PI * 2);
-  const to = W_.target(win, from, Math.max(5, Math.round(sec / 1.3)));
+  const to = W_.target(winSeg, from, Math.max(5, Math.round(sec / 1.3)));
+  const evMode = elim ? 'elim' : 'normal';
+  if (WH.custom) {
+    // локальный прокрут для импортированных участников (не ломает лоты аукциона на сервере)
+    return onSpin({ id: 'c_' + Date.now(), lots, winner: winSeg.id, from, to, ms: sec * 1000, mode: evMode, startAt: Date.now() + 80 });
+  }
   try {
-    const ev = await aucApi('/auc/admin/do', { a: 'spin', lots, winner: win.id, from, to, ms: sec * 1000, mode: c.mode });
+    const ev = await aucApi('/auc/admin/do', { a: 'spin', lots, winner: winSeg.id, from, to, ms: sec * 1000, mode: evMode });
     setTimeout(() => { if (WH.lastSpin !== ev.id) onSpin(ev); }, 1200);
   } catch (e) { toast(e.message, true); }
 }
@@ -655,7 +777,7 @@ function showWinner(lot) {
   const pctStr = pct.toFixed(1);
   const bids = S.isAdmin ? (S.adm?.bids || []) : (d?.recent || []);
   const donCount = bids.filter(b => b.lot_id === lot.id && ['active', 'won'].includes(b.status)).length;
-  const segCol = lot.color || W_.colorOf(lot.num, c.palette);
+  const segCol = lot.color || W_.colorOf(lot.num, wheelPal(c));
   const rrOn = !!c.reroll_on;
   const rrMult = c.reroll_x2 ? Math.pow(2, WH.rerollCount) : 1;
   const rrPrice = Math.max(0, Number(c.reroll_price) || 0) * rrMult;
@@ -681,9 +803,9 @@ function showWinner(lot) {
       <div class="win-bar"><i style="width:0%" data-w="${pct.toFixed(2)}%"></i></div>
     </div>
     ${S.isAdmin ? `<div class="win-acts">
-      <button type="button" class="btn win-pri" data-act="winFinish">✓ Подтвердить и завершить аукцион</button>
+      ${WH.custom ? '' : '<button type="button" class="btn win-pri" data-act="winFinish">✓ Подтвердить и завершить аукцион</button>'}
       <div class="win-acts-row">
-        <button type="button" class="btn win-out" data-act="winOk">Подтвердить</button>
+        <button type="button" class="btn win-out" data-act="winOk">${WH.custom ? 'Закрыть' : 'Подтвердить'}</button>
         <button type="button" class="btn win-sec" data-act="winReroll">↻ Реролл</button>
       </div>
     </div>` : `<div class="win-acts"><button type="button" class="btn win-sec" data-act="winOk">Закрыть</button></div>`}`;
@@ -706,8 +828,9 @@ function onSpin(ev) {
   hideWinner();
   WH.lastSpin = ev.id; WH.spinning = true; WH.result = null; WH.msg = '';
   if (S.tab !== 'wheel') setTab('wheel'); else renderWheelTab();
-  const cv = $('#wheelCv'); const ptr = $('#wPtr');
-  const segs = W_.segs(ev.lots, wcfg().palette);
+  const cv = $('#wheelCv'); const ptr = curTheme() === 'pointauc' ? $('#paWPtr') : $('#wPtr');
+  const c0 = wcfg();
+  const segs = W_.segs(ev.lots, wheelPal(c0), wheelSplit(c0));
   WH.stop?.();
   WH.stop = W_.spin(cv, segs, ev.from, ev.to, ev.ms, ev.startAt - S.off, drawOpts(),
     s => {
@@ -717,7 +840,7 @@ function onSpin(ev) {
       if (now - WH.lastTick > 35) {
         WH.lastTick = now;
         const c = wcfg(); if (c.sound === 'ticks') W_.tick(+c.volume);
-        ptr.classList.add('kick'); requestAnimationFrame(() => requestAnimationFrame(() => ptr.classList.remove('kick')));
+        ptr?.classList.add('kick'); requestAnimationFrame(() => requestAnimationFrame(() => ptr?.classList.remove('kick')));
       }
     },
     rot => {
@@ -725,7 +848,8 @@ function onSpin(ev) {
       const landed = segs.find(s => s.id === ev.winner) || W_.at(segs, rot);
       if (ev.mode === 'elim' && landed) {
         WH.out.add(landed.id);
-        const rest = (A()?.lots || []).filter(l => +l.total > 0 && !WH.out.has(l.id));
+        if (WH.elimQueue) WH.elimQueue = WH.elimQueue.filter(id => id !== landed.id);
+        const rest = wheelSourceLots().filter(l => +l.total > 0 && !WH.out.has(l.id));
         if (rest.length === 1) { WH.result = { ...rest[0] }; renderWheelTab(); showWinner(WH.result); return; }
         else { WH.msg = `Выбыл: ${landed.name}`; toast(`Выбыл: ${landed.name} · осталось ${rest.length}`); }
       } else if (landed) { WH.result = landed; renderWheelTab(); showWinner(WH.result); return; }
@@ -737,7 +861,7 @@ function onSpin(ev) {
 let wSaveT = null, wPatch = {};
 function setW(patch) {
   Object.assign(WH.local, patch); Object.assign(wPatch, patch);
-  if ('mode' in patch) { WH.out.clear(); WH.result = null; WH.msg = ''; }
+  if ('mode' in patch || 'elim_kind' in patch) { WH.out.clear(); WH.elimQueue = null; WH.result = null; WH.msg = ''; }
   renderWheelTab();
   clearTimeout(wSaveT);
   wSaveT = setTimeout(async () => {
@@ -920,13 +1044,24 @@ function applyLocal(b) {
   switch (b.a) {
     case 'control': {
       const s = Number(b.sec) || 0;
-      if (b.op === 'start' && a.status === 'idle') Object.assign(a, { status: 'running', ends_at: isoAt(now + s * 1000), started_at: isoAt(now), left_ms: null });
-      else if (b.op === 'start' && a.status === 'paused') Object.assign(a, { status: 'running', ends_at: isoAt(now + Math.max(1000, a.left_ms || 0)), left_ms: null });
-      else if (b.op === 'pause' && a.status === 'running') Object.assign(a, { status: 'paused', left_ms: Math.max(0, Date.parse(a.ends_at) - now), ends_at: null });
-      else if (b.op === 'add' && a.status === 'running') a.ends_at = isoAt(Math.max(now + 1000, Date.parse(a.ends_at) + s * 1000));
-      else if (b.op === 'add' && a.status === 'paused') a.left_ms = Math.max(1000, (a.left_ms || 0) + s * 1000);
-      else if (b.op === 'stop') Object.assign(a, { status: 'ended', ends_at: null, left_ms: null, ended_at: isoAt(now) });
-      else if (b.op === 'reopen') Object.assign(a, { status: 'paused', left_ms: Math.max(10, s) * 1000, ended_at: null });
+      if (b.op === 'start' && a.status === 'idle') {
+        if (s > 0) Object.assign(a, { status: 'running', ends_at: isoAt(now + s * 1000), started_at: isoAt(now), left_ms: null });
+        else Object.assign(a, { status: 'paused', left_ms: 0, ends_at: null });
+      } else if (b.op === 'start' && a.status === 'paused') {
+        const ms = (a.left_ms || 0) > 0 ? a.left_ms : Math.max(0, s * 1000);
+        if (ms > 0) Object.assign(a, { status: 'running', ends_at: isoAt(now + ms), left_ms: null });
+      } else if (b.op === 'pause' && a.status === 'running') Object.assign(a, { status: 'paused', left_ms: Math.max(0, Date.parse(a.ends_at) - now), ends_at: null });
+      else if (b.op === 'add' && a.status === 'running') {
+        const ms = Math.max(0, Date.parse(a.ends_at) - now + s * 1000);
+        if (ms <= 0) Object.assign(a, { status: 'paused', left_ms: 0, ends_at: null });
+        else a.ends_at = isoAt(now + ms);
+      } else if (b.op === 'add' && a.status === 'paused') a.left_ms = Math.max(0, (a.left_ms || 0) + s * 1000);
+      else if (b.op === 'set') {
+        const ms = Math.max(0, s * 1000);
+        if (a.status === 'running' && ms > 0) a.ends_at = isoAt(now + ms);
+        else Object.assign(a, { status: 'paused', left_ms: ms, ends_at: null, ended_at: null });
+      } else if (b.op === 'stop') Object.assign(a, { status: 'ended', ends_at: null, left_ms: null, ended_at: isoAt(now) });
+      else if (b.op === 'reopen') Object.assign(a, { status: 'paused', left_ms: Math.max(0, s) * 1000, ended_at: null });
       else if (b.op === 'title' && b.title) a.title = String(b.title).trim().slice(0, 80);
       break;
     }
@@ -1021,18 +1156,22 @@ const setTab = t => {
 
 /* ── клики ── */
 document.addEventListener('click', async e => {
-  if (!e.target.closest('#pop') && !e.target.closest('[data-act=aucList],[data-act=view],[data-act=theme]')) closePop();
+  if (!e.target.closest('#pop') && !e.target.closest('[data-act=aucList],[data-act=view],[data-act=theme],[data-act=wSoundPop]')) closePop();
+  if (!e.target.closest('#paImgPop') && !e.target.closest('[data-act=wImgPop]')) { const ip = $('#paImgPop'); if (ip && !ip.hidden) ip.hidden = true; }
   const tab = e.target.closest('#tabs [data-tab]'); if (tab) return setTab(tab.dataset.tab);
   const q = e.target.closest('.seg2 button'); if (q) { S.q = q.dataset.q; return renderRight(); }
   const wv = e.target.closest('[data-wv]'); if (wv) { const [k, v] = wv.dataset.wv.split(':'); return setW({ [k]: v }); }
   const pl = e.target.closest('[data-pal]'); if (pl) return setW({ palette: pl.dataset.pal });
   const wl = e.target.closest('[data-wl]'); if (wl) { const k = wl.dataset.wl; WH.wl[k] = !WH.wl[k]; ls.set('auc_wl_' + k, WH.wl[k] ? '1' : '0'); return renderWheelTab(); }
+  const psvc = e.target.closest('[data-pa-svc]'); if (psvc) {
+    const k = psvc.dataset.paSvc;
+    S.fltSvc[k] = S.fltSvc[k] === false;
+    return renderRight();
+  }
   const pa = e.target.closest('[data-pa]'); if (pa) {
     const k = pa.dataset.pa;
     if (k === 'connect') return setTab('settings');
     if (k === 'int') { document.body.classList.toggle('pa-int-open'); return; }
-    if (k === 'pillDon') { S.flt.don = !S.flt.don; return renderRight(); }
-    if (k === 'pillPts') { S.flt.pts = !S.flt.pts; return renderRight(); }
     S.view[k] = !S.view[k]; ls.set('auc_' + k, S.view[k] ? '1' : '0'); return render();
   }
   const fl = e.target.closest('.flt'); if (fl) { S.flt[fl.dataset.flt] = !S.flt[fl.dataset.flt]; return renderRight(); }
@@ -1041,38 +1180,83 @@ document.addEventListener('click', async e => {
   const a = A()?.auction;
   try {
     switch (act) {
+      case 'setTimer': {
+        if (!S.isAdmin) return;
+        const curSec = Math.max(0, Math.round(S.shown ?? S.startSec));
+        const cm = Math.floor(curSec / 60), cs = curSec % 60;
+        return sheet('Установить таймер', `
+          <div class="rates">
+            <label>Минуты<input class="in" name="m" type="number" min="0" max="600" inputmode="numeric" value="${cm}"></label>
+            <label>Секунды<input class="in" name="s" type="number" min="0" max="59" inputmode="numeric" value="${cs}"></label>
+          </div>
+          <div class="sheet-acts"><button type="button" class="btn ghost" data-act="zeroTimer">00:00</button><button class="btn ghost" value="cancel" formnovalidate>Отмена</button><button class="btn pri" value="ok">Применить</button></div>`,
+          async f => {
+            const total = Math.max(0, Math.min(36000, (Math.max(0, Math.floor(Number(f.get('m')) || 0)) * 60) + Math.max(0, Math.min(59, Math.floor(Number(f.get('s')) || 0)))));
+            setStartSec(total);
+            if (a.status === 'closed') {
+              WH.result = null;
+              await batch(async () => {
+                await admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' });
+                await admDo({ a: 'control', op: 'set', sec: total });
+              });
+            } else if (a.status === 'idle') {
+              try { await admDo({ a: 'control', op: 'set', sec: total }); } catch { tickClock(); }
+            } else {
+              await admDo({ a: 'control', op: 'set', sec: total });
+            }
+          });
+      }
+      case 'zeroTimer': {
+        closeSheet();
+        setStartSec(0);
+        if (a.status === 'idle') {
+          try { await admDo({ a: 'control', op: 'set', sec: 0 }); } catch { tickClock(); }
+        } else if (['running', 'paused', 'ended'].includes(a.status)) {
+          await admDo({ a: 'control', op: 'set', sec: 0 });
+        }
+        return tickClock();
+      }
       case 'play':
         if (a.status === 'closed') {
           WH.result = null;
           await batch(async () => {
             await admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' });
-            await admDo({ a: 'control', op: 'start', sec: S.startMin * 60 });
+            if (S.startSec > 0) await admDo({ a: 'control', op: 'start', sec: S.startSec });
           });
-          return toast('Новый аукцион запущен');
+          return;
         }
-        if (a.status === 'idle') return admDo({ a: 'control', op: 'start', sec: S.startMin * 60 }, 'Аукцион начался');
+        if (a.status === 'idle') {
+          if (S.startSec <= 0) return toast('Задай время (+1 или клик по таймеру)');
+          return admDo({ a: 'control', op: 'start', sec: S.startSec });
+        }
         if (a.status === 'running') return admDo({ a: 'control', op: 'pause' });
-        if (a.status === 'paused') return admDo({ a: 'control', op: 'start' });
-        if (a.status === 'ended') return admDo({ a: 'control', op: 'reopen', sec: 60 }, 'Ставки снова открыты (на паузе)');
+        if (a.status === 'paused') {
+          const ms = a.left_ms || 0;
+          if (ms <= 0 && S.startSec <= 0) return toast('Задай время (+1 или клик по таймеру)');
+          return admDo({ a: 'control', op: 'start', sec: ms > 0 ? Math.ceil(ms / 1000) : S.startSec });
+        }
+        if (a.status === 'ended') {
+          const sec = S.startSec > 0 ? S.startSec : 60;
+          return admDo({ a: 'control', op: 'start', sec });
+        }
         return;
       case 'minus': case 'plus': case 'plus2': {
         const dlt = act === 'plus2' ? 2 : act === 'plus' ? 1 : -1;
         if (a.status === 'closed') {
           WH.result = null;
-          S.startMin = Math.max(1, Math.min(600, S.startMin + dlt)); ls.set('auc_startmin', S.startMin);
-          await admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' }, 'Открыт новый аукцион');
+          setStartSec(Math.max(0, S.startSec + dlt * 60));
+          await admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' });
           return tickClock();
         }
-        if (a.status === 'idle') { S.startMin = Math.max(1, Math.min(600, S.startMin + dlt)); ls.set('auc_startmin', S.startMin); return tickClock(); }
-        if (a.status === 'ended') return admDo({ a: 'control', op: 'reopen', sec: Math.max(60, 60 * dlt) }, 'Ставки снова открыты');
+        if (a.status === 'idle') { setStartSec(Math.max(0, S.startSec + dlt * 60)); return tickClock(); }
+        if (a.status === 'ended') return admDo({ a: 'control', op: 'set', sec: Math.max(0, dlt * 60) });
         if (['running', 'paused'].includes(a.status)) return admDo({ a: 'control', op: 'add', sec: 60 * dlt });
         return;
       }
       case 'reset':
-        if (a.status === 'closed') { WH.result = null; return admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' }, 'Открыт новый аукцион'); }
-        if (['running', 'paused'].includes(a.status)) return admDo({ a: 'control', op: 'set', sec: S.startMin * 60 }, 'Таймер сброшен');
-        if (a.status === 'ended') return admDo({ a: 'control', op: 'reopen', sec: S.startMin * 60 }, 'Таймер сброшен');
-        if (a.status === 'idle') { S.startMin = 60; ls.set('auc_startmin', 60); return tickClock(); }
+        if (a.status === 'closed') { WH.result = null; return admDo({ a: 'new', title: activePreset()?.title || a.title || 'Аукцион' }); }
+        if (['running', 'paused', 'ended'].includes(a.status)) return admDo({ a: 'control', op: 'set', sec: S.startSec });
+        if (a.status === 'idle') { setStartSec(S.startSec > 0 ? 0 : 600); return tickClock(); }
         return;
       case 'acceptOn': return admDo({ a: 'accept', on: true }, 'Приём донатов включён');
       case 'finish': if (a.status === 'closed') return sheet('Новый аукцион', `<label class="field"><span>Название</span><input class="in" name="t" maxlength="80" value="Аукцион"></label>${acts('Создать')}`,
@@ -1080,22 +1264,71 @@ document.addEventListener('click', async e => {
         return finishSheet();
       case 'finishWin': return finishSheet(WH.result?.id);
       case 'winOk': hideWinner(); WH.rerollCount = 0; return;
-      case 'winReroll': hideWinner(); WH.rerollCount++; WH.result = null; WH.out.clear(); WH.msg = ''; return doSpin();
+      case 'winReroll': hideWinner(); WH.rerollCount++; WH.result = null; WH.out.clear(); WH.elimQueue = null; WH.msg = ''; return doSpin();
       case 'winFinish': {
         const w = WH.result; hideWinner(); WH.rerollCount = 0;
+        if (WH.custom) return;
         if (!w) return finishSheet();
         const r = await admDo({ a: 'finish', winner: w.id, refund: !S.adm?.config?.no_refund });
-        if (r.new_auction) { WH.result = null; WH.out.clear(); WH.msg = ''; setTab('lots'); }
+        if (r.new_auction) { WH.result = null; WH.out.clear(); WH.elimQueue = null; WH.msg = ''; setTab('lots'); }
         toast(r.new_auction
           ? `Победил «${w.name}» — начат новый аукцион`
           : `Готово: победа ${r.won}, возвращено ${r.refunded}${r.failed ? `, ошибок ${r.failed}` : ''}`, !!r.failed);
         return;
       }
       case 'spin': return doSpin();
-      case 'dice': { const v = 15 + Math.floor(Math.random() * 46); $('#spinSec').value = v; WH.sec = v; return; }
-      case 'elimReset': WH.out.clear(); WH.result = null; WH.msg = ''; return renderWheelTab();
+      case 'dice': {
+        const v = 10 + Math.floor(Math.random() * 41);
+        if ($('#spinSec')) $('#spinSec').value = v;
+        if ($('#paSpinSec')) $('#paSpinSec').value = v;
+        WH.sec = v;
+        return;
+      }
+      case 'elimReset': WH.out.clear(); WH.elimQueue = null; WH.result = null; WH.msg = ''; return renderWheelTab();
+      case 'wCollapse': document.body.classList.toggle('pa-wcol-collapsed'); setTimeout(drawStatic, 180); return;
+      case 'wImgPop': {
+        const ip = $('#paImgPop'); if (!ip) return;
+        ip.hidden = !ip.hidden;
+        if (!ip.hidden && !STV.all && !STV.loading) load7tv(''); else if (!ip.hidden) render7tv();
+        return;
+      }
+      case 'wSoundPop': {
+        const c = wcfg();
+        return pop(el, `
+          <div class="pa-spop">
+            <label><input type="checkbox" data-wb="sound_on" ${c.sound === 'ticks' ? 'checked' : ''}>Щелчки колеса</label>
+            <div class="pa-spop-r"><span>Громкость</span><input type="range" id="paVolPop" min="0" max="1" step="0.05" value="${c.volume}"><button type="button" class="btn sm" data-act="soundTest">▶</button></div>
+            <label><input type="checkbox" data-wb="accel" ${c.accel ? 'checked' : ''}>Ускорение в начале</label>
+            <label><input type="checkbox" data-wb="reroll_on" ${c.reroll_on ? 'checked' : ''}>Показывать «Реролл»</label>
+            <label><input type="checkbox" id="paAutoSpinPop" ${WH.auto ? 'checked' : ''}>Крутить само по таймеру</label>
+          </div>`);
+      }
+      case 'dropInfoHide': WH.dropInfoHidden = true; ls.set('auc_drop_info_off', '1'); return renderWheelTab();
+      case 'dropHelp': return sheet('Выбывание', `<p class="hint"><b>Новое</b> — сначала честно выбирается финальный победитель пропорционально его сумме, затем случайно строится порядок выбывания остальных участников для интриги.</p><p class="hint"><b>Классическое</b> — размер сектора обратно пропорционален сумме лота: чем больше сумма, тем меньше шанс выбыть в каждом раунде.</p><div class="sheet-acts"><button class="btn pri" value="cancel">Понятно</button></div>`, null);
+      case 'rngHelp': return sheet('Генерация случайных чисел', `<p class="hint">Используется криптографически стойкий генератор браузера <code>crypto.getRandomValues()</code> — непредсказуемый и равномерный выбор победителя.</p><div class="sheet-acts"><button class="btn pri" value="cancel">Понятно</button></div>`, null);
+      case 'wheelImport': {
+        const curText = WH.custom ? WH.custom.map(x => `${x.name} - ${x.total}`).join('\n') : '';
+        const rst = WH.custom ? '<button type="button" class="btn ghost" data-act="wheelImportClear">Вернуть лоты аука</button>' : '';
+        return sheet('Импортировать своих участников', `<p class="hint">По одному на строку. Можно указать вес через дефис или двоеточие: <code>Название - 100</code> (без числа = 1).</p>
+          <label class="field"><span>Участники</span><textarea class="in" name="raw" rows="10" placeholder="Участник 1 - 100&#10;Участник 2 - 50">${esc(curText)}</textarea></label>
+          <div class="sheet-acts">${rst}<button class="btn ghost" value="cancel" formnovalidate>Отмена</button><button class="btn pri" value="ok">Применить</button></div>`,
+          f => {
+            const lines = String(f.get('raw') || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+            if (!lines.length) { WH.custom = null; WH.out.clear(); WH.elimQueue = null; WH.result = null; WH.msg = ''; renderWheelTab(); return; }
+            WH.custom = lines.map((line, i) => {
+              const m = line.match(/^(.+?)\s*[-–—:|]\s*(\d+(?:[.,]\d+)?)$/);
+              const name = (m ? m[1] : line).trim().slice(0, 80);
+              const total = m ? Math.max(0.01, Number(m[2].replace(',', '.')) || 1) : 1;
+              return { id: 'c' + (i + 1), num: i + 1, name, total };
+            });
+            WH.out.clear(); WH.elimQueue = null; WH.result = null; WH.msg = '';
+            renderWheelTab();
+            toast(`Загружено участников: ${WH.custom.length}`);
+          });
+      }
+      case 'wheelImportClear': closeSheet(); WH.custom = null; WH.out.clear(); WH.elimQueue = null; WH.result = null; WH.msg = ''; renderWheelTab(); toast('Возвращены лоты аукциона'); return;
       case 'imgReset': return setW({ image: '' });
-      case 'set7tv': return setW({ image: el.dataset.url || '' });
+      case 'set7tv': { const ip = $('#paImgPop'); if (ip) ip.hidden = true; return setW({ image: el.dataset.url || '' }); }
       case 'theme': {
         const cur = curTheme();
         return pop(el, THEMES.map(([k, n, c]) => `<button class="${cur === k ? 'on' : ''}" data-act="setTheme" data-id="${k}"><i class="theme-dot" style="background:${c}"></i>${n}${cur === k ? '<small>✓</small>' : ''}</button>`).join(''));
@@ -1218,21 +1451,33 @@ document.addEventListener('change', async e => {
     if (t.id === 'autoAdd') return admDo({ a: 'config', config: { auto_add: t.value } }, t.value === 'none' ? 'Донаты не добавляются на лоты сами' : 'Донаты с «#номером» или названием встают на лот сами');
     if (t.id === 'qSort') { S.qSort = t.value; ls.set('auc_qsort', t.value); return renderRight(); }
     if (t.id === 'hsc') return loadHistory();
-    if (t.id === 'autoSpin') { WH.auto = t.checked; ls.set('auc_autospin', WH.auto ? '1' : '0'); }
+    if (t.id === 'autoSpin' || t.id === 'paAutoSpinPop') { WH.auto = t.checked; ls.set('auc_autospin', WH.auto ? '1' : '0'); if ($('#autoSpin')) $('#autoSpin').checked = WH.auto; }
+    if (t.dataset.wb === 'sound_on') return setW({ sound: t.checked ? 'ticks' : 'none' });
     if (t.dataset.wb) return setW({ [t.dataset.wb]: t.checked });
+    if (t.id === 'paHideOut') { WH.hideOut = t.checked; return renderWheelTab(); }
+    if (t.id === 'paWheelStyle') return setW({ palette: t.value });
     if (t.id === 'wSound') return setW({ sound: t.value });
     if (t.id === 'wRrPrice') { WH.rerollCount = 0; return setW({ reroll_price: Math.max(0, Number(t.value) || 0) }); }
     if (t.id === 'wRrSec') return setW({ reroll_sec: Math.max(5, Math.min(3600, Math.round(Number(t.value) || 60))) });
-    if (t.id === 'wImgFile') { await uploadImage(t.files[0]); t.value = ''; return; }
-    if (t.id === 'spinSec') { WH.sec = Number(t.value) || 20; return; }
+    if (t.id === 'wImgFile' || t.id === 'paImgFile') { await uploadImage(t.files[0]); t.value = ''; const ip = $('#paImgPop'); if (ip) ip.hidden = true; return; }
+    if (t.id === 'spinSec' || t.id === 'paSpinSec') { WH.sec = Math.max(3, Math.min(120, Number(t.value) || 10)); if ($('#spinSec')) $('#spinSec').value = WH.sec; if ($('#paSpinSec')) $('#paSpinSec').value = WH.sec; return; }
   } catch (err) { toast(err.message, true); render(); }
 });
 let hqT, stvT;
 document.addEventListener('input', e => {
   if (e.target.id === 'hq') { clearTimeout(hqT); hqT = setTimeout(() => loadHistory(), 300); }
-  if (e.target.id === 'w7tvSearch') { STV.q = e.target.value.trim(); render7tv(); }
+  if (e.target.id === 'w7tvSearch' || e.target.id === 'pa7tvSearch') { STV.q = e.target.value.trim(); render7tv(); }
   if (e.target.id === 'lotSearch') { S.search = e.target.value; renderLots($('#view')); }
-  if (e.target.id === 'wVol') setW({ volume: Number(e.target.value) });
+  if (e.target.id === 'wVol' || e.target.id === 'paVolPop') setW({ volume: Number(e.target.value) });
+  if (e.target.id === 'paSplit') setW({ split: Number(e.target.value) });
+});
+$('#wlItems')?.addEventListener('mouseover', e => {
+  const r = e.target.closest('.wli');
+  const id = r ? (Number.isFinite(Number(r.dataset.wlid)) && !String(r.dataset.wlid).startsWith('c') ? Number(r.dataset.wlid) : r.dataset.wlid) : null;
+  if (id !== WH.hoverId) { WH.hoverId = id; drawStatic(); }
+});
+$('#wlItems')?.addEventListener('mouseleave', () => {
+  if (WH.hoverId != null) { WH.hoverId = null; drawStatic(); }
 });
 document.addEventListener('submit', async e => {
   const f = e.target.closest('[data-form]'); if (!f) return;

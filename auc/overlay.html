@@ -47,7 +47,7 @@
   <div class="last" id="last"></div>
   <div class="wheel"><div class="wb"><svg class="ptr" viewBox="0 0 40 46" aria-hidden="true"><path d="M20 44 4 14A16 16 0 1 1 36 14z"/></svg><canvas id="wc"></canvas><img class="wb-img" id="wci" alt=""></div><div class="wres" id="wr"></div></div>
 </div>
-<script src="wheel.js?v=20261121j"></script>
+<script src="wheel.js?v=20261121s"></script>
 <script>
 (() => {
   const QS = new URLSearchParams(location.search);
@@ -76,7 +76,7 @@
     let ms = a.status === 'running' && a.ends_at ? Date.parse(a.ends_at) - (Date.now() + off) : a.status === 'paused' ? a.left_ms : null;
     if (ms == null) { el.textContent = { idle: 'скоро', ended: 'ставки закрыты', closed: 'итоги' }[a.status] || ''; el.className = 'timer off'; return; }
     const s = Math.ceil(Math.max(0, ms) / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
-    el.textContent = (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(s % 60).padStart(2, '0') + (a.status === 'paused' ? ' ⏸' : '');
+    el.textContent = (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(s % 60).padStart(2, '0');
     el.className = 'timer' + (a.status === 'running' && s <= 30 ? ' low' : '');
   }
   const es = new EventSource(API + '/auc/events');
