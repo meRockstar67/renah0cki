@@ -1072,7 +1072,8 @@ async function viewProfile(key) {
   await loadAllMyLikes();
   let subscribed = !!followRows[0], subs = subCount;
   const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
-  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && ['Соцсеть', p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url]].filter(x => x && /^https?:\/\//.test(x[1]));
+  const socialLabel = u => { try { return /^(?:.+\.)?(?:t\.me|telegram\.(?:me|dog|org))$/i.test(new URL(u).hostname) ? 'Телеграм' : 'Соцсеть'; } catch { return 'Соцсеть'; } };
+  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url]].filter(x => x && /^https?:\/\//.test(x[1]));
   page.innerHTML = `<div class="prof">
     <section class="prof-card">
       <div class="prof-left">${avaHtml(p.avatar_url, pname(p), 'prof-ava')}

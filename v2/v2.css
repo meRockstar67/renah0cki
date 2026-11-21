@@ -934,6 +934,14 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 /* ── профиль: ссылки под аватаркой ── */
 .prof-left { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: none; }
 .prof-left .prof-links { margin-top: 0; flex-wrap: wrap; justify-content: center; max-width: 140px; }
+@media (min-width: 901px) {
+  .prof-card { display: grid; grid-template-columns: auto 1fr auto; column-gap: 20px; row-gap: 12px; align-items: start; }
+  .prof-left { display: contents; }
+  .prof-ava { grid-column: 1; grid-row: 1; }
+  .prof-main { grid-column: 2; grid-row: 1; }
+  .prof-acts { grid-column: 3; grid-row: 1; }
+  .prof-left .prof-links { grid-column: 1 / -1; grid-row: 2; max-width: none; justify-content: flex-start; gap: 8px; }
+}
 /* ── потянуть для обновления ── */
 .ptr { position: fixed; left: 50%; top: calc(8px + env(safe-area-inset-top)); z-index: 100; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.5); color: var(--muted); opacity: 0; transform: translate(-50%, 0); pointer-events: none; transition: opacity .15s; }
 .ptr svg { width: 20px; height: 20px; }
