@@ -68,17 +68,29 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .aw-page { position: relative; z-index: 2; padding-top: 60px; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 
 /* ── фирменная 3D-кристаллическая кнопка SLAY «ВЫБРАТЬ / ПРОГОЛОСОВАТЬ» ── */
-.slay-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-width: 246px; height: 54px; padding: 0 38px; border: 0;
-  background: url('/awards/slay-btn.png?v=1') center / 100% 100% no-repeat;
+.slay-btn { position: relative; z-index: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 246px; height: 54px; padding: 0 38px; border: 0; background: transparent; white-space: nowrap;
   font-family: var(--sans); font-size: 13.5px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: #ffffff;
   text-shadow: 0 1px 10px rgba(0, 0, 0, .95), 0 0 14px rgba(255, 130, 30, .45);
-  filter: drop-shadow(0 0 14px rgba(255, 76, 10, .42));
-  transition: transform .22s var(--ease), filter .25s; }
-.slay-btn:hover { transform: translateY(-2px) scale(1.025); filter: drop-shadow(0 0 26px rgba(255, 108, 22, .85)) brightness(1.14); }
+  transition: transform .22s var(--ease), color .25s; }
+.slay-btn::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: url('/awards/slay-btn.png?v=1') center / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 16px rgba(255, 76, 10, .46));
+  transition: filter .25s var(--ease), opacity .25s; }
+.slay-btn:hover { transform: translateY(-2px) scale(1.025); }
+.slay-btn:hover::before { filter: drop-shadow(0 0 26px rgba(255, 108, 22, .85)) brightness(1.14); }
 .slay-btn:active { transform: scale(.98); }
-.slay-btn.voted { filter: drop-shadow(0 0 24px rgba(255, 178, 48, .82)) brightness(1.16) saturate(1.18); }
-.slay-btn.sm { min-width: 236px; height: 52px; padding: 0 34px; font-size: 13.5px; }
+.slay-btn.voted::before { filter: drop-shadow(0 0 24px rgba(255, 178, 48, .82)) brightness(1.16) saturate(1.18); }
+/* выбранный номинант: обсидианово-серебряная кнопка «ОТМЕНИТЬ ВЫБОР» (как на SLAY) */
+.slay-btn.cancel { color: #ffffff; letter-spacing: .09em; text-shadow: 0 1px 8px rgba(0, 0, 0, .95); }
+.slay-btn.cancel::before { filter: grayscale(1) brightness(.52) contrast(1.42) drop-shadow(0 6px 18px rgba(0, 0, 0, .75)); }
+.slay-btn.cancel:hover::before { filter: grayscale(1) brightness(.7) contrast(1.36) drop-shadow(0 0 18px rgba(255, 255, 255, .24)); }
+/* остальные номинанты, когда голос в номинации уже отдан: приглушённый кристалл */
+.slay-btn.dim { color: rgba(255, 255, 255, .28); text-shadow: 0 1px 6px rgba(0, 0, 0, .9); }
+.slay-btn.dim::before { filter: brightness(.36) saturate(.74) contrast(1.08); opacity: .78; }
+.slay-btn.dim:hover { color: rgba(255, 255, 255, .92); }
+.slay-btn.dim:hover::before { filter: brightness(.86) saturate(1) drop-shadow(0 0 18px rgba(255, 92, 16, .55)); opacity: 1; }
+.slay-btn.sm { min-width: 242px; height: 52px; padding: 0 32px; font-size: 13px; }
 .slay-btn.static { pointer-events: none; }
 
 /* вспомогательные кнопки (админка, модалки) */
@@ -204,8 +216,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 /* ── БОЛЬШЕ НОМИНАЦИЙ — плавная 3D-карусель (без прыжков на телефоне) ── */
 .slay-more { padding-top: 104px; }
 #slayCarBox { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-.slay-car-stage { position: relative; max-width: 960px; height: 420px; margin: 40px auto 0; overflow: hidden; perspective: 1100px; }
+.slay-car-stage { position: relative; max-width: 960px; height: 476px; margin: 26px auto 0; overflow-x: clip; overflow-y: visible; perspective: 1100px; }
 .slay-car-item { position: absolute; left: 50%; top: 0; width: min(360px, 86vw); height: 100%; margin-left: calc(min(360px, 86vw) / -2);
+  padding: 12px 0 36px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   will-change: transform, opacity, filter;
   transition: transform .54s cubic-bezier(.22, 1, .36, 1), opacity .44s ease, filter .44s ease; }
@@ -229,7 +242,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .slay-car-item[data-pos="-2"] { transform: translate3d(-155%, -16px, -220px) scale(.42); opacity: 0; pointer-events: none; z-index: 1; }
 .slay-car-item[data-pos="2"] { transform: translate3d(155%, -16px, -220px) scale(.42); opacity: 0; pointer-events: none; z-index: 1; }
 
-.slay-car-nav { display: inline-flex; align-items: center; justify-content: center; gap: 20px; margin-top: 18px; }
+.slay-car-nav { display: inline-flex; align-items: center; justify-content: center; gap: 20px; margin-top: 4px; }
 .slay-car-arr { width: 52px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent;
   position: relative; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   transition: transform .18s, filter .2s; filter: drop-shadow(0 0 10px rgba(255, 72, 16, .45)); }
@@ -394,7 +407,7 @@ a.aw-nee-sub:hover { color: #ffba6b; text-decoration: underline; }
   .aw-edge { display: none; }
   .aw-nav .aw-nav-l:not(:first-child) { display: none; }
   .slay-top2, .slay-top3, .slay-all-grid { grid-template-columns: 1fr; gap: 52px; }
-  .slay-car-stage { height: 380px; margin-top: 24px; }
+  .slay-car-stage { height: 432px; margin-top: 16px; }
   .slay-car-item .slay-emblem { width: 184px; height: 184px; }
   .slay-car-item[data-pos="-1"] { transform: translate3d(-105%, 0, -100px) scale(.72); opacity: 0; pointer-events: none; }
   .slay-car-item[data-pos="1"] { transform: translate3d(105%, 0, -100px) scale(.72); opacity: 0; pointer-events: none; }
@@ -405,7 +418,7 @@ a.aw-nee-sub:hover { color: #ffba6b; text-decoration: underline; }
   .aw-me span { display: none; }
   .aw-pill b { font-size: 14px; }
   .slay-sec { padding: 62px 16px 24px; }
-  .slay-btn, .slay-btn.sm { min-width: 220px; height: 48px; font-size: 12.5px; }
+  .slay-btn, .slay-btn.sm { min-width: 224px; height: 48px; padding: 0 26px; font-size: 12px; }
   .aw-nees { grid-template-columns: 1fr; }
   .aw-ico-pick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

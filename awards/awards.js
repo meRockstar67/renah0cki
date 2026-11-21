@@ -406,7 +406,7 @@ function viewNom(id) {
           ${neeSubHtml(x.description)}
           ${S.results && S.showRes ? `<div class="aw-res"><div class="aw-res-bar"><i style="width:${v / max * 100}%"></i></div><span>${v} ${plural(v, 'голос', 'голоса', 'голосов')}</span></div>` : ''}
           <div class="aw-nee-line" aria-hidden="true"></div>
-          <div class="aw-nee-acts">${n.is_open ? `<button class="slay-btn sm${on ? ' voted' : ''}" data-vote="${x.id}">${on ? '✓ ВЫБРАНО' : 'ВЫБРАТЬ'}</button>` : on ? '<span class="slay-btn sm voted static">✓ ВЫБРАНО</span>' : ''}</div>
+          <div class="aw-nee-acts">${n.is_open ? `<button class="slay-btn sm${on ? ' cancel' : mine ? ' dim' : ''}" data-vote="${x.id}">${on ? 'ОТМЕНИТЬ ВЫБОР' : 'ВЫБРАТЬ'}</button>` : on ? '<span class="slay-btn sm cancel static">✓ ВЫБРАНО</span>' : ''}</div>
         </div>
       </article>`;
     }).join('')}
