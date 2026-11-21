@@ -1126,7 +1126,7 @@ async function viewProfile(key) {
   let subscribed = !!followRows[0], subs = subCount;
   const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
   const socialLabel = u => { try { return /^(?:.+\.)?(?:t\.me|telegram\.(?:me|dog|org))$/i.test(new URL(u).hostname) ? 'Телеграм' : 'Соцсеть'; } catch { return 'Соцсеть'; } };
-  const coinDonateLink = p.username && coinTarget?.coin_donate_enabled !== false ? `${location.origin}/donate/?u=${encodeURIComponent(p.username)}` : null;
+  const coinDonateLink = p.username && coinTarget?.coin_donate_enabled !== false ? `${location.origin}/donate/${encodeURIComponent(p.username)}` : null;
   const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url], coinDonateLink && ['Донат coin', coinDonateLink]].filter(x => x && /^https?:\/\//.test(x[1]));
   const eq = eqOf(p), bgCls = eq?.banner && /^bg_[a-z0-9_]+$/i.test(eq.banner) ? ` cbg cbg-${esc(eq.banner)}` : '';
   page.innerHTML = `<div class="prof">
@@ -1572,7 +1572,7 @@ function editProfile() {
       <div class="pe-prev">Предпросмотр: <b id="ncPrev"${nameAttr(me.name_color)}>${esc(pname(me))}</b></div></div>` : ''}
     ${hasRole(me, 'streamer') ? `<label>Ссылка на Twitch<input name="tw" value="${esc(me.stream_twitch_url || '')}" placeholder="https://twitch.tv/..."></label><label>Соцсеть (Telegram, VK…)<input name="so" value="${esc(me.stream_social_url || '')}" placeholder="https://t.me/..."></label><label>Ссылка на донат<input name="dn" value="${esc(me.stream_donate_url || '')}" placeholder="https://..."></label>` : ''}
     ${me.username ? `<div class="pe-color" style="gap:8px"><span>Личная ссылка для доната renah0cki coin</span>
-      <div style="display:flex;gap:6px;align-items:center"><input type="text" readonly value="${esc(location.origin + '/donate/?u=' + encodeURIComponent(me.username))}" style="flex:1;min-width:0;opacity:.85"><button type="button" class="btn" id="peCopyDn" style="flex:none">Копировать</button></div>
+      <div style="display:flex;gap:6px;align-items:center"><input type="text" readonly value="${esc(location.origin + '/donate/' + encodeURIComponent(me.username))}" style="flex:1;min-width:0;opacity:.85"><button type="button" class="btn" id="peCopyDn" style="flex:none">Копировать</button></div>
       <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:500"><input type="checkbox" name="cdon" checked style="width:16px;height:16px;flex:none"><span>Принимать донаты renah0cki coin по моей ссылке</span></label></div>` : ''}
     <p class="hint">Логин Twitch (@${esc(me.username || '')}) не меняется.</p>
     <div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
@@ -1621,7 +1621,7 @@ function editProfile() {
   document.body.append(ov);
   if (me.username) {
     const cp = $('#peCopyDn', ov);
-    if (cp) cp.onclick = () => navigator.clipboard.writeText(`${location.origin}/donate/?u=${encodeURIComponent(me.username)}`).then(() => toast('Ссылка скопирована'), () => {});
+    if (cp) cp.onclick = () => navigator.clipboard.writeText(`${location.origin}/donate/${encodeURIComponent(me.username)}`).then(() => toast('Ссылка скопирована'), () => {});
     rpc('coin_donate_target', { p_username: me.username }).then(t => { if (t && $('[name=cdon]', ov)) $('[name=cdon]', ov).checked = t.coin_donate_enabled !== false; }).catch(() => {});
   }
 }

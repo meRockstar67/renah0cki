@@ -830,7 +830,7 @@ function settingsHtml() {
   const rate = (k, label) => `<label>${label}<input class="in" name="rate_${k}" type="number" step="any" min="0" inputmode="decimal" value="${esc(r[k] ?? '')}"></label>`;
   const siteOn = c.site_enabled !== false;
   const sNick = d.streamer?.name || '';
-  const donate = sNick ? `${location.origin}/donate/?u=${encodeURIComponent(sNick)}` : `${location.origin}/donate/`;
+  const donate = sNick ? `${location.origin}/donate/${encodeURIComponent(sNick)}` : `${location.origin}/donate/`;
   return `<div class="box"><h2 class="h2">Подключения</h2><div class="ints">
     <div class="int"><div class="int-h">${st(I.twitch)}<b>Twitch — баллы канала</b><span class="muted">${esc(I.twitch?.login || '')}</span></div>
       <p>${esc(I.twitch?.text || '')}${I.twitch?.rewards?.length ? ` · награды: ${I.twitch.rewards.join(', ')}` : ''}</p>

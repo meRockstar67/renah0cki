@@ -10,7 +10,12 @@ const QS = new URLSearchParams(location.search);
 const API = (LOCAL && QS.get('api')) || 'https://cdn.renah0cki.xyz';
 const SB = (LOCAL && QS.get('sb')) || SB_URL;
 const LS_SESSION = 'fh_session';
-const TARGET_U = (QS.get('u') || '').trim().replace(/^@/, '');
+const PATH_U = (() => {
+  const m = location.pathname.match(/^\/donate\/([^/]+)\/?$/i);
+  if (!m) return '';
+  try { const s = decodeURIComponent(m[1]); return /^index\.html$/i.test(s) ? '' : s; } catch { return ''; }
+})();
+const TARGET_U = (QS.get('u') || PATH_U || '').trim().replace(/^@/, '');
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -123,7 +128,7 @@ function renderOwn() {
   const me = S.me;
   if (!S.uid || !me?.username) { $('#streamer').hidden = true; return; }
   $('#streamer').hidden = false;
-  const link = `${location.origin}/donate/?u=${encodeURIComponent(me.username)}`;
+  const link = `${location.origin}/donate/${encodeURIComponent(me.username)}`;
   $('#myLink').textContent = link;
   const on = me.coin_donate_enabled !== false;
   $('#myDot').className = 'dot' + (on ? ' ok' : '');
