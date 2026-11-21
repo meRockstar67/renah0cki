@@ -6,6 +6,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI
 const CDN = 'https://cdn.renah0cki.xyz';
 const OWNER = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const STAFF_ROLES = ['moderator', 'gl_moder', 'admin'];
+const JURY_ROLES = ['streamer', 'moderator', 'gl_moder', 'admin'];
 const EVENT_AT = Date.parse('2026-12-31T17:00:00Z'); // 31.12.2026 20:00 МСК
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -58,7 +59,7 @@ async function upload(file, onPct) {
 }
 
 /* ── состояние ── */
-const S = { uid: readSession()?.user?.id || null, me: null, admin: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0 };
+const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0 };
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
 const thumb = (u, w = 720) => { const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+\.(?:jpe?g|png|webp))$/i); return m ? `${CDN}/thumb/${w}/${m[1]}` : u; };
 const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return n > 10 && n < 20 ? c : k > 1 && k < 5 ? b : k === 1 ? a : c; };
@@ -252,8 +253,12 @@ async function loadMe() {
   try {
     const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,role,extra_roles`);
     S.me = me;
-    S.admin = S.uid === OWNER || (!!me && [me.role, ...(me.extra_roles || [])].some(r => STAFF_ROLES.includes(r)));
-    if (!S.admin) { location.replace('/'); return false; }
+    const roles = me ? [me.role, ...(me.extra_roles || [])] : [];
+    S.admin = S.uid === OWNER || roles.some(r => STAFF_ROLES.includes(r));
+    S.jury = S.uid === OWNER || roles.some(r => JURY_ROLES.includes(r));
+    if (!S.jury) { location.replace('/'); return false; }
+    const jb = $('#awJury');
+    if (jb) { jb.hidden = !S.jury; document.body.classList.toggle('has-jury', S.jury); }
     $('#awMe').innerHTML = me ? `<img src="${esc(me.avatar_url || '/icon-32.png')}" alt=""><span>${esc(me.display_name || me.username)}</span>` : '';
     return true;
   } catch { location.replace('/'); return false; }

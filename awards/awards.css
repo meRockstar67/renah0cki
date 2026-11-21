@@ -57,6 +57,21 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .aw-me { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; color: #b7afa8; }
 .aw-me img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255, 122, 28, .45); }
 
+/* плашка жюри сверху (стример, модер и выше) */
+.aw-jury { position: fixed; top: 60px; left: 0; right: 0; z-index: 35; height: 34px;
+  display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 16px;
+  background: linear-gradient(90deg, rgba(12, 4, 2, .94) 0%, rgba(122, 22, 6, .92) 28%, rgba(186, 48, 8, .94) 50%, rgba(122, 22, 6, .92) 72%, rgba(12, 4, 2, .94) 100%);
+  border-bottom: 1px solid rgba(255, 166, 66, .55);
+  box-shadow: 0 6px 24px rgba(255, 76, 12, .32);
+  font-family: var(--serif); font-size: 14px; letter-spacing: .16em; text-transform: uppercase; color: #fff3d6;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .9); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aw-jury[hidden] { display: none; }
+.aw-jury i { width: 8px; height: 8px; flex: none; display: block;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: linear-gradient(180deg, #fff2c2, #ff8c1a); box-shadow: 0 0 10px rgba(255, 174, 66, .9); }
+body.has-jury .aw-page { padding-top: 94px; }
+body.has-jury .slay-hero { min-height: calc(100dvh - 94px); }
+
 .aw-page { position: relative; z-index: 2; padding-top: 60px; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 
 /* ── фирменная шестиугольная кнопка SLAY «ПРОГОЛОСОВАТЬ» ── */
@@ -349,6 +364,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 }
 @media (max-width: 600px) {
   .aw-top { padding: 0 14px; }
+  .aw-jury { font-size: 11px; letter-spacing: .09em; gap: 7px; padding: 0 10px; }
   .aw-me span { display: none; }
   .aw-pill b { font-size: 14px; }
   .slay-sec { padding: 62px 16px 24px; }
