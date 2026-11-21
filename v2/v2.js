@@ -1428,7 +1428,7 @@ loadSponsors();
 $('#sponsList').addEventListener('scroll', e => { const l = e.currentTarget; l.classList.toggle('end', l.scrollTop + l.clientHeight >= l.scrollHeight - 2); }, { passive: true });
 // топ 3 донатера по сумме пополнений через DonationAlerts (главный админ не учитывается)
 function loadTopDonors() {
-  swr('topdon', async () => {
+  swr('topdon2', async () => {
     const rows = await rpc('coin_top_donors', { p_limit: 3 });
     await loadProfiles(rows.map(r => r.user_id));
     return rows.map(r => ({ ...r, p: S.profiles.get(r.user_id) || null }));
