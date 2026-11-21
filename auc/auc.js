@@ -130,7 +130,7 @@ function render() {
   const wheel = S.tab === 'wheel';
   document.body.classList.toggle('tab-wheel', wheel); $('#wapp').hidden = !wheel;
   renderView(); if (!wheel) renderRight(); tickClock();
-  if (S.isAdmin && WH.auto && S.prevStatus === 'running' && a.status === 'ended' && !WH.spinning) { setTab('wheel'); setTimeout(doSpin, 700); }
+  if (S.isAdmin && WH.auto && S.prevStatus === 'running' && ((a.status === 'paused' && (a.left_ms || 0) <= 0) || a.status === 'ended') && !WH.spinning) { setTab('wheel'); setTimeout(doSpin, 700); }
   S.prevStatus = a.status; S.ready = true;
 }
 
@@ -791,7 +791,10 @@ function finishSheet(winnerId) {
     </div>${acts('Завершить', 'ok')}`,
     async f => {
       const r = await admDo({ a: 'finish', winner: f.get('winner') ? Number(f.get('winner')) : null, refund: f.get('refund') === 'on' });
-      toast(`Готово: победа ${r.won}, возвращено ${r.refunded}${r.kept ? `, оставлено ${r.kept}` : ''}${r.failed ? `, ошибок ${r.failed} — см. «Все ставки»` : ''}`, !!r.failed);
+      if (r.new_auction) { WH.result = null; WH.out.clear(); WH.msg = ''; }
+      toast(r.new_auction
+        ? `Завершено (победа ${r.won}, возвращено ${r.refunded}${r.kept ? `, оставлено ${r.kept}` : ''}) — начат новый аукцион`
+        : `Готово: победа ${r.won}, возвращено ${r.refunded}${r.kept ? `, оставлено ${r.kept}` : ''}${r.failed ? `, ошибок ${r.failed} — см. «Все ставки»` : ''}`, !!r.failed);
     });
 }
 const setTab = t => {
@@ -801,7 +804,7 @@ const setTab = t => {
 
 /* ── клики ── */
 document.addEventListener('click', async e => {
-  if (!e.target.closest('#pop') && !e.target.closest('[data-act=aucList],[data-act=view]')) closePop();
+  if (!e.target.closest('#pop') && !e.target.closest('[data-act=aucList],[data-act=view],[data-act=theme]')) closePop();
   const tab = e.target.closest('#tabs [data-tab]'); if (tab) return setTab(tab.dataset.tab);
   const q = e.target.closest('.seg2 button'); if (q) { S.q = q.dataset.q; return renderRight(); }
   const wv = e.target.closest('[data-wv]'); if (wv) { const [k, v] = wv.dataset.wv.split(':'); return setW({ [k]: v }); }
@@ -826,7 +829,7 @@ document.addEventListener('click', async e => {
         return;
       }
       case 'reset':
-        if (['running', 'paused'].includes(a.status)) return admDo({ a: 'control', op: 'stop' }, 'Приём ставок закрыт');
+        if (['running', 'paused'].includes(a.status)) return admDo({ a: 'control', op: 'set', sec: S.startMin * 60 }, 'Таймер сброшен');
         if (a.status === 'idle') { S.startMin = 60; ls.set('auc_startmin', 60); return tickClock(); }
         return;
       case 'acceptOn': return admDo({ a: 'accept', on: true }, 'Приём донатов включён');
