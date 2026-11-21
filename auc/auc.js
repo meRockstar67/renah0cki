@@ -350,6 +350,85 @@ function renderRight() {
 
 /* ══ вкладка «Колесо» ══ */
 const LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
+const DEFAULT_PRESETS = [
+  { id: 'watch', title: 'Просмотровый', rules: '# Просмотровый аукцион\nКидайте видео/ролики без запрещёнки Twitch.', start_min: 15, mode: 'normal', no_refund: false, reroll_on: false, reroll_price: 500, reroll_sec: 60, reroll_x2: false },
+  { id: 'all',   title: 'Аук на всё',   rules: '# Аукцион на всё\nЛюбые лоты в рамках правил Twitch.', start_min: 60, mode: 'normal', no_refund: false, reroll_on: false, reroll_price: 1000, reroll_sec: 60, reroll_x2: true },
+  { id: 'movie', title: 'Аук на фильм', rules: '# Аукцион на фильм\nЗагадывайте фильмы, аниме или сериалы.', start_min: 30, mode: 'normal', no_refund: false, reroll_on: true, reroll_price: 1000, reroll_sec: 60, reroll_x2: true },
+  { id: 'game',  title: 'Игровой аук',  rules: '# Игровой аукцион\nИгры на прохождение или челлендж.', start_min: 30, mode: 'normal', no_refund: false, reroll_on: false, reroll_price: 1000, reroll_sec: 60, reroll_x2: false },
+];
+function getPresets() {
+  const saved = A()?.config?.wheel?.presets;
+  return Array.isArray(saved) && saved.length ? saved : DEFAULT_PRESETS;
+}
+function activePreset() {
+  const list = getPresets();
+  const aid = A()?.config?.wheel?.active_preset;
+  return list.find(p => p.id === aid) || list.find(p => p.title === A()?.auction?.title) || list[0];
+}
+async function applyPreset(p) {
+  if (!p) return;
+  WH.rerollCount = 0;
+  if (p.start_min > 0) { S.startMin = Math.max(1, Math.min(600, Math.round(p.start_min))); ls.set('auc_startmin', S.startMin); }
+  const wheelPatch = {
+    active_preset: p.id,
+    mode: p.mode === 'elim' ? 'elim' : 'normal',
+    reroll_on: !!p.reroll_on,
+    reroll_price: Math.max(0, Number(p.reroll_price) || 0),
+    reroll_sec: Math.max(5, Math.min(3600, Math.round(Number(p.reroll_sec) || 60))),
+    reroll_x2: !!p.reroll_x2,
+  };
+  Object.assign(WH.local, wheelPatch);
+  await batch(async () => {
+    await admDo({ a: 'control', op: 'title', title: p.title });
+    await admDo({ a: 'config', config: { rules: p.rules ?? '', no_refund: !!p.no_refund, wheel: wheelPatch } });
+  });
+  for (const k of Object.keys(wheelPatch)) delete WH.local[k];
+  toast(`Пресет «${p.title}» применён`);
+}
+function openPresetEditor(p, isNew = false) {
+  const c = wcfg(), cfg = A()?.config || {};
+  const cur = isNew
+    ? { id: 'p_' + Date.now().toString(36), title: '', rules: cfg.rules || '', start_min: S.startMin || 30, mode: c.mode || 'normal', no_refund: !!cfg.no_refund, reroll_on: !!c.reroll_on, reroll_price: c.reroll_price ?? 1000, reroll_sec: c.reroll_sec ?? 60, reroll_x2: !!c.reroll_x2 }
+    : { ...p };
+  const list = getPresets();
+  const delBtn = !isNew && list.length > 1 ? `<button type="button" class="btn bad" data-act="presetDel" data-id="${esc(cur.id)}">Удалить</button>` : '';
+  sheet(isNew ? 'Новый пресет' : `Пресет «${cur.title}»`, `
+    <label class="field"><span>Название пресета</span><input class="in" name="title" maxlength="80" required placeholder="Например: Аук на фильм" value="${esc(cur.title)}"></label>
+    <div class="rates">
+      <label>Таймер (мин)<input class="in" name="start_min" type="number" min="1" max="600" inputmode="numeric" value="${esc(cur.start_min || 30)}"></label>
+      <label>Режим колеса<select class="in" name="mode"><option value="normal" ${cur.mode !== 'elim' ? 'selected' : ''}>Обычный</option><option value="elim" ${cur.mode === 'elim' ? 'selected' : ''}>Выбывание</option></select></label>
+    </div>
+    <label class="check"><input type="checkbox" name="no_refund" ${cur.no_refund ? 'checked' : ''}><span>Без возврата баллов проигравшим</span></label>
+    <label class="check"><input type="checkbox" name="reroll_on" ${cur.reroll_on ? 'checked' : ''}><span>Показывать «Реролл — сумма + таймер» над лотом</span></label>
+    <div class="rates">
+      <label>Сумма реролла (₽)<input class="in" name="reroll_price" type="number" min="0" step="any" inputmode="decimal" value="${esc(cur.reroll_price ?? 1000)}"></label>
+      <label>Таймер реролла (сек)<input class="in" name="reroll_sec" type="number" min="5" max="3600" inputmode="numeric" value="${esc(cur.reroll_sec ?? 60)}"></label>
+    </div>
+    <label class="check"><input type="checkbox" name="reroll_x2" ${cur.reroll_x2 ? 'checked' : ''}><span>Умножать сумму ×2 при реролле</span></label>
+    <label class="field" style="margin-top:8px"><span>Правила для этого пресета</span><textarea class="in" name="rules" maxlength="5000" rows="6" placeholder="# Заголовок, **жирный**">${esc(cur.rules || '')}</textarea></label>
+    <div class="sheet-acts">${delBtn}<button class="btn ghost" value="cancel" formnovalidate>Отмена</button><button class="btn pri" value="ok">Сохранить</button></div>`,
+    async f => {
+      const title = String(f.get('title') || '').trim().slice(0, 80);
+      if (!title) throw new Error('Укажи название пресета');
+      const next = {
+        id: cur.id, title,
+        rules: String(f.get('rules') || ''),
+        start_min: Math.max(1, Math.min(600, Math.round(Number(f.get('start_min')) || 30))),
+        mode: f.get('mode') === 'elim' ? 'elim' : 'normal',
+        no_refund: f.get('no_refund') === 'on',
+        reroll_on: f.get('reroll_on') === 'on',
+        reroll_price: Math.max(0, Number(f.get('reroll_price')) || 0),
+        reroll_sec: Math.max(5, Math.min(3600, Math.round(Number(f.get('reroll_sec')) || 60))),
+        reroll_x2: f.get('reroll_x2') === 'on',
+      };
+      const curList = getPresets().map(x => ({ ...x }));
+      const idx = curList.findIndex(x => x.id === next.id);
+      if (idx >= 0) curList[idx] = next; else curList.push(next);
+      await admDo({ a: 'config', config: { wheel: { presets: curList } } });
+      await applyPreset(next);
+    });
+}
+
 const WDEF = { mode: 'normal', palette: 'rainbow', labels: 'radial', hide_sum: false, full_text: false, image: '', accel: false, sound: 'ticks', volume: 0.5, reroll_on: false, reroll_price: 1000, reroll_sec: 60, reroll_x2: false };
 const PAL_NAMES = { rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар', cyber: 'Кибер', pastel: 'Пастель', berry: 'Ягода', gold: 'Золото', ice: 'Лёд' };
 const THEMES = [
@@ -979,9 +1058,28 @@ document.addEventListener('click', async e => {
       case 'retry': { const r = await admDo({ a: 'retry' }); return toast(`Повторено: ${r.retried}, успешно: ${r.ok}`); }
       case 'archive': S.histAuction = 'all'; $('#view').dataset.tab = ''; return setTab('history');
       case 'aucList': {
-        const list = S.adm?.auctions || [];
-        return pop(el, list.map(x => `<button data-act="openAuc" data-id="${x.id}">${esc(x.title)}<small>${x.id === A().auction.id ? 'текущий' : new Date(x.created_at).toLocaleDateString('ru-RU')}</small></button>`).join('')
-          + (S.isAdmin && a.status === 'closed' ? '<button data-act="finish">+ Новый аукцион</button>' : '') || '<button disabled>Нет аукционов</button>');
+        const list = getPresets();
+        const cur = activePreset();
+        const rows = list.map(p => `<button class="${cur?.id === p.id ? 'on' : ''}" data-act="presetPick" data-id="${esc(p.id)}">${esc(p.title)}<small>${cur?.id === p.id ? '✓' : (p.start_min ? p.start_min + 'м' : '')}</small></button>`).join('');
+        const extra = S.isAdmin ? `<div class="pop-sep"></div><button data-act="presetEdit">✎ Редактировать пресет</button><button class="pop-add" data-act="presetNew">+ Новый пресет</button>` : '';
+        return pop(el, rows + extra);
+      }
+      case 'presetPick': {
+        closePop();
+        if (!S.isAdmin) return;
+        const p = getPresets().find(x => x.id === id);
+        if (p) return applyPreset(p);
+        return;
+      }
+      case 'presetEdit': closePop(); return openPresetEditor(activePreset(), false);
+      case 'presetNew': closePop(); return openPresetEditor(null, true);
+      case 'presetDel': {
+        const curList = getPresets().filter(x => x.id !== id);
+        if (!curList.length) return;
+        closeSheet();
+        await admDo({ a: 'config', config: { wheel: { presets: curList } } });
+        await applyPreset(curList[0]);
+        return;
       }
       case 'openAuc': closePop(); if (nid === A().auction.id) return setTab('lots'); S.histAuction = nid; $('#view').dataset.tab = ''; return setTab('history');
       case 'view': return pop(el, `<label><input type="checkbox" data-view="pct" ${S.view.pct ? 'checked' : ''}>Проценты</label><label><input type="checkbox" data-view="bars" ${S.view.bars ? 'checked' : ''}>Полоски</label><label><input type="checkbox" data-view="hide" ${S.view.hide ? 'checked' : ''}>Скрыть суммы</label>`);
@@ -990,7 +1088,12 @@ document.addEventListener('click', async e => {
         f => admDo({ a: 'control', op: 'title', title: f.get('t') }));
       case 'rules': return sheet('Правила', `<p class="hint"><b># Заголовок</b>, <b>## Подзаголовок</b>, <b>**жирный**</b>. Пустое поле — правил нет.</p>
         <label class="field"><span>Текст</span><textarea class="in" name="r" maxlength="5000" rows="12">${esc(A().config?.rules || '')}</textarea></label>${acts('Сохранить')}`,
-        f => admDo({ a: 'config', config: { rules: String(f.get('r') || '') } }, 'Правила сохранены'));
+        async f => {
+          const rules = String(f.get('r') || '');
+          const cur = activePreset();
+          const list = getPresets().map(x => x.id === cur?.id ? { ...x, rules } : x);
+          return admDo({ a: 'config', config: { rules, wheel: { presets: list } } }, 'Правила сохранены');
+        });
       case 'lotRename': { const l = lotsMap().get(nid); return sheet(`Лот #${l.num}`, `<label class="field"><span>Название</span><input class="in" name="n" maxlength="80" value="${esc(l.name)}"></label>${acts('Сохранить')}`,
         f => admDo({ a: 'lot', op: 'rename', id: nid, name: f.get('n') })); }
       case 'lotDel': { const l = lotsMap().get(nid); return admDo({ a: 'lot', op: 'delete', id: nid }, `Лот «${l?.name || ''}» удалён`); }

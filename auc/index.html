@@ -12,9 +12,9 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
 <link rel="preconnect" href="https://api.renah0cki.xyz" crossorigin>
 <link rel="preconnect" href="https://cdn.renah0cki.xyz" crossorigin>
-<link rel="stylesheet" href="/auc/auc.css?v=20261121h">
+<link rel="stylesheet" href="/auc/auc.css?v=20261121i">
 <script src="/auc/wheel.js?v=20261121c" defer></script>
-<script src="/auc/auc.js?v=20261121h" defer></script>
+<script src="/auc/auc.js?v=20261121i" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -49,8 +49,8 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
 <main class="app">
   <aside class="left">
     <div class="auc-pick">
-      <button class="pick-btn" id="aucSel" data-act="aucList"><span id="aTitle">Аукцион</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
-      <button class="sq" data-act="title" data-adm hidden title="Переименовать" aria-label="Переименовать аукцион"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>
+      <button class="pick-btn" id="aucSel" data-act="aucList" title="Выбрать пресет аукциона"><span id="aTitle">Аукцион</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+      <button class="sq" data-act="presetEdit" data-adm hidden title="Настроить пресет" aria-label="Настроить пресет"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>
     </div>
     <div class="status-line"><span class="chip" id="aStatus">—</span><span class="muted" id="aTotal"></span></div>
     <article class="rules" id="rules"></article>

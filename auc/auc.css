@@ -445,6 +445,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .w7tv-msg { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 12px; padding: 10px 4px; }
 .theme-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 1px solid rgba(255, 255, 255, .25); }
 .pop button.on { background: var(--accent-soft); color: var(--accent); }
+.pop-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+.pop button.pop-add { color: var(--accent); }
 .dlist, .tbody, .rules, .wlist, .wset, .pane, .w7tv-grid { scrollbar-width: thin; scrollbar-color: var(--panel-3) transparent; }
 .dlist::-webkit-scrollbar, .tbody::-webkit-scrollbar, .rules::-webkit-scrollbar, .wlist::-webkit-scrollbar, .wset::-webkit-scrollbar, .pane::-webkit-scrollbar, .w7tv-grid::-webkit-scrollbar { width: 6px; height: 6px; }
 .dlist::-webkit-scrollbar-thumb, .tbody::-webkit-scrollbar-thumb, .rules::-webkit-scrollbar-thumb, .wlist::-webkit-scrollbar-thumb, .wset::-webkit-scrollbar-thumb, .pane::-webkit-scrollbar-thumb, .w7tv-grid::-webkit-scrollbar-thumb { background: var(--panel-3); border-radius: 999px; }
