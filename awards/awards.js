@@ -458,11 +458,20 @@ function viewHome(restoreScroll = false) {
 /* ── номинация (#/n/<id>) ── */
 function mediaHtml(x, big) {
   const u = x.media_url || '';
-  if (x.media_type === 'image') return `<button class="aw-media" data-zoom="${esc(u)}"><img src="${esc(big ? u : thumb(u, 720))}" alt="" loading="lazy"></button>`;
-  if (x.media_type === 'video') return `<div class="aw-media"><video src="${esc(u)}" controls playsinline preload="metadata"></video></div>`;
+  if (x.media_type === 'image') return `<button class="aw-media is-img" data-zoom="${esc(u)}"><img src="${esc(big ? u : thumb(u, 720))}" alt="" loading="lazy"></button>`;
+  if (x.media_type === 'video') return `<div class="aw-media is-vid"><video src="${esc(u)}" controls playsinline preload="metadata"></video></div>`;
   if (x.media_type === 'youtube' && ytId(u)) return `<div class="aw-media yt"><iframe src="https://www.youtube-nocookie.com/embed/${ytId(u)}" allowfullscreen loading="lazy"></iframe></div>`;
   if (x.media_type === 'link') return `<a class="aw-media aw-link" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>🔗</span>${esc(u.replace(/^https?:\/\//, '').slice(0, 60))}</a>`;
   return `<div class="aw-media aw-nomedia">${esc((x.title || '?').slice(0, 1).toUpperCase())}</div>`;
+}
+function neeSubHtml(desc) {
+  const d = String(desc || '').trim();
+  if (!d) return '';
+  if (/^https?:\/\/\S+$/i.test(d)) {
+    const label = /twitch\.tv/i.test(d) ? 'Twitch-канал' : /youtu\.?be/i.test(d) ? 'YouTube-канал' : /t\.me/i.test(d) ? 'Telegram' : d.replace(/^https?:\/\//i, '').replace(/\/$/, '').slice(0, 34);
+    return `<a class="aw-nee-sub" href="${esc(d)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+  }
+  return `<p class="aw-nee-sub">${esc(d)}</p>`;
 }
 function viewNom(id) {
   S.view = 'nom';
@@ -491,11 +500,15 @@ function viewNom(id) {
     <div class="aw-nees">${list.map((x, i) => {
       const on = mine === x.id, v = S.results?.get(x.id) || 0;
       return `<article class="aw-nee${on ? ' on' : ''}${just === x.id ? ' just-voted' : ''}" style="--i:${i}">
+        ${S.admin ? `<div class="aw-nee-adm"><button class="aw-btn icon" data-edit-nee="${x.id}" title="Изменить">✎</button><button class="aw-btn icon danger" data-del-nee="${x.id}" title="Удалить">✕</button></div>` : ''}
         ${mediaHtml(x)}
-        <div class="aw-nee-body"><h3>${esc(x.title)}</h3>${x.description ? `<p>${esc(x.description)}</p>` : ''}
+        <div class="aw-nee-body">
+          <h3>${esc(x.title)}</h3>
+          ${neeSubHtml(x.description)}
           ${S.results && S.showRes ? `<div class="aw-res"><div class="aw-res-bar"><i style="width:${v / max * 100}%"></i></div><span>${v} ${plural(v, 'голос', 'голоса', 'голосов')}</span></div>` : ''}
-          <div class="aw-nee-acts">${n.is_open ? `<button class="slay-btn sm${on ? ' voted' : ''}" data-vote="${x.id}">${on ? '✓ ВАШ ГОЛОС' : 'ПРОГОЛОСОВАТЬ'}</button>` : on ? '<span class="slay-btn sm voted static">✓ ВАШ ГОЛОС</span>' : ''}
-            ${S.admin ? `<button class="aw-btn icon" data-edit-nee="${x.id}" title="Изменить">✎</button><button class="aw-btn icon danger" data-del-nee="${x.id}" title="Удалить">✕</button>` : ''}</div></div>
+          <div class="aw-nee-line" aria-hidden="true"></div>
+          <div class="aw-nee-acts">${n.is_open ? `<button class="slay-btn sm${on ? ' voted' : ''}" data-vote="${x.id}">${on ? '✓ ВЫБРАНО' : 'ВЫБРАТЬ'}</button>` : on ? '<span class="slay-btn sm voted static">✓ ВЫБРАНО</span>' : ''}</div>
+        </div>
       </article>`;
     }).join('')}
     ${S.admin ? `<button class="aw-nee aw-add" data-add-nee="${id}"><span>＋</span>Добавить номинанта<small>фото, гиф, видео или ссылка</small></button>` : ''}</div>
