@@ -1504,17 +1504,18 @@ function drawTopDonors() {
   }).join('');
   $('#topDon').hidden = false;
 }
-function loadTopDonors() {
-  swr('topdon2', async () => {
+async function loadTopDonors() {
+  try { localStorage.removeItem(LSC + 'topdon'); localStorage.removeItem(LSC + 'topdon2'); } catch {}
+  try {
     const rows = await rpc('coin_top_donors', { p_limit: 3 });
+    if (!Array.isArray(rows)) return;
     await loadProfiles(rows.map(r => r.user_id));
-    return rows.map(r => ({ ...r, p: S.profiles.get(r.user_id) || null }));
-  }, rows => {
-    TOPDON_ROWS = rows || [];
+    TOPDON_ROWS = rows.map(r => ({ ...r, p: S.profiles.get(r.user_id) || null }));
     drawTopDonors();
-  }).catch(() => {});
+  } catch (e) { console.warn('loadTopDonors:', e); }
 }
 loadTopDonors();
+setInterval(() => { if (!document.hidden) loadTopDonors(); }, 60e3);
 $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
 async function loadMe() {
   if (!S.uid) return;

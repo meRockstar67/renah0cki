@@ -649,7 +649,7 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .spons-item .cf-wrap { flex: none; padding: 2px; overflow: visible; }
 .spons-item .cf-wrap img { width: 26px; height: 26px; }
 .spons-item .spons-nm { display: flex; align-items: center; min-width: 0; flex: 1; overflow: visible; }
-.spons-item .spons-nm > span:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spons-item .spons-nm > span:first-child { flex: 0 1 auto !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .spons-item .spons-nm .cb-ico { flex: none; margin-left: 4px; width: 15px; height: 15px; }
 /* ── кошелёк ── */
 .coin-chip { cursor: pointer; }
