@@ -58,6 +58,10 @@ async function upload(file, onPct) {
   });
 }
 
+async function delServerMedia(payload) {
+  const token = await getToken(); if (!token) return;
+  await fetch(CDN + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) }).catch(() => {});
+}
 /* ── состояние ── */
 const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0, homeScroll: 0, view: '', lastVoted: null };
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
@@ -551,13 +555,14 @@ function nomDialog(n) {
 }
 function neeDialog(nomId, x) {
   let file = null;
+  const oldUrl = x?.media_url || '';
   const f = modal(`<h2>${x ? 'Изменить номинанта' : 'Новый номинант'}</h2>
     <label>Название / ник<input name="t" maxlength="120" required value="${esc(x?.title || '')}"></label>
-    <label>Описание (необязательно)<textarea name="d" rows="2" maxlength="600">${esc(x?.description || '')}</textarea></label>
+    <label>Описание или ссылка (необязательно)<textarea name="d" rows="2" maxlength="600" placeholder="Например: https://twitch.tv/nick">${esc(x?.description || '')}</textarea></label>
     <div class="aw-media-pick"><span>Медиа</span>
-      <label class="aw-drop"><input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden><b>Загрузить фото, гиф или видео</b><small>до 30 МБ</small></label>
+      <label class="aw-drop"><input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden><b>${oldUrl ? 'Заменить фото, гиф или видео' : 'Загрузить фото, гиф или видео'}</b><small>до 30 МБ</small></label>
       <div class="aw-or">или ссылка</div>
-      <input name="u" placeholder="YouTube, ссылка на картинку (7TV и т.п.) или любая ссылка" value="${esc(x?.media_url || '')}">
+      <div class="aw-row"><input name="u" placeholder="YouTube, ссылка на картинку (7TV и т.п.) или любая ссылка" value="${esc(oldUrl)}"><button type="button" class="aw-btn danger" data-clear-media${oldUrl ? '' : ' hidden'}>Удалить фото</button></div>
       <div class="aw-prev"></div></div>`, async (f, say) => {
     let url = f.u.value.trim(), type = 'none';
     if (file) { url = await upload(file, p => say(`Загрузка: ${p}%`)); type = /^video\//.test(file.type) ? 'video' : 'image'; }
@@ -566,15 +571,26 @@ function neeDialog(nomId, x) {
       type = ytId(url) ? 'youtube' : /\.(png|jpe?g|gif|webp|avif)(\?|$)/i.test(url) || /cdn\.7tv\.app\/emote\//.test(url) ? 'image' : /\.(mp4|webm|mov)(\?|$)/i.test(url) ? 'video' : 'link';
     }
     const body = { title: f.t.value.trim(), description: f.d.value.trim() || null, media_url: url || null, media_type: url ? type : 'none' };
-    if (x) await api(`aw_nominees?id=eq.${x.id}`, { method: 'PATCH', prefer: 'return=minimal', body });
-    else await api('aw_nominees', { method: 'POST', prefer: 'return=minimal', body: { ...body, nomination_id: nomId, position: neesOf(nomId).length + 1 } });
+    if (x) {
+      await api(`aw_nominees?id=eq.${x.id}`, { method: 'PATCH', prefer: 'return=minimal', body });
+      if (oldUrl && oldUrl !== url) await delServerMedia({ awardUrl: oldUrl });
+    } else {
+      await api('aw_nominees', { method: 'POST', prefer: 'return=minimal', body: { ...body, nomination_id: nomId, position: neesOf(nomId).length + 1 } });
+    }
     toast('Сохранено'); await loadAll(); route();
   });
-  const fi = $('input[type=file]', f), pv = $('.aw-prev', f);
+  const fi = $('input[type=file]', f), pv = $('.aw-prev', f), clr = $('[data-clear-media]', f);
+  const showCur = () => {
+    if (oldUrl && x?.media_type === 'image') pv.innerHTML = `<img src="${esc(thumb(oldUrl, 720))}" alt="">`;
+    else if (oldUrl && x?.media_type === 'video') pv.innerHTML = `<video src="${esc(oldUrl)}" muted controls></video>`;
+  };
+  showCur();
+  clr.onclick = () => { file = null; fi.value = ''; f.u.value = ''; pv.innerHTML = ''; clr.hidden = true; $('.aw-drop b', f).textContent = 'Загрузить фото, гиф или видео'; };
+  f.u.oninput = () => { clr.hidden = !f.u.value.trim() && !file; };
   fi.onchange = () => {
     file = fi.files[0] || null; if (!file) return;
     if (file.size > 30 * 1048576) { file = null; return toast('Файл больше 30 МБ', true); }
-    const u = URL.createObjectURL(file); f.u.value = '';
+    const u = URL.createObjectURL(file); f.u.value = ''; clr.hidden = false;
     pv.innerHTML = /^video/.test(file.type) ? `<video src="${u}" muted controls></video>` : `<img src="${u}" alt="">`;
     $('.aw-drop b', f).textContent = file.name;
   };
@@ -616,11 +632,11 @@ page.addEventListener('click', async e => {
   const tn = t.closest('[data-toggle-nom]');
   if (tn) { const n = S.noms.find(x => x.id === tn.dataset.toggleNom); await api(`aw_nominations?id=eq.${n.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { is_open: !n.is_open } }).catch(er => toast(er.message, true)); await loadAll(); return route(); }
   const dn = t.closest('[data-del-nom]');
-  if (dn) { if (!confirm('Удалить номинацию вместе с номинантами и голосами?')) return; await api(`aw_nominations?id=eq.${dn.dataset.delNom}`, { method: 'DELETE' }).catch(er => toast(er.message, true)); await loadAll(); location.hash = '#/'; return; }
+  if (dn) { if (!confirm('Удалить номинацию вместе с номинантами, фото и голосами?')) return; await delServerMedia({ awardNominationId: dn.dataset.delNom }); await api(`aw_nominations?id=eq.${dn.dataset.delNom}`, { method: 'DELETE' }).catch(er => toast(er.message, true)); await loadAll(); location.hash = '#/'; return; }
   const an = t.closest('[data-add-nee]'); if (an) return neeDialog(an.dataset.addNee, null);
   const ee = t.closest('[data-edit-nee]'); if (ee) { const x = S.nees.find(y => y.id === ee.dataset.editNee); return neeDialog(x.nomination_id, x); }
   const de = t.closest('[data-del-nee]');
-  if (de) { if (!confirm('Удалить номинанта?')) return; await api(`aw_nominees?id=eq.${de.dataset.delNee}`, { method: 'DELETE' }).catch(er => toast(er.message, true)); await loadAll(); return route(); }
+  if (de) { if (!confirm('Удалить номинанта и его фото?')) return; await delServerMedia({ awardNomineeId: de.dataset.delNee }); await api(`aw_nominees?id=eq.${de.dataset.delNee}`, { method: 'DELETE' }).catch(er => toast(er.message, true)); await loadAll(); return route(); }
 });
 page.addEventListener('change', e => {
   if (e.target.matches('[data-show-res]')) { S.showRes = e.target.checked; route(); }
