@@ -430,15 +430,16 @@ function openPresetEditor(p, isNew = false) {
 }
 
 const WDEF = { mode: 'normal', palette: 'rainbow', labels: 'radial', hide_sum: false, full_text: false, image: '', accel: false, sound: 'ticks', volume: 0.5, reroll_on: false, reroll_price: 1000, reroll_sec: 60, reroll_x2: false };
-const PAL_NAMES = { rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар', cyber: 'Кибер', pastel: 'Пастель', berry: 'Ягода', gold: 'Золото', ice: 'Лёд' };
+const PAL_NAMES = { rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар', cyber: 'Кибер', pastel: 'Пастель', berry: 'Ягода', gold: 'Золото', ice: 'Лёд', pointauc: 'PointAuc' };
 const THEMES = [
-  ['violet',  'Фиолетовый', '#a78bfa'],
-  ['ice',     'Лёд / Зима', '#6cc4ff'],
-  ['emerald', 'Изумруд',    '#34d399'],
-  ['sakura',  'Сакура',     '#f472b6'],
-  ['sunset',  'Закат',      '#fb923c'],
-  ['cyber',   'Киберпанк',  '#22d3ee'],
-  ['gold',    'Золото',     '#fbbf24'],
+  ['violet',   'Фиолетовый', '#a78bfa'],
+  ['pointauc', 'PointAuc',   '#228be6'],
+  ['ice',      'Лёд / Зима', '#6cc4ff'],
+  ['emerald',  'Изумруд',    '#34d399'],
+  ['sakura',   'Сакура',     '#f472b6'],
+  ['sunset',   'Закат',      '#fb923c'],
+  ['cyber',    'Киберпанк',  '#22d3ee'],
+  ['gold',     'Золото',     '#fbbf24'],
 ];
 const curTheme = () => ls.get('auc_theme') || 'violet';
 function applyTheme(t) {
@@ -874,6 +875,11 @@ const lotPick = (sel, withNew = true, name = 'lot') => `<ul class="pick">${A().l
 function pop(anchor, html) {
   const p = $('#pop'); p.innerHTML = html; p.hidden = false;
   const r = anchor.getBoundingClientRect();
+  if (document.documentElement.dataset.theme === 'pointauc' && innerWidth >= 1100 && r.right < 90) {
+    const top = Math.min(Math.max(8, r.top), innerHeight - p.offsetHeight - 8);
+    p.style.top = top + 'px'; p.style.left = Math.min(r.right + 10, innerWidth - p.offsetWidth - 8) + 'px';
+    return;
+  }
   const top = r.bottom + 6 + p.offsetHeight > innerHeight ? Math.max(8, r.top - 6 - p.offsetHeight) : r.bottom + 6;
   p.style.top = top + 'px'; p.style.left = Math.min(Math.max(8, r.left), innerWidth - p.offsetWidth - 8) + 'px';
 }

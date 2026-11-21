@@ -60,6 +60,14 @@
   --accent: #fbbf24; --accent-2: #d97706; --accent-soft: rgba(251, 191, 36, .15); --accent-ring: rgba(251, 191, 36, .5);
   --bar-a: rgba(251, 191, 36, .22); --bar-b: rgba(251, 191, 36, .06); --bar-bg: rgba(15, 14, 11, .92);
 }
+/* ── стиль 1 в 1 PointAuc (Mantine Dark: #242424 / #282828 / #303030 + #228be6) ── */
+[data-theme="pointauc"] {
+  --bg: #242424; --panel: #212121; --panel-2: #282828; --panel-3: #303030; --border: #3e3e3e;
+  --text: #eeeeee; --muted: #a0a0a0; --dim: #727272;
+  --accent: #228be6; --accent-2: #228be6; --accent-soft: rgba(34, 139, 230, .16); --accent-ring: rgba(34, 139, 230, .55);
+  --bar-a: rgba(34, 139, 230, .18); --bar-b: rgba(34, 139, 230, .04); --bar-bg: rgba(27, 27, 27, .96);
+  --ok: #aed581; --warn: #f3bf41; --danger: #f08080; --r: 6px;
+}
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; min-height: 100dvh; }
@@ -411,7 +419,7 @@ body.tab-wheel .app { display: none; }
 .wseg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; padding: 3px; border-radius: 10px; background: var(--panel-2); }
 .wseg button { min-height: 34px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; transition: background .2s, color .2s; }
 .wseg button.on { background: var(--accent-soft); color: var(--accent); }
-.pals { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.pals { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
 .pal { display: grid; justify-items: center; gap: 4px; padding: 8px 2px 6px; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--muted); font-size: 10.5px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: all .2s; }
 .pal i { width: 34px; height: 18px; border-radius: 999px; }
 .pal.on { border-color: var(--accent-ring); background: var(--accent-soft); color: var(--text); }
@@ -544,3 +552,196 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .win-reroll .wr-tm.done { color: var(--muted); }
 .win-reroll .wr-x { font-family: var(--mono); font-size: 12px; font-weight: 800; padding: 2px 7px; border-radius: 999px;
   background: var(--accent-2); color: #fff; }
+
+/* ══════════════════════════════════════════════════════════════════
+   СТИЛЬ 1 В 1 POINTAUC (ru.pointauc.com — Mantine Dark + Layout)
+   ══════════════════════════════════════════════════════════════════ */
+[data-theme="pointauc"] body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #242424; color: #eeeeee; }
+[data-theme="pointauc"] .bar { background: #1b1b1b; border-bottom: 1px solid #363636; backdrop-filter: none; -webkit-backdrop-filter: none; }
+[data-theme="pointauc"] .tabs > button.on { color: #228be6; border-bottom-color: #228be6; }
+
+/* карточки и панели в стиле Mantine Paper */
+[data-theme="pointauc"] .left,
+[data-theme="pointauc"] .wlist,
+[data-theme="pointauc"] .wset { background: #212121; border: 1px solid #363636; border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .14), 0 10px 15px -5px rgba(0, 0, 0, .12), 0 7px 7px -5px rgba(0, 0, 0, .09); }
+[data-theme="pointauc"] .mid,
+[data-theme="pointauc"] .right { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+[data-theme="pointauc"] .box { background: #212121; border: 1px solid #363636; border-radius: 8px; }
+[data-theme="pointauc"] .int,
+[data-theme="pointauc"] .item { background: #282828; border: 1px solid #363636; border-radius: 8px; }
+[data-theme="pointauc"] .summary div { background: #282828; border-radius: 6px; }
+
+/* инпуты и селекты Mantine */
+[data-theme="pointauc"] .thead { background: transparent; border-bottom: 0; padding: 6px 4px 10px; }
+[data-theme="pointauc"] .thead input,
+[data-theme="pointauc"] .in,
+[data-theme="pointauc"] .ws-field input,
+[data-theme="pointauc"] .w7tv-q,
+[data-theme="pointauc"] .don .acts select { background: #282828; border: 1px solid #3e3e3e; border-radius: 6px; color: #eeeeee; }
+[data-theme="pointauc"] .thead input:focus,
+[data-theme="pointauc"] .in:focus,
+[data-theme="pointauc"] .ws-field input:focus,
+[data-theme="pointauc"] .w7tv-q:focus { border-color: #228be6; box-shadow: none; }
+[data-theme="pointauc"] .addbar { order: -1; margin: 0 0 8px; padding: 10px 12px; background: #212121; border: 1px solid #363636; border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 8px 14px -5px rgba(0, 0, 0, .1); }
+
+/* лоты 1 в 1 DroppableSlot (зебра #282828 / #303030, 50px, radius 8px, Mantine shadow-md) */
+[data-theme="pointauc"] .tbody { padding: 2px 4px 10px; gap: 4px; }
+[data-theme="pointauc"] .lrow { min-height: 50px; padding: 4px 10px 4px 14px; border-radius: 8px; border: 2px solid transparent; background: #282828;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 14px 20px -5px rgba(0, 0, 0, .12), 0 8px 10px -5px rgba(0, 0, 0, .09); }
+[data-theme="pointauc"] .lrow:nth-child(even) { background: #303030; }
+[data-theme="pointauc"] .lrow .bar { display: none; }
+[data-theme="pointauc"] .lrow:first-child .n { color: #eeeeee; }
+[data-theme="pointauc"] .lrow .n { color: #a0a0a0; font-weight: 600; }
+[data-theme="pointauc"] .lrow .hash { color: #727272; }
+[data-theme="pointauc"] .lrow .nm { font-weight: 500; color: #eeeeee; }
+[data-theme="pointauc"] .lrow .sum { font-weight: 700; color: #eeeeee; }
+[data-theme="pointauc"] .lrow:hover { border-color: rgba(34, 139, 230, .28); }
+[data-theme="pointauc"] .lrow.win { border-color: #aed581; box-shadow: 0 0 12px rgba(174, 213, 129, .35); }
+[data-theme="pointauc"] .lrow.drop { background: color-mix(in srgb, #303030 70%, #228be6 30%); border-color: #228be6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .15), 0 0 12px rgba(34, 139, 230, .5); }
+[data-theme="pointauc"] .lrow .ib { background: #363636; border-radius: 6px; color: #dedede; }
+[data-theme="pointauc"] .lrow .ib:hover { background: #464646; color: #fff; }
+
+/* карточки ставок / донатов (PointAuc BidComponent: коралловые донаты, бирюзовые баллы Twitch) */
+[data-theme="pointauc"] .dlist { padding: 4px 2px 10px; gap: 8px; }
+[data-theme="pointauc"] .don { padding: 12px; border-radius: 8px; background: #282828; border: 1px solid #3e3e3e;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .14), 0 10px 15px -5px rgba(0, 0, 0, .12); }
+[data-theme="pointauc"] .don:has(.src.da),
+[data-theme="pointauc"] .don:has(.src.donatepay),
+[data-theme="pointauc"] .don:has(.src.donatex) { background: linear-gradient(135deg, #4f2329 0%, #341c21 100%); border-color: rgba(246, 100, 108, .48); }
+[data-theme="pointauc"] .don:has(.src.twitch) { background: linear-gradient(135deg, #1d3c37 0%, #1c2c2b 100%); border-color: rgba(65, 192, 169, .45); }
+[data-theme="pointauc"] .don:has(.src.site) { background: linear-gradient(135deg, #1c3148 0%, #1c2633 100%); border-color: rgba(34, 139, 230, .48); }
+[data-theme="pointauc"] .don .who { color: #fff; font-weight: 700; }
+[data-theme="pointauc"] .don .amt { color: #fff; font-weight: 800; }
+[data-theme="pointauc"] .don .msg { color: #eeeeee; }
+[data-theme="pointauc"] .don .q-btns .btn { background: rgba(160, 160, 160, .15); border-color: rgba(255, 255, 255, .42); color: #fff; }
+[data-theme="pointauc"] .don .q-btns .btn:hover { background: rgba(160, 160, 160, .28); border-color: rgba(255, 255, 255, .7); }
+[data-theme="pointauc"] .src.da,
+[data-theme="pointauc"] .src.donatepay,
+[data-theme="pointauc"] .src.donatex { background: rgba(246, 100, 108, .22); color: rgb(255, 132, 138); }
+[data-theme="pointauc"] .src.twitch { background: rgba(65, 192, 169, .22); color: rgb(92, 224, 200); }
+[data-theme="pointauc"] .src.site { background: rgba(34, 139, 230, .24); color: #74c0fc; }
+
+/* кнопки, сегменты, футеры в стиле Mantine */
+[data-theme="pointauc"] .btn { border-radius: 6px; background: #303030; border-color: #3e3e3e; color: #eeeeee; font-weight: 600; }
+[data-theme="pointauc"] .btn:hover:not(:disabled) { background: #363636; border-color: #606060; }
+[data-theme="pointauc"] .btn.pri,
+[data-theme="pointauc"] .add-btn,
+[data-theme="pointauc"] .spin-btn { background: #228be6; border-color: #228be6; color: #fff; border-radius: 6px; font-weight: 600; }
+[data-theme="pointauc"] .btn.pri:hover:not(:disabled),
+[data-theme="pointauc"] .add-btn:hover,
+[data-theme="pointauc"] .spin-btn:hover { background: #1c7ed6; filter: none; }
+[data-theme="pointauc"] .btn.outline { background: rgba(34, 139, 230, .15); border-color: rgba(34, 139, 230, .55); color: #74c0fc; }
+[data-theme="pointauc"] .btn.ok { background: rgba(174, 213, 129, .14); border-color: rgba(174, 213, 129, .45); color: #aed581; }
+[data-theme="pointauc"] .btn.bad { background: rgba(240, 128, 128, .14); border-color: rgba(240, 128, 128, .45); color: #f08080; }
+[data-theme="pointauc"] .seg2,
+[data-theme="pointauc"] .wseg,
+[data-theme="pointauc"] .seg { background: #1b1b1b; border: 1px solid #363636; border-radius: 6px; padding: 3px; }
+[data-theme="pointauc"] .seg2 { margin: 0 0 8px; }
+[data-theme="pointauc"] .seg2 button.on,
+[data-theme="pointauc"] .wseg button.on,
+[data-theme="pointauc"] .seg button.on { background: #303030; color: #eeeeee; box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+[data-theme="pointauc"] .seg2 b { background: #228be6; }
+[data-theme="pointauc"] .right-foot { padding: 10px 0 0; border-top: 1px solid #363636; }
+[data-theme="pointauc"] .left-foot,
+[data-theme="pointauc"] .sel,
+[data-theme="pointauc"] .flt,
+[data-theme="pointauc"] .rf-box { background: #212121; border: 1px solid #363636; border-radius: 8px; }
+[data-theme="pointauc"] .flt.on { border-color: rgba(34, 139, 230, .5); color: #74c0fc; }
+[data-theme="pointauc"] .pick-btn,
+[data-theme="pointauc"] .sq { background: #282828; border: 1px solid #3e3e3e; border-radius: 6px; }
+[data-theme="pointauc"] .pop { background: #282828; border: 1px solid #3e3e3e; border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .45); }
+[data-theme="pointauc"] .sheet-in { background: #242424; border-color: #3e3e3e; border-radius: 10px; }
+[data-theme="pointauc"] .toast { background: #282828; border-color: #3e3e3e; border-radius: 8px; }
+
+/* колесо и экран победителя в стиле PointAuc */
+[data-theme="pointauc"] .wli { background: #282828; border-radius: 6px; }
+[data-theme="pointauc"] .wli:nth-child(even) { background: #303030; }
+[data-theme="pointauc"] .wli.hot { background: color-mix(in srgb, #303030 75%, #228be6 25%); box-shadow: inset 3px 0 0 #228be6; }
+[data-theme="pointauc"] .wdur { background: #282828; border-color: #3e3e3e; border-radius: 6px; }
+[data-theme="pointauc"] .win-over { background: rgba(16, 16, 16, .84); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+[data-theme="pointauc"] .win-card { background: #242424; border: 1px solid #3e3e3e; border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .65); }
+[data-theme="pointauc"] .win-card::before { opacity: .14; }
+[data-theme="pointauc"] .win-pri { background: #228be6; border-radius: 6px; box-shadow: none; }
+[data-theme="pointauc"] .win-pri:hover { background: #1c7ed6; filter: none; }
+[data-theme="pointauc"] .win-bar i { background: #228be6; box-shadow: none; }
+
+/* скроллбар 1 в 1 PointAuc */
+[data-theme="pointauc"] .dlist::-webkit-scrollbar,
+[data-theme="pointauc"] .tbody::-webkit-scrollbar,
+[data-theme="pointauc"] .rules::-webkit-scrollbar,
+[data-theme="pointauc"] .wlist::-webkit-scrollbar,
+[data-theme="pointauc"] .wset::-webkit-scrollbar,
+[data-theme="pointauc"] .pane::-webkit-scrollbar { width: 14px; height: 14px; }
+[data-theme="pointauc"] .dlist::-webkit-scrollbar-thumb,
+[data-theme="pointauc"] .tbody::-webkit-scrollbar-thumb,
+[data-theme="pointauc"] .rules::-webkit-scrollbar-thumb,
+[data-theme="pointauc"] .wlist::-webkit-scrollbar-thumb,
+[data-theme="pointauc"] .wset::-webkit-scrollbar-thumb,
+[data-theme="pointauc"] .pane::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .36); border-radius: 20px; border: 4px solid transparent; background-clip: padding-box; }
+[data-theme="pointauc"] .dlist::-webkit-scrollbar-thumb:hover,
+[data-theme="pointauc"] .tbody::-webkit-scrollbar-thumb:hover,
+[data-theme="pointauc"] .rules::-webkit-scrollbar-thumb:hover,
+[data-theme="pointauc"] .wlist::-webkit-scrollbar-thumb:hover,
+[data-theme="pointauc"] .wset::-webkit-scrollbar-thumb:hover,
+[data-theme="pointauc"] .pane::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .52); border: 4px solid transparent; background-clip: padding-box; }
+
+/* таймер PointAuc (мобилка + десктоп) */
+[data-theme="pointauc"] .clock { background: #212121; border: 1px solid #363636; border-radius: 8px; }
+[data-theme="pointauc"] .clock-big { font-family: 'Helvetica Neue', Inter, Roboto, Arial, sans-serif; font-weight: 500; letter-spacing: .5px; }
+[data-theme="pointauc"] .clock-btns button { background: #303030; border-radius: 6px; color: #dedede; }
+[data-theme="pointauc"] .clock-btns .play { background: #228be6; color: #fff; }
+[data-theme="pointauc"] .clock-btns .play.on { background: #1c7ed6; color: #fff; }
+
+/* десктопная раскладка 1 в 1 PointAuc: левый вертикальный икон-навбар + огромный таймер над ставками */
+@media (min-width: 1100px) {
+  [data-theme="pointauc"] .bar { position: fixed; left: 0; top: 0; bottom: 0; width: 72px; z-index: 30;
+    flex-direction: column; align-items: center; justify-content: flex-start; gap: 12px; padding: 18px 0 18px 12px;
+    background: transparent; border: 0; }
+  [data-theme="pointauc"] .brand { width: 54px; min-height: 48px; justify-content: center; border-radius: 8px;
+    background: #303030; box-shadow: 0 1px 3px rgba(0, 0, 0, .18); }
+  [data-theme="pointauc"] .brand span { display: none; }
+  [data-theme="pointauc"] .tabs { flex: 0 0 auto; flex-direction: column; align-items: center; gap: 4px; width: 54px;
+    padding: 4px; border-radius: 8px; background: #303030; overflow: visible;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .14), 0 10px 15px -5px rgba(0, 0, 0, .12); }
+  [data-theme="pointauc"] .tabs > button,
+  [data-theme="pointauc"] .tabs > a { width: 46px; height: 46px; min-height: 46px; padding: 0; justify-content: center;
+    border: 1px solid transparent; border-radius: 6px; font-size: 0; gap: 0; color: #dedede; }
+  [data-theme="pointauc"] .tabs > button svg,
+  [data-theme="pointauc"] .tabs > a svg { width: 24px; height: 24px; }
+  [data-theme="pointauc"] .tabs > button:hover,
+  [data-theme="pointauc"] .tabs > a:hover { background: rgba(34, 139, 230, .2); color: #228be6; }
+  [data-theme="pointauc"] .tabs > button.on { background: rgba(34, 139, 230, .14); border-color: #228be6; color: #228be6; }
+  [data-theme="pointauc"] .tabs-sep { width: 32px; height: 1px; margin: 4px 0; background: #464646; }
+
+  [data-theme="pointauc"] .app,
+  [data-theme="pointauc"] .wapp { margin-left: 72px; padding: 18px 20px 10px 14px; gap: 16px; }
+  [data-theme="pointauc"] .app { grid-template-columns: 320px minmax(0, 1fr) 356px; }
+
+  /* огромный таймер PointAuc прямо над колонкой ставок (ControlColumn) */
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock { position: fixed; top: 14px; right: 20px; width: 356px; z-index: 25;
+    flex-direction: column; align-items: center; gap: 2px; padding: 4px 8px 8px;
+    background: transparent; border: 0; box-shadow: none; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-big { order: 1; font-size: 72px; line-height: 74px; font-weight: 400; letter-spacing: 1px; color: #eeeeee; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-big.low { color: #f08080; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-big.pause { color: #f3bf41; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-meta { order: 2; display: flex; align-items: center; gap: 10px;
+    font-family: Inter, sans-serif; font-size: 12px; letter-spacing: .3px; text-transform: none; color: #868686; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-meta b { color: #dedede; font-weight: 600; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-btns { order: 3; gap: 6px; margin-top: 6px; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-btns button { min-width: 44px; height: 38px; border-radius: 6px; background: #303030; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-btns button:hover { background: #3e3e3e; filter: none; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-btns .play { background: #228be6; color: #fff; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-btns .play:hover { background: #1c7ed6; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock-btns .ghost { background: #282828; color: #a0a0a0; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .right { padding-top: 150px; }
+  [data-theme="pointauc"] body.tab-wheel .clock { display: none; }
+}
+@media (min-width: 1500px) {
+  [data-theme="pointauc"] .app { grid-template-columns: 350px minmax(0, 1fr) 380px; }
+  [data-theme="pointauc"] body:not(.tab-wheel) .clock { width: 380px; }
+}

@@ -15,6 +15,7 @@ const PALETTES = {
   berry:   ['#9d174d', '#be185d', '#db2777', '#ec4899', '#f472b6', '#7e22ce', '#9333ea', '#a855f7', '#c084fc', '#e879f9'],
   gold:    ['#b45309', '#d97706', '#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#92400e', '#ca8a04', '#eab308', '#facc15'],
   ice:     ['#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bae6fd', '#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc'],
+  pointauc:['#00b6ac', '#4a91ae', '#63c575', '#f85842', '#5d60e2', '#e58221', '#7daee8', '#2a8bea', '#e385cf', '#e35182', '#36b5e9', '#b062e7', '#f3bf41', '#3cb787', '#ea631d', '#0085cb'],
 };
 function isDark(hex) {
   const m = String(hex || '').replace('#', '');
