@@ -1,4 +1,4 @@
-/* OvosheAwards 2026 — голосование зрителей. Та же база и тот же вход, что у renah0cki. */
+/* OvosheAwards 2026 — голосование зрителей в стиле SLAY Award. Та же база и тот же вход, что у renah0cki. */
 (() => {
 'use strict';
 const SB_URL = 'https://api.renah0cki.xyz';
@@ -6,8 +6,8 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI
 const CDN = 'https://cdn.renah0cki.xyz';
 const OWNER = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const STAFF_ROLES = ['moderator', 'gl_moder', 'admin'];
+const EVENT_AT = Date.parse('2026-12-31T17:00:00Z'); // 31.12.2026 20:00 МСК
 const $ = (s, el = document) => el.querySelector(s);
-const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const page = $('#page');
 let toastT;
@@ -58,11 +58,183 @@ async function upload(file, onPct) {
 }
 
 /* ── состояние ── */
-const S = { uid: readSession()?.user?.id || null, me: null, admin: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false };
+const S = { uid: readSession()?.user?.id || null, me: null, admin: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0 };
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
 const thumb = (u, w = 720) => { const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+\.(?:jpe?g|png|webp))$/i); return m ? `${CDN}/thumb/${w}/${m[1]}` : u; };
 const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return n > 10 && n < 20 ? c : k > 1 && k < 5 ? b : k === 1 ? a : c; };
 const neesOf = id => S.nees.filter(x => x.nomination_id === id).sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
+
+/* ── кристаллические 3D-эмблемы в стиле SLAY (янтарь + расплавленный рубин) ── */
+let svgUid = 0;
+const CR_BASE = (id) => `
+  <defs>
+    <linearGradient id="gA${id}" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#ffe099"/>
+      <stop offset="28%" stop-color="#ff7a14"/>
+      <stop offset="68%" stop-color="#b8160c"/>
+      <stop offset="100%" stop-color="#3e0604"/>
+    </linearGradient>
+    <linearGradient id="gB${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff5e14"/>
+      <stop offset="50%" stop-color="#9c0e08"/>
+      <stop offset="100%" stop-color="#2c0403"/>
+    </linearGradient>
+    <linearGradient id="gC${id}" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#fff4cc"/>
+      <stop offset="40%" stop-color="#ff9926"/>
+      <stop offset="100%" stop-color="#cc240a"/>
+    </linearGradient>
+    <linearGradient id="gD${id}" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#610906"/>
+      <stop offset="55%" stop-color="#e0430c"/>
+      <stop offset="100%" stop-color="#ffd27a"/>
+    </linearGradient>
+  </defs>`;
+const SHARDS = (id) => `
+  <polygon points="32,162 18,118 44,126 56,162" fill="url(#gB${id})" stroke="#ffad54" stroke-width="1.2"/>
+  <polygon points="18,118 32,162 34,132" fill="url(#gD${id})" opacity=".75"/>
+  <polygon points="168,162 182,118 156,126 144,162" fill="url(#gB${id})" stroke="#ffad54" stroke-width="1.2"/>
+  <polygon points="182,118 168,162 166,132" fill="url(#gA${id})" opacity=".65"/>
+  <polygon points="56,166 44,134 74,142 82,174" fill="url(#gA${id})" stroke="#ffc675" stroke-width="1.2"/>
+  <polygon points="144,166 156,134 126,142 118,174" fill="url(#gA${id})" stroke="#ffc675" stroke-width="1.2"/>
+  <polygon points="100,144 122,164 100,186 78,164" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.5"/>
+  <polygon points="100,144 122,164 100,164" fill="#fff0c4" opacity=".45"/>
+  <polygon points="100,164 122,164 100,186" fill="#7a0a06" opacity=".6"/>`;
+
+function crystalKind(nom, idx) {
+  const s = `${nom.title || ''} ${nom.emoji || ''}`.toLowerCase();
+  if (/king|корол/.test(s)) return 'crownKing';
+  if (/queen|королев/.test(s)) return 'crownQueen';
+  if (/ирл|irl|тикток|tiktok|телеф|📹|📱/.test(s)) return 'phone';
+  if (/шип|любов|пара|💞|❤/.test(s)) return 'heart';
+  if (/игр|кооп|гейм|мульти|🎮/.test(s)) return 'gamepad';
+  if (/мем|эмоут|7tv|клоун|😺|🤡/.test(s)) return 'jester';
+  if (/косплей|шоу|театр|🎭|🎬/.test(s)) return 'mask';
+  if (/клип|видео|момент|🎞/.test(s)) return 'film';
+  if (/dota|cs|шутер|меч/.test(s)) return 'sword';
+  const order = ['crownKing', 'crownQueen', 'phone', 'gamepad', 'sword', 'heart', 'mask', 'film', 'jester', 'trophy'];
+  return order[idx % order.length];
+}
+
+function crystalSvg(nom, idx) {
+  const id = ++svgUid;
+  const k = crystalKind(nom, idx);
+  let body = '';
+  if (k === 'crownKing') {
+    body = `
+      <polygon points="100,22 119,64 100,118 81,64" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.6"/>
+      <polygon points="100,22 119,64 100,64" fill="#fff4d0" opacity=".5"/>
+      <polygon points="100,64 119,64 100,118" fill="#6b0805" opacity=".55"/>
+      <polygon points="48,46 78,86 74,132 42,102" fill="url(#gA${id})" stroke="#ffbe6b" stroke-width="1.4"/>
+      <polygon points="152,46 122,86 126,132 158,102" fill="url(#gA${id})" stroke="#ffbe6b" stroke-width="1.4"/>
+      <polygon points="24,84 56,118 56,154 24,142" fill="url(#gB${id})" stroke="#ffa348" stroke-width="1.4"/>
+      <polygon points="176,84 144,118 144,154 176,142" fill="url(#gB${id})" stroke="#ffa348" stroke-width="1.4"/>
+      <polygon points="26,148 92,148 92,168 38,168" fill="url(#gD${id})" stroke="#ffcf82" stroke-width="1.5"/>
+      <polygon points="174,148 108,148 108,168 162,168" fill="url(#gD${id})" stroke="#ffcf82" stroke-width="1.5"/>
+      <polygon points="100,112 118,140 100,168 82,140" fill="url(#gC${id})" stroke="#ffe6ad" stroke-width="1.5"/>`;
+  } else if (k === 'crownQueen') {
+    body = `
+      <polygon points="100,24 118,68 100,130 82,68" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.6"/>
+      <polygon points="100,24 118,68 100,68" fill="#fff5d6" opacity=".55"/>
+      <polygon points="62,48 84,82 78,128 52,96" fill="url(#gA${id})" stroke="#ffba66" stroke-width="1.4"/>
+      <polygon points="138,48 116,82 122,128 148,96" fill="url(#gA${id})" stroke="#ffba66" stroke-width="1.4"/>
+      <polygon points="34,76 58,104 54,136 28,116" fill="url(#gB${id})" stroke="#ff9c40" stroke-width="1.3"/>
+      <polygon points="166,76 142,104 146,136 172,116" fill="url(#gB${id})" stroke="#ff9c40" stroke-width="1.3"/>
+      <path d="M24,146 Q100,114 176,146 L160,168 Q100,140 40,168 Z" fill="url(#gD${id})" stroke="#ffd284" stroke-width="1.5"/>
+      <polygon points="100,122 114,144 100,166 86,144" fill="url(#gC${id})" stroke="#ffebbc" stroke-width="1.4"/>`;
+  } else if (k === 'phone') {
+    body = `
+      ${SHARDS(id)}
+      <g transform="rotate(14 100 94)">
+        <rect x="64" y="30" width="72" height="122" rx="14" fill="url(#gA${id})" stroke="#ffcf82" stroke-width="2"/>
+        <polygon points="64,62 136,36 136,106 64,132" fill="url(#gC${id})" opacity=".35"/>
+        <polygon points="64,30 104,30 82,152 64,152" fill="#fff0c4" opacity=".14"/>
+        <rect x="74" y="42" width="28" height="28" rx="7" fill="#4f0705" stroke="#ff9b3d" stroke-width="1.4"/>
+        <circle cx="82" cy="50" r="4.5" fill="url(#gC${id})"/>
+        <circle cx="94" cy="50" r="4.5" fill="url(#gC${id})"/>
+        <circle cx="88" cy="61" r="4.5" fill="url(#gC${id})"/>
+        <polygon points="100,86 116,108 100,130 84,108" fill="url(#gC${id})" opacity=".55"/>
+      </g>`;
+  } else if (k === 'gamepad') {
+    body = `
+      ${SHARDS(id)}
+      <g transform="rotate(-10 100 92)">
+        <path d="M44,70 C54,54 74,56 84,64 L116,64 C126,56 146,54 156,70 L168,112 C172,126 158,136 146,128 L128,112 L72,112 L54,128 C42,136 28,126 32,112 Z" fill="url(#gA${id})" stroke="#ffcf82" stroke-width="1.8"/>
+        <polygon points="50,68 100,64 92,112 42,112" fill="#ffe29c" opacity=".18"/>
+        <polygon points="100,64 152,68 158,112 92,112" fill="#5e0705" opacity=".4"/>
+        <path d="M58,88 h18 M67,79 v18" stroke="#ffe5a8" stroke-width="4.5" stroke-linecap="square"/>
+        <circle cx="132" cy="80" r="4.2" fill="#ffe5a8"/>
+        <circle cx="142" cy="88" r="4.2" fill="#ffad42"/>
+        <circle cx="122" cy="88" r="4.2" fill="#ffad42"/>
+        <circle cx="132" cy="96" r="4.2" fill="#ffe5a8"/>
+      </g>`;
+  } else if (k === 'heart') {
+    body = `
+      ${SHARDS(id)}
+      <polygon points="100,152 44,96 50,54 76,40 100,64 124,40 150,54 156,96" fill="url(#gA${id})" stroke="#ffd48a" stroke-width="1.8"/>
+      <polygon points="100,64 76,40 50,54 76,94" fill="#ffe9b3" opacity=".32"/>
+      <polygon points="100,64 124,40 150,54 124,94" fill="#ff8424" opacity=".36"/>
+      <polygon points="100,64 76,94 100,152 124,94" fill="url(#gC${id})" opacity=".65"/>
+      <polygon points="100,152 124,94 156,96" fill="#590604" opacity=".55"/>`;
+  } else if (k === 'jester') {
+    body = `
+      ${SHARDS(id)}
+      <polygon points="100,26 120,76 172,94 120,112 100,162 80,112 28,94 80,76" fill="url(#gA${id})" stroke="#ffd791" stroke-width="1.8"/>
+      <polygon points="100,26 120,76 100,94 80,76" fill="#fff0c4" opacity=".52"/>
+      <polygon points="100,94 172,94 120,112" fill="#700906" opacity=".52"/>
+      <polygon points="100,56 122,94 100,132 78,94" fill="url(#gC${id})" stroke="#ffebbc" stroke-width="1.4"/>`;
+  } else if (k === 'mask') {
+    body = `
+      ${SHARDS(id)}
+      <polygon points="52,44 100,32 148,44 142,108 100,150 58,108" fill="url(#gA${id})" stroke="#ffd48a" stroke-width="1.8"/>
+      <polygon points="100,32 148,44 142,108 100,150" fill="#5c0805" opacity=".42"/>
+      <polygon points="68,78 90,72 86,88 70,88" fill="#1a0202" stroke="#ffb85c" stroke-width="1.2"/>
+      <polygon points="132,78 110,72 114,88 130,88" fill="#1a0202" stroke="#ffb85c" stroke-width="1.2"/>
+      <path d="M78,112 Q100,130 122,112" stroke="#ffe5a8" stroke-width="3.2" fill="none"/>`;
+  } else if (k === 'film') {
+    body = `
+      ${SHARDS(id)}
+      <polygon points="44,48 156,48 164,136 36,136" fill="url(#gA${id})" stroke="#ffd48a" stroke-width="1.8"/>
+      <polygon points="44,48 156,48 100,92" fill="#ffe6a8" opacity=".2"/>
+      <polygon points="84,66 132,92 84,118" fill="url(#gC${id})" stroke="#fff2cc" stroke-width="1.8"/>`;
+  } else if (k === 'sword') {
+    body = `
+      ${SHARDS(id)}
+      <g transform="rotate(34 100 94)">
+        <polygon points="100,18 116,44 110,122 90,122 84,44" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.6"/>
+        <polygon points="100,18 116,44 100,122" fill="#730906" opacity=".48"/>
+        <polygon points="68,120 132,120 124,132 76,132" fill="url(#gD${id})" stroke="#ffd282" stroke-width="1.5"/>
+        <rect x="94" y="132" width="12" height="28" rx="3" fill="url(#gB${id})" stroke="#ffa348" stroke-width="1.3"/>
+        <polygon points="100,158 110,168 100,178 90,168" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.3"/>
+      </g>`;
+  } else {
+    body = `
+      ${SHARDS(id)}
+      <polygon points="56,36 144,36 132,102 100,126 68,102" fill="url(#gA${id})" stroke="#ffd48a" stroke-width="1.8"/>
+      <polygon points="56,36 100,36 100,126 68,102" fill="#ffe6a8" opacity=".24"/>
+      <polygon points="90,124 110,124 116,154 84,154" fill="url(#gD${id})" stroke="#ffbe6b" stroke-width="1.4"/>
+      <polygon points="66,154 134,154 142,168 58,168" fill="url(#gC${id})" stroke="#ffe5a8" stroke-width="1.5"/>`;
+  }
+  return `<svg viewBox="0 0 200 200" aria-hidden="true">${CR_BASE(id)}${body}</svg>`;
+}
+
+const ARROW_SVG = (dir) => {
+  const id = ++svgUid;
+  const pts = dir < 0 ? '26,4 8,16 26,28 20,16' : '6,4 24,16 6,28 12,16';
+  const hi  = dir < 0 ? '26,4 8,16 20,16' : '6,4 24,16 12,16';
+  return `<svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ar${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffb85c"/><stop offset="50%" stop-color="#e3300c"/><stop offset="100%" stop-color="#5c0604"/></linearGradient></defs><polygon points="${pts}" fill="url(#ar${id})" stroke="#ffd691" stroke-width="1.4"/><polygon points="${hi}" fill="#ffe9b8" opacity=".38"/></svg>`;
+};
+const STAR_SVG = () => {
+  const id = ++svgUid;
+  return `<svg class="slay-faq-star" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="st${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffc066"/><stop offset="50%" stop-color="#e8320e"/><stop offset="100%" stop-color="#6b0806"/></linearGradient></defs><polygon points="16,2 20,12 30,16 20,20 16,30 12,20 2,16 12,12" fill="url(#st${id})" stroke="#ffd691" stroke-width="1.2"/></svg>`;
+};
+
+const FAQ = [
+  ['Через какой сервис проходит авторизация?', 'Авторизация проходит через ваш Twitch-аккаунт на основном сайте renah0cki.xyz. Отдельная регистрация не нужна.'],
+  ['Сколько раз можно проголосовать в одной номинации?', 'В каждой номинации можно отдать один голос. Если вы передумали, просто нажмите на другого номинанта — голос перенесётся.'],
+  ['Когда будут подведены итоги премии?', 'Итоги OvosheAwards 2026 будут объявлены в прямом эфире на новогоднем стриме.'],
+  ['Как формируется список номинантов?', 'Номинации и список номинантов формируются стримером и модераторами сообщества по ярким моментам года.'],
+];
 
 async function loadAll() {
   const [noms, nees, votes, res] = await Promise.all([
@@ -87,34 +259,129 @@ async function loadMe() {
   } catch { location.replace('/'); return false; }
 }
 
-/* ── главная: все номинации ── */
-function viewHome() {
-  const total = S.noms.length, voted = S.noms.filter(n => S.votes.has(n.id)).length;
-  page.innerHTML = `<section class="aw-hero">
-      <div class="aw-hero-txt"><div class="aw-kicker">Народное голосование</div>
-        <h1>Ovoshe<b>Awards</b> <span>2026</span></h1>
-        <p>Выбирай лучших в каждой номинации. Один голос на номинацию — передумал, просто нажми на другого.</p>
-        ${S.uid ? `<div class="aw-prog"><div class="aw-prog-bar"><i style="width:${total ? voted / total * 100 : 0}%"></i></div><span>Вы проголосовали в <b>${voted}</b> из ${total}</span></div>` : `<a class="aw-btn gold" href="/">Войдите на renah0cki, чтобы голосовать</a>`}
-      </div>
-      <div class="aw-trophy" aria-hidden="true">🏆</div>
-    </section>
-    ${S.admin ? `<div class="aw-admin-bar"><span>Админ</span><button class="aw-btn" data-add-nom>＋ Номинация</button><label class="aw-sw"><input type="checkbox" data-show-res${S.showRes ? ' checked' : ''}><i></i>Показывать голоса</label></div>` : ''}
-    <div class="aw-grid">${S.noms.map((n, i) => {
-      const list = neesOf(n.id), mine = S.votes.get(n.id), pick = list.find(x => x.id === mine);
-      const cover = list.find(x => x.media_type === 'image' || x.media_type === 'youtube');
-      const bg = cover ? (cover.media_type === 'youtube' ? `https://img.youtube.com/vi/${ytId(cover.media_url)}/mqdefault.jpg` : thumb(cover.media_url, 480)) : '';
-      return `<a class="aw-nom${mine ? ' voted' : ''}" href="#/n/${n.id}" style="--i:${i}">
-        <div class="aw-nom-bg"${bg ? ` style="background-image:url('${esc(bg)}')"` : ''}></div>
-        <div class="aw-nom-num">${String(i + 1).padStart(2, '0')}</div>
-        <div class="aw-nom-emo">${esc(n.emoji || '🏅')}</div>
-        <h2>${esc(n.title)}</h2>
-        <div class="aw-nom-meta">${list.length ? `${list.length} ${plural(list.length, 'номинант', 'номинанта', 'номинантов')}` : 'номинанты скоро'}${n.is_open ? '' : ' · голосование закрыто'}</div>
-        ${pick ? `<div class="aw-nom-pick">✓ Ваш голос: <b>${esc(pick.title)}</b></div>` : ''}
-      </a>`;
-    }).join('') || '<div class="aw-empty">Номинаций пока нет.</div>'}</div>`;
+/* ── карточка номинации в стиле SLAY ── */
+function slayCardHtml(n, idx) {
+  const list = neesOf(n.id), mine = S.votes.get(n.id), pick = list.find(x => x.id === mine);
+  const sub = pick ? `✓ Ваш голос: ${pick.title}` : (!n.is_open ? 'Голосование закрыто' : 'Сделай выбор');
+  return `<article class="slay-card" style="--i:${idx}">
+    <a class="slay-emblem" href="#/n/${n.id}" aria-label="${esc(n.title)}">${crystalSvg(n, idx)}</a>
+    <h3 class="slay-card-t"><a href="#/n/${n.id}">${esc(n.title)}</a></h3>
+    <div class="slay-card-sub${pick ? ' picked' : ''}">${esc(sub)}</div>
+    <a class="slay-btn${pick ? ' voted' : ''}" href="#/n/${n.id}">${pick ? 'ИЗМЕНИТЬ ВЫБОР' : 'ПРОГОЛОСОВАТЬ'}</a>
+  </article>`;
 }
 
-/* ── номинация ── */
+function renderCarousel(more) {
+  const box = $('#slayCarBox'); if (!box || !more.length) return;
+  const len = more.length;
+  S.carIdx = ((S.carIdx % len) + len) % len;
+  const cur = more[S.carIdx];
+  const prevIdx = (S.carIdx - 1 + len) % len, nextIdx = (S.carIdx + 1) % len;
+  const prev = len > 1 ? more[prevIdx] : null, next = len > 2 ? more[nextIdx] : (len === 2 ? more[prevIdx] : null);
+  const absIdx = n => S.noms.indexOf(n);
+  const list = neesOf(cur.id), mine = S.votes.get(cur.id), pick = list.find(x => x.id === mine);
+  const sub = pick ? `✓ Ваш голос: ${pick.title}` : (!cur.is_open ? 'Голосование закрыто' : 'Сделай выбор');
+  box.innerHTML = `<div class="slay-car">
+      ${prev ? `<button type="button" class="slay-car-side" data-car="-1" aria-label="Предыдущая: ${esc(prev.title)}"><div class="slay-emblem">${crystalSvg(prev, absIdx(prev))}</div><span>${esc(prev.title)}</span></button>` : '<span></span>'}
+      <div class="slay-car-center">
+        <a class="slay-emblem" href="#/n/${cur.id}">${crystalSvg(cur, absIdx(cur))}</a>
+        <h3 class="slay-card-t"><a href="#/n/${cur.id}">${esc(cur.title)}</a></h3>
+        <div class="slay-card-sub${pick ? ' picked' : ''}">${esc(sub)}</div>
+        <a class="slay-btn${pick ? ' voted' : ''}" href="#/n/${cur.id}">${pick ? 'ИЗМЕНИТЬ ВЫБОР' : 'ПРОГОЛОСОВАТЬ'}</a>
+      </div>
+      ${next ? `<button type="button" class="slay-car-side" data-car="1" aria-label="Следующая: ${esc(next.title)}"><div class="slay-emblem">${crystalSvg(next, absIdx(next))}</div><span>${esc(next.title)}</span></button>` : '<span></span>'}
+    </div>
+    ${len > 1 ? `<div class="slay-car-nav">
+      <button type="button" class="slay-car-arr" data-car="-1" aria-label="Назад">${ARROW_SVG(-1)}</button>
+      <span class="slay-car-cnt"><b>${String(S.carIdx + 1).padStart(2, '0')}</b> / ${String(len).padStart(2, '0')}</span>
+      <button type="button" class="slay-car-arr" data-car="1" aria-label="Вперёд">${ARROW_SVG(1)}</button>
+    </div>` : ''}`;
+}
+
+/* ── обратный отсчёт ── */
+let cdT = null;
+function tickCountdown() {
+  const dEl = $('#cdD'), hEl = $('#cdH'), mEl = $('#cdM');
+  if (!dEl || !hEl || !mEl) return;
+  const diff = Math.max(0, EVENT_AT - Date.now());
+  const d = Math.floor(diff / 86400e3);
+  const h = Math.floor((diff % 86400e3) / 3600e3);
+  const m = Math.floor((diff % 3600e3) / 60e3);
+  dEl.textContent = String(d).padStart(2, '0');
+  hEl.textContent = String(h).padStart(2, '0');
+  mEl.textContent = String(m).padStart(2, '0');
+  const dl = $('#cdDL'), hl = $('#cdHL'), ml = $('#cdML');
+  if (dl) dl.textContent = plural(d, 'день', 'дня', 'дней');
+  if (hl) hl.textContent = plural(h, 'час', 'часа', 'часов');
+  if (ml) ml.textContent = plural(m, 'минута', 'минуты', 'минут');
+}
+
+/* ── главная: все секции SLAY ── */
+function viewHome() {
+  const total = S.noms.length, voted = S.noms.filter(n => S.votes.has(n.id)).length;
+  const top2 = S.noms.slice(0, 2);
+  const top3 = S.noms.slice(2, 5);
+  const more = S.noms.slice(5);
+  page.innerHTML = `
+    <section class="slay-hero" id="sec-hero">
+      <div class="slay-hero-bg" aria-hidden="true"></div>
+      <div class="slay-hero-in">
+        <div class="slay-hero-pill"><b>RENAH0CKI</b><i></i></div>
+        <h1>OVOSHE<br>AWARDS</h1>
+        <p class="slay-hero-sub">Главная премия<br>сообщества</p>
+        <div class="slay-hero-date">31.12.26</div>
+        ${S.uid ? `<div class="slay-hero-prog"><div class="aw-prog-bar"><i style="width:${total ? voted / total * 100 : 0}%"></i></div><span>Голосов: <b>${voted}</b> из ${total}</span></div>` : ''}
+      </div>
+    </section>
+
+    ${S.admin ? `<div class="aw-admin-wrap"><div class="aw-admin-bar"><span>Модерация</span>
+      <button class="aw-btn gold" data-add-nom>＋ Номинация</button>
+      <label class="aw-sw"><input type="checkbox" data-show-res${S.showRes ? ' checked' : ''}><i></i>Показывать голоса</label>
+      <label class="aw-sw"><input type="checkbox" data-flat-grid${S.flatGrid ? ' checked' : ''}><i></i>Все номинации сеткой</label>
+    </div></div>` : ''}
+
+    <section class="slay-sec" id="sec-noms">
+      <h2 class="slay-h2">Номинации 2026</h2>
+      <p class="slay-sub">Поддержи любимых участников и моменты года. Голосуй за лучших в каждой номинации</p>
+      ${!S.noms.length ? '<div class="aw-empty">Номинаций пока нет.</div>' : S.flatGrid
+        ? `<div class="slay-all-grid">${S.noms.map((n, i) => slayCardHtml(n, i)).join('')}</div>`
+        : `${top2.length ? `<div class="slay-top2">${top2.map((n, i) => slayCardHtml(n, i)).join('')}</div>` : ''}
+           ${top3.length ? `<div class="slay-top3">${top3.map((n, i) => slayCardHtml(n, i + 2)).join('')}</div>` : ''}`}
+    </section>
+
+    ${!S.flatGrid && more.length ? `<section class="slay-sec slay-more" id="sec-more">
+      <h2 class="slay-h2">Больше номинаций</h2>
+      <div id="slayCarBox"></div>
+    </section>` : ''}
+
+    <section class="slay-sec slay-cd" id="sec-cd">
+      <div class="slay-cd-k">До итогов</div>
+      <div class="slay-cd-h">Премии</div>
+      <div class="slay-cd-grid">
+        <div class="slay-cd-u"><b id="cdD">00</b><span id="cdDL">дней</span></div>
+        <div class="slay-cd-sep" aria-hidden="true"><i></i><i></i></div>
+        <div class="slay-cd-u"><b id="cdH">00</b><span id="cdHL">часов</span></div>
+        <div class="slay-cd-sep" aria-hidden="true"><i></i><i></i></div>
+        <div class="slay-cd-u"><b id="cdM">00</b><span id="cdML">минут</span></div>
+      </div>
+      <a class="slay-btn" href="#/" data-jump="noms">К НОМИНАЦИЯМ</a>
+    </section>
+
+    <section class="slay-faq" id="sec-faq">
+      <h2 class="slay-h2 white">Вопрос-ответ</h2>
+      <div class="slay-faq-list">${FAQ.map(([q, a]) => `<div class="slay-faq-item">
+        <button type="button" class="slay-faq-q" data-faq><span>${esc(q)}</span>${STAR_SVG()}</button>
+        <div class="slay-faq-a">${esc(a)}</div>
+      </div>`).join('')}</div>
+    </section>`;
+
+  if (!S.flatGrid && more.length) renderCarousel(more);
+  tickCountdown();
+  clearInterval(cdT);
+  cdT = setInterval(tickCountdown, 15000);
+}
+
+/* ── номинация (#/n/<id>) ── */
 function mediaHtml(x, big) {
   const u = x.media_url || '';
   if (x.media_type === 'image') return `<button class="aw-media" data-zoom="${esc(u)}"><img src="${esc(big ? u : thumb(u, 720))}" alt="" loading="lazy"></button>`;
@@ -124,16 +391,25 @@ function mediaHtml(x, big) {
   return `<div class="aw-media aw-nomedia">${esc((x.title || '?').slice(0, 1).toUpperCase())}</div>`;
 }
 function viewNom(id) {
+  clearInterval(cdT);
   const n = S.noms.find(x => x.id === id);
   if (!n) { page.innerHTML = '<div class="aw-empty">Номинация не найдена. <a href="#/">Ко всем номинациям</a></div>'; return; }
   const list = neesOf(id), mine = S.votes.get(id), idx = S.noms.indexOf(n);
   const prev = S.noms[idx - 1], next = S.noms[idx + 1];
   const max = S.results ? Math.max(1, ...list.map(x => S.results.get(x.id) || 0)) : 1;
-  page.innerHTML = `<a class="aw-crumb" href="#/">← Все номинации</a>
-    <section class="aw-nom-head"><div class="aw-nom-emo big">${esc(n.emoji || '🏅')}</div><div>
-      <div class="aw-kicker">Номинация ${idx + 1} из ${S.noms.length}${n.is_open ? '' : ' · голосование закрыто'}</div>
-      <h1>${esc(n.title)}</h1>${n.description ? `<p>${esc(n.description)}</p>` : ''}</div>
-      ${S.admin ? `<div class="aw-head-acts"><button class="aw-btn" data-edit-nom="${n.id}">Изменить</button><button class="aw-btn" data-toggle-nom="${n.id}">${n.is_open ? 'Закрыть голосование' : 'Открыть голосование'}</button><button class="aw-btn danger" data-del-nom="${n.id}">Удалить</button></div>` : ''}
+  page.innerHTML = `<div class="aw-nom-wrap">
+    <a class="aw-crumb" href="#/">← Все номинации</a>
+    <section class="aw-nom-head">
+      <div class="slay-emblem">${crystalSvg(n, idx)}</div>
+      <div class="aw-kicker">Номинация ${String(idx + 1).padStart(2, '0')} из ${String(S.noms.length).padStart(2, '0')}${n.is_open ? '' : ' · голосование закрыто'}</div>
+      <h1>${esc(n.title)}</h1>
+      ${n.description ? `<p>${esc(n.description)}</p>` : ''}
+      ${S.admin ? `<div class="aw-head-acts">
+        <button class="aw-btn" data-edit-nom="${n.id}">Изменить</button>
+        <button class="aw-btn" data-toggle-nom="${n.id}">${n.is_open ? 'Закрыть голосование' : 'Открыть голосование'}</button>
+        <label class="aw-sw" style="margin:0 6px"><input type="checkbox" data-show-res${S.showRes ? ' checked' : ''}><i></i>Голоса</label>
+        <button class="aw-btn danger" data-del-nom="${n.id}">Удалить</button>
+      </div>` : ''}
     </section>
     <div class="aw-nees">${list.map((x, i) => {
       const on = mine === x.id, v = S.results?.get(x.id) || 0;
@@ -141,13 +417,14 @@ function viewNom(id) {
         ${mediaHtml(x)}
         <div class="aw-nee-body"><h3>${esc(x.title)}</h3>${x.description ? `<p>${esc(x.description)}</p>` : ''}
           ${S.results && S.showRes ? `<div class="aw-res"><div class="aw-res-bar"><i style="width:${v / max * 100}%"></i></div><span>${v} ${plural(v, 'голос', 'голоса', 'голосов')}</span></div>` : ''}
-          <div class="aw-nee-acts">${n.is_open ? `<button class="aw-btn ${on ? 'gold' : 'vote'}" data-vote="${x.id}">${on ? '✓ Ваш голос' : 'Голосовать'}</button>` : on ? '<span class="aw-btn gold static">✓ Ваш голос</span>' : ''}
+          <div class="aw-nee-acts">${n.is_open ? `<button class="slay-btn sm${on ? ' voted' : ''}" data-vote="${x.id}">${on ? '✓ ВАШ ГОЛОС' : 'ПРОГОЛОСОВАТЬ'}</button>` : on ? '<span class="slay-btn sm voted static">✓ ВАШ ГОЛОС</span>' : ''}
             ${S.admin ? `<button class="aw-btn icon" data-edit-nee="${x.id}" title="Изменить">✎</button><button class="aw-btn icon danger" data-del-nee="${x.id}" title="Удалить">✕</button>` : ''}</div></div>
       </article>`;
     }).join('')}
     ${S.admin ? `<button class="aw-nee aw-add" data-add-nee="${id}"><span>＋</span>Добавить номинанта<small>фото, гиф, видео или ссылка</small></button>` : ''}</div>
     ${!list.length && !S.admin ? '<div class="aw-empty">Номинанты скоро появятся.</div>' : ''}
-    <nav class="aw-pager">${prev ? `<a href="#/n/${prev.id}">← ${esc(prev.title)}</a>` : '<span></span>'}${next ? `<a href="#/n/${next.id}">${esc(next.title)} →</a>` : ''}</nav>`;
+    <nav class="aw-pager">${prev ? `<a href="#/n/${prev.id}">← ${esc(prev.title)}</a>` : '<span></span>'}${next ? `<a href="#/n/${next.id}">${esc(next.title)} →</a>` : ''}</nav>
+  </div>`;
 }
 
 /* ── голос ── */
@@ -156,7 +433,7 @@ async function vote(id) {
   const x = S.nees.find(y => y.id === id); if (!x) return;
   try {
     const r = await rpc('aw_vote', { p_nominee: id });
-    if (r) { S.votes.set(x.nomination_id, r); toast('Голос учтён 🥕'); } else { S.votes.delete(x.nomination_id); toast('Голос снят'); }
+    if (r) { S.votes.set(x.nomination_id, r); toast('Голос учтён'); } else { S.votes.delete(x.nomination_id); toast('Голос снят'); }
     if (S.admin) { const res = await rpc('aw_results').catch(() => null); S.results = res ? new Map(res.map(z => [z.nominee_id, +z.votes])) : null; }
     route();
   } catch (e) { toast(e.message, true); }
@@ -212,8 +489,22 @@ function neeDialog(nomId, x) {
     $('.aw-drop b', f).textContent = file.name;
   };
 }
+
+function jumpTo(id) {
+  const go = () => { const el = $(`#sec-${id}`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  if (location.hash && location.hash !== '#/' && location.hash !== '#') { location.hash = '#/'; setTimeout(go, 60); }
+  else go();
+}
+document.addEventListener('click', e => {
+  const j = e.target.closest('[data-jump]');
+  if (j) { e.preventDefault(); jumpTo(j.dataset.jump); }
+});
 page.addEventListener('click', async e => {
   const t = e.target;
+  const car = t.closest('[data-car]');
+  if (car) { S.carIdx += Number(car.dataset.car) || 0; return renderCarousel(S.noms.slice(5)); }
+  const fq = t.closest('[data-faq]');
+  if (fq) { fq.closest('.slay-faq-item')?.classList.toggle('open'); return; }
   const v = t.closest('[data-vote]'); if (v) return vote(v.dataset.vote);
   const z = t.closest('[data-zoom]'); if (z) { const ov = document.createElement('div'); ov.className = 'aw-ov aw-zoom'; ov.innerHTML = `<img src="${esc(z.dataset.zoom)}" alt="">`; ov.onclick = () => ov.remove(); document.body.append(ov); return; }
   if (!S.admin) return;
@@ -228,7 +519,10 @@ page.addEventListener('click', async e => {
   const de = t.closest('[data-del-nee]');
   if (de) { if (!confirm('Удалить номинанта?')) return; await api(`aw_nominees?id=eq.${de.dataset.delNee}`, { method: 'DELETE' }).catch(er => toast(er.message, true)); await loadAll(); return route(); }
 });
-page.addEventListener('change', e => { if (e.target.matches('[data-show-res]')) { S.showRes = e.target.checked; route(); } });
+page.addEventListener('change', e => {
+  if (e.target.matches('[data-show-res]')) { S.showRes = e.target.checked; route(); }
+  if (e.target.matches('[data-flat-grid]')) { S.flatGrid = e.target.checked; route(); }
+});
 
 /* ── роутер ── */
 function route() {
@@ -236,6 +530,6 @@ function route() {
   if (p[0] === 'n' && p[1]) viewNom(p[1]); else viewHome();
 }
 addEventListener('hashchange', () => { route(); scrollTo(0, 0); });
-page.innerHTML = '<div class="aw-load"><span>🥕</span></div>';
+page.innerHTML = `<div class="aw-load"><div class="aw-load-cr">${crystalSvg({ title: 'king' }, 0)}</div></div>`;
 loadMe().then(ok => { if (!ok) return; return loadAll().then(route); }).catch(e => { page.innerHTML = `<div class="aw-empty">Не удалось загрузить: ${esc(e.message)}</div>`; });
 })();
