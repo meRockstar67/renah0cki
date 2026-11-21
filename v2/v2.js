@@ -226,7 +226,7 @@ const SHOP_ITEMS = new Map();
 function absorbEq(rows) { EQ.clear(); (rows || []).forEach(r => EQ.set(r.user_id, r)); }
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
 let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner&limit=1000')
-  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); })
+  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
 const badgeHtml = id => {
@@ -1465,31 +1465,53 @@ addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelecto
 $('#collapseBtn').onclick = () => { const a = document.querySelector('.app'); a.classList.toggle('collapsed'); const c = a.classList.contains('collapsed'); $('#collapseBtn').title = c ? 'Развернуть меню' : 'Свернуть меню'; try { localStorage.setItem('v2_side', c ? '1' : '0'); } catch {} };
 try { if (localStorage.getItem('v2_side') === '1') { document.querySelector('.app').classList.add('collapsed'); $('#collapseBtn').title = 'Развернуть меню'; } } catch {}
 // спонсоры в левом меню: список (видно 5), листается, порядок случайный
+let SPONS_ROWS = [], TOPDON_ROWS = [];
+function sponsAvaHtml(p) {
+  const fr = eqOf(p)?.frame;
+  const img = imgTag(avatarUrl(p), 360, ' width="28" height="28"');
+  if (!fr || !/^frame_[a-z0-9_]+$/i.test(fr)) return img;
+  return `<span class="cf-wrap cf-sm cf-${esc(fr)}">${img}</span>`;
+}
+function drawSponsors() {
+  const box = $('#sponsList'); if (!box || !SPONS_ROWS.length) return;
+  box.innerHTML = SPONS_ROWS.map(p => `<a class="spons-item" href="${userPath(p)}" title="${esc(pname(p))}">${sponsAvaHtml(p)}<span class="spons-nm">${cosName(p)}</span></a>`).join('');
+  $('#spons').hidden = false;
+}
 function loadSponsors() {
-  swr('sponsors', () => api(`profiles?or=(role.eq.sponsor,extra_roles.cs.{sponsor})&select=id,username,display_name,avatar_url`), rows => {
+  swr('sponsors', () => api(`profiles?or=(role.eq.sponsor,extra_roles.cs.{sponsor})&select=id,username,display_name,avatar_url,name_color`), rows => {
     const box = $('#sponsList'); if (!box || !rows?.length) return;
     const ids = rows.map(r => r.id).sort().join();
-    if (box.dataset.ids === ids) return;
+    if (box.dataset.ids === ids && SPONS_ROWS.length) {
+      const byId = new Map(rows.map(r => [r.id, r]));
+      SPONS_ROWS = SPONS_ROWS.map(p => byId.get(p.id) || p);
+      return drawSponsors();
+    }
     box.dataset.ids = ids;
-    const list = [...rows].sort(() => Math.random() - .5);
-    box.innerHTML = list.map(p => `<a class="spons-item" href="${userPath(p)}" title="${esc(pname(p))}">${imgTag(avatarUrl(p), 360, ' width="28" height="28"')}<span>${esc(pname(p))}</span></a>`).join('');
-    $('#spons').hidden = false;
+    SPONS_ROWS = [...rows].sort(() => Math.random() - .5);
+    drawSponsors();
   }).catch(() => {});
 }
 loadSponsors();
 // затухание снизу у списка спонсоров — пока есть что листать
 $('#sponsList').addEventListener('scroll', e => { const l = e.currentTarget; l.classList.toggle('end', l.scrollTop + l.clientHeight >= l.scrollHeight - 2); }, { passive: true });
 // топ 3 донатера по сумме пополнений через DonationAlerts (главный админ не учитывается)
+function drawTopDonors() {
+  const box = $('#topDonList'); if (!box) return;
+  if (!TOPDON_ROWS.length) { $('#topDon').hidden = true; return; }
+  box.innerHTML = TOPDON_ROWS.map((r, i) => {
+    const p = S.profiles.get(r.user_id) || r.p || { id: r.user_id };
+    return `<a class="spons-item" href="${userPath(p)}" title="${esc(pname(p))}"><span class="medal">${['🥇', '🥈', '🥉'][i] || ''}</span>${sponsAvaHtml(p)}<span class="spons-nm">${cosName(p)}</span></a>`;
+  }).join('');
+  $('#topDon').hidden = false;
+}
 function loadTopDonors() {
   swr('topdon2', async () => {
     const rows = await rpc('coin_top_donors', { p_limit: 3 });
     await loadProfiles(rows.map(r => r.user_id));
     return rows.map(r => ({ ...r, p: S.profiles.get(r.user_id) || null }));
   }, rows => {
-    const box = $('#topDonList'); if (!box) return;
-    if (!rows?.length) { $('#topDon').hidden = true; return; }
-    box.innerHTML = rows.map((r, i) => `<a class="spons-item" href="${userPath(r.p || { id: r.user_id })}" title="${esc(pname(r.p))}"><span class="medal">${['🥇', '🥈', '🥉'][i] || ''}</span>${imgTag(avatarUrl(r.p), 360, ' width="28" height="28"')}<span>${esc(pname(r.p))}</span></a>`).join('');
-    $('#topDon').hidden = false;
+    TOPDON_ROWS = rows || [];
+    drawTopDonors();
   }).catch(() => {});
 }
 loadTopDonors();
@@ -2608,6 +2630,8 @@ async function viewShop(tab) {
     EQ.set(S.uid, row);
     cacheSet('eq_all', [...EQ.values()]);
     applyMeFrame();
+    drawSponsors();
+    drawTopDonors();
   };
   const renderPreview = () => {
     const f = activeVal('frame'), fx = activeVal('nick_fx'), bg = activeVal('badge'), bn = activeVal('banner');

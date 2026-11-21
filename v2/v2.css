@@ -645,7 +645,12 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 #spons .spons-list { min-height: 0; flex: 1 1 auto; }
 .side { overflow-y: auto; scrollbar-width: none; }
 .side::-webkit-scrollbar { display: none; }
-.spons-item span:not(.medal):not(.don-sum) { flex: 1; min-width: 0; }
+.spons-item span:not(.medal):not(.don-sum):not(.cf-wrap):not(.cb-ico) { flex: 1; min-width: 0; }
+.spons-item .cf-wrap { flex: none; padding: 2px; overflow: visible; }
+.spons-item .cf-wrap img { width: 26px; height: 26px; }
+.spons-item .spons-nm { display: flex; align-items: center; min-width: 0; flex: 1; overflow: visible; }
+.spons-item .spons-nm > span:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spons-item .spons-nm .cb-ico { flex: none; margin-left: 4px; width: 15px; height: 15px; }
 /* ── кошелёк ── */
 .coin-chip { cursor: pointer; }
 .coin-chip:hover { border-color: var(--accent); }
@@ -930,13 +935,13 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .app.collapsed .side { width: 72px; padding-left: 10px; padding-right: 10px; }
 .app.collapsed .side-head { flex-direction: column; gap: 10px; }
 .app.collapsed .collapse-btn svg { transform: rotate(180deg); }
-.app.collapsed .side .logo span, .app.collapsed .side .nav-item span, .app.collapsed .spons-title, .app.collapsed .spons-item span, .app.collapsed .nav-badge { display: none; }
+.app.collapsed .side .logo span, .app.collapsed .side .nav-item span, .app.collapsed .spons-title, .app.collapsed .spons-item .spons-nm, .app.collapsed .spons-item .medal, .app.collapsed .nav-badge { display: none; }
 .app.collapsed .side .nav-item { justify-content: center; padding: 12px 0; }
 .app.collapsed .spons { margin-top: 10px; }
 .app.collapsed .spons-item { justify-content: center; padding: 0; }
 .app.collapsed #spons { min-height: 120px; }
 .app.collapsed .nav-item:hover { transform: none; }
-@media (max-width: 900px) { .collapse-btn { display: none; } .app.collapsed .side { width: 250px; } .app.collapsed .side .logo span, .app.collapsed .side .nav-item span, .app.collapsed .spons-title, .app.collapsed .spons-item span { display: revert; } .app.collapsed .side-head { flex-direction: row; } .app.collapsed .side .nav-item { justify-content: flex-start; padding: 12px 14px; } .app.collapsed .spons-item { justify-content: flex-start; padding: 0 14px; } }
+@media (max-width: 900px) { .collapse-btn { display: none; } .app.collapsed .side { width: 250px; } .app.collapsed .side .logo span, .app.collapsed .side .nav-item span, .app.collapsed .spons-title, .app.collapsed .spons-item .medal { display: revert; } .app.collapsed .spons-item .spons-nm { display: flex; } .app.collapsed .side-head { flex-direction: row; } .app.collapsed .side .nav-item { justify-content: flex-start; padding: 12px 14px; } .app.collapsed .spons-item { justify-content: flex-start; padding: 0 14px; } }
 
 /* ── профиль: ссылки под аватаркой ── */
 .prof-left { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: none; }
