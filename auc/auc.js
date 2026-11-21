@@ -766,7 +766,7 @@ document.addEventListener('click', async e => {
         return;
       }
       case 'reset':
-        if (['running', 'paused'].includes(a.status)) { if (confirm('Закрыть приём ставок?')) return admDo({ a: 'control', op: 'stop' }); return; }
+        if (['running', 'paused'].includes(a.status)) return admDo({ a: 'control', op: 'stop' }, 'Приём ставок закрыт');
         if (a.status === 'idle') { S.startMin = 60; ls.set('auc_startmin', 60); return tickClock(); }
         return;
       case 'acceptOn': return admDo({ a: 'accept', on: true }, 'Приём донатов включён');
@@ -817,18 +817,14 @@ document.addEventListener('click', async e => {
       case 'dismiss': {
         const b = S.adm.bids.find(x => x.id === nid);
         if (!b) return;
-        if (confirm(`Удалить ставку ${b.user_name} (+${fmt(b.points)} б.) из ожидающих без возврата?`)) {
-          return admDo({ a: 'mark', bid: nid, result: 'kept' }, 'Удалено из ожидающих');
-        }
-        return;
+        return admDo({ a: 'mark', bid: nid, result: 'kept' }, 'Удалено из ожидающих');
       }
       case 'refund': {
-        const b = S.adm.bids.find(x => x.id === nid);
-        const where = b.source === 'site' ? 'coin вернутся зрителю' : b.source === 'twitch' ? 'баллы вернутся на Twitch' : 'баллы уйдут в кошелёк аукциона';
-        if (confirm(`Вернуть ${b.user_name} ${fmt(b.points)} б.? ${where}.`)) { const r = await admDo({ a: 'refund', bid: nid }); toast(r.status === 'failed' ? 'Не получилось вернуть — см. ошибку' : 'Возвращено', r.status === 'failed'); }
+        const r = await admDo({ a: 'refund', bid: nid });
+        toast(r.status === 'failed' ? 'Не получилось вернуть — см. ошибку' : 'Возвращено', r.status === 'failed');
         return;
       }
-      case 'markDone': if (confirm('Отметить как возвращённую?')) return admDo({ a: 'mark', bid: nid, result: 'refunded' }, 'Отмечено'); return;
+      case 'markDone': return admDo({ a: 'mark', bid: nid, result: 'refunded' }, 'Отмечено');
       case 'bidFilter': bidFilter = id; return renderView();
       case 'walletSpend': { const w = S.adm.wallets.find(x => x.name === id); return sheet(`Кошелёк «${w.name}»`, `<p class="hint">Доступно ${fmt(w.balance)} б.</p>${lotPick(null, false)}
         <label class="field"><span>Сколько поставить</span><input class="in" name="p" type="number" step="any" min="0.01" max="${w.balance}" value="${w.balance}" required></label>${acts('Поставить')}`,
@@ -840,7 +836,7 @@ document.addEventListener('click', async e => {
       case 'histMore': return loadHistory(true);
       case 'csv': return exportCsv();
       case 'conn': { const r = await admDo({ a: 'connect', service: id }); location.href = r.url; return; }
-      case 'disc': if (confirm('Отключить?')) return admDo({ a: 'disconnect', service: id }, 'Отключено'); return;
+      case 'disc': return admDo({ a: 'disconnect', service: id }, 'Отключено');
       case 'tok': return sheet(id === 'donatepay' ? 'Ключ DonatePay' : 'Токен DonateX', `<p class="hint">Хранится только на сервере и больше нигде не показывается.</p>
         <label class="field"><span>${id === 'donatepay' ? 'API-ключ' : 'Внешний токен'}</span><input class="in" name="t" type="password" autocomplete="off" required></label>${acts('Сохранить')}`,
         f => admDo({ a: 'token', service: id, token: f.get('t') }, 'Подключено'));
