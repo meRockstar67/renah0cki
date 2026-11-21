@@ -351,15 +351,74 @@ function renderRight() {
 /* ══ вкладка «Колесо» ══ */
 const LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
 const WDEF = { mode: 'normal', palette: 'rainbow', labels: 'radial', hide_sum: false, full_text: false, image: '', accel: false, sound: 'ticks', volume: 0.5 };
-const PAL_NAMES = { rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар' };
+const PAL_NAMES = { rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар', cyber: 'Кибер', pastel: 'Пастель', berry: 'Ягода', gold: 'Золото', ice: 'Лёд' };
+const THEMES = [
+  ['violet',  'Фиолетовый', '#a78bfa'],
+  ['ice',     'Лёд / Зима', '#6cc4ff'],
+  ['emerald', 'Изумруд',    '#34d399'],
+  ['sakura',  'Сакура',     '#f472b6'],
+  ['sunset',  'Закат',      '#fb923c'],
+  ['cyber',   'Киберпанк',  '#22d3ee'],
+  ['gold',    'Золото',     '#fbbf24'],
+];
+const curTheme = () => ls.get('auc_theme') || 'violet';
+function applyTheme(t) {
+  if (!t || t === 'violet') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  ls.set('auc_theme', t || 'violet');
+}
 WH.local = {}; WH.out = new Set(); WH.lastSeg = null; WH.lastTick = 0; WH.msg = '';
 WH.wl = { num: ls.get('auc_wl_num') !== '0', pct: ls.get('auc_wl_pct') !== '0', sum: ls.get('auc_wl_sum') === '1' };
 const wcfg = () => ({ ...WDEF, ...(A()?.config?.wheel || {}), ...WH.local });
-let wImg = null, wImgSrc = null;
-function wheelImg() {
+function syncCenterImg() {
   const src = wcfg().image || LOGO;
-  if (src !== wImgSrc) { wImgSrc = src; wImg = new Image(); wImg.crossOrigin = 'anonymous'; wImg.onload = () => drawStatic(); wImg.src = src; }
-  return wImg;
+  const ci = $('#wCenterImg'); if (ci && ci.dataset.src !== src) { ci.dataset.src = src; ci.src = src; }
+  const pr = $('#wImgPrev'); if (pr && pr.dataset.src !== src) { pr.dataset.src = src; pr.src = src; }
+}
+/* ── базовый набор и поиск 7TV эмодзи для центра колеса ── */
+const STV = { base: null, list: [], loading: false, q: '' };
+function stvUrl(e) {
+  const h = e.host || e.data?.host;
+  if (h?.url) {
+    const base = h.url.startsWith('//') ? 'https:' + h.url : h.url;
+    const files = (h.files || []).filter(f => f.format === 'WEBP' || /\.webp$/i.test(f.name));
+    const pick = files.find(f => /^3x\./i.test(f.name)) || files.find(f => /^4x\./i.test(f.name)) || files.find(f => /^2x\./i.test(f.name)) || files[0];
+    if (pick) return `${base}/${pick.name}`;
+  }
+  return `https://cdn.7tv.app/emote/${e.id}/3x.webp`;
+}
+function render7tv() {
+  const g = $('#w7tvGrid'); if (!g) return;
+  if (STV.loading) { g.innerHTML = '<div class="w7tv-msg">Загрузка 7TV…</div>'; return; }
+  if (!STV.list.length) { g.innerHTML = '<div class="w7tv-msg">Ничего не нашлось</div>'; return; }
+  const cur = wcfg().image || '';
+  g.innerHTML = STV.list.map(e => `<button type="button" class="w7tv-btn${cur === e.url ? ' on' : ''}" data-act="set7tv" data-url="${esc(e.url)}" title="${esc(e.name)}"><img src="${esc(e.url)}" alt="${esc(e.name)}" loading="lazy"></button>`).join('');
+}
+async function load7tv(q = '') {
+  STV.q = q.trim();
+  if (!STV.q && STV.base) { STV.list = STV.base; return render7tv(); }
+  STV.loading = true; render7tv();
+  try {
+    let items = [];
+    try {
+      const r = await fetch('https://7tv.io/v3/gql', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'query($q:String!,$n:Int!){emotes(query:$q,limit:$n){items{id name host{url files{name format}}}}}', variables: { q: STV.q, n: 24 } }),
+      });
+      const j = r.ok ? await r.json() : null;
+      items = (j?.data?.emotes?.items || []).map(e => ({ id: e.id, name: e.name, url: stvUrl(e) }));
+    } catch {}
+    if (!items.length) {
+      const r = await fetch('https://7tv.io/v3/emote-sets/global');
+      const j = r.ok ? await r.json() : null;
+      const all = (j?.emotes || []).map(e => ({ id: e.id, name: e.name, url: stvUrl(e) }));
+      const ql = STV.q.toLowerCase();
+      items = ql ? all.filter(e => e.name.toLowerCase().includes(ql)).slice(0, 24) : all.slice(0, 24);
+    }
+    if (!STV.q && items.length) STV.base = items;
+    STV.list = items;
+  } catch { STV.list = []; }
+  STV.loading = false; render7tv();
 }
 // лоты на колесе: в «Выбывании» сектор обратно пропорционален баллам и выбывшие убраны
 function wheelLots() {
@@ -367,7 +426,7 @@ function wheelLots() {
   const lots = (A()?.lots || []).filter(l => +l.total > 0 && !(c.mode === 'elim' && WH.out.has(l.id)));
   return c.mode === 'elim' ? lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total, w: 1 / +l.total })) : lots.map(l => ({ id: l.id, num: l.num, name: l.name, total: +l.total }));
 }
-const drawOpts = hi => { const c = wcfg(); return { hi, labels: c.labels, hideSum: c.hide_sum, fullText: c.full_text, img: wheelImg(), accel: c.accel }; };
+const drawOpts = hi => { const c = wcfg(); syncCenterImg(); return { hi, labels: c.labels, hideSum: c.hide_sum, fullText: c.full_text, htmlImg: true, accel: c.accel }; };
 function drawStatic() {
   if (S.tab !== 'wheel' || WH.spinning) return;
   const S2 = W_.segs(wheelLots(), wcfg().palette);
@@ -407,7 +466,8 @@ function renderWheelTab() {
     document.querySelectorAll('[data-wb]').forEach(i => { i.checked = !!c[i.dataset.wb]; });
     if (document.activeElement !== $('#wSound')) $('#wSound').value = c.sound;
     if (document.activeElement !== $('#wVol')) $('#wVol').value = c.volume;
-    $('#wImgPrev').src = c.image || LOGO;
+    syncCenterImg();
+    if (!STV.base && !STV.loading) load7tv(''); else render7tv();
     $('#autoSpin').checked = WH.auto;
     if (document.activeElement !== $('#spinSec')) $('#spinSec').value = WH.sec ?? d.config?.wheel_sec ?? 20;
     $('#spinBtn').disabled = WH.spinning;
@@ -778,6 +838,12 @@ document.addEventListener('click', async e => {
       case 'dice': { const v = 15 + Math.floor(Math.random() * 46); $('#spinSec').value = v; WH.sec = v; return; }
       case 'elimReset': WH.out.clear(); WH.result = null; WH.msg = ''; return renderWheelTab();
       case 'imgReset': return setW({ image: '' });
+      case 'set7tv': return setW({ image: el.dataset.url || '' });
+      case 'theme': {
+        const cur = curTheme();
+        return pop(el, THEMES.map(([k, n, c]) => `<button class="${cur === k ? 'on' : ''}" data-act="setTheme" data-id="${k}"><i class="theme-dot" style="background:${c}"></i>${n}${cur === k ? '<small>✓</small>' : ''}</button>`).join(''));
+      }
+      case 'setTheme': applyTheme(id); closePop(); return;
       case 'soundTest': { const c = wcfg(); [0, 90, 170, 240, 300].forEach(t => setTimeout(() => W_.tick(+c.volume), t)); return; }
       case 'retry': { const r = await admDo({ a: 'retry' }); return toast(`Повторено: ${r.retried}, успешно: ${r.ok}`); }
       case 'archive': S.histAuction = 'all'; $('#view').dataset.tab = ''; return setTab('history');
@@ -868,9 +934,10 @@ document.addEventListener('change', async e => {
     if (t.id === 'spinSec') { WH.sec = Number(t.value) || 20; return; }
   } catch (err) { toast(err.message, true); render(); }
 });
-let hqT;
+let hqT, stvT;
 document.addEventListener('input', e => {
   if (e.target.id === 'hq') { clearTimeout(hqT); hqT = setTimeout(() => loadHistory(), 300); }
+  if (e.target.id === 'w7tvSearch') { clearTimeout(stvT); stvT = setTimeout(() => load7tv(e.target.value), 320); }
   if (e.target.id === 'lotSearch') { S.search = e.target.value; renderLots($('#view')); }
   if (e.target.id === 'wVol') setW({ volume: Number(e.target.value) });
 });

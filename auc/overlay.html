@@ -34,6 +34,7 @@
   body.spin .wheel { display: grid; justify-items: center; gap: 10px; }
   .wb { position: relative; width: min(560px, 92vw); aspect-ratio: 1; }
   .wb canvas { width: 100%; height: 100%; display: block; }
+  .wb-img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 20%; height: 20%; min-width: 52px; min-height: 52px; border-radius: 50%; object-fit: cover; pointer-events: none; z-index: 1; background: #0c0c14; border: 3px solid rgba(255,240,230,.9); }
   .ptr { position: absolute; z-index: 2; left: 50%; top: -6px; width: 40px; height: 46px; transform: translateX(-50%); fill: #f8f4ff; stroke: #0c0c14; stroke-width: 2.5; filter: drop-shadow(0 3px 6px rgba(0,0,0,.5)); }
   .wres { font-size: 26px; font-weight: 900; text-align: center; min-height: 34px; }
   .wres.win { color: var(--ok); }
@@ -44,9 +45,9 @@
   <div class="head"><div class="title" id="t">Аукцион</div><div class="timer off" id="tm">—</div></div>
   <ol id="l"></ol>
   <div class="last" id="last"></div>
-  <div class="wheel"><div class="wb"><svg class="ptr" viewBox="0 0 40 46" aria-hidden="true"><path d="M20 44 4 14A16 16 0 1 1 36 14z"/></svg><canvas id="wc"></canvas></div><div class="wres" id="wr"></div></div>
+  <div class="wheel"><div class="wb"><svg class="ptr" viewBox="0 0 40 46" aria-hidden="true"><path d="M20 44 4 14A16 16 0 1 1 36 14z"/></svg><canvas id="wc"></canvas><img class="wb-img" id="wci" alt=""></div><div class="wres" id="wr"></div></div>
 </div>
-<script src="wheel.js?v=20261120d"></script>
+<script src="wheel.js?v=20261121c"></script>
 <script>
 (() => {
   const QS = new URLSearchParams(location.search);
@@ -88,9 +89,9 @@
     let ev; try { ev = JSON.parse(e.data); } catch { return; }
     if (!window.AucWheel || lastSpin === ev.id) return; lastSpin = ev.id;
     const W = window.AucWheel, c = { palette: 'rainbow', labels: 'radial', sound: 'ticks', volume: 0.5, ...(D?.config?.wheel || {}) };
-    const segs = W.segs(ev.lots, c.palette), cv = document.getElementById('wc'), res = document.getElementById('wr');
-    if (!img || img.dataset.src !== (c.image || LOGO)) { img = new Image(); img.crossOrigin = 'anonymous'; img.dataset.src = img.src = c.image || LOGO; }
-    const o = { labels: c.labels, hideSum: c.hide_sum, fullText: c.full_text, img, accel: c.accel };
+    const segs = W.segs(ev.lots, c.palette), cv = document.getElementById('wc'), res = document.getElementById('wr'), wci = document.getElementById('wci');
+    if (wci && wci.src !== (c.image || LOGO)) wci.src = c.image || LOGO;
+    const o = { labels: c.labels, hideSum: c.hide_sum, fullText: c.full_text, htmlImg: true, accel: c.accel };
     clearTimeout(hideT); stopSpin?.();
     document.body.classList.add('spin'); res.className = 'wres';
     let last = null, lastT = 0;

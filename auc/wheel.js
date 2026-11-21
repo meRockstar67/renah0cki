@@ -10,7 +10,18 @@ const PALETTES = {
   sunset:  ['#e8590c', '#f76707', '#fd7e14', '#ff922b', '#f03e3e', '#fa5252', '#e64980', '#f06595', '#fab005', '#d9480f'],
   forest:  ['#2b8a3e', '#37b24d', '#51cf66', '#8ce99a', '#5c940d', '#74b816', '#94d82d', '#087f5b', '#0ca678', '#20c997'],
   noir:    ['#343a40', '#495057', '#868e96', '#adb5bd', '#212529', '#5c5f66', '#6c727a', '#9aa0a6', '#3d4249', '#7b8189'],
+  cyber:   ['#ff2a85', '#00e5ff', '#a855f7', '#39ff14', '#ff9f1c', '#3b82f6', '#f43f5e', '#22d3ee', '#c084fc', '#facc15'],
+  pastel:  ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff', '#f1c0e8', '#cfbaf0'],
+  berry:   ['#9d174d', '#be185d', '#db2777', '#ec4899', '#f472b6', '#7e22ce', '#9333ea', '#a855f7', '#c084fc', '#e879f9'],
+  gold:    ['#b45309', '#d97706', '#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#92400e', '#ca8a04', '#eab308', '#facc15'],
+  ice:     ['#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bae6fd', '#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc'],
 };
+function isDark(hex) {
+  const m = String(hex || '').replace('#', '');
+  if (m.length !== 6) return false;
+  const r = parseInt(m.slice(0, 2), 16), g = parseInt(m.slice(2, 4), 16), b = parseInt(m.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) < 130;
+}
 const rnd = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 const fmt = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('ru-RU');
 const plural = n => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? 'балл' : m >= 2 && m <= 4 && (h < 12 || h > 14) ? 'балла' : 'баллов'; };
@@ -52,7 +63,7 @@ function draw(cv, S, rot, o = {}) {
       if (S.length > 1) { ctx.strokeStyle = 'rgba(12,12,20,.55)'; ctx.lineWidth = 1.5; ctx.stroke(); }
       const span = s.end - s.start; if (span < 0.045) continue;
       const mid = (s.start + s.end) / 2;
-      ctx.save(); ctx.fillStyle = '#14141f';
+      ctx.save(); ctx.fillStyle = isDark(s.color) ? '#f8fafc' : '#14141f';
       if (o.labels === 'horizontal') {
         const d = R * 0.62; ctx.translate(Math.cos(mid) * d, Math.sin(mid) * d); ctx.rotate(-rot);
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -72,10 +83,10 @@ function draw(cv, S, rot, o = {}) {
     }
     ctx.restore();
   }
-  // центр с картинкой
+  // центр с картинкой (если передан htmlImg — картинку рендерит <img> поверх canvas, чтобы работала анимация 7TV)
   const cr = Math.max(26, r * 0.2);
   ctx.save(); ctx.beginPath(); ctx.arc(r, r, cr, 0, TAU); ctx.fillStyle = '#0c0c14'; ctx.fill();
-  if (o.img && o.img.complete && o.img.naturalWidth) {
+  if (!o.htmlImg && o.img && o.img.complete && o.img.naturalWidth) {
     ctx.clip(); const iw = o.img.naturalWidth, ih = o.img.naturalHeight, k = Math.max(cr * 2 / iw, cr * 2 / ih);
     ctx.drawImage(o.img, r - iw * k / 2, r - ih * k / 2, iw * k, ih * k);
   }
