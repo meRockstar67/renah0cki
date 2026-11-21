@@ -149,6 +149,10 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .don .amt small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
 .don .msg { grid-column: 1 / -1; color: #d6d6e6; overflow-wrap: anywhere; }
 .don .meta { grid-column: 1 / -1; color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.don .q-btns { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; }
+.don .q-btns .q-sim { flex: 1 1 100%; justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.don .q-btns .q-new { flex: 1 1 0; }
+.don .q-btns .ib.bad:hover { color: var(--danger); background: rgba(255, 107, 125, .14); }
 .don .acts { grid-column: 1 / -1; display: flex; gap: 6px; margin-top: 4px; }
 .don .acts select { flex: 1; min-width: 0; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); padding: 0 8px; font-size: 13px; }
 @keyframes in { from { opacity: 0; transform: translateY(-6px); } }

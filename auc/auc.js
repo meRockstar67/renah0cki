@@ -261,13 +261,57 @@ function renderLots(v) {
 }
 
 /* ── правая колонка: донаты ── */
-function donHtml(b, opts) {
+function normTxt(s) {
+  return String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9#]+/gi, ' ').trim();
+}
+function bigrams(s) {
+  const m = new Map();
+  for (let i = 0; i < s.length - 1; i++) { const g = s.slice(i, i + 2); m.set(g, (m.get(g) || 0) + 1); }
+  return m;
+}
+function findSimilarLot(msg, lots) {
+  const m = normTxt(msg);
+  if (!m || !lots?.length) return null;
+  const numM = m.match(/#(\d+)/);
+  if (numM) { const byNum = lots.find(l => l.num === Number(numM[1])); if (byNum) return byNum; }
+  const mClean = m.replace(/#\d+/g, '').trim();
+  if (mClean.length < 2) return null;
+  const mWords = mClean.split(' ').filter(w => w.length >= 2);
+  const mBi = bigrams(mClean.replace(/\s+/g, ''));
+  let best = null, bestScore = 0;
+  for (const l of lots) {
+    const ln = normTxt(l.name);
+    if (!ln) continue;
+    let sc = 0;
+    if (mClean === ln) sc = 1;
+    else if (mClean.length >= 3 && (ln.includes(mClean) || mClean.includes(ln))) {
+      sc = 0.8 + 0.15 * (Math.min(mClean.length, ln.length) / Math.max(mClean.length, ln.length));
+    } else {
+      const lWords = ln.split(' ').filter(w => w.length >= 2);
+      let hits = 0;
+      for (const w of mWords) {
+        if (lWords.some(lw => lw === w || (w.length >= 3 && (lw.startsWith(w) || w.startsWith(lw))))) hits++;
+      }
+      const wordSc = mWords.length && lWords.length ? hits / Math.max(mWords.length, lWords.length) : 0;
+      const lBi = bigrams(ln.replace(/\s+/g, ''));
+      let inter = 0, tot = 0;
+      mBi.forEach((c, g) => { tot += c; inter += Math.min(c, lBi.get(g) || 0); });
+      lBi.forEach(c => { tot += c; });
+      const dice = tot ? (2 * inter) / tot : 0;
+      sc = Math.max(wordSc * 0.85, dice);
+    }
+    if (sc > bestScore) { bestScore = sc; best = l; }
+  }
+  return bestScore >= 0.35 ? best : null;
+}
+function donHtml(b, opts, lots) {
   const msg = b.message || b.meta?.message || '';
   const unit = b.orig_amount != null && !['manual', 'wallet'].includes(b.source) ? `${fmt(b.orig_amount)} ${esc(b.orig_unit || '')}` : '';
+  const sim = S.isAdmin && b.status === 'queue' ? findSimilarLot(msg, lots) : null;
   return `<span class="who">${esc(b.user_name)}</span><span class="amt">+${fmt(b.points)}${unit ? `<small>${unit}</small>` : ''}</span>
     ${msg ? `<span class="msg">${esc(msg)}</span>` : ''}
     <span class="meta"><span class="src ${b.source}">${SRC[b.source]}</span>${b.status !== 'queue' ? `<span class="st ${b.status}">${ST[b.status]}</span>${b.lot_id ? ' ' + esc(lotLabel(b.lot_id)) : ''}` : ''}<span>${time(b.created_at)}</span>${b.refund_to ? `<span>→ ${esc(b.refund_to)}</span>` : ''}</span>
-    ${S.isAdmin && b.status === 'queue' ? `<span class="acts"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}${msg ? `<option value="new">+ Новый лот «${esc(msg.slice(0, 30))}»</option>` : ''}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
+    ${S.isAdmin && b.status === 'queue' ? `<span class="q-btns">${sim ? `<button class="btn sm ok q-sim" data-act="assignSim" data-id="${b.id}" data-lot="${sim.id}" title="Вкинуть в похожий лот #${sim.num} «${esc(sim.name)}»">→ #${sim.num} ${esc(sim.name)}</button>` : ''}<button class="btn sm outline q-new" data-act="assignNew" data-id="${b.id}" title="${msg ? `Создать новый лот «${esc(msg.slice(0, 60))}»` : 'Создать новый лот'}">+ Новый лот</button><button class="ib bad" data-act="dismiss" data-id="${b.id}" title="Удалить из ожидающих (без возврата)" aria-label="Удалить">✕</button></span><span class="acts"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
     ${S.isAdmin && b.status === 'failed' ? `<span class="acts"><button class="btn sm" data-act="retry">Повторить</button><button class="btn sm ghost" data-act="markDone" data-id="${b.id}">Уже вернул</button></span>` : ''}`;
 }
 function renderRight() {
@@ -290,7 +334,7 @@ function renderRight() {
     (el, b) => {
       el.className = 'don' + (Date.parse(b.created_at) > fresh ? ' fresh' : '') + (el.classList.contains('enter') ? ' enter' : '');
       if (S.isAdmin && b.status === 'queue') { el.draggable = true; el.dataset.bid = b.id; } else { el.draggable = false; delete el.dataset.bid; }
-      const h = donHtml(b, opts);
+      const h = donHtml(b, opts, d.lots);
       if (el._h !== h && !el.contains(document.activeElement)) { el.innerHTML = h; el._h = h; }
     }, empty);
   if (S.isAdmin && S.adm) {
@@ -640,7 +684,7 @@ function applyLocal(b) {
       if (x.status === 'active' && x.lot_id) onLot(x.lot_id, -x.points);
       if (x.status !== 'failed') d.total = +d.total - x.points;
       if (x.status === 'queue') d.queue_count = Math.max(0, d.queue_count - 1);
-      x.status = 'refunded';
+      x.status = b.a === 'mark' && b.result === 'kept' ? 'kept' : 'refunded';
       break;
     }
     case 'wallet':
@@ -759,6 +803,25 @@ document.addEventListener('click', async e => {
         f => admDo({ a: 'manual', lot: f.get('lot') ? Number(f.get('lot')) : null, user: f.get('u'), points: Number(f.get('p')) }, 'Баллы добавлены'));
       case 'assign': return sheet('Перенести ставку', `${lotPick(null)}<label class="field" id="newLotF" hidden><span>Название нового лота</span><input class="in" name="n" maxlength="80"></label>${acts('Перенести')}`,
         f => { const l = f.get('lot'); if (!l) throw new Error('Выбери лот'); return admDo({ a: 'assign', bid: nid, lot: l === 'new' ? null : Number(l), name: l === 'new' ? f.get('n') : null }, 'Перенесено'); });
+      case 'assignSim': {
+        const lotId = Number(el.dataset.lot);
+        return admDo({ a: 'assign', bid: nid, lot: lotId }, `Вкинуто в ${lotLabel(lotId)}`);
+      }
+      case 'assignNew': {
+        const b = S.adm.bids.find(x => x.id === nid);
+        const msg = String(b?.message || b?.meta?.message || '').trim().slice(0, 80);
+        if (msg) return admDo({ a: 'assign', bid: nid, lot: null, name: msg }, `Новый лот «${msg}»`);
+        return sheet('Новый лот из ставки', `<label class="field"><span>Название лота</span><input class="in" name="n" maxlength="80" required placeholder="Название нового лота"></label>${acts('Создать')}`,
+          f => { const n = String(f.get('n') || '').trim(); if (!n) throw new Error('Укажи название'); return admDo({ a: 'assign', bid: nid, lot: null, name: n }, `Новый лот «${n}»`); });
+      }
+      case 'dismiss': {
+        const b = S.adm.bids.find(x => x.id === nid);
+        if (!b) return;
+        if (confirm(`Удалить ставку ${b.user_name} (+${fmt(b.points)} б.) из ожидающих без возврата?`)) {
+          return admDo({ a: 'mark', bid: nid, result: 'kept' }, 'Удалено из ожидающих');
+        }
+        return;
+      }
       case 'refund': {
         const b = S.adm.bids.find(x => x.id === nid);
         const where = b.source === 'site' ? 'coin вернутся зрителю' : b.source === 'twitch' ? 'баллы вернутся на Twitch' : 'баллы уйдут в кошелёк аукциона';
