@@ -350,7 +350,7 @@ function renderRight() {
 
 /* ══ вкладка «Колесо» ══ */
 const LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
-const WDEF = { mode: 'normal', palette: 'rainbow', labels: 'radial', hide_sum: false, full_text: false, image: '', accel: false, sound: 'ticks', volume: 0.5 };
+const WDEF = { mode: 'normal', palette: 'rainbow', labels: 'radial', hide_sum: false, full_text: false, image: '', accel: false, sound: 'ticks', volume: 0.5, reroll_on: false, reroll_price: 1000, reroll_sec: 60, reroll_x2: false };
 const PAL_NAMES = { rainbow: 'Радуга', ocean: 'Океан', sunset: 'Закат', forest: 'Лес', noir: 'Нуар', cyber: 'Кибер', pastel: 'Пастель', berry: 'Ягода', gold: 'Золото', ice: 'Лёд' };
 const THEMES = [
   ['violet',  'Фиолетовый', '#a78bfa'],
@@ -367,7 +367,7 @@ function applyTheme(t) {
   else document.documentElement.dataset.theme = t;
   ls.set('auc_theme', t || 'violet');
 }
-WH.local = {}; WH.out = new Set(); WH.lastSeg = null; WH.lastTick = 0; WH.msg = '';
+WH.local = {}; WH.out = new Set(); WH.lastSeg = null; WH.lastTick = 0; WH.msg = ''; WH.rerollCount = 0; WH.rerollAuc = null;
 WH.wl = { num: ls.get('auc_wl_num') !== '0', pct: ls.get('auc_wl_pct') !== '0', sum: ls.get('auc_wl_sum') === '1' };
 const wcfg = () => ({ ...WDEF, ...(A()?.config?.wheel || {}), ...WH.local });
 function syncCenterImg() {
@@ -466,6 +466,8 @@ function renderWheelTab() {
     document.querySelectorAll('[data-wb]').forEach(i => { i.checked = !!c[i.dataset.wb]; });
     if (document.activeElement !== $('#wSound')) $('#wSound').value = c.sound;
     if (document.activeElement !== $('#wVol')) $('#wVol').value = c.volume;
+    if (document.activeElement !== $('#wRrPrice')) $('#wRrPrice').value = c.reroll_price ?? 1000;
+    if (document.activeElement !== $('#wRrSec')) $('#wRrSec').value = c.reroll_sec ?? 60;
     syncCenterImg();
     if (!STV.all && !STV.loading) load7tv(''); else render7tv();
     $('#autoSpin').checked = WH.auto;
@@ -499,7 +501,8 @@ async function doSpin() {
     setTimeout(() => { if (WH.lastSpin !== ev.id) onSpin(ev); }, 1200);
   } catch (e) { toast(e.message, true); }
 }
-let winFxStop = null;
+let winFxStop = null, winRrT = null;
+function stopWinRr() { if (winRrT) { clearInterval(winRrT); winRrT = null; } }
 function burstConfetti(accentHex) {
   winFxStop?.();
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -543,22 +546,30 @@ function burstConfetti(accentHex) {
 }
 function hideWinner() {
   winFxStop?.(); winFxStop = null;
+  stopWinRr();
   const ov = $('#winOver'); if (ov) ov.hidden = true;
 }
 function showWinner(lot) {
   if (!lot) return;
   const ov = $('#winOver'), card = $('#winCard'); if (!ov || !card) return;
-  const d = A();
+  stopWinRr();
+  const d = A(), c = wcfg();
+  if (d?.auction?.id !== WH.rerollAuc) { WH.rerollAuc = d?.auction?.id ?? null; WH.rerollCount = 0; }
   const sum = +lot.total || 0;
   const totalAll = (d?.lots || []).reduce((s, l) => s + (+l.total || 0), 0) || 1;
   const pct = Math.min(100, (sum / totalAll) * 100);
   const pctStr = pct.toFixed(1);
   const bids = S.isAdmin ? (S.adm?.bids || []) : (d?.recent || []);
   const donCount = bids.filter(b => b.lot_id === lot.id && ['active', 'won'].includes(b.status)).length;
-  const segCol = lot.color || W_.colorOf(lot.num, wcfg().palette);
+  const segCol = lot.color || W_.colorOf(lot.num, c.palette);
+  const rrOn = !!c.reroll_on;
+  const rrMult = c.reroll_x2 ? Math.pow(2, WH.rerollCount) : 1;
+  const rrPrice = Math.max(0, Number(c.reroll_price) || 0) * rrMult;
+  const rrSec = Math.max(5, Math.min(3600, Math.round(Number(c.reroll_sec) || 60)));
   card.style.setProperty('--win-glow', segCol);
   card.innerHTML = `<div class="win-badge"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4"/></svg></div>
     <div class="win-sub">Победитель розыгрыша</div>
+    ${rrOn ? `<div class="win-reroll"><span>Реролл — <b>${fmt(rrPrice)}р</b></span><span class="wr-tm" id="winRerollTm">${mmss(rrSec)}</span>${c.reroll_x2 && WH.rerollCount > 0 ? `<span class="wr-x">×${rrMult}</span>` : ''}</div>` : ''}
     <div class="win-title-wrap">
       ${lot.num ? `<span class="win-lotno">Лот #${lot.num}</span>` : ''}
       <div class="win-title-row">
@@ -584,6 +595,16 @@ function showWinner(lot) {
     </div>` : `<div class="win-acts"><button type="button" class="btn win-sec" data-act="winOk">Закрыть</button></div>`}`;
   ov.hidden = false;
   burstConfetti(segCol);
+  if (rrOn) {
+    const endAt = Date.now() + rrSec * 1000;
+    winRrT = setInterval(() => {
+      const tm = $('#winRerollTm'); if (!tm) return stopWinRr();
+      const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      tm.textContent = mmss(left);
+      tm.className = 'wr-tm' + (left === 0 ? ' done' : left <= 10 ? ' low' : '');
+      if (left <= 0) stopWinRr();
+    }, 200);
+  }
   requestAnimationFrame(() => requestAnimationFrame(() => { const bar = $('.win-bar i', ov); if (bar) bar.style.width = bar.dataset.w; }));
 }
 function onSpin(ev) {
@@ -738,6 +759,13 @@ function settingsHtml() {
       <label>Колесо крутится (сек)<input class="in" name="wheel_sec" type="number" min="3" max="120" inputmode="numeric" value="${c.wheel_sec || 20}"></label>
       <label style="grid-column:1/-1">Награды Twitch (цены)<input class="in" name="twitch_costs" value="${esc((c.twitch_costs || []).join(', '))}"></label>
     </div>
+    <h2 class="h2" style="margin-top:16px">Реролл победителя</h2>
+    <label class="check"><input type="checkbox" name="reroll_on" ${wcfg().reroll_on ? 'checked' : ''}><span>Показывать «Реролл — сумма + таймер» над выпавшим лотом</span></label>
+    <div class="rates">
+      <label>Сумма реролла (₽)<input class="in" name="reroll_price" type="number" min="0" step="any" inputmode="decimal" value="${esc(wcfg().reroll_price ?? 1000)}"></label>
+      <label>Таймер реролла (сек)<input class="in" name="reroll_sec" type="number" min="5" max="3600" inputmode="numeric" value="${esc(wcfg().reroll_sec ?? 60)}"></label>
+    </div>
+    <label class="check"><input type="checkbox" name="reroll_x2" ${wcfg().reroll_x2 ? 'checked' : ''}><span>Умножать сумму ×2 при каждом нажатии «Реролл»</span></label>
     <div class="sheet-acts"><button class="btn pri">Сохранить</button></div></form>
   <div class="box"><h2 class="h2">Оверлей для OBS</h2><p class="hint">Источник «Браузер», 600×800: таймер, топ лотов, колесо.</p>
     <div class="row"><code class="code">${esc(d.overlay)}</code><button class="btn sm" data-act="copy" data-id="${esc(d.overlay)}">Копировать</button></div></div>`;
@@ -925,10 +953,10 @@ document.addEventListener('click', async e => {
           f => { WH.result = null; return admDo({ a: 'new', title: f.get('t') }, 'Создан новый аукцион'); });
         return finishSheet();
       case 'finishWin': return finishSheet(WH.result?.id);
-      case 'winOk': hideWinner(); return;
-      case 'winReroll': hideWinner(); WH.result = null; WH.out.clear(); WH.msg = ''; return doSpin();
+      case 'winOk': hideWinner(); WH.rerollCount = 0; return;
+      case 'winReroll': hideWinner(); WH.rerollCount++; WH.result = null; WH.out.clear(); WH.msg = ''; return doSpin();
       case 'winFinish': {
-        const w = WH.result; hideWinner();
+        const w = WH.result; hideWinner(); WH.rerollCount = 0;
         if (!w) return finishSheet();
         const r = await admDo({ a: 'finish', winner: w.id, refund: !S.adm?.config?.no_refund });
         if (r.new_auction) { WH.result = null; WH.out.clear(); WH.msg = ''; setTab('lots'); }
@@ -1033,6 +1061,8 @@ document.addEventListener('change', async e => {
     if (t.id === 'autoSpin') { WH.auto = t.checked; ls.set('auc_autospin', WH.auto ? '1' : '0'); }
     if (t.dataset.wb) return setW({ [t.dataset.wb]: t.checked });
     if (t.id === 'wSound') return setW({ sound: t.value });
+    if (t.id === 'wRrPrice') { WH.rerollCount = 0; return setW({ reroll_price: Math.max(0, Number(t.value) || 0) }); }
+    if (t.id === 'wRrSec') return setW({ reroll_sec: Math.max(5, Math.min(3600, Math.round(Number(t.value) || 60))) });
     if (t.id === 'wImgFile') { await uploadImage(t.files[0]); t.value = ''; return; }
     if (t.id === 'spinSec') { WH.sec = Number(t.value) || 20; return; }
   } catch (err) { toast(err.message, true); render(); }
@@ -1061,8 +1091,15 @@ document.addEventListener('submit', async e => {
     } else if (f.dataset.form === 'settings') {
       const rates = { ...S.adm.config.rates };
       for (const [k, v] of fd) if (k.startsWith('rate_') && v !== '') rates[k.slice(5)] = Number(v);
+      const wheel = {
+        reroll_on: fd.get('reroll_on') === 'on',
+        reroll_price: Math.max(0, Number(fd.get('reroll_price')) || 0),
+        reroll_sec: Math.max(5, Math.min(3600, Math.round(Number(fd.get('reroll_sec')) || 60))),
+        reroll_x2: fd.get('reroll_x2') === 'on',
+      };
+      WH.rerollCount = 0;
       await admDo({ a: 'config', config: { rates, add_sec: +fd.get('add_sec'), add_below_sec: +fd.get('add_below_sec'), min_site_bid: +fd.get('min_site_bid'),
-        wheel_sec: +fd.get('wheel_sec'), twitch_costs: String(fd.get('twitch_costs')).split(/[,\s]+/).filter(Boolean) } }, 'Сохранено');
+        wheel_sec: +fd.get('wheel_sec'), twitch_costs: String(fd.get('twitch_costs')).split(/[,\s]+/).filter(Boolean), wheel } }, 'Сохранено');
     }
   } catch (err) { toast(err.message, true); }
 });

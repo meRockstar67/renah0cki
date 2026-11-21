@@ -525,3 +525,20 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   background: var(--accent-soft); border: 1px solid var(--accent-ring); color: var(--accent); }
 .win-out:hover { filter: brightness(1.12); }
 @media (max-width: 520px) { .win-card { padding: 24px 18px 20px; } .win-stat b { font-size: 16px; } }
+
+/* ── реролл: настройки и плашка над победителем ── */
+.ws-rr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ws-field { display: grid; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.ws-field input { width: 100%; min-width: 0; height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; font-weight: 700; outline: 0; }
+.ws-field input:focus { border-color: var(--accent); }
+.win-reroll { display: inline-flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+  padding: 7px 16px; border-radius: 999px; background: rgba(255, 255, 255, .06);
+  border: 1px solid var(--accent-ring); box-shadow: 0 0 22px var(--accent-soft);
+  font-size: 15px; font-weight: 700; color: var(--text); }
+.win-reroll b { color: var(--accent); font-weight: 900; font-variant-numeric: tabular-nums; }
+.win-reroll .wr-tm { font-family: var(--mono); font-size: 15px; font-weight: 800; padding: 2px 9px; border-radius: 999px;
+  background: rgba(0, 0, 0, .35); color: #fff; font-variant-numeric: tabular-nums; }
+.win-reroll .wr-tm.low { color: var(--danger); background: rgba(255, 107, 125, .16); animation: pulse 1s var(--ease) infinite; }
+.win-reroll .wr-tm.done { color: var(--muted); }
+.win-reroll .wr-x { font-family: var(--mono); font-size: 12px; font-weight: 800; padding: 2px 7px; border-radius: 999px;
+  background: var(--accent-2); color: #fff; }
