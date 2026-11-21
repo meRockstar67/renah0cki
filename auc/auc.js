@@ -499,8 +499,46 @@ async function doSpin() {
     setTimeout(() => { if (WH.lastSpin !== ev.id) onSpin(ev); }, 1200);
   } catch (e) { toast(e.message, true); }
 }
+function hideWinner() {
+  const ov = $('#winOver'); if (ov) ov.hidden = true;
+}
+function showWinner(lot) {
+  if (!lot) return;
+  const ov = $('#winOver'), card = $('#winCard'); if (!ov || !card) return;
+  const d = A();
+  const sum = +lot.total || 0;
+  const totalAll = (d?.lots || []).reduce((s, l) => s + (+l.total || 0), 0) || 1;
+  const pct = Math.min(100, (sum / totalAll) * 100);
+  const pctStr = pct.toFixed(1);
+  const bids = S.isAdmin ? (S.adm?.bids || []) : (d?.recent || []);
+  const donCount = bids.filter(b => b.lot_id === lot.id && ['active', 'won'].includes(b.status)).length;
+  card.innerHTML = `<div class="win-sub">★ ПОБЕДИТЕЛЬ РОЗЫГРЫША ★</div>
+    <div class="win-title-row">
+      <h2 class="win-title">${esc(lot.name)}</h2>
+      <button type="button" class="win-copy" data-act="copy" data-id="${esc(lot.name)}" title="Скопировать название" aria-label="Скопировать название"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    </div>
+    <div class="win-stats">
+      <div class="win-stat ok"><span>Сумма</span><b>${fmt(sum)} <small>б.</small></b></div>
+      <div class="win-stat ok"><span>Доля</span><b>${pctStr}%</b></div>
+      <div class="win-stat"><span>Донатов</span><b>${donCount}</b></div>
+    </div>
+    <div class="win-share">
+      <div class="win-share-h"><span>Доля в аукционе</span><b>${pctStr}%</b></div>
+      <div class="win-bar"><i style="width:0%" data-w="${pct.toFixed(2)}%"></i></div>
+    </div>
+    ${S.isAdmin ? `<div class="win-acts">
+      <div class="win-acts-row">
+        <button type="button" class="btn win-pri" data-act="winOk">Подтвердить</button>
+        <button type="button" class="btn win-sec" data-act="winReroll">Реролл</button>
+      </div>
+      <button type="button" class="btn win-pri win-full" data-act="winFinish">Подтвердить и завершить аукцион</button>
+    </div>` : `<div class="win-acts"><button type="button" class="btn win-sec" data-act="winOk">Закрыть</button></div>`}`;
+  ov.hidden = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => { const bar = $('.win-bar i', ov); if (bar) bar.style.width = bar.dataset.w; }));
+}
 function onSpin(ev) {
   if (WH.lastSpin === ev.id) return;
+  hideWinner();
   WH.lastSpin = ev.id; WH.spinning = true; WH.result = null; WH.msg = '';
   if (S.tab !== 'wheel') setTab('wheel'); else renderWheelTab();
   const cv = $('#wheelCv'); const ptr = $('#wPtr');
@@ -523,9 +561,9 @@ function onSpin(ev) {
       if (ev.mode === 'elim' && landed) {
         WH.out.add(landed.id);
         const rest = (A()?.lots || []).filter(l => +l.total > 0 && !WH.out.has(l.id));
-        if (rest.length === 1) { WH.result = { ...rest[0] }; toast(`Победитель: ${rest[0].name}`); }
+        if (rest.length === 1) { WH.result = { ...rest[0] }; renderWheelTab(); showWinner(WH.result); return; }
         else { WH.msg = `Выбыл: ${landed.name}`; toast(`Выбыл: ${landed.name} · осталось ${rest.length}`); }
-      } else if (landed) { WH.result = landed; toast(`Колесо выбрало: ${landed.name}`); }
+      } else if (landed) { WH.result = landed; renderWheelTab(); showWinner(WH.result); return; }
       renderWheelTab();
     });
 }
@@ -837,6 +875,18 @@ document.addEventListener('click', async e => {
           f => { WH.result = null; return admDo({ a: 'new', title: f.get('t') }, 'Создан новый аукцион'); });
         return finishSheet();
       case 'finishWin': return finishSheet(WH.result?.id);
+      case 'winOk': hideWinner(); return;
+      case 'winReroll': hideWinner(); WH.result = null; WH.out.clear(); WH.msg = ''; return doSpin();
+      case 'winFinish': {
+        const w = WH.result; hideWinner();
+        if (!w) return finishSheet();
+        const r = await admDo({ a: 'finish', winner: w.id, refund: !S.adm?.config?.no_refund });
+        if (r.new_auction) { WH.result = null; WH.out.clear(); WH.msg = ''; setTab('lots'); }
+        toast(r.new_auction
+          ? `Победил «${w.name}» — начат новый аукцион`
+          : `Готово: победа ${r.won}, возвращено ${r.refunded}${r.failed ? `, ошибок ${r.failed}` : ''}`, !!r.failed);
+        return;
+      }
       case 'spin': return doSpin();
       case 'dice': { const v = 15 + Math.floor(Math.random() * 46); $('#spinSec').value = v; WH.sec = v; return; }
       case 'elimReset': WH.out.clear(); WH.result = null; WH.msg = ''; return renderWheelTab();
@@ -978,8 +1028,10 @@ document.addEventListener('drop', async e => {
   try { await admDo({ a: 'assign', bid, lot: Number(r.dataset.lot) }, 'На лоте'); } catch (err) { toast(err.message, true); }
 });
 
+$('#winOver').addEventListener('click', e => { if (e.target === $('#winOver')) hideWinner(); });
 document.addEventListener('keydown', e => {
-  if (e.code !== 'Space' || S.tab !== 'wheel' || !S.isAdmin || $('#sheet').open) return;
+  if (e.key === 'Escape' && !$('#winOver').hidden) { hideWinner(); return; }
+  if (e.code !== 'Space' || S.tab !== 'wheel' || !S.isAdmin || $('#sheet').open || !$('#winOver').hidden) return;
   if (e.target.closest('input, textarea, select, button, [contenteditable]')) return;
   e.preventDefault(); doSpin();
 });

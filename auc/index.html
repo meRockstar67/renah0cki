@@ -12,9 +12,9 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
 <link rel="preconnect" href="https://api.renah0cki.xyz" crossorigin>
 <link rel="preconnect" href="https://cdn.renah0cki.xyz" crossorigin>
-<link rel="stylesheet" href="/auc/auc.css?v=20261121c">
+<link rel="stylesheet" href="/auc/auc.css?v=20261121f">
 <script src="/auc/wheel.js?v=20261121c" defer></script>
-<script src="/auc/auc.js?v=20261121e" defer></script>
+<script src="/auc/auc.js?v=20261121f" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -166,6 +166,11 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
     <div class="sheet-body" id="sheetBody"></div>
   </form>
 </dialog>
+
+<div class="win-over" id="winOver" hidden role="dialog" aria-modal="true" aria-label="Победитель розыгрыша">
+  <i class="wc tl"></i><i class="wc tr"></i><i class="wc bl"></i><i class="wc br"></i>
+  <div class="win-card" id="winCard"></div>
+</div>
 
 <div class="toast" id="toast" role="status"></div>
 </body>
