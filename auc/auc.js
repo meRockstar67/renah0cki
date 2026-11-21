@@ -64,7 +64,7 @@ const S = {
   q: 'wait', qSort: ls.get('auc_qsort') || 'new', flt: { don: true, pts: true },
   startMin: Number(ls.get('auc_startmin')) || 60,
   search: '', hist: { items: [], end: false }, busy: 0, ver: 0, tmp: 0, shown: null,
-  view: { pct: ls.get('auc_pct') !== '0', bars: ls.get('auc_bars') !== '0', hide: ls.get('auc_hide') === '1' },
+  view: { pct: ls.get('auc_pct') !== '0', bars: ls.get('auc_bars') !== '0', hide: ls.get('auc_hide') === '1', rules: ls.get('auc_rules') !== '0', compact: ls.get('auc_compact') === '1' },
 };
 const WH = { rot: 0, spinning: false, lastSpin: null, result: null, stop: null, auto: ls.get('auc_autospin') === '1' };
 const A = () => S.adm || S.pub;
@@ -120,6 +120,7 @@ function render() {
   ch.textContent = a.status === 'idle' && a.accepting ? 'приём донатов' : (AST[a.status] || a.status);
   ch.className = 'chip ' + (a.status === 'idle' && a.accepting ? 'accept' : a.status);
   $('#aTotal').textContent = `${fmt(d.total)} б.`;
+  const lft = $('#lfTotal'); if (lft) lft.textContent = `Всего: ${fmt(d.total)} б.`;
   const rh = rulesHtml(d.config?.rules);
   if ($('#rules').dataset.h !== rh) { $('#rules').innerHTML = rh; $('#rules').dataset.h = rh; }
   $('#lotCount').textContent = `${d.lots.length} ${plural(d.lots.length, 'лот', 'лота', 'лотов')}`;
@@ -127,6 +128,9 @@ function render() {
   document.body.classList.toggle('hide-sums', S.view.hide);
   document.body.classList.toggle('no-pct', !S.view.pct);
   document.body.classList.toggle('no-bars', !S.view.bars);
+  document.body.classList.toggle('pa-no-rules', !S.view.rules);
+  document.body.classList.toggle('pa-compact', !!S.view.compact);
+  document.querySelectorAll('[data-pa]').forEach(b => b.classList.toggle('on', !!S.view[b.dataset.pa]));
   const wheel = S.tab === 'wheel';
   document.body.classList.toggle('tab-wheel', wheel); $('#wapp').hidden = !wheel;
   renderView(); if (!wheel) renderRight(); tickClock();
@@ -1017,6 +1021,7 @@ document.addEventListener('click', async e => {
   const wv = e.target.closest('[data-wv]'); if (wv) { const [k, v] = wv.dataset.wv.split(':'); return setW({ [k]: v }); }
   const pl = e.target.closest('[data-pal]'); if (pl) return setW({ palette: pl.dataset.pal });
   const wl = e.target.closest('[data-wl]'); if (wl) { const k = wl.dataset.wl; WH.wl[k] = !WH.wl[k]; ls.set('auc_wl_' + k, WH.wl[k] ? '1' : '0'); return renderWheelTab(); }
+  const pa = e.target.closest('[data-pa]'); if (pa) { const k = pa.dataset.pa; S.view[k] = !S.view[k]; ls.set('auc_' + k, S.view[k] ? '1' : '0'); return render(); }
   const fl = e.target.closest('.flt'); if (fl) { S.flt[fl.dataset.flt] = !S.flt[fl.dataset.flt]; return renderRight(); }
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act, id = el.dataset.id, nid = Number(id);
@@ -1029,8 +1034,8 @@ document.addEventListener('click', async e => {
         if (a.status === 'paused') return admDo({ a: 'control', op: 'start' });
         if (a.status === 'ended') return admDo({ a: 'control', op: 'reopen', sec: 60 }, 'Ставки снова открыты (на паузе)');
         return;
-      case 'minus': case 'plus': {
-        const dlt = act === 'plus' ? 1 : -1;
+      case 'minus': case 'plus': case 'plus2': {
+        const dlt = act === 'plus2' ? 2 : act === 'plus' ? 1 : -1;
         if (a.status === 'idle') { S.startMin = Math.max(1, Math.min(600, S.startMin + dlt)); ls.set('auc_startmin', S.startMin); return tickClock(); }
         if (['running', 'paused'].includes(a.status)) return admDo({ a: 'control', op: 'add', sec: 60 * dlt });
         return;

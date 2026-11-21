@@ -15,9 +15,9 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/auc/auc.css?v=20261121k">
-<script src="/auc/wheel.js?v=20261121k" defer></script>
-<script src="/auc/auc.js?v=20261121k" defer></script>
+<link rel="stylesheet" href="/auc/auc.css?v=20261121l">
+<script src="/auc/wheel.js?v=20261121l" defer></script>
+<script src="/auc/auc.js?v=20261121l" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -27,23 +27,24 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
   </a>
   <nav class="tabs" id="tabs" aria-label="Разделы">
     <button data-tab="lots" class="on" title="Аукцион"><svg viewBox="0 0 24 24"><path d="m14 5 5 5M12 7l5 5M4 20l7-7M10.5 4.5l9 9-2.5 2.5-9-9z"/></svg>Аукцион</button>
-    <button data-tab="wheel" title="Колесо"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.6 5.6"/></svg>Колесо</button>
+    <button data-tab="wheel" title="Колесо"><svg class="pa-hide" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.6 5.6"/></svg><svg class="pa-only pa-wheel-ico" viewBox="0 0 24 24"><path d="M12 12V3a9 9 0 0 1 9 9z" fill="#ef5350" stroke="none"/><path d="M12 12h9a9 9 0 0 1-9 9z" fill="#ffa726" stroke="none"/><path d="M12 12v9a9 9 0 0 1-9-9z" fill="#66bb6a" stroke="none"/><path d="M12 12H3a9 9 0 0 1 9-9z" fill="#42a5f5" stroke="none"/><circle cx="12" cy="12" r="9" fill="none" stroke="#1b1b1b" stroke-width="1.2"/></svg>Колесо</button>
     <button data-tab="history" data-adm hidden title="История"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7M4 4v4.7h4.7M12 8v4l3 2"/></svg>История</button>
     <button data-tab="settings" data-adm hidden title="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg>Настройки</button>
     <span class="tabs-sep" aria-hidden="true"></span>
     <button class="ico" data-tab="wallets" data-adm hidden title="Кошельки аукциона" aria-label="Кошельки аукциона"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.6-3.4 3-5.5 6-5.5s5.4 2.1 6 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.6.8 2.7 2.6 3 5.2"/></svg></button>
     <button class="ico" data-tab="bids" data-adm hidden title="Все ставки" aria-label="Все ставки"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 10h16M10 10v10"/></svg></button>
-    <a class="ico" href="/donate/" title="Ссылка для донатов coin и виджет OBS" aria-label="Ссылка для донатов coin"><svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg></a>
     <a class="ico" href="/auc/overlay.html" target="_blank" rel="noopener" title="Оверлей для OBS" aria-label="Оверлей для OBS"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="13" height="14" rx="2"/><path d="M14 4h6v6M20 4l-8 8"/></svg></a>
+    <a class="ico" href="/donate/" title="Ссылка для донатов coin и виджет OBS" aria-label="Ссылка для донатов coin"><svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg></a>
     <button class="ico" data-act="theme" title="Цветовая гамма" aria-label="Цветовая гамма"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h4.5A4.5 4.5 0 0 0 12 3z"/><circle cx="7.5" cy="10.5" r="1" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor"/><circle cx="15" cy="7.5" r="1" fill="currentColor"/></svg></button>
   </nav>
   <div class="clock" id="clock">
     <div class="clock-meta"><span>прошло</span><b id="elapsed">00:00</b><span>лимит</span><b id="limit">60:00</b></div>
     <div class="clock-big" id="timer" aria-label="Оставшееся время">60:00</div>
     <div class="clock-btns" id="clockBtns" data-adm hidden>
-      <button data-act="minus" title="−1 минута">−1</button>
+      <button data-act="minus" title="−1 минута"><span class="pa-hide">−1</span><svg class="pa-only" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
       <button data-act="play" id="playBtn" class="play" title="Старт / пауза" aria-label="Старт или пауза"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z"/></svg></button>
-      <button data-act="plus" title="+1 минута">+1</button>
+      <button data-act="plus" title="+1 минута"><span class="pa-hide">+1</span><svg class="pa-only" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
+      <button data-act="plus2" class="pa-only" title="+2 минуты" aria-label="+2 минуты"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6M6 19h12"/></svg></button>
       <button data-act="reset" class="ghost" title="Остановить ставки / сбросить" aria-label="Остановить или сбросить"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7M4 4v4.7h4.7"/></svg></button>
     </div>
   </div>
@@ -59,11 +60,17 @@ try{var t=localStorage.getItem('auc_theme');if(t&&t!=='violet')document.document
     <article class="rules" id="rules"></article>
     <button class="rules-edit" data-act="rules" data-adm hidden><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Правила</button>
     <div class="left-foot">
-      <div class="lf-top"><button class="lf-eye" data-act="eye" id="eyeBtn" title="Скрыть суммы" aria-label="Скрыть или показать суммы"><svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg></button><span id="lotCount">0 лотов</span></div>
+      <div class="lf-top"><button class="lf-eye" data-act="eye" id="eyeBtn" title="Скрыть суммы" aria-label="Скрыть или показать суммы"><svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg></button><span id="lotCount">0 лотов</span><span class="pa-only lf-total" id="lfTotal"></span></div>
       <div class="lf-btns">
-        <button data-act="view"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h6"/></svg>Вид</button>
-        <button data-act="archive" data-adm hidden><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="4" rx="1"/><path d="M5.5 9v10h13V9M10 13h4"/></svg>Архив</button>
-        <button data-act="finish" data-adm hidden><svg viewBox="0 0 24 24"><path d="m14 5 5 5M12 7l5 5M4 20l7-7M10.5 4.5l9 9-2.5 2.5-9-9z"/></svg>Завершить</button>
+        <button data-act="archive" data-adm hidden title="Архив"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="4" rx="1"/><path d="M5.5 9v10h13V9M10 13h4"/></svg><span class="pa-hide">Архив</span></button>
+        <div class="pa-grp pa-only">
+          <button data-pa="rules" class="on" title="Показать/скрыть правила"><svg viewBox="0 0 24 24"><path d="M4 6h7M4 12h7M4 18h7M15 5v14M19 5v14"/></svg>Правила</button>
+          <button data-pa="pct" title="Показать шансы (%)">%</button>
+          <button data-pa="compact" title="Компактный вид"><svg viewBox="0 0 24 24"><path d="M4 12h16M12 4v5m-3-2 3 2 3-2M12 20v-5m-3 2 3-2 3 2"/></svg></button>
+          <button data-act="view" title="Настройки вида"><svg viewBox="0 0 24 24"><path d="M8 6v12m-3-3 3 3 3-3M16 18V6m-3 3 3-3 3 3"/></svg></button>
+        </div>
+        <button data-act="view" class="pa-hide"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h6"/></svg>Вид</button>
+        <button data-act="finish" data-adm hidden><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M12 8v8M8 12h8"/></svg><span class="pa-hide">Завершить</span><span class="pa-only">Новый аукцион</span></button>
       </div>
     </div>
   </aside>
