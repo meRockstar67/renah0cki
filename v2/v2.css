@@ -944,7 +944,7 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 @media (min-width: 901px) {
   .prof-card { display: grid; grid-template-columns: auto 1fr auto; column-gap: 20px; row-gap: 12px; align-items: start; }
   .prof-left { display: contents; }
-  .prof-ava { grid-column: 1; grid-row: 1; }
+  .prof-ava, .prof-left > .cf-wrap { grid-column: 1; grid-row: 1; }
   .prof-main { grid-column: 2; grid-row: 1; }
   .prof-acts { grid-column: 3; grid-row: 1; }
   .prof-left .prof-links { grid-column: 1 / -1; grid-row: 2; max-width: none; justify-content: flex-start; gap: 8px; }
@@ -998,3 +998,118 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .ftag-clear { margin-left: 6px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; text-transform: none; }
 .ftag-n { font-style: normal; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; margin-left: 4px; }
 .filter-pop { max-width: min(420px, calc(100vw - 24px)); }
+
+
+/* ════════ косметика и магазин ════════ */
+@property --cf-ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes cfSpin { to { --cf-ang: 360deg; } }
+@keyframes cfPulse { 0%, 100% { filter: drop-shadow(0 0 6px rgba(34,211,238,.55)); } 50% { filter: drop-shadow(0 0 11px rgba(244,114,182,.75)); } }
+@keyframes cfxFlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+@keyframes cfxGlitch {
+  0%, 91%, 100% { text-shadow: 0 0 0 transparent; transform: none; }
+  92% { text-shadow: -2px 0 #22d3ee, 2px 0 #ff2d8a; transform: translate(1px, 0); }
+  94% { text-shadow: 2px 0 #22d3ee, -2px 0 #ff2d8a; transform: translate(-1px, 0); }
+  96% { text-shadow: -1px 0 #22d3ee, 1px 0 #ff2d8a; transform: none; }
+}
+@keyframes cbgAurora { 0%, 100% { transform: translateX(-8%) rotate(-2deg); opacity: .75; } 50% { transform: translateX(8%) rotate(2deg); opacity: 1; } }
+
+/* ── рамки для аватарок ── */
+.cf-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; padding: 2px; border-radius: 50%; }
+.cf-wrap > .av, .cf-wrap > .prof-ava { position: relative; z-index: 1; display: block; margin: 0 !important; }
+.cf-wrap.cf-lg { padding: 4px; border-radius: 26px; }
+@media (max-width: 900px) { .cf-wrap.cf-lg { padding: 3px; border-radius: 21px; } }
+.me-btn.cf-btn { border: 0; padding: 2px; overflow: visible; }
+.me-btn.cf-btn img { border-radius: 8px; position: relative; z-index: 1; }
+
+.cf-frame_ice { background: linear-gradient(135deg, #b8ecff, #6cc4ff 50%, #3b82f6); box-shadow: 0 0 12px rgba(108,196,255,.45); }
+.cf-frame_neon { background: linear-gradient(135deg, #22d3ee, #f472b6 55%, #a855f7); animation: cfPulse 2.8s ease-in-out infinite; }
+.cf-frame_emerald { background: linear-gradient(135deg, #6ee7b7, #10b981 50%, #06b6d4); box-shadow: 0 0 12px rgba(16,185,129,.4); }
+.cf-frame_sakura { background: linear-gradient(135deg, #ffd6e7, #ff8ec7 50%, #c084fc); box-shadow: 0 0 12px rgba(255,142,199,.45); }
+.cf-frame_fire { background: conic-gradient(from var(--cf-ang), #ff2d00, #ff8c00, #ffd740, #ff4500, #ff2d00); animation: cfSpin 3s linear infinite; box-shadow: 0 0 14px rgba(255,115,0,.45); }
+.cf-frame_aurora { background: conic-gradient(from var(--cf-ang), #22d3ee, #34d399, #818cf8, #c084fc, #22d3ee); animation: cfSpin 4.5s linear infinite; box-shadow: 0 0 14px rgba(52,211,153,.38); }
+.cf-frame_gold { background: conic-gradient(from var(--cf-ang), #b45309, #fde047, #fff7c2, #f59e0b, #b45309); animation: cfSpin 3.6s linear infinite; box-shadow: 0 0 16px rgba(245,158,11,.5); }
+.cf-frame_rainbow { background: conic-gradient(from var(--cf-ang), #ff4d6d, #ffbe0b, #38ef7d, #00d2ff, #a855f7, #ff4d6d); animation: cfSpin 3.2s linear infinite; box-shadow: 0 0 16px rgba(168,85,247,.42); }
+.cf-sm.cf-frame_ice, .cf-sm.cf-frame_neon, .cf-sm.cf-frame_emerald, .cf-sm.cf-frame_sakura, .cf-sm.cf-frame_fire, .cf-sm.cf-frame_aurora, .cf-sm.cf-frame_gold, .cf-sm.cf-frame_rainbow { box-shadow: none; }
+
+/* ── эффекты для ника ── */
+.cfx { display: inline-block; font-weight: 700; }
+.cfx-fx_ice { color: #b8ecff; text-shadow: 0 0 10px rgba(108,196,255,.75), 0 0 2px rgba(255,255,255,.5); }
+.cfx-fx_neon { color: #e0f7ff; text-shadow: 0 0 6px #22d3ee, 0 0 14px rgba(244,114,182,.75); }
+.cfx-fx_sakura { background: linear-gradient(90deg, #ff9ec7, #e9b8ff, #fff0f6, #ff9ec7); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 4.5s linear infinite; }
+.cfx-fx_aurora { background: linear-gradient(90deg, #34d399, #22d3ee, #a855f7, #34d399); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 4s linear infinite; }
+.cfx-fx_fire { background: linear-gradient(90deg, #ff3d00, #ff9100, #ffe57f, #ff3d00); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 3s linear infinite; filter: drop-shadow(0 0 6px rgba(255,110,0,.45)); }
+.cfx-fx_gold { background: linear-gradient(100deg, #d97706 0%, #fde047 38%, #fffbe6 50%, #f59e0b 62%, #d97706 100%); background-size: 220% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 3.4s linear infinite; filter: drop-shadow(0 0 6px rgba(250,204,21,.35)); }
+.cfx-fx_glitch { color: #f1f7ff; animation: cfxGlitch 3.2s steps(1) infinite; }
+.cfx-fx_rainbow { background: linear-gradient(90deg, #ff4d6d, #ffbe0b, #38ef7d, #38bdf8, #a855f7, #ff4d6d); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 3.5s linear infinite; }
+
+/* ── значок у ника ── */
+.cb-ico { display: inline-block; margin-left: 4px; font-size: .92em; line-height: 1; vertical-align: -1px; font-style: normal; font-weight: 400; }
+
+/* ── фоны карточки профиля ── */
+.cbg { position: relative; overflow: hidden; }
+.cbg > * { position: relative; z-index: 1; }
+.cbg::before, .cbg::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.cbg-bg_winter { border-color: #365f96; background: linear-gradient(135deg, #0d1d38 0%, #102546 55%, #0c182d 100%); }
+.cbg-bg_winter::before { background: radial-gradient(600px 220px at 15% 0%, rgba(108,196,255,.26), transparent 70%), radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.6), transparent), radial-gradient(2px 2px at 45% 70%, rgba(255,255,255,.5), transparent), radial-gradient(1.5px 1.5px at 72% 25%, rgba(255,255,255,.65), transparent), radial-gradient(2px 2px at 85% 65%, rgba(255,255,255,.45), transparent), radial-gradient(1.5px 1.5px at 60% 18%, rgba(184,236,255,.6), transparent); }
+.cbg-bg_sakura { border-color: #6b3860; background: linear-gradient(135deg, #21122a 0%, #2c1630 55%, #161428 100%); }
+.cbg-bg_sakura::before { background: radial-gradient(460px 220px at 85% 15%, rgba(255,142,199,.28), transparent 70%), radial-gradient(320px 200px at 15% 85%, rgba(192,132,252,.22), transparent 70%); }
+.cbg-bg_cyber { border-color: #3b3575; background: linear-gradient(160deg, #120d26 0%, #161a38 55%, #0d182b 100%); }
+.cbg-bg_cyber::before { background-image: linear-gradient(rgba(34,211,238,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(244,114,182,.09) 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 90%); -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 90%); }
+.cbg-bg_cyber::after { background: radial-gradient(480px 180px at 80% 0%, rgba(244,114,182,.24), transparent 70%), radial-gradient(420px 180px at 12% 100%, rgba(34,211,238,.22), transparent 70%); }
+.cbg-bg_sunset { border-color: #6f3330; background: linear-gradient(135deg, #27101c 0%, #331618 52%, #191326 100%); }
+.cbg-bg_sunset::before { background: radial-gradient(500px 240px at 85% 10%, rgba(255,120,40,.28), transparent 70%), radial-gradient(420px 220px at 20% 90%, rgba(236,72,153,.22), transparent 70%); }
+.cbg-bg_aurora { border-color: #296b6d; background: linear-gradient(145deg, #0b1b29 0%, #101e36 60%, #14142c 100%); }
+.cbg-bg_aurora::before { inset: -30% -20%; background: radial-gradient(ellipse 65% 45% at 30% 35%, rgba(52,211,153,.26), transparent 65%), radial-gradient(ellipse 55% 45% at 75% 30%, rgba(168,85,247,.26), transparent 65%), radial-gradient(ellipse 50% 40% at 55% 65%, rgba(34,211,238,.18), transparent 65%); animation: cbgAurora 9s ease-in-out infinite; }
+.cbg-bg_gold { border-color: #8f6b24; background: linear-gradient(135deg, #1b160d 0%, #261e10 50%, #141218 100%); box-shadow: inset 0 1px 0 rgba(253,224,71,.22); }
+.cbg-bg_gold::before { background: radial-gradient(520px 220px at 80% 0%, rgba(250,204,21,.22), transparent 70%), linear-gradient(115deg, transparent 35%, rgba(253,224,71,.1) 48%, rgba(255,255,255,.08) 50%, transparent 62%); }
+
+/* ── страница магазина ── */
+.shop { max-width: 1120px; margin: 0 auto; }
+.shop-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.shop-head h1 { margin: 0; font-size: 26px; }
+.shop-bal { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); font-weight: 700; }
+.shop-bal img { width: 20px; height: 20px; object-fit: contain; }
+.shop-bal a { margin-left: 6px; padding: 4px 10px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font-size: 13px; }
+.shop-preview-wrap { margin-bottom: 18px; }
+.shop-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+.shop-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.shop-slot { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; background: var(--panel-2); color: var(--text); font-size: 12.5px; }
+.shop-slot.try { border: 1px solid var(--accent); color: var(--accent); }
+.shop-slot button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 13px; line-height: 1; }
+.shop-slot button:hover { color: #ff8a8a; }
+.shop-tabs { margin-bottom: 16px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(235px, 1fr)); gap: 14px; }
+.shop-card { display: flex; flex-direction: column; border-radius: 16px; background: var(--panel); border: 1px solid var(--border); overflow: hidden; transition: border-color .2s, transform .2s; }
+.shop-card:hover { border-color: #365484; transform: translateY(-2px); }
+.shop-card.is-eq { border-color: #4ade80; }
+.shop-card.is-try { border-color: var(--accent); }
+.shop-prev { position: relative; height: 122px; display: flex; align-items: center; justify-content: center; padding: 14px; background: #09101d; border-bottom: 1px solid var(--border); overflow: hidden; }
+.shop-prev .prof-ava { width: 72px; height: 72px; border-radius: 18px; }
+.shop-prev .cf-wrap.cf-lg { border-radius: 22px; }
+.shop-prev-nick { font-size: 20px; font-weight: 800; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shop-prev-badge { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; }
+.shop-prev-badge .cb-ico { font-size: 24px; margin-left: 2px; }
+.shop-prev-bg { width: 100%; height: 100%; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.shop-prev-bg img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; flex: none; }
+.shop-prev-bg b { font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shop-prev-bg span { font-size: 11.5px; color: var(--muted); }
+.shop-rar { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; background: rgba(11,18,32,.85); border: 1px solid var(--border); color: var(--muted); }
+.shop-rar.rare { color: #6cc4ff; border-color: rgba(108,196,255,.45); }
+.shop-rar.epic { color: #c084fc; border-color: rgba(192,132,252,.5); }
+.shop-rar.legendary { color: #fde047; border-color: rgba(253,224,71,.5); }
+.shop-own-tag { position: absolute; top: 8px; right: 8px; z-index: 2; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 800; background: rgba(22,60,40,.9); color: #7be0a1; border: 1px solid rgba(123,224,161,.4); }
+.shop-info { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; }
+.shop-info h3 { margin: 0; font-size: 15.5px; }
+.shop-info p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.4; flex: 1; }
+.shop-acts { display: flex; gap: 6px; margin-top: 10px; }
+.shop-acts .btn { height: 34px; padding: 0 11px; font-size: 13px; border-radius: 9px; }
+.shop-acts .shop-buy { flex: 1; }
+.shop-acts .shop-buy img { width: 15px; height: 15px; object-fit: contain; }
+.shop-acts .btn.eq-on { background: #173a26; border-color: #2f7a4d; color: #7be0a1; flex: 1; }
+.shop-acts .btn.eq-on:hover { background: #2d1c22; border-color: #8a3a45; color: #ff9c9c; }
+@media (max-width: 600px) { .shop-grid { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; } .shop-prev { height: 104px; } .shop-acts { flex-wrap: wrap; } .shop-acts .btn { flex: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .cf-frame_neon, .cf-frame_fire, .cf-frame_aurora, .cf-frame_gold, .cf-frame_rainbow,
+  .cfx-fx_sakura, .cfx-fx_aurora, .cfx-fx_fire, .cfx-fx_gold, .cfx-fx_glitch, .cfx-fx_rainbow,
+  .cbg-bg_aurora::before { animation: none !important; }
+}

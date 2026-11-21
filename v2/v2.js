@@ -208,6 +208,50 @@ async function loadMyLikes(ids) {
 const pname = p => p?.display_name || p?.username || 'без имени';
 const avatarUrl = p => p?.avatar_url || COIN;
 
+/* ── косметика и магазин (пока магазин только для владельца; эффекты видны всем) ── */
+const EQ = new Map();
+const SHOP_BADGES = {
+  badge_snow: ['❄️', 'Снежинка'], badge_paw: ['🐾', 'Лапка'], badge_star: ['⭐', 'Звезда'],
+  badge_bunny: ['🐰', 'Зайчик'], badge_sakura: ['🌸', 'Сакура'], badge_bolt: ['⚡', 'Молния'],
+  badge_fire: ['🔥', 'Огонёк'], badge_cyber: ['👾', 'Кибер'], badge_gem: ['💎', 'Алмаз'],
+  badge_crown: ['👑', 'Корона'],
+};
+const SHOP_ITEMS = new Map();
+function absorbEq(rows) { EQ.clear(); (rows || []).forEach(r => EQ.set(r.user_id, r)); }
+(() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
+let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner&limit=1000')
+  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); })
+  .catch(() => {});
+const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
+const badgeMeta = id => {
+  if (!id) return null;
+  const it = SHOP_ITEMS.get(id);
+  if (it?.meta?.icon) return [it.meta.icon, it.title];
+  return SHOP_BADGES[id] || null;
+};
+function applyMeFrame() {
+  const b = $('#meBtn'); if (!b) return;
+  const fr = S.uid && EQ.get(S.uid)?.frame;
+  b.className = 'me-btn' + (fr && /^frame_[a-z0-9_]+$/i.test(fr) ? ' cf-btn cf-' + fr : '');
+}
+function cosAva(p, cls = 'av', extra = '', overrideFrame) {
+  const fr = overrideFrame !== undefined ? overrideFrame : eqOf(p)?.frame;
+  const url = p?.avatar_url;
+  const inner = url
+    ? `<img class="${cls}" src="${esc(url)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'"${fr ? '' : extra}>`
+    : `<span class="${cls} av-ph"${fr ? '' : extra}>${esc((pname(p)[0] || '?').toUpperCase())}</span>`;
+  if (!fr || !/^frame_[a-z0-9_]+$/i.test(fr)) return inner;
+  const sz = cls === 'prof-ava' ? 'cf-lg' : 'cf-sm';
+  return `<span class="cf-wrap ${sz} cf-${esc(fr)}"${extra}>${inner}</span>`;
+}
+function cosName(p, overrideFx, overrideBadge) {
+  const eq = eqOf(p);
+  const fx = overrideFx !== undefined ? overrideFx : eq?.nick_fx;
+  const bg = overrideBadge !== undefined ? overrideBadge : eq?.badge;
+  const bm = badgeMeta(bg);
+  return `<span${nameAttr(p?.name_color, fx)}>${esc(pname(p))}</span>${bm ? `<span class="cb-ico" title="${esc(bm[1])}">${bm[0]}</span>` : ''}`;
+}
+
 /* ── время ── */
 const MON = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 function when(ts) {
@@ -252,7 +296,7 @@ function cardHtml(it) {
       ${b ? `<span class="badge type">${b[0]} ${b[1]}</span>` : ''}
     </div>
     <div class="card-body">
-      <div class="card-author" data-user="${esc(a?.username || it.submitted_by)}"><img class="av" src="${esc(avatarUrl(a))}" alt="" loading="lazy"><span>${esc(pname(a))}</span></div>
+      <div class="card-author" data-user="${esc(a?.username || it.submitted_by)}">${cosAva(a)}${cosName(a)}</div>
       <h3 class="card-title">${esc(it.title || 'Без названия')}</h3>
       ${it.description && it.content_type !== 'fanfic' ? `<p class="card-desc">${esc(it.description)}</p>` : ''}
       <div class="card-stats">
@@ -434,7 +478,7 @@ async function viewPost(key, root = page) {
   root.innerHTML = `<div class="post">
     ${inLb ? '' : `<button class="back" data-back>${I.back} Назад</button>`}
     ${media ? `<div class="post-media${it.is_blurred ? ' blur' : ''}" id="postMedia">${media}</div>` : ''}
-    <div class="post-head"><img class="av" src="${esc(avatarUrl(a))}" alt="" data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"><div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${esc(pname(a))}</b><div class="sub">${when(it.published_at || it.created_at)}${it.content_type === 'fanfic' ? '' : ` · ${fmt(it.views)} просмотров`}</div></div>
+    <div class="post-head">${cosAva(a, 'av', ` data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"`)}<div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${cosName(a)}</b><div class="sub">${when(it.published_at || it.created_at)}${it.content_type === 'fanfic' ? '' : ` · ${fmt(it.views)} просмотров`}</div></div>
       <div class="post-actions"><div class="react-wrap" id="reactWrap"></div><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button>${postMenuHtml(it)}</div></div>
     <h1>${esc(it.title || 'Без названия')}</h1>
     ${it.description && it.content_type !== 'fanfic' ? `<p class="post-desc">${esc(it.description)}</p>` : ''}
@@ -721,7 +765,7 @@ function drawComments(box, rows, cid) {
   const draft = $('.cmt-form textarea', box)?.value || '';
   box.innerHTML = `<h3>Комментарии · ${rows.length}</h3>` + (rows.length ? ordered.map(([c, d]) => {
     const p = S.profiles.get(c.author_id), mine = S.uid && c.author_id === S.uid;
-    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}"><img class="av" src="${esc(avatarUrl(p))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'"><div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}"><span${nameAttr(p?.name_color)}>${esc(pname(p))}</span></b><span>${when(c.created_at)}</span></div>${c.voice_url && isOwnFile(c.voice_url) ? `<audio class="cmt-voice" src="${esc(c.voice_url)}" controls preload="none"></audio>` : `<div class="cmt-body">${esc(c.body || '')}</div>`}
+    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}">${cosAva(p)}<div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}">${cosName(p)}</b><span>${when(c.created_at)}</span></div>${c.voice_url && isOwnFile(c.voice_url) ? `<audio class="cmt-voice" src="${esc(c.voice_url)}" controls preload="none"></audio>` : `<div class="cmt-body">${esc(c.body || '')}</div>`}
       ${S.uid ? `<div class="cmt-acts"><button type="button" data-creply="${c.id}" data-cname="${esc(pname(p))}">Ответить</button>${mine || mod ? `<button type="button" data-cdel="${c.id}">Удалить</button>` : ''}${!mine ? `<button type="button" data-crep="${c.id}">Пожаловаться</button>` : ''}</div>` : ''}</div></div>`;
   }).join('') : '<div class="empty" style="padding:20px">Комментариев пока нет</div>')
     + (S.uid ? `<form class="cmt-form" data-cform><div class="cmt-to" hidden></div><div class="cmt-row"><textarea rows="2" maxlength="2000" placeholder="Написать комментарий…" required></textarea>${canVoice() ? `<button class="btn icon-only" type="button" data-voice title="Голосовое сообщение" aria-label="Записать голосовое">${I.mic}</button>` : ''}<button class="btn accent" type="submit">Отправить</button></div></form>`
@@ -1068,19 +1112,21 @@ async function viewProfile(key) {
     (async () => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/subscriptions?following_id=eq.${p.id}&select=id`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; })().catch(() => 0),
     S.uid && !own ? api(`subscriptions?follower_id=eq.${S.uid}&following_id=eq.${p.id}&select=id`).catch(() => []) : Promise.resolve([]),
     isOwner && !own ? rpc('coin_admin_balance', { p_user: p.id }).catch(() => null) : Promise.resolve(null),
+    eqReady,
   ]);
   await loadAllMyLikes();
   let subscribed = !!followRows[0], subs = subCount;
   const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
   const socialLabel = u => { try { return /^(?:.+\.)?(?:t\.me|telegram\.(?:me|dog|org))$/i.test(new URL(u).hostname) ? 'Телеграм' : 'Соцсеть'; } catch { return 'Соцсеть'; } };
   const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url]].filter(x => x && /^https?:\/\//.test(x[1]));
+  const eq = eqOf(p), bgCls = eq?.banner && /^bg_[a-z0-9_]+$/i.test(eq.banner) ? ` cbg cbg-${esc(eq.banner)}` : '';
   page.innerHTML = `<div class="prof">
-    <section class="prof-card">
-      <div class="prof-left">${avaHtml(p.avatar_url, pname(p), 'prof-ava')}
+    <section class="prof-card${bgCls}">
+      <div class="prof-left">${cosAva(p, 'prof-ava')}
         ${links.length ? `<div class="prof-links">${links.map(([n, u]) => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join('')}</div>` : ''}</div>
       <div class="prof-main">
         ${roles.length ? `<div class="prof-roles">${roles.map(r => `<span class="role role-${r}">${ROLE_LABEL[r]}</span>`).join('')}</div>` : ''}
-        <h1><span${nameAttr(p.name_color)}>${esc(pname(p))}</span></h1>
+        <h1>${cosName(p)}</h1>
         ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
         ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
         <div class="prof-stats"><span><b>${fmt(works.length)}</b> публикаций</span><span><b id="subsN">${fmt(subs)}</b> подписчиков</span>${adminBal != null ? `<span class="prof-coin" title="Баланс пользователя (видно только вам)"><img src="${COIN}" alt=""><b id="profCoinVal" data-uid="${esc(p.id)}">${fmt(adminBal)}</b> coin</span>` : ''}</div>
@@ -1450,7 +1496,10 @@ async function loadMe() {
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
     $('#navAwards').hidden = me?.id !== OWNER_ID; // OvosheAwards — пока только владельцу
+    $('#navShop').hidden = me?.id !== OWNER_ID;   // Магазин косметики — пока только владельцу
+    $('#meShop').hidden = me?.id !== OWNER_ID;
     $('#meOld').hidden = !(hasRole(me, 'gl_moder') || me?.id === OWNER_ID); // старый дизайн — только главному модератору
+    applyMeFrame();
     $('#navMod').hidden = !isMod();
     if (isMod()) modCount();
     postMenuLate();
@@ -1823,8 +1872,9 @@ const NAME_PAINTS = [
 const hasRole = (p, r) => !!p && (p.role === r || (p.extra_roles || []).includes(r));
 const canColor = p => !!p && (MOD_ROLES.some(r => hasRole(p, r)) || hasRole(p, 'streamer') || hasRole(p, 'sponsor'));
 const okColor = c => /^#[0-9a-f]{3,8}$/i.test(c || '') || /^linear-gradient\([#0-9a-zA-Z,.%\s()-]{1,240}\)$/.test(c || '');
-// атрибуты для имени: цвет или переливающийся градиент
-function nameAttr(c) {
+// атрибуты для имени: эффект из магазина, цвет или переливающийся градиент
+function nameAttr(c, fx) {
+  if (fx && /^fx_[a-z0-9_]+$/i.test(fx)) return ` class="cfx cfx-${esc(fx)}"`;
   if (!okColor(c)) return '';
   if (c[0] === '#') return ` style="color:${c}"`;
   const anim = /^linear-gradient\(90deg,(#\w+),#\w+,\1\)$/.test(c);
@@ -2000,7 +2050,7 @@ function collCard(c) {
   return `<article class="card" data-coll="${esc(c.short_code || c.id)}">
     <div class="card-media">${cover}<span class="badge type">🗂️ ${fmt(c.item_count || 0)}</span></div>
     <div class="card-body">
-      <div class="card-author" data-user="${esc(a?.username || c.submitted_by)}">${avaHtml(a?.avatar_url, pname(a))}<span>${esc(pname(a))}</span></div>
+      <div class="card-author" data-user="${esc(a?.username || c.submitted_by)}">${cosAva(a)}${cosName(a)}</div>
       <h3 class="card-title">${esc(c.title || 'Сборник')}</h3>
       ${c.description ? `<p class="card-desc">${esc(c.description)}</p>` : ''}
       <div class="card-stats"><span>${I.views}${fmt(c.views)}</span><span>${I.heart}${fmt(c.likes)}</span><span>${I.comment}${fmt(c.comments_count)}</span><time>${when(c.published_at || c.created_at)}</time></div>
@@ -2037,7 +2087,7 @@ async function viewCollection(key) {
   page.innerHTML = `<div class="post coll-page">
     <button class="back" data-back>${I.back} Назад</button>
     <h1>${esc(c.title || 'Сборник')}</h1>
-    <div class="post-head">${avaHtml(a?.avatar_url, pname(a))}<div><b data-user="${esc(a?.username || c.submitted_by)}" style="cursor:pointer"><span${nameAttr(a?.name_color)}>${esc(pname(a))}</span></b><div class="sub">${when(c.published_at || c.created_at)} · ${fmt(items.length)} файлов · ${fmt(c.views)} просмотров</div></div>
+    <div class="post-head">${cosAva(a)}<div><b data-user="${esc(a?.username || c.submitted_by)}" style="cursor:pointer">${cosName(a)}</b><div class="sub">${when(c.published_at || c.created_at)} · ${fmt(items.length)} файлов · ${fmt(c.views)} просмотров</div></div>
       <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="collLike">${I.heart}<span>${fmt(c.likes)}</span></button>
       ${S.uid && (own || isMod()) ? `<button class="btn" id="collEdit">Изменить</button><button class="btn danger" id="collDel">Удалить</button>` : ''}</div></div>
     ${c.description ? `<p class="post-desc">${esc(c.description)}</p>` : ''}
@@ -2342,9 +2392,10 @@ async function loadReviews() {
   const mod = isMod();
   l.innerHTML = rows.length ? rows.map(r => {
     const p = S.profiles.get(r.user_id), mine = r.user_id === S.uid, liked = REV.liked.has(r.id);
+    const uObj = p || { id: r.user_id, avatar_url: r.avatar_url, username: r.username };
     return `<article class="rev" data-rev="${r.id}">
-      <img class="av" src="${esc(p?.avatar_url || r.avatar_url || COIN)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${COIN}'">
-      <div class="rev-main"><div class="cmt-head"><b data-user="${esc(p?.username || r.user_id)}"><span${nameAttr(p?.name_color)}>${esc(p ? pname(p) : r.username || 'без имени')}</span></b><span>${when(r.published_at || r.created_at)}</span>${r.status !== 'published' ? `<span class="rev-st">${r.status === 'rejected' ? 'отклонён' : 'на проверке'}</span>` : ''}</div>
+      ${cosAva(uObj)}
+      <div class="rev-main"><div class="cmt-head"><b data-user="${esc(p?.username || r.user_id)}">${cosName(uObj)}</b><span>${when(r.published_at || r.created_at)}</span>${r.status !== 'published' ? `<span class="rev-st">${r.status === 'rejected' ? 'отклонён' : 'на проверке'}</span>` : ''}</div>
         <div class="rev-text">${esc(r.text)}</div>
         <div class="rev-acts">${r.status === 'published' ? `<button type="button" class="rev-like${liked ? ' liked' : ''}" data-rlike="${r.id}">${I.heart}<span>${fmt(r.likes)}</span></button>` : ''}${mine || mod ? `<button type="button" class="rev-del" data-rdel2="${r.id}">Удалить</button>` : ''}</div></div>
     </article>`;
@@ -2388,7 +2439,7 @@ async function viewStreak() {
     <p class="rules-foot">Стрик — сколько дней подряд вы заходите на сайт. Пропуск не сбрасывает его, а замораживает.</p></div>`;
   const rows = await api('profiles?select=id,username,display_name,avatar_url,name_color,streak_count&streak_count=gt.0&order=streak_count.desc.nullslast&limit=10').catch(() => []);
   const box = $('#stList'); if (!box) return;
-  box.innerHTML = rows.length ? rows.map((p, i) => `<a class="st-row${p.id === S.uid ? ' me' : ''}" href="${userPath(p)}"><i>${['🥇', '🥈', '🥉'][i] || i + 1}</i>${avaHtml(p.avatar_url, pname(p))}<span${nameAttr(p.name_color)}>${esc(pname(p))}</span><b>🔥 ${fmt(p.streak_count)}</b></a>`).join('') : '<div class="empty">Пока пусто.</div>';
+  box.innerHTML = rows.length ? rows.map((p, i) => `<a class="st-row${p.id === S.uid ? ' me' : ''}" href="${userPath(p)}"><i>${['🥇', '🥈', '🥉'][i] || i + 1}</i>${cosAva(p)}<span>${cosName(p)}</span><b>🔥 ${fmt(p.streak_count)}</b></a>`).join('') : '<div class="empty">Пока пусто.</div>';
 }
 
 /* ── кошелёк renah0cki coin ── */
@@ -2405,7 +2456,7 @@ const TXI = {
   heart: I.heart,
 };
 const DA_RATES_TXT = '1 ₽ = 1 coin · 1 ₴ = 2 · 1 $ = 80 · 1 € = 90 · 1 ₸ = 0,16 · 1 Br = 25';
-function setBalance(v) { $('#coinVal').textContent = fmt(v); const b = $('#walBal'); if (b) b.textContent = fmt(v); }
+function setBalance(v) { $('#coinVal').textContent = fmt(v); const b = $('#walBal'); if (b) b.textContent = fmt(v); const sb = $('#shopBal'); if (sb) sb.textContent = fmt(v); }
 async function viewWallet(tab) {
   setNav('');
   if (!S.uid) { page.innerHTML = `<div class="empty">Войдите, чтобы открыть кошелёк.<br><br><button class="btn accent" data-login>Войти</button></div>`; return; }
@@ -2513,6 +2564,166 @@ function coinSendDialog(p) {
   document.body.append(ov);
 }
 
+/* ── магазин косметики (пока только для владельца) ── */
+const SHOP_CATS = [
+  ['all', 'Все'],
+  ['frame', 'Рамки'],
+  ['nick_fx', 'Эффекты ника'],
+  ['badge', 'Значки'],
+  ['banner', 'Фоны профиля'],
+  ['mine', 'Мои'],
+];
+const SHOP_SLOT_LBL = { frame: 'Рамка', nick_fx: 'Ник', badge: 'Значок', banner: 'Фон' };
+const SHOP_RAR_LBL = { common: 'Обычный', rare: 'Редкий', epic: 'Эпический', legendary: 'Легендарный' };
+async function viewShop(tab) {
+  setNav('shop');
+  if (!S.uid || S.uid !== OWNER_ID) {
+    page.innerHTML = '<div class="empty">Магазин косметики скоро откроется ✨</div>';
+    return;
+  }
+  const T = SHOP_CATS.some(c => c[0] === tab) ? tab : 'all';
+  page.innerHTML = `<div class="shop"><div class="shop-head"><h1>Магазин косметики</h1></div><div class="skel" style="aspect-ratio:auto;height:150px;margin-bottom:16px"></div><div class="shop-grid">${'<div class="skel" style="aspect-ratio:auto;height:220px"></div>'.repeat(8)}</div></div>`;
+  let items = [], owned = new Set();
+  try {
+    const [rows, ownRows, bal] = await Promise.all([
+      api('shop_items?select=*&order=sort_order.asc,price.asc'),
+      api(`user_cosmetics?user_id=eq.${S.uid}&select=item_id`),
+      rpc('coin_balance').catch(() => null),
+      eqReady,
+    ]);
+    items = rows || [];
+    items.forEach(it => SHOP_ITEMS.set(it.id, it));
+    (ownRows || []).forEach(r => owned.add(r.item_id));
+    if (bal != null) setBalance(bal);
+  } catch (e) {
+    page.innerHTML = `<div class="empty">Не удалось загрузить магазин (${esc(e.message)}). Убедитесь, что применена миграция 043_cosmetics_shop.sql.</div>`;
+    return;
+  }
+  const me = S.me || readSession()?.user || { id: S.uid, username: 'meRockstar' };
+  const tryOn = {};
+  const myEq = () => EQ.get(S.uid) || { user_id: S.uid, frame: null, nick_fx: null, badge: null, banner: null };
+  const activeVal = cat => (cat in tryOn ? tryOn[cat] : myEq()[cat] || null);
+  const saveEqLocal = row => {
+    EQ.set(S.uid, row);
+    cacheSet('eq_all', [...EQ.values()]);
+    applyMeFrame();
+  };
+  const renderPreview = () => {
+    const f = activeVal('frame'), fx = activeVal('nick_fx'), bg = activeVal('badge'), bn = activeVal('banner');
+    const bgCls = bn && /^bg_[a-z0-9_]+$/i.test(bn) ? ` cbg cbg-${esc(bn)}` : '';
+    const hasTry = Object.keys(tryOn).length > 0;
+    const slotsHtml = ['frame', 'nick_fx', 'badge', 'banner'].map(cat => {
+      const id = activeVal(cat);
+      if (!id) return '';
+      const it = SHOP_ITEMS.get(id), isTry = cat in tryOn;
+      return `<span class="shop-slot${isTry ? ' try' : ''}">${SHOP_SLOT_LBL[cat]}: <b>${esc(it?.title || id)}</b>${isTry ? ' (примерка)' : ''}<button type="button" data-unslot="${cat}" data-istry="${isTry ? '1' : ''}" title="${isTry ? 'Убрать из примерки' : 'Снять'}">✕</button></span>`;
+    }).filter(Boolean).join('');
+    return `<div class="shop-preview-wrap">
+      <section class="prof-card${bgCls}">
+        <div class="prof-left">${cosAva(me, 'prof-ava', '', f)}</div>
+        <div class="prof-main">
+          <div class="prof-roles"><span class="role role-admin">Предпросмотр</span></div>
+          <h1>${cosName(me, fx, bg)}</h1>
+          ${me.bio ? `<p class="prof-bio">${esc(me.bio)}</p>` : '<p class="prof-bio">Так ваш профиль, аватарка и ник будут выглядеть на сайте.</p>'}
+        </div>
+      </section>
+      <div class="shop-preview-bar">
+        <div class="shop-slots">${slotsHtml || '<span>Нажмите «Примерить» на любом предмете, чтобы посмотреть его на себе</span>'}</div>
+        ${hasTry ? '<button type="button" class="btn" id="shopResetTry" style="height:30px;padding:0 10px;font-size:12.5px">Сбросить примерку</button>' : ''}
+      </div>
+    </div>`;
+  };
+  const cardPreview = it => {
+    if (it.category === 'frame') return cosAva(me, 'prof-ava', '', it.id);
+    if (it.category === 'nick_fx') return `<div class="shop-prev-nick"><span${nameAttr(null, it.id)}>${esc(pname(me))}</span></div>`;
+    if (it.category === 'badge') return `<div class="shop-prev-badge"><span>${esc(pname(me))}</span><span class="cb-ico">${esc(it.meta?.icon || '')}</span></div>`;
+    if (it.category === 'banner') return `<div class="shop-prev-bg cbg cbg-${esc(it.id)}"><img src="${esc(avatarUrl(me))}" alt=""><div><b>${esc(pname(me))}</b><span>Фон профиля</span></div></div>`;
+    return '';
+  };
+  const draw = () => {
+    const eq = myEq();
+    const list = T === 'all' ? items : T === 'mine' ? items.filter(it => owned.has(it.id)) : items.filter(it => it.category === T);
+    page.innerHTML = `<div class="shop">
+      <div class="shop-head">
+        <h1>Магазин косметики</h1>
+        <div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> coin<a href="#/wallet/topup">Пополнить</a></div>
+      </div>
+      ${renderPreview()}
+      <div class="tabs shop-tabs">${SHOP_CATS.map(([k, l]) => `<a class="tab${T === k ? ' on' : ''}" href="#/shop${k === 'all' ? '' : '/' + k}">${l}${k === 'mine' ? ` (${owned.size})` : ''}</a>`).join('')}</div>
+      ${list.length ? `<div class="shop-grid">${list.map(it => {
+        const isOwn = owned.has(it.id), isEq = eq[it.category] === it.id, isTry = tryOn[it.category] === it.id;
+        return `<article class="shop-card${isEq ? ' is-eq' : ''}${isTry ? ' is-try' : ''}">
+          <div class="shop-prev">
+            <span class="shop-rar ${esc(it.rarity)}">${SHOP_RAR_LBL[it.rarity] || it.rarity}</span>
+            ${isOwn ? '<span class="shop-own-tag">Куплено</span>' : ''}
+            ${cardPreview(it)}
+          </div>
+          <div class="shop-info">
+            <h3>${esc(it.title)}</h3>
+            <p>${esc(it.description)}</p>
+            <div class="shop-acts">
+              ${isOwn
+                ? (isEq
+                  ? `<button type="button" class="btn eq-on" data-sheq="${esc(it.category)}" data-shid="">Надето ✓</button>`
+                  : `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent" style="flex:1" data-sheq="${esc(it.category)}" data-shid="${esc(it.id)}">Надеть</button>`)
+                : `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuy="${esc(it.id)}"><img src="${COIN}" alt="">${fmt(it.price)}</button>`}
+            </div>
+          </div>
+        </article>`;
+      }).join('')}</div>` : `<div class="empty">${T === 'mine' ? 'У вас пока нет купленных предметов.' : 'В этой категории пока пусто.'}</div>`}
+    </div>`;
+    const rst = $('#shopResetTry');
+    if (rst) rst.onclick = () => { Object.keys(tryOn).forEach(k => delete tryOn[k]); draw(); };
+    const sh = $('.shop', page);
+    if (sh) sh.onclick = async e => {
+      const tr = e.target.closest('[data-shtry]');
+      if (tr) {
+        const it = SHOP_ITEMS.get(tr.dataset.shtry); if (!it) return;
+        if (tryOn[it.category] === it.id) delete tryOn[it.category]; else tryOn[it.category] = it.id;
+        draw();
+        return;
+      }
+      const us = e.target.closest('[data-unslot]');
+      if (us) {
+        const cat = us.dataset.unslot;
+        if (us.dataset.istry === '1') { delete tryOn[cat]; draw(); return; }
+        us.disabled = true;
+        try {
+          const row = await rpc('shop_equip', { p_category: cat, p_item_id: null });
+          saveEqLocal(row); toast('Снято'); draw();
+        } catch (er) { toast(er.message, true); us.disabled = false; }
+        return;
+      }
+      const eqBtn = e.target.closest('[data-sheq]');
+      if (eqBtn) {
+        const cat = eqBtn.dataset.sheq, id = eqBtn.dataset.shid || null;
+        eqBtn.disabled = true;
+        try {
+          const row = await rpc('shop_equip', { p_category: cat, p_item_id: id });
+          delete tryOn[cat]; saveEqLocal(row);
+          toast(id ? `Надето: ${SHOP_ITEMS.get(id)?.title || ''}` : 'Снято');
+          draw();
+        } catch (er) { toast(er.message, true); eqBtn.disabled = false; }
+        return;
+      }
+      const buyBtn = e.target.closest('[data-shbuy]');
+      if (buyBtn) {
+        const it = SHOP_ITEMS.get(buyBtn.dataset.shbuy); if (!it) return;
+        if (!confirm(`Купить «${it.title}» за ${fmt(it.price)} coin? Предмет останется у вас навсегда.`)) return;
+        buyBtn.disabled = true;
+        try {
+          const bal = await rpc('shop_buy', { p_item_id: it.id });
+          setBalance(bal); owned.add(it.id); delete tryOn[it.category];
+          saveEqLocal({ ...myEq(), [it.category]: it.id });
+          toast(`Куплено и надето: ${it.title}`);
+          draw();
+        } catch (er) { toast(er.message, true); buyBtn.disabled = false; }
+      }
+    };
+  };
+  draw();
+}
+
 /* ── правила ── */
 function viewRules() {
   setNav('rules');
@@ -2589,12 +2800,13 @@ function route() {
   if (parts[0] === 'mod') return viewMod(parts[1]);
   if (parts[0] === 'rules') return viewRules();
   if (parts[0] === 'wallet') return viewWallet(parts[1]);
+  if (parts[0] === 'shop') return viewShop(parts[1]);
   if (parts[0] === 'settings') return viewSettings();
   if (parts[0] === 'streak') return viewStreak();
   return viewFeed('all');
 }
 addEventListener('hashchange', route);
 loadAllMyLikes();
-loadMe().then(() => { if (/^#\/(suggest|news|u\/|mod|collections|new\/collection)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
+loadMe().then(() => { if (/^#\/(suggest|news|u\/|mod|collections|new\/collection|shop)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
 resolveLegacy().then(ok => { if (ok) route(); });
 })();
