@@ -12,7 +12,7 @@
   --ember: #e34210;
   --ruby: #b81414;
   --danger: #ff5d5d;
-  --serif: "Forum", "Cinzel", Georgia, serif;
+  --serif: "Spectral", "Cinzel", Georgia, serif;
   --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ease: cubic-bezier(.22, 1, .36, 1);
   --cur-def: url("/awards/cursor-def.png?v=3") 0 0, auto;
@@ -60,7 +60,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 /* надпись жюри только вверху сайта, без фона */
 .aw-jury { position: absolute; top: 74px; left: 0; right: 0; z-index: 10; pointer-events: none;
   display: flex; align-items: center; justify-content: center; padding: 0 16px;
-  font-family: var(--serif); font-size: clamp(13px, 1.8vw, 17px); letter-spacing: .16em; text-transform: uppercase;
+  font-family: var(--serif); font-size: clamp(13px, 1.8vw, 17px); font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
   color: #ffe8c4; text-shadow: 0 2px 14px rgba(0, 0, 0, .95), 0 0 18px rgba(255, 96, 20, .55);
   text-align: center; }
 .aw-jury[hidden] { display: none; }
@@ -169,9 +169,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 
 /* ── секции номинаций 1 в 1 SLAY ── */
 .slay-sec { max-width: 1180px; margin: 0 auto; padding: 84px 24px 36px; text-align: center; }
-.slay-h2 { margin: 0; font-family: var(--serif); font-size: clamp(32px, 5vw, 52px); font-weight: 400; letter-spacing: .14em;
+.slay-h2 { margin: 0; font-family: var(--serif); font-size: clamp(32px, 5vw, 52px); font-weight: 700; letter-spacing: .1em;
   text-transform: uppercase; line-height: 1.15;
-  background: linear-gradient(180deg, #ffba6b 0%, #ff7b1c 58%, #d44708 100%);
+  background: linear-gradient(180deg, #ffd08a 0%, #ff821e 58%, #d64708 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent; }
 .slay-h2.white { background: none; color: #ffffff; }
 .slay-sub { margin: 14px auto 0; max-width: 480px; font-size: 14.5px; color: #9c948e; line-height: 1.5; }
@@ -203,12 +203,13 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .slay-card:hover .slay-emblem { transform: translateY(-8px) scale(1.04); }
 .slay-card:hover .slay-emblem::before { transform: scale(1.24); opacity: 1; }
 .slay-card:hover .slay-emblem .slay-ico { filter: drop-shadow(0 18px 36px rgba(255, 102, 20, .68)); }
-.slay-card-t { margin: 8px 0 0; font-family: var(--serif); font-size: 24px; font-weight: 400; letter-spacing: .1em;
+.slay-card-t { margin: 8px 0 0; font-family: var(--serif); font-size: 25px; font-weight: 700; letter-spacing: .07em;
   text-transform: uppercase; line-height: 1.22; transition: filter .25s;
-  background: linear-gradient(180deg, #ffbe70 0%, #f07419 72%, #c94608 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent; }
-.slay-card:hover .slay-card-t { filter: brightness(1.16); }
-.slay-top2 .slay-card-t { font-size: clamp(28px, 3.4vw, 38px); letter-spacing: .12em; }
+  background: linear-gradient(180deg, #ffd596 0%, #ff8b26 62%, #d94c08 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 12px rgba(255, 96, 18, .26)); }
+.slay-card:hover .slay-card-t { filter: drop-shadow(0 2px 16px rgba(255, 118, 28, .48)) brightness(1.14); }
+.slay-top2 .slay-card-t { font-size: clamp(30px, 3.5vw, 40px); letter-spacing: .09em; }
 .slay-card-sub { font-size: 13.5px; color: #7f7872; min-height: 20px; }
 .slay-card-sub.picked { color: #ffbe5c; font-weight: 600; }
 .slay-card .slay-btn { margin-top: 6px; }
@@ -254,13 +255,13 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 
 /* ── ДО НАЧАЛА / ИТОГОВ ПРЕМИИ (скрин 6) ── */
 .slay-cd { padding-top: 112px; display: flex; flex-direction: column; align-items: center; }
-.slay-cd-k { font-family: var(--serif); font-size: clamp(20px, 2.6vw, 28px); letter-spacing: .16em; text-transform: uppercase; color: #ffffff; }
-.slay-cd-h { font-family: var(--serif); font-size: clamp(34px, 5vw, 52px); letter-spacing: .16em; text-transform: uppercase; line-height: 1.05;
-  background: linear-gradient(180deg, #ffba6b 0%, #f07218 65%, #c44108 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.slay-cd-k { font-family: var(--serif); font-size: clamp(20px, 2.6vw, 28px); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #ffffff; }
+.slay-cd-h { font-family: var(--serif); font-size: clamp(34px, 5vw, 52px); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; line-height: 1.05;
+  background: linear-gradient(180deg, #ffd08a 0%, #ff821e 65%, #c94308 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .slay-cd-grid { display: flex; align-items: center; justify-content: center; gap: clamp(14px, 3vw, 32px); margin: 28px 0 30px; }
 .slay-cd-u { display: flex; flex-direction: column; align-items: center; min-width: clamp(72px, 12vw, 130px); }
-.slay-cd-u b { font-family: var(--serif); font-size: clamp(54px, 9.5vw, 112px); font-weight: 400; line-height: .95; font-variant-numeric: tabular-nums;
-  background: linear-gradient(180deg, #ff9d3b 0%, #ff630b 55%, #cf3104 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+.slay-cd-u b { font-family: var(--serif); font-size: clamp(54px, 9.5vw, 112px); font-weight: 700; line-height: .95; font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #ffad4d 0%, #ff6c10 55%, #cf3104 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 24px rgba(255, 86, 12, .25)); }
 .slay-cd-u span { margin-top: 8px; font-size: 13px; color: #7e7771; letter-spacing: .04em; }
 .slay-cd-sep { display: flex; flex-direction: column; gap: 18px; padding-bottom: 24px; }
@@ -279,7 +280,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .slay-faq-item { border-bottom: 1px solid rgba(255, 108, 28, .22); }
 .slay-faq-q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 18px;
   padding: 24px 6px; border: 0; background: none; text-align: left;
-  font-family: var(--serif); font-size: clamp(18px, 2.3vw, 24px); letter-spacing: .08em; text-transform: uppercase; color: #ffffff; transition: color .22s; }
+  font-family: var(--serif); font-size: clamp(18px, 2.3vw, 23px); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #ffffff; transition: color .22s; }
 .slay-faq-q:hover { color: #ffba6b; }
 .slay-faq-star { width: 28px; height: 28px; flex: none; transition: transform .38s var(--ease), filter .28s;
   filter: drop-shadow(0 0 10px rgba(255, 66, 16, .6)); }
@@ -299,10 +300,11 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   padding: 26px 20px 36px; border-bottom: 1px solid rgba(255, 108, 28, .25); animation: rise .45s var(--ease) both; }
 .aw-nom-head .slay-emblem { width: 148px; height: 148px; cursor: default; }
 .aw-kicker { font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #9c948e; }
-.aw-nom-head h1 { margin: 4px 0 0; font-family: var(--serif); font-size: clamp(32px, 5vw, 52px); font-weight: 400;
-  letter-spacing: .12em; text-transform: uppercase; line-height: 1.1;
-  background: linear-gradient(180deg, #ffba6b 0%, #ff7b1c 62%, #d44708 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.aw-nom-head h1 { margin: 4px 0 0; font-family: var(--serif); font-size: clamp(32px, 5vw, 52px); font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; line-height: 1.1;
+  background: linear-gradient(180deg, #ffd596 0%, #ff8620 62%, #d64808 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 14px rgba(255, 96, 18, .28)); }
 .aw-nom-head p { margin: 6px 0 0; max-width: 620px; color: #a89f97; font-size: 15px; }
 .aw-head-acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
 
