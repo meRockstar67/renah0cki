@@ -120,7 +120,7 @@ function render() {
   ch.textContent = a.status === 'idle' && a.accepting ? 'приём донатов' : (AST[a.status] || a.status);
   ch.className = 'chip ' + (a.status === 'idle' && a.accepting ? 'accept' : a.status);
   $('#aTotal').textContent = `${fmt(d.total)} б.`;
-  const lft = $('#lfTotal'); if (lft) lft.textContent = `Всего: ${fmt(d.total)} б.`;
+  const lft = $('#lfTotal'); if (lft) lft.innerHTML = `<span class="dim">Всего:</span> <b>${fmt(d.total)}</b> <span class="dim">₽</span>`;
   const rh = rulesHtml(d.config?.rules);
   if ($('#rules').dataset.h !== rh) { $('#rules').innerHTML = rh; $('#rules').dataset.h = rh; }
   $('#lotCount').textContent = `${d.lots.length} ${plural(d.lots.length, 'лот', 'лота', 'лотов')}`;
@@ -231,7 +231,7 @@ function tween(el, to, f = fmt) {
 }
 
 /* ── лоты (таблица) ── */
-const LOT_ACTS = id => `<button class="ib" data-act="lotPlus" data-id="${id}" title="Добавить баллы" aria-label="Добавить баллы">+</button><button class="ib" data-act="lotRename" data-id="${id}" title="Переименовать" aria-label="Переименовать"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button class="ib" data-act="lotDel" data-id="${id}" title="Удалить" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>`;
+const LOT_ACTS = id => `<button class="ib" data-act="lotPlus" data-id="${id}" title="Прибавить" aria-label="Добавить баллы">+</button><input class="pa-only pa-extra" type="number" step="any" inputmode="decimal" placeholder="₽" data-extra="${id}" aria-label="Прибавить к лоту"><button class="ib" data-act="lotDel" data-id="${id}" title="Удалить слот" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button><button class="ib" data-act="lotRename" data-id="${id}" title="Дополнительно / Переименовать" aria-label="Переименовать"><svg class="pa-hide" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg><svg class="pa-only pa-fill" viewBox="0 0 24 24"><path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"/></svg></button>`;
 function renderLots(v) {
   if (v.dataset.tab !== 'lots') {
     v.dataset.tab = 'lots'; v.className = 'lots-view';
@@ -1021,7 +1021,12 @@ document.addEventListener('click', async e => {
   const wv = e.target.closest('[data-wv]'); if (wv) { const [k, v] = wv.dataset.wv.split(':'); return setW({ [k]: v }); }
   const pl = e.target.closest('[data-pal]'); if (pl) return setW({ palette: pl.dataset.pal });
   const wl = e.target.closest('[data-wl]'); if (wl) { const k = wl.dataset.wl; WH.wl[k] = !WH.wl[k]; ls.set('auc_wl_' + k, WH.wl[k] ? '1' : '0'); return renderWheelTab(); }
-  const pa = e.target.closest('[data-pa]'); if (pa) { const k = pa.dataset.pa; S.view[k] = !S.view[k]; ls.set('auc_' + k, S.view[k] ? '1' : '0'); return render(); }
+  const pa = e.target.closest('[data-pa]'); if (pa) {
+    const k = pa.dataset.pa;
+    if (k === 'connect') return setTab('settings');
+    if (k === 'int') { document.body.classList.toggle('pa-int-open'); return; }
+    S.view[k] = !S.view[k]; ls.set('auc_' + k, S.view[k] ? '1' : '0'); return render();
+  }
   const fl = e.target.closest('.flt'); if (fl) { S.flt[fl.dataset.flt] = !S.flt[fl.dataset.flt]; return renderRight(); }
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act, id = el.dataset.id, nid = Number(id);
@@ -1114,7 +1119,16 @@ document.addEventListener('click', async e => {
       case 'lotRename': { const l = lotsMap().get(nid); return sheet(`Лот #${l.num}`, `<label class="field"><span>Название</span><input class="in" name="n" maxlength="80" value="${esc(l.name)}"></label>${acts('Сохранить')}`,
         f => admDo({ a: 'lot', op: 'rename', id: nid, name: f.get('n') })); }
       case 'lotDel': { const l = lotsMap().get(nid); return admDo({ a: 'lot', op: 'delete', id: nid }, `Лот «${l?.name || ''}» удалён`); }
-      case 'lotPlus': case 'manual': return sheet('Добавить баллы', `${act === 'manual' ? lotPick(null, false) : `<input type="hidden" name="lot" value="${nid}"><p class="hint">Лот ${esc(lotLabel(nid))}</p>`}
+      case 'lotPlus': {
+        const ex = el.closest('.lrow')?.querySelector('.pa-extra');
+        const v = Number(ex?.value);
+        if (ex && v) { ex.value = ''; return admDo({ a: 'manual', lot: nid, user: 'Стример', points: v }, 'Баллы добавлены'); }
+        return sheet('Добавить баллы', `<input type="hidden" name="lot" value="${nid}"><p class="hint">Лот ${esc(lotLabel(nid))}</p>
+          <label class="field"><span>Ник</span><input class="in" name="u" maxlength="60" required autocomplete="off" value="Стример"></label>
+          <label class="field"><span>Баллы</span><input class="in" name="p" type="number" step="any" min="0.01" inputmode="decimal" required></label>${acts('Добавить')}`,
+          f => admDo({ a: 'manual', lot: f.get('lot') ? Number(f.get('lot')) : null, user: f.get('u'), points: Number(f.get('p')) }, 'Баллы добавлены'));
+      }
+      case 'manual': return sheet('Добавить баллы', `${lotPick(null, false)}
         <label class="field"><span>Ник</span><input class="in" name="u" maxlength="60" required autocomplete="off" value="Стример"></label>
         <label class="field"><span>Баллы</span><input class="in" name="p" type="number" step="any" min="0.01" inputmode="decimal" required></label>${acts('Добавить')}`,
         f => admDo({ a: 'manual', lot: f.get('lot') ? Number(f.get('lot')) : null, user: f.get('u'), points: Number(f.get('p')) }, 'Баллы добавлены'));
@@ -1237,6 +1251,12 @@ document.addEventListener('drop', async e => {
 
 $('#winOver').addEventListener('click', e => { if (e.target === $('#winOver')) hideWinner(); });
 document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches?.('.pa-extra')) {
+    e.preventDefault();
+    const v = Number(e.target.value), lid = Number(e.target.dataset.extra);
+    if (v && lid) { e.target.value = ''; admDo({ a: 'manual', lot: lid, user: 'Стример', points: v }, 'Баллы добавлены').catch(err => toast(err.message, true)); }
+    return;
+  }
   if (e.key === 'Escape' && !$('#winOver').hidden) { hideWinner(); return; }
   if (e.code !== 'Space' || S.tab !== 'wheel' || !S.isAdmin || $('#sheet').open || !$('#winOver').hidden) return;
   if (e.target.closest('input, textarea, select, button, [contenteditable]')) return;
