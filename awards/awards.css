@@ -51,8 +51,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .aw-logo { position: absolute; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; }
 .aw-pill { display: inline-flex; align-items: center; gap: 10px; height: 34px; padding: 0 8px 0 18px; border-radius: 999px;
   border: 2px solid #ff6a14; background: #090605; box-shadow: 0 0 18px rgba(255, 98, 20, .35), inset 0 0 10px rgba(255, 98, 20, .14);
-  transition: box-shadow .2s, transform .2s; }
-.aw-pill:hover { box-shadow: 0 0 26px rgba(255, 108, 28, .55); transform: scale(1.02); }
+  user-select: none; }
 .aw-pill b { font-family: var(--sans); font-size: 15px; font-weight: 900; font-style: italic; letter-spacing: .04em; color: #ffffff; line-height: 1; }
 .aw-pill i { width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffae42, #ff5d08 65%, #c92b00); display: block; box-shadow: 0 0 10px rgba(255, 102, 20, .8); }
 .aw-me { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; color: #b7afa8; }
