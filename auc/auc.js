@@ -227,20 +227,26 @@ function tween(el, to, f = fmt) {
 }
 
 /* ── лоты (таблица) ── */
-const LOT_ACTS = id => `<button class="ib" data-act="lotPlus" data-id="${id}" title="Добавить баллы" aria-label="Добавить баллы">+</button><button class="ib" data-act="lotRename" data-id="${id}" title="Переименовать" aria-label="Переименовать"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button class="ib" data-act="lotDel" data-id="${id}" title="Удалить" aria-label="Удалить">✕</button>`;
+const LOT_ACTS = id => `<button class="ib" data-act="lotPlus" data-id="${id}" title="Добавить баллы" aria-label="Добавить баллы">+</button><button class="ib" data-act="lotRename" data-id="${id}" title="Переименовать" aria-label="Переименовать"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button class="ib" data-act="lotDel" data-id="${id}" title="Удалить" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>`;
 function renderLots(v) {
   if (v.dataset.tab !== 'lots') {
     v.dataset.tab = 'lots'; v.className = 'lots-view';
-    v.innerHTML = `<div class="thead"><span class="c">N</span><span class="c hash">#</span><span>Название</span><input id="lotSearch" type="search" placeholder="Поиск…" aria-label="Поиск лота" value="${esc(S.search)}"><span class="r">Сумма</span></div>
-      <div class="tbody" id="lotRows"></div>
+    v.innerHTML = `<div class="lots-top"><div class="thead"><span class="c">N</span><span class="c hash">#</span><span>Название</span><input id="lotSearch" type="search" placeholder="Поиск среди лотов…" aria-label="Поиск лота" value="${esc(S.search)}"><span class="r">Сумма</span></div>
       <form class="addbar" data-form="lotAdd">
-        <input class="in" name="name" maxlength="80" placeholder="Название лота…" aria-label="Название лота" autocomplete="off">
-        <input class="in sum-in" name="sum" type="number" step="any" min="0" inputmode="decimal" placeholder="Сумма" aria-label="Сумма">
+        <input class="in" name="name" maxlength="80" placeholder="Название нового лота" aria-label="Название лота" autocomplete="off">
+        <input class="in sum-in" name="sum" type="number" step="any" min="0" inputmode="decimal" placeholder="₽" aria-label="Сумма">
         <select class="in" name="unit" aria-label="Единица"><option value="pts">б.</option><option value="RUB">₽</option></select>
-        <button class="add-btn">+ Лот</button>
-      </form>`;
+        <button class="add-btn">+ Добавить лот</button>
+      </form></div>
+      <div class="tbody" id="lotRows"></div>`;
   }
-  const f = $('.addbar', v); if (f) f.hidden = !(S.isAdmin && A().auction.status !== 'closed');
+  const f = $('.addbar', v);
+  if (f) {
+    const canAdd = S.isAdmin && A().auction.status !== 'closed';
+    f.hidden = !S.isAdmin;
+    f.classList.toggle('is-closed', !canAdd);
+    f.querySelectorAll('input,select,button').forEach(x => { x.disabled = !canAdd; });
+  }
   const d = A(); const all = d.lots;
   const max = Math.max(1, ...all.map(l => +l.total)); const sum = all.reduce((s, l) => s + +l.total, 0) || 1;
   const q = S.search.trim().toLowerCase();
