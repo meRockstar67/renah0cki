@@ -271,31 +271,60 @@ function slayCardHtml(n, idx) {
   </article>`;
 }
 
-function renderCarousel(more) {
+function carOffset(i, cur, len, dir = 1) {
+  let d = i - cur;
+  if (len > 2) {
+    if (d > len / 2) d -= len;
+    if (d < -len / 2) d += len;
+    if (Math.abs(d) === len / 2) d = dir >= 0 ? -2 : 2;
+  } else if (len === 2 && d !== 0) {
+    d = dir >= 0 ? -1 : 1;
+  }
+  return Math.max(-2, Math.min(2, d));
+}
+function mountCarousel(more) {
   const box = $('#slayCarBox'); if (!box || !more.length) return;
   const len = more.length;
   S.carIdx = ((S.carIdx % len) + len) % len;
-  const cur = more[S.carIdx];
-  const prevIdx = (S.carIdx - 1 + len) % len, nextIdx = (S.carIdx + 1) % len;
-  const prev = len > 1 ? more[prevIdx] : null, next = len > 2 ? more[nextIdx] : (len === 2 ? more[prevIdx] : null);
-  const absIdx = n => S.noms.indexOf(n);
-  const list = neesOf(cur.id), mine = S.votes.get(cur.id), pick = list.find(x => x.id === mine);
-  const sub = pick ? `✓ Ваш голос: ${pick.title}` : (!cur.is_open ? 'Голосование закрыто' : 'Сделай выбор');
-  box.innerHTML = `<div class="slay-car">
-      ${prev ? `<button type="button" class="slay-car-side" data-car="-1" aria-label="Предыдущая: ${esc(prev.title)}"><div class="slay-emblem">${crystalSvg(prev, absIdx(prev))}</div><span>${esc(prev.title)}</span></button>` : '<span></span>'}
-      <div class="slay-car-center">
-        <a class="slay-emblem" href="#/n/${cur.id}">${crystalSvg(cur, absIdx(cur))}</a>
-        <h3 class="slay-card-t"><a href="#/n/${cur.id}">${esc(cur.title)}</a></h3>
-        <div class="slay-card-sub${pick ? ' picked' : ''}">${esc(sub)}</div>
-        <a class="slay-btn${pick ? ' voted' : ''}" href="#/n/${cur.id}">${pick ? 'ИЗМЕНИТЬ ВЫБОР' : 'ПРОГОЛОСОВАТЬ'}</a>
-      </div>
-      ${next ? `<button type="button" class="slay-car-side" data-car="1" aria-label="Следующая: ${esc(next.title)}"><div class="slay-emblem">${crystalSvg(next, absIdx(next))}</div><span>${esc(next.title)}</span></button>` : '<span></span>'}
-    </div>
-    ${len > 1 ? `<div class="slay-car-nav">
-      <button type="button" class="slay-car-arr" data-car="-1" aria-label="Назад">${ARROW_SVG(-1)}</button>
-      <span class="slay-car-cnt"><b>${String(S.carIdx + 1).padStart(2, '0')}</b> / ${String(len).padStart(2, '0')}</span>
-      <button type="button" class="slay-car-arr" data-car="1" aria-label="Вперёд">${ARROW_SVG(1)}</button>
-    </div>` : ''}`;
+  box.innerHTML = `<div class="slay-car-stage">${more.map((n, i) => {
+    const absIdx = S.noms.indexOf(n);
+    const list = neesOf(n.id), mine = S.votes.get(n.id), pick = list.find(x => x.id === mine);
+    const sub = pick ? `✓ Ваш голос: ${pick.title}` : (!n.is_open ? 'Голосование закрыто' : 'Сделай выбор');
+    return `<article class="slay-car-item" data-cidx="${i}" data-pos="${carOffset(i, S.carIdx, len, 1)}">
+      <a class="slay-emblem" href="#/n/${n.id}" aria-label="${esc(n.title)}">${crystalSvg(n, absIdx)}</a>
+      <h3 class="slay-card-t"><a href="#/n/${n.id}">${esc(n.title)}</a></h3>
+      <div class="slay-card-sub${pick ? ' picked' : ''}">${esc(sub)}</div>
+      <a class="slay-btn${pick ? ' voted' : ''}" href="#/n/${n.id}">${pick ? 'ИЗМЕНИТЬ ВЫБОР' : 'ПРОГОЛОСОВАТЬ'}</a>
+    </article>`;
+  }).join('')}</div>
+  ${len > 1 ? `<div class="slay-car-nav">
+    <button type="button" class="slay-car-arr" data-car="-1" aria-label="Назад">${ARROW_SVG(-1)}</button>
+    <span class="slay-car-cnt"><b id="slayCarCur">${String(S.carIdx + 1).padStart(2, '0')}</b> / ${String(len).padStart(2, '0')}</span>
+    <button type="button" class="slay-car-arr" data-car="1" aria-label="Вперёд">${ARROW_SVG(1)}</button>
+  </div>` : ''}`;
+}
+function renderCarousel(more, dir = 1) {
+  const box = $('#slayCarBox'); if (!box || !more.length) return;
+  const items = [...box.querySelectorAll('.slay-car-item')];
+  if (items.length !== more.length) return mountCarousel(more);
+  const len = more.length;
+  S.carIdx = ((S.carIdx % len) + len) % len;
+  // если невидимая карточка (-2 или 2) должна въехать с противоположного края, переносим её без анимации до старта перехода
+  const pre = [];
+  items.forEach((el, i) => {
+    const oldP = Number(el.dataset.pos), newP = carOffset(i, S.carIdx, len, dir);
+    if ((oldP === -2 && newP === 1) || (oldP === 2 && newP === -1)) {
+      el.style.transition = 'none';
+      el.dataset.pos = String(newP > 0 ? 2 : -2);
+      pre.push([el, newP]);
+    }
+  });
+  if (pre.length) {
+    void box.offsetWidth;
+    pre.forEach(([el]) => { el.style.transition = ''; });
+  }
+  items.forEach((el, i) => { el.dataset.pos = String(carOffset(i, S.carIdx, len, dir)); });
+  const curEl = $('#slayCarCur'); if (curEl) curEl.textContent = String(S.carIdx + 1).padStart(2, '0');
 }
 
 /* ── обратный отсчёт ── */
@@ -326,7 +355,7 @@ function viewHome() {
     <section class="slay-hero" id="sec-hero">
       <div class="slay-hero-bg" aria-hidden="true"></div>
       <div class="slay-hero-in">
-        <div class="slay-hero-pill"><b>RENAH0CKI</b><i></i></div>
+        <div class="slay-hero-pill"><b>OvosheAwards 2026</b><i></i></div>
         <h1>OVOSHE<br>AWARDS</h1>
         <p class="slay-hero-sub">Главная премия<br>сообщества</p>
         <div class="slay-hero-date">31.12.26</div>
@@ -502,7 +531,14 @@ document.addEventListener('click', e => {
 page.addEventListener('click', async e => {
   const t = e.target;
   const car = t.closest('[data-car]');
-  if (car) { S.carIdx += Number(car.dataset.car) || 0; return renderCarousel(S.noms.slice(5)); }
+  if (car) { const d = Number(car.dataset.car) || 1; S.carIdx += d; return renderCarousel(S.noms.slice(5), d); }
+  const citem = t.closest('.slay-car-item');
+  if (citem && citem.dataset.pos !== '0') {
+    e.preventDefault();
+    const d = Number(citem.dataset.pos) > 0 ? 1 : -1;
+    S.carIdx = Number(citem.dataset.cidx) || 0;
+    return renderCarousel(S.noms.slice(5), d);
+  }
   const fq = t.closest('[data-faq]');
   if (fq) { fq.closest('.slay-faq-item')?.classList.toggle('open'); return; }
   const v = t.closest('[data-vote]'); if (v) return vote(v.dataset.vote);
@@ -536,7 +572,7 @@ page.addEventListener('touchend', e => {
   touchX = touchY = null;
   if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
     const more = S.noms.slice(5);
-    if (more.length > 1) { S.carIdx += dx < 0 ? 1 : -1; renderCarousel(more); }
+    if (more.length > 1) { const d = dx < 0 ? 1 : -1; S.carIdx += d; renderCarousel(more, d); }
   }
 }, { passive: true });
 
