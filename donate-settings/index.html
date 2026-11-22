@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Russo+One&family=Spectral:wght@600;700;800&family=Unbounded:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="/donate-settings/settings.css?v=20261122a">
-<script src="/donate-settings/settings.js?v=20261122a" defer></script>
+<link rel="stylesheet" href="/donate-settings/settings.css?v=20261122b">
+<script src="/donate-settings/settings.js?v=20261122b" defer></script>
 </head>
 <body>
 <div class="bg-glow" aria-hidden="true"></div>
@@ -77,7 +77,37 @@
           <div class="link-item">
             <div class="link-meta">
               <div class="link-title">
-                <b>OBS · Алерт донатов coin</b>
+                <b>OBS · Панель последних событий (Док OBS / как DonationAlerts)</b>
+                <span class="tag ok">Док-панель · Twitch + DA + Coin</span>
+              </div>
+              <p class="muted">Добавь в OBS: «Док-панели → Пользовательские док-панели браузера». Показывает фолловеров, сабки, баллы Twitch, DonationAlerts и renah0cki coin, с паузой, минималками и кнопкой «Проиграть».</p>
+            </div>
+            <div class="link-bar">
+              <code class="code grow" id="feedDockLink"></code>
+              <button type="button" class="btn sm pri" data-copy="feedDockLink">Копировать</button>
+              <a class="btn sm ghost" href="/donate-settings/feed.html" target="_blank" rel="noopener">Открыть ↗</a>
+            </div>
+          </div>
+
+          <div class="link-item">
+            <div class="link-meta">
+              <div class="link-title">
+                <b>OBS · Виджет последних событий на стрим</b>
+                <span class="tag obs">Браузер · 440×520 или 1200×90</span>
+              </div>
+              <p class="muted">Выводит на стрим список последних донатов и событий Twitch (или бегущую строку). Управляется и настраивается прямо из панели выше.</p>
+            </div>
+            <div class="link-bar">
+              <code class="code grow" id="feedWidgetLink"></code>
+              <button type="button" class="btn sm pri" data-copy="feedWidgetLink">Копировать</button>
+              <a class="btn sm ghost" href="/donate-settings/feed-widget.html" target="_blank" rel="noopener">Открыть ↗</a>
+            </div>
+          </div>
+
+          <div class="link-item">
+            <div class="link-meta">
+              <div class="link-title">
+                <b>OBS · Алерт донатов и событий</b>
                 <span class="tag obs">Браузер · 800×300</span>
               </div>
               <p class="muted">Добавь в OBS как источник «Браузер». Все изменения внешнего вида ниже применяются мгновенно.</p>

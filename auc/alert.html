@@ -171,16 +171,45 @@
     } catch {}
   }
 
-  const queue = []; let busy = false; const seen = new Set();
+  const queue = []; let busy = false; let paused = false; const seen = new Set();
+  function formatHead(d) {
+    const h = document.getElementById('h');
+    h.innerHTML = '';
+    const name = d.user || d.name || 'Аноним';
+    const b = document.createElement('b');
+    if (d.type === 'tw_follow') {
+      h.append(document.createTextNode(name + ' — '));
+      b.textContent = 'новый фолловер!';
+      h.append(b);
+    } else if (d.type === 'tw_sub') {
+      h.append(document.createTextNode(name + ' — '));
+      b.textContent = d.title || 'подписался!';
+      h.append(b);
+    } else if (d.type === 'tw_gift') {
+      h.append(document.createTextNode(name + ' — '));
+      b.textContent = d.title || `подарил ${fmt(d.amount)} саб.!`;
+      h.append(b);
+    } else if (d.type === 'tw_points') {
+      h.append(document.createTextNode(name + ' · '));
+      b.textContent = (d.title || 'Награда') + (d.amount ? ` (${fmt(d.amount)})` : '');
+      h.append(b);
+    } else if (d.type === 'da') {
+      h.append(document.createTextNode(name + ' — '));
+      b.textContent = `${fmt(d.amount)} ${d.unit || 'RUB'}`;
+      h.append(b);
+    } else {
+      h.append(document.createTextNode(name + ' — '));
+      b.textContent = `${fmt(d.amount)} ${d.unit || 'coin'}`;
+      h.append(b);
+    }
+  }
   function next() {
     if (busy || !queue.length) return;
+    if (paused && !queue[0].force) return;
     busy = true;
     applyStyle();
     const d = queue.shift();
-    const h = document.getElementById('h');
-    h.innerHTML = '';
-    h.append(document.createTextNode((d.name || 'Аноним') + ' — '));
-    const b = document.createElement('b'); b.textContent = fmt(d.amount) + ' coin'; h.append(b);
+    formatHead(d);
     const m = document.getElementById('m');
     m.hidden = !(cfg.show_message !== false && d.message);
     m.textContent = d.message || '';
@@ -201,12 +230,28 @@
       if (s?.config?.alert) { cfg = { ...cfg, ...s.config.alert }; applyStyle(); }
     } catch {}
   };
+  es.addEventListener('feed_cfg', e => {
+    try {
+      const c = JSON.parse(e.data);
+      if (typeof c?.paused === 'boolean') { paused = c.paused; if (!paused) next(); }
+    } catch {}
+  });
   es.addEventListener('donation', e => {
     try {
       const d = JSON.parse(e.data);
       if (seen.has(d.id)) return; seen.add(d.id);
       if (!d.test && +d.amount < (+cfg.min || 1)) return;
-      queue.push(d); next();
+      queue.push({ ...d, type: 'coin', unit: 'coin' }); next();
+    } catch {}
+  });
+  es.addEventListener('feed_alert', e => {
+    try {
+      const d = JSON.parse(e.data);
+      const key = d.replayId || d.id;
+      if (seen.has(key)) return; seen.add(key);
+      if (d.force) queue.unshift(d);
+      else queue.push(d);
+      next();
     } catch {}
   });
 })();

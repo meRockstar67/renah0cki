@@ -223,6 +223,8 @@ function renderLinks() {
   $('#obsLinks').hidden = !S.isAdmin;
   $('#obsStudio').hidden = !S.isAdmin;
   if (S.isAdmin) {
+    $('#feedDockLink').textContent = `${location.origin}/donate-settings/feed.html`;
+    $('#feedWidgetLink').textContent = `${location.origin}/donate-settings/feed-widget.html`;
     $('#alertLink').textContent = `${location.origin}/auc/alert.html`;
     $('#overlayLink').textContent = `${location.origin}/auc/overlay.html`;
     $('#aucLink').textContent = `${location.origin}/auc/`;
