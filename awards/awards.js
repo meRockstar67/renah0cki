@@ -467,7 +467,7 @@ function neeDialog(nomId, x) {
     <label>Название / ник<input name="t" maxlength="120" required value="${esc(x?.title || '')}"></label>
     <label>Описание или ссылка (необязательно)<textarea name="d" rows="2" maxlength="600" placeholder="Например: https://twitch.tv/nick">${esc(x?.description || '')}</textarea></label>
     <div class="aw-media-pick"><span>Медиа</span>
-      <label class="aw-drop"><input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden><b>${oldUrl ? 'Заменить фото, гиф или видео' : 'Загрузить фото, гиф или видео'}</b><small>до 30 МБ</small></label>
+      <label class="aw-drop"><input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden><b>${oldUrl ? 'Заменить фото, гиф или видео' : 'Загрузить фото, гиф или видео'}</b><small>до 30 МБ · Ctrl+V из буфера или перетащи сюда</small></label>
       <div class="aw-or">или ссылка</div>
       <div class="aw-row"><input name="u" placeholder="YouTube, ссылка на картинку (7TV и т.п.) или любая ссылка" value="${esc(oldUrl)}"><button type="button" class="aw-btn danger" data-clear-media${oldUrl ? '' : ' hidden'}>Удалить фото</button></div>
       <div class="aw-prev"></div></div>`, async (f, say) => {
@@ -486,21 +486,44 @@ function neeDialog(nomId, x) {
     }
     toast('Сохранено'); await loadAll(); route();
   });
-  const fi = $('input[type=file]', f), pv = $('.aw-prev', f), clr = $('[data-clear-media]', f);
+  const fi = $('input[type=file]', f), pv = $('.aw-prev', f), clr = $('[data-clear-media]', f), drop = $('.aw-drop', f);
   const showCur = () => {
     if (oldUrl && x?.media_type === 'image') pv.innerHTML = `<img src="${esc(thumb(oldUrl, 720))}" alt="">`;
     else if (oldUrl && x?.media_type === 'video') pv.innerHTML = `<video src="${esc(oldUrl)}" muted controls></video>`;
   };
   showCur();
-  clr.onclick = () => { file = null; fi.value = ''; f.u.value = ''; pv.innerHTML = ''; clr.hidden = true; $('.aw-drop b', f).textContent = 'Загрузить фото, гиф или видео'; };
-  f.u.oninput = () => { clr.hidden = !f.u.value.trim() && !file; };
-  fi.onchange = () => {
-    file = fi.files[0] || null; if (!file) return;
-    if (file.size > 30 * 1048576) { file = null; return toast('Файл больше 30 МБ', true); }
+  function pickFile(raw, fromPaste = false) {
+    if (!raw) return;
+    if (!/^(image\/|video\/(mp4|webm|quicktime))/.test(raw.type || '')) return toast('Поддерживаются фото, GIF и видео (MP4/WebM/MOV)', true);
+    if (raw.size > 30 * 1048576) return toast('Файл больше 30 МБ', true);
+    const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' })[raw.type] || 'png';
+    const name = !raw.name || /^image\.\w+$/i.test(raw.name) ? `paste_${Date.now()}.${ext}` : raw.name;
+    file = name === raw.name ? raw : new File([raw], name, { type: raw.type });
     const u = URL.createObjectURL(file); f.u.value = ''; clr.hidden = false;
     pv.innerHTML = /^video/.test(file.type) ? `<video src="${u}" muted controls></video>` : `<img src="${u}" alt="">`;
-    $('.aw-drop b', f).textContent = file.name;
+    $('b', drop).textContent = fromPaste ? `Из буфера (${name})` : name;
+    if (fromPaste) toast('Фото вставлено из буфера обмена');
+  }
+  clr.onclick = () => { file = null; fi.value = ''; f.u.value = ''; pv.innerHTML = ''; clr.hidden = true; $('b', drop).textContent = 'Загрузить фото, гиф или видео'; };
+  f.u.oninput = () => { clr.hidden = !f.u.value.trim() && !file; };
+  fi.onchange = () => pickFile(fi.files[0]);
+  const onPaste = ev => {
+    if (!f.isConnected) { document.removeEventListener('paste', onPaste); return; }
+    const items = [...(ev.clipboardData?.items || [])];
+    const mediaItem = items.find(it => it.kind === 'file' && /^(image\/|video\/)/.test(it.type));
+    const pasted = mediaItem?.getAsFile() || [...(ev.clipboardData?.files || [])].find(fl => /^(image\/|video\/)/.test(fl.type));
+    if (!pasted) return;
+    ev.preventDefault();
+    pickFile(pasted, true);
   };
+  document.addEventListener('paste', onPaste);
+  drop.addEventListener('dragover', ev => { ev.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+  drop.addEventListener('drop', ev => {
+    ev.preventDefault(); drop.classList.remove('drag');
+    const dropped = ev.dataTransfer?.files?.[0];
+    if (dropped) pickFile(dropped);
+  });
 }
 
 function jumpTo(id) {

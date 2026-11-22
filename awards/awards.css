@@ -386,7 +386,7 @@ a.aw-nee-sub:hover { color: #ffba6b; text-decoration: underline; }
 .aw-row { display: flex; gap: 10px; }
 .aw-media-pick { display: flex; flex-direction: column; gap: 8px; }
 .aw-drop { align-items: center; padding: 18px; border-radius: 10px; border: 1.5px dashed rgba(255, 118, 34, .38); text-align: center; cursor: pointer; color: #fff !important; background: #070504; }
-.aw-drop:hover { border-color: var(--amber); }
+.aw-drop:hover, .aw-drop.drag { border-color: var(--amber); background: rgba(255, 118, 34, .08); }
 .aw-drop small { color: #8c847d; font-weight: 500; }
 .aw-or { text-align: center; font-size: 12px; color: #7e7771; }
 .aw-prev img, .aw-prev video { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; background: #000; }
