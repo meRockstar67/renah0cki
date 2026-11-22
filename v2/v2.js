@@ -1276,7 +1276,7 @@ function customStatusDialog(onSaved) {
   ov.className = 'v2-overlay';
   ov.innerHTML = `<form class="v2-modal cs-mod"><h2>Кастомный статус</h2>
     <div class="cs-prev"><span class="role role-custom" id="csPrev" style="--rc:${clr}">${esc(curText || 'Мой статус')}</span></div>
-    <label>Название статуса (до 24 символов)<input name="t" maxlength="24" required value="${esc(curText)}" placeholder="Например: Король чата"></label>
+    <label>Название статуса (до 17 символов)<input name="t" maxlength="17" required value="${esc(curText)}" placeholder="Например: Король чата"></label>
     <div class="pe-color"><span>Цвет статуса</span>
       <div class="sw-row">${STATUS_COLORS.map(c => `<button type="button" class="nc-sw${clr.toLowerCase() === c ? ' on' : ''}" data-sc="${c}" style="background:${c}"></button>`).join('')}
         <label class="cs-pick" title="Свой цвет"><input type="color" name="c" value="${clr}">🎨</label>
