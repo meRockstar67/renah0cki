@@ -330,6 +330,12 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
     linear-gradient(180deg, rgba(0, 0, 0, .05) 0%, transparent 20%, transparent 56%, rgba(0, 0, 0, .72) 82%, #000000 100%),
     linear-gradient(90deg, #000000 0%, rgba(0, 0, 0, .35) 10%, transparent 24%, transparent 76%, rgba(0, 0, 0, .35) 90%, #000000 100%); }
 .aw-media img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: center 14%; display: block; border: 0; }
+.aw-media.is-wide { width: 100%; max-width: 310px; height: auto; aspect-ratio: 16 / 9; border-radius: 12px; }
+.aw-media.is-wide img { object-fit: cover; object-position: center; }
+.aw-media.is-wide::after {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, .06) 0%, transparent 14%, transparent 74%, rgba(0, 0, 0, .55) 92%, #000000 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, .5) 0%, transparent 7%, transparent 93%, rgba(0, 0, 0, .5) 100%); }
 .aw-media.is-vid, .aw-media.yt { width: 100%; height: auto; aspect-ratio: 16/10; border-radius: 10px; background: #070505; border: 1px solid rgba(255, 118, 34, .24); }
 .aw-media video, .aw-media iframe { position: relative; z-index: 1; width: 100%; height: 100%; display: block; border: 0; object-fit: contain; }
 .aw-link { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--amber-2); font-size: 13.5px; padding: 14px; text-align: center;
@@ -340,8 +346,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 
 .aw-nee-body { width: 100%; padding: 6px 8px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
 .aw-nee-body h3 { margin: 0; font-family: var(--sans); font-size: 20px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #ffffff; }
-.aw-nee-sub { margin: 0; font-size: 13.5px; font-weight: 500; color: #e07b35; line-height: 1.4; max-width: 260px; white-space: pre-wrap; transition: color .2s; }
-a.aw-nee-sub:hover { color: #ffba6b; text-decoration: underline; }
+.aw-nee-sub { margin: 0; font-size: 13.5px; font-weight: 500; color: #e07b35; line-height: 1.4; max-width: 280px; white-space: pre-wrap; transition: color .2s; }
+a.aw-nee-sub:hover, .aw-nee-sub-a:hover { color: #ffba6b; text-decoration: underline; }
+.aw-nee-sub-a { color: #ff9944; text-decoration: underline; text-underline-offset: 3px; transition: color .2s; }
 .aw-nee-line { width: 200px; height: 1px; margin: 4px 0 8px;
   background: linear-gradient(90deg, transparent 0%, rgba(255, 118, 34, .48) 50%, transparent 100%); }
 .aw-nee-acts { display: flex; align-items: center; justify-content: center; margin-top: auto; width: 100%; }
@@ -424,5 +431,5 @@ a.aw-nee-sub:hover { color: #ffba6b; text-decoration: underline; }
   .aw-nees { grid-template-columns: 1fr; }
   .aw-ico-pick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-car-arr, .slay-faq-q, .aw-btn, .aw-sw, .aw-drop, .aw-link, .aw-add, .aw-media, .aw-ico-opt { cursor: var(--cur-ptr); }
+a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-car-arr, .slay-faq-q, .aw-btn, .aw-sw, .aw-drop, .aw-link, .aw-add, .aw-media, .aw-ico-opt, .aw-nee-sub-a { cursor: var(--cur-ptr); }
 .slay-btn.static, .aw-nom-head .slay-emblem, .aw-media video, .aw-media.yt, .aw-nomedia { cursor: var(--cur-def); }

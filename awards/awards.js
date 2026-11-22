@@ -363,14 +363,46 @@ function mediaHtml(x, big) {
   if (x.media_type === 'link') return `<a class="aw-media aw-link" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>🔗</span>${esc(u.replace(/^https?:\/\//, '').slice(0, 60))}</a>`;
   return `<div class="aw-media aw-nomedia">${esc((x.title || '?').slice(0, 1).toUpperCase())}</div>`;
 }
+function autoLinkLabel(url) {
+  if (/twitchtracker\.com/i.test(url)) return 'TwitchTracker';
+  if (/clips\.twitch\.tv|twitch\.tv\/[^/]+\/clip\//i.test(url)) return 'Клип на Twitch';
+  if (/twitch\.tv/i.test(url)) return 'Twitch-канал';
+  if (/youtu\.?be/i.test(url)) return 'YouTube';
+  if (/t\.me/i.test(url)) return 'Telegram';
+  if (/tiktok\.com/i.test(url)) return 'TikTok';
+  return url.replace(/^https?:\/\//i, '').replace(/\/$/, '').slice(0, 34);
+}
 function neeSubHtml(desc) {
   const d = String(desc || '').trim();
   if (!d) return '';
-  if (/^https?:\/\/\S+$/i.test(d)) {
-    const label = /twitch\.tv/i.test(d) ? 'Twitch-канал' : /youtu\.?be/i.test(d) ? 'YouTube-канал' : /t\.me/i.test(d) ? 'Telegram' : d.replace(/^https?:\/\//i, '').replace(/\/$/, '').slice(0, 34);
-    return `<a class="aw-nee-sub" href="${esc(d)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+  const mdOnly = d.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/i);
+  if (mdOnly) {
+    return `<a class="aw-nee-sub" href="${esc(mdOnly[2])}" target="_blank" rel="noopener noreferrer">${esc(mdOnly[1].trim())}</a>`;
   }
-  return `<p class="aw-nee-sub">${esc(d)}</p>`;
+  if (/^https?:\/\/\S+$/i.test(d)) {
+    return `<a class="aw-nee-sub" href="${esc(d)}" target="_blank" rel="noopener noreferrer">${esc(autoLinkLabel(d))}</a>`;
+  }
+  const tokRe = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"']+)/gi;
+  let out = '', last = 0, m;
+  while ((m = tokRe.exec(d))) {
+    out += esc(d.slice(last, m.index));
+    if (m[1] && m[2]) {
+      out += `<a class="aw-nee-sub-a" href="${esc(m[2])}" target="_blank" rel="noopener noreferrer">${esc(m[1].trim())}</a>`;
+    } else if (m[3]) {
+      out += `<a class="aw-nee-sub-a" href="${esc(m[3])}" target="_blank" rel="noopener noreferrer">${esc(autoLinkLabel(m[3]))}</a>`;
+    }
+    last = tokRe.lastIndex;
+  }
+  out += esc(d.slice(last));
+  return `<p class="aw-nee-sub">${out}</p>`;
+}
+function splitDescLink(desc) {
+  const lines = String(desc || '').trim().split('\n');
+  const last = (lines[lines.length - 1] || '').trim();
+  const md = last.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/i);
+  if (md) return { text: lines.slice(0, -1).join('\n').trim(), label: md[1].trim(), url: md[2].trim() };
+  if (/^https?:\/\/\S+$/i.test(last)) return { text: lines.slice(0, -1).join('\n').trim(), label: '', url: last };
+  return { text: String(desc || '').trim(), label: '', url: '' };
 }
 function viewNom(id) {
   S.view = 'nom';
@@ -414,6 +446,15 @@ function viewNom(id) {
     ${!list.length && !S.admin ? '<div class="aw-empty">Номинанты скоро появятся.</div>' : ''}
     <nav class="aw-pager">${prev ? `<a href="#/n/${prev.id}">← ${esc(prev.title)}</a>` : '<span></span>'}${next ? `<a href="#/n/${next.id}">${esc(next.title)} →</a>` : ''}</nav>
   </div>`;
+  page.querySelectorAll('.aw-media.is-img img').forEach(img => {
+    const check = () => {
+      if (img.naturalWidth && img.naturalHeight && img.naturalWidth / img.naturalHeight >= 1.32) {
+        img.closest('.aw-media')?.classList.add('is-wide');
+      }
+    };
+    if (img.complete) check();
+    else img.addEventListener('load', check, { once: true });
+  });
 }
 
 /* ── голос ── */
@@ -463,9 +504,14 @@ function nomDialog(n) {
 function neeDialog(nomId, x) {
   let file = null;
   const oldUrl = x?.media_url || '';
+  const parsed = splitDescLink(x?.description);
   const f = modal(`<h2>${x ? 'Изменить номинанта' : 'Новый номинант'}</h2>
     <label>Название / ник<input name="t" maxlength="120" required value="${esc(x?.title || '')}"></label>
-    <label>Описание или ссылка (необязательно)<textarea name="d" rows="2" maxlength="600" placeholder="Например: https://twitch.tv/nick">${esc(x?.description || '')}</textarea></label>
+    <div class="aw-row">
+      <label style="flex:0 0 42%">Подпись ссылки<input name="lt" maxlength="60" value="${esc(parsed.label)}" placeholder="TwitchTracker / Канал"></label>
+      <label>Гиперссылка (необязательно)<input name="lu" maxlength="400" value="${esc(parsed.url)}" placeholder="https://twitchtracker.com/..."></label>
+    </div>
+    <label>Описание (необязательно, можно [текст](https://...))<textarea name="d" rows="2" maxlength="550" placeholder="Дополнительный текст">${esc(parsed.text)}</textarea></label>
     <div class="aw-media-pick"><span>Медиа</span>
       <label class="aw-drop"><input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden><b>${oldUrl ? 'Заменить фото, гиф или видео' : 'Загрузить фото, гиф или видео'}</b><small>до 30 МБ · Ctrl+V из буфера или перетащи сюда</small></label>
       <div class="aw-or">или ссылка</div>
@@ -477,7 +523,11 @@ function neeDialog(nomId, x) {
       if (!/^https:\/\//.test(url)) throw new Error('Ссылка должна начинаться с https://');
       type = ytId(url) ? 'youtube' : /\.(png|jpe?g|gif|webp|avif)(\?|$)/i.test(url) || /cdn\.7tv\.app\/emote\//.test(url) ? 'image' : /\.(mp4|webm|mov)(\?|$)/i.test(url) ? 'video' : 'link';
     }
-    const body = { title: f.t.value.trim(), description: f.d.value.trim() || null, media_url: url || null, media_type: url ? type : 'none' };
+    const lu = f.lu.value.trim(), lt = f.lt.value.trim().replace(/[\[\]()]/g, '');
+    if (lu && !/^https?:\/\/\S+$/i.test(lu)) throw new Error('Гиперссылка должна начинаться с https://');
+    const linkPart = lu ? (lt ? `[${lt}](${lu})` : lu) : '';
+    const descFull = [f.d.value.trim(), linkPart].filter(Boolean).join('\n').slice(0, 600) || null;
+    const body = { title: f.t.value.trim(), description: descFull, media_url: url || null, media_type: url ? type : 'none' };
     if (x) {
       await api(`aw_nominees?id=eq.${x.id}`, { method: 'PATCH', prefer: 'return=minimal', body });
       if (oldUrl && oldUrl !== url) await delServerMedia({ awardUrl: oldUrl });
