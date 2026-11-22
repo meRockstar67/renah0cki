@@ -1326,6 +1326,8 @@ async function viewProfile(key) {
   } catch {}
   if (!p) { page.innerHTML = '<div class="empty">Пользователь не найден</div>'; return; }
   S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p });
+  drawSponsors(); drawTopDonors();
+  if (hasRole(p, 'sponsor') && !SPONS_ROWS.some(x => x.id === p.id)) loadSponsors();
   const own = S.uid === p.id;
   const isOwner = S.uid === OWNER_ID;
   const [works, subCount, followRows, adminBal, coinTarget] = await Promise.all([
@@ -1690,12 +1692,16 @@ function sponsAvaHtml(p) {
 }
 function drawSponsors() {
   const box = $('#sponsList'); if (!box || !SPONS_ROWS.length) return;
-  box.innerHTML = SPONS_ROWS.map(p => `<a class="spons-item" href="${userPath(p)}" title="${esc(pname(p))}">${sponsAvaHtml(p)}<span class="spons-nm">${cosName(p)}</span></a>`).join('');
+  box.innerHTML = SPONS_ROWS.map(r => {
+    const p = { ...r, ...(S.profiles.get(r.id) || {}) };
+    return `<a class="spons-item" href="${userPath(p)}" title="${esc(pname(p))}">${sponsAvaHtml(p)}<span class="spons-nm">${cosName(p)}</span></a>`;
+  }).join('');
   $('#spons').hidden = false;
 }
 function loadSponsors() {
-  swr('sponsors', () => api(`profiles?or=(role.eq.sponsor,extra_roles.cs.{sponsor})&select=id,username,display_name,avatar_url,name_color`), rows => {
+  swr('sponsors', () => api(`profiles?or=(role.eq.sponsor,extra_roles.cs.{sponsor})&select=id,username,display_name,avatar_url,name_color`), (rows, cached) => {
     const box = $('#sponsList'); if (!box || !rows?.length) return;
+    if (!cached) rows.forEach(p => S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p }));
     const ids = rows.map(r => r.id).sort().join();
     if (box.dataset.ids === ids && SPONS_ROWS.length) {
       const byId = new Map(rows.map(r => [r.id, r]));
@@ -1731,7 +1737,7 @@ async function loadTopDonors() {
   } catch (e) { console.warn('loadTopDonors:', e); }
 }
 loadTopDonors();
-setInterval(() => { if (!document.hidden) loadTopDonors(); }, 60e3);
+setInterval(() => { if (!document.hidden) { loadTopDonors(); loadSponsors(); } }, 60e3);
 $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
 async function loadMe() {
   if (!S.uid) return;
@@ -1825,6 +1831,7 @@ function editProfile() {
       await api(`profiles?id=eq.${S.uid}`, { method: 'PATCH', prefer: 'return=minimal', body: patch });
       if (f.cdon) await rpc('coin_donate_toggle', { p_enabled: !!f.cdon.checked }).catch(() => {});
       Object.assign(me, patch); S.profiles.set(me.id, { ...(S.profiles.get(me.id) || {}), ...patch });
+      drawSponsors(); drawTopDonors(); loadSponsors();
       // старый сайт держит профиль в сессии — обновим и там
       try { const s = readSession(); if (s?.user) { Object.assign(s.user, patch); localStorage.setItem(LS_SESSION, JSON.stringify(s)); } } catch {}
       $('#meAva').src = avatarUrl(me);
@@ -1948,7 +1955,7 @@ function rolesDialog(id) {
     try {
       const r = await api(`profiles?id=eq.${id}`, { method: 'PATCH', prefer: 'return=representation', body });
       if (!r?.length) throw new Error('Нет прав на смену ролей');
-      Object.assign(p, body); ov.remove(); toast('Роли сохранены');
+      Object.assign(p, body); S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p }); loadSponsors(); ov.remove(); toast('Роли сохранены');
       $$(`.mod-user[data-uid="${id}"]`).forEach(el => { el.outerHTML = userRow(p); });
     } catch (er) { $('.hint', f).textContent = 'Ошибка: ' + er.message; }
   };
