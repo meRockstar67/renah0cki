@@ -257,23 +257,33 @@ const SHOP_BADGES = {
   badge_wings: ['Крылья', '<svg viewBox="0 0 24 24"><path fill="#f59e0b" d="M11.4 12.6C9.5 8.4 5.8 5.2 2 4.8c.5 2.5 2 4.6 4 5.9-1.4-.1-2.5-.4-3.4-.9.7 2.2 2.2 3.8 4.4 4.5-1 .1-2 0-2.8-.3.9 1.9 2.7 3 5.1 3.1.9 0 1.7-.3 2.1-1zM12.6 12.6c1.9-4.2 5.6-7.4 9.4-7.8-.5 2.5-2 4.6-4 5.9 1.4-.1 2.5-.4 3.4-.9-.7 2.2-2.2 3.8-4.4 4.5 1 .1 2 0 2.8-.3-.9 1.9-2.7 3-5.1 3.1-.9 0-1.7-.3-2.1-1z"/><path fill="#fde047" d="M11 13.4c-1.5-3.2-4.3-5.8-7.4-6.4.6 1.8 1.9 3.3 3.7 4.2-1 .1-1.9 0-2.6-.3.7 1.4 2 2.5 3.7 2.8-.6.2-1.3.2-1.9.1.8 1.1 2.1 1.7 3.7 1.6.5 0 .8-.5.8-2zM13 13.4c1.5-3.2 4.3-5.8 7.4-6.4-.6 1.8-1.9 3.3-3.7 4.2 1 .1 1.9 0 2.6-.3-.7 1.4-2 2.5-3.7 2.8.6.2 1.3.2 1.9.1-.8 1.1-2.1 1.7-3.7 1.6-.5 0-.8-.5-.8-2z"/><circle cx="12" cy="14" r="1.9" fill="#fffbeb"/></svg>'],
 };
 const SHOP_ROLES = {
-  role_custom:  { title: 'Кастомный статус', color: '#ff9e2c', custom: true },
-  role_divan:   { title: 'Завозер', color: '#fb923c' },
-  role_goy:     { title: 'Омежка', color: '#a78bfa' },
-  role_skuf:    { title: 'Анимешник', color: '#f472b6' },
-  role_ovosh:   { title: 'Альфа', color: '#f43f5e' },
-  role_bezson:  { title: 'Мажор', color: '#fde047' },
-  role_oligarh: { title: 'renah0cki', color: '#6cc4ff', keepCase: true, customColor: true },
+  role_custom:    { title: 'Кастомный статус', color: '#ff9e2c', custom: true },
+  role_divan:     { title: 'Завозер', color: '#fb923c' },
+  role_goy:       { title: 'Омежка', color: '#a78bfa' },
+  role_skuf:      { title: 'Анимешник', color: '#f472b6' },
+  role_ovosh:     { title: 'Альфа', color: '#f43f5e' },
+  role_bezson:    { title: 'Мажор', color: '#fde047' },
+  role_oligarh:   { title: 'renah0cki', color: '#6cc4ff', keepCase: true, customColor: true },
+  role_syroh0cki: { title: 'сырохоки', color: '#c4844e', keepCase: true, customColor: true },
 };
-const STATUS_COLORS = ['#ff9e2c', '#f43f5e', '#f472b6', '#c084fc', '#9146ff', '#60a5fa', '#38bdf8', '#22d3ee', '#34d399', '#4ade80', '#a3e635', '#fde047', '#fb923c', '#e2e8f0'];
+const STATUS_COLORS = ['#ff9e2c', '#c4844e', '#f43f5e', '#f472b6', '#c084fc', '#9146ff', '#60a5fa', '#38bdf8', '#22d3ee', '#34d399', '#4ade80', '#a3e635', '#fde047', '#fb923c', '#e2e8f0'];
 const SHOP_ITEMS = new Map();
 function absorbEq(rows) { EQ.clear(); (rows || []).forEach(r => EQ.set(r.user_id, r)); }
-function hasGoldPostBorder(uidOrProf) {
+function postBorderCls(uidOrProf) {
   const eq = eqOf(uidOrProf);
-  return !!(eq?.owned_roles || []).includes('role_oligarh') && !(eq?.hidden_roles || []).includes('role_oligarh');
+  const owned = eq?.owned_roles || [], hid = eq?.hidden_roles || [];
+  const hasSyro = owned.includes('role_syroh0cki') && !hid.includes('role_syroh0cki');
+  const hasRena = owned.includes('role_oligarh') && !hid.includes('role_oligarh');
+  if (hasSyro && (!hasRena || owned.indexOf('role_syroh0cki') > owned.indexOf('role_oligarh'))) return 'card-brown';
+  if (hasRena) return 'card-gold';
+  return '';
 }
 function applyGoldCards() {
-  $$('.card[data-auid]').forEach(el => el.classList.toggle('card-gold', hasGoldPostBorder(el.dataset.auid)));
+  $$('.card[data-auid]').forEach(el => {
+    const cls = postBorderCls(el.dataset.auid);
+    el.classList.toggle('card-gold', cls === 'card-gold');
+    el.classList.toggle('card-brown', cls === 'card-brown');
+  });
 }
 function inlineRolesHtml(p, uidFallback = '') {
   const uid = p?.id || uidFallback || '';
@@ -297,7 +307,7 @@ function saveEqRow(row) {
   applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles();
 }
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
-let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,owned_roles,hidden_roles&limit=1000')
+let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,syro_role_color,owned_roles,hidden_roles&limit=1000')
   .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
@@ -368,8 +378,8 @@ function cardHtml(it) {
   const a = S.profiles.get(it.submitted_by) || it.author;
   const b = TYPE_BADGE[it.content_type];
   const liked = S.liked.has(it.id);
-  const gold = hasGoldPostBorder(it.submitted_by || a);
-  return `<article class="card${gold ? ' card-gold' : ''}" data-open="${esc(it.short_code || it.id)}" data-auid="${esc(it.submitted_by || a?.id || '')}">
+  const bCls = postBorderCls(it.submitted_by || a);
+  return `<article class="card${bCls ? ' ' + bCls : ''}" data-open="${esc(it.short_code || it.id)}" data-auid="${esc(it.submitted_by || a?.id || '')}">
     <div class="card-media${it.is_blurred ? ' blur' : ''}">${thumbHtml(it)}
       ${it.is_blurred ? `<div class="eye">${I.eye}</div>` : ''}
       ${it.pinned ? `<span class="badge pin">${I.pin} Закреплено</span>` : ''}
@@ -1204,19 +1214,25 @@ function roleChipHtml(r, eq = null) {
     const txt = it?.title || sr?.title || r;
     const clr = (r === 'role_oligarh' && /^#[0-9a-f]{6}$/i.test(eq?.brand_role_color || ''))
       ? eq.brand_role_color
-      : (it?.meta?.color || sr?.color || '#6cc4ff');
+      : (r === 'role_syroh0cki' && /^#[0-9a-f]{6}$/i.test(eq?.syro_role_color || ''))
+        ? eq.syro_role_color
+        : (it?.meta?.color || sr?.color || '#6cc4ff');
     return `<span class="role role-custom${sr?.keepCase ? ' role-brand' : ''}" style="--rc:${clr}">${esc(txt)}</span>`;
   }
   return `<span class="role role-${esc(r)}">${esc(ROLE_LABEL[r] || r)}</span>`;
 }
-function brandColorDialog(onSaved) {
+function brandColorDialog(roleId = 'role_oligarh', onSaved) {
+  if (typeof roleId === 'function') { onSaved = roleId; roleId = 'role_oligarh'; }
   if (!S.uid) return;
+  const isSyro = roleId === 'role_syroh0cki';
+  const lbl = isSyro ? 'сырохоки' : 'renah0cki';
   const eq = EQ.get(S.uid) || {};
-  let clr = /^#[0-9a-f]{6}$/i.test(eq.brand_role_color || '') ? eq.brand_role_color : '#6cc4ff';
+  const savedClr = isSyro ? eq.syro_role_color : eq.brand_role_color;
+  let clr = /^#[0-9a-f]{6}$/i.test(savedClr || '') ? savedClr : (isSyro ? '#c4844e' : '#6cc4ff');
   const ov = document.createElement('div');
   ov.className = 'v2-overlay';
-  ov.innerHTML = `<form class="v2-modal cs-mod"><h2>Цвет статуса renah0cki</h2>
-    <div class="cs-prev"><span class="role role-custom role-brand" id="csPrev" style="--rc:${clr}">renah0cki</span></div>
+  ov.innerHTML = `<form class="v2-modal cs-mod"><h2>Цвет статуса ${lbl}</h2>
+    <div class="cs-prev"><span class="role role-custom role-brand" id="csPrev" style="--rc:${clr}">${lbl}</span></div>
     <div class="pe-color"><span>Выбери цвет</span>
       <div class="sw-row">${STATUS_COLORS.map(c => `<button type="button" class="nc-sw${clr.toLowerCase() === c ? ' on' : ''}" data-sc="${c}" style="background:${c}"></button>`).join('')}
         <label class="cs-pick" title="Свой цвет"><input type="color" name="c" value="${clr}">🎨</label>
@@ -1242,7 +1258,7 @@ function brandColorDialog(onSaved) {
     const hint = $('.hint', ov), btn = $('button[type=submit]', ov);
     btn.disabled = true;
     try {
-      const row = await rpc('shop_set_brand_color', { p_color: clr });
+      const row = await rpc('shop_set_brand_color', { p_color: clr, p_role_id: isSyro ? 'role_syroh0cki' : 'role_oligarh' });
       saveEqRow(row);
       toast('Цвет сохранён');
       close();
@@ -2292,7 +2308,7 @@ function viewSettings() {
       const on = !hid.has(r) || (visCnt === 0 && r === all[0]);
       return `<div class="set-role-row">
         <label class="sw"><input type="checkbox" data-roletog="${esc(r)}"${on ? ' checked' : ''}><i></i><div>${roleChipHtml(r, eq)}</div></label>
-        ${r === 'role_custom' ? '<button type="button" class="btn" data-editcs style="height:30px;padding:0 10px;font-size:12.5px">Настроить</button>' : r === 'role_oligarh' ? '<button type="button" class="btn" data-editbrand style="height:30px;padding:0 10px;font-size:12.5px">Цвет</button>' : ''}
+        ${r === 'role_custom' ? '<button type="button" class="btn" data-editcs style="height:30px;padding:0 10px;font-size:12.5px">Настроить</button>' : (r === 'role_oligarh' || r === 'role_syroh0cki') ? `<button type="button" class="btn" data-editbrand="${esc(r)}" style="height:30px;padding:0 10px;font-size:12.5px">Цвет</button>` : ''}
       </div>`;
     }).join('');
     box.onchange = async e => {
@@ -2316,7 +2332,10 @@ function viewSettings() {
     };
     box.onclick = e => {
       if (e.target.closest('[data-editcs]')) customStatusDialog(() => drawRolesSet());
-      else if (e.target.closest('[data-editbrand]')) brandColorDialog(() => drawRolesSet());
+      else {
+        const eb = e.target.closest('[data-editbrand]');
+        if (eb) brandColorDialog(eb.dataset.editbrand, () => drawRolesSet());
+      }
     };
   };
   eqReady.then(drawRolesSet);
@@ -2933,7 +2952,9 @@ async function viewShop(tab) {
     if (it.category === 'role') {
       const perk = it.id === 'role_oligarh'
         ? '<span class="shop-perk">✨ Золотая обводка постов · 🛡️ Не удаляются</span>'
-        : it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : '';
+        : it.id === 'role_syroh0cki'
+          ? '<span class="shop-perk">🟤 Коричневая обводка постов · 🛡️ Не удаляются</span>'
+          : it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : '';
       return `<div class="shop-prev-role">${roleChipHtml(it.id, myEq())}${perk}</div>`;
     }
     if (it.category === 'frame') return cosAva(me, 'prof-ava', '', it.id);
@@ -2965,8 +2986,8 @@ async function viewShop(tab) {
         if (isOwn && isRole) {
           acts = it.id === 'role_custom'
             ? `<button type="button" class="btn accent" style="flex:1" data-shcustom>Настроить</button><button type="button" class="btn ${isRoleVis ? 'eq-on' : ''}" style="flex:none" data-shroletog="${esc(it.id)}">${isRoleVis ? 'Видно ✓' : 'Скрыто'}</button>`
-            : it.id === 'role_oligarh'
-              ? `<button type="button" class="btn accent" style="flex:1" data-shbrand>Цвет</button><button type="button" class="btn ${isRoleVis ? 'eq-on' : ''}" style="flex:none" data-shroletog="${esc(it.id)}">${isRoleVis ? 'Видно ✓' : 'Скрыто'}</button>`
+            : (it.id === 'role_oligarh' || it.id === 'role_syroh0cki')
+              ? `<button type="button" class="btn accent" style="flex:1" data-shbrand="${esc(it.id)}">Цвет</button><button type="button" class="btn ${isRoleVis ? 'eq-on' : ''}" style="flex:none" data-shroletog="${esc(it.id)}">${isRoleVis ? 'Видно ✓' : 'Скрыто'}</button>`
               : `<button type="button" class="btn ${isRoleVis ? 'eq-on' : 'accent'}" style="flex:1" data-shroletog="${esc(it.id)}">${isRoleVis ? 'В профиле ✓' : 'Показать в профиле'}</button>`;
         } else if (isOwn) {
           acts = isEq
@@ -2996,7 +3017,7 @@ async function viewShop(tab) {
       const cs = e.target.closest('[data-shcustom]');
       if (cs) { customStatusDialog(() => draw()); return; }
       const br = e.target.closest('[data-shbrand]');
-      if (br) { brandColorDialog(() => draw()); return; }
+      if (br) { brandColorDialog(br.dataset.shbrand, () => draw()); return; }
       const rt = e.target.closest('[data-shroletog]');
       if (rt) {
         const rid = rt.dataset.shroletog;
@@ -3065,7 +3086,7 @@ async function viewShop(tab) {
             toast(`Куплено: ${it.title}`);
             draw();
             if (it.id === 'role_custom') customStatusDialog(() => draw());
-            else if (it.id === 'role_oligarh') brandColorDialog(() => draw());
+            else if (it.id === 'role_oligarh' || it.id === 'role_syroh0cki') brandColorDialog(it.id, () => draw());
           } else {
             saveEqLocal({ ...cur, [it.category]: it.id });
             toast(`Куплено и надето: ${it.title}`);
