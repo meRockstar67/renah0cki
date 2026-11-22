@@ -15,7 +15,7 @@ const FONTS = {
 };
 const DEFAULTS = {
   duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', volume: 75,
-  tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_read_header: true, tts_volume: 85,
+  tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_volume: 85,
   theme: 'glass', anim: 'pop', layout: 'top',
   accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
   font: 'Inter', head_size: 34, msg_size: 20, image_url: '', da_image_url: '',
@@ -126,9 +126,7 @@ async function playPreviewTts() {
   const vol = Math.max(0, Math.min(1, (Number(S.alert.tts_volume ?? 85)) / 100));
   if (vol <= 0.001) return toast('Громкость озвучки на 0%');
   const voice = S.alert.tts_voice === 'male' ? 'male' : 'female';
-  const text = S.alert.tts_read_header !== false
-    ? 'Зритель, 250 коинов. Топ стрим, удачи сегодня!'
-    : 'Топ стрим, удачи сегодня!';
+  const text = 'Топ стрим, удачи сегодня!';
   try { prevAudio?.pause(); } catch {}
   try {
     const r = await fetch(`${API}/auc/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`);
@@ -199,7 +197,6 @@ function fillForm() {
   f.volume.value = a.volume;
   f.tts.checked = a.tts !== false;
   f.tts_viewer_pick.checked = a.tts_viewer_pick !== false;
-  f.tts_read_header.checked = a.tts_read_header !== false;
   f.tts_volume.value = a.tts_volume ?? 85;
   applyPreview();
 }
@@ -227,7 +224,6 @@ function readForm() {
     volume: Number(f.volume.value),
     tts: f.tts.checked,
     tts_viewer_pick: f.tts_viewer_pick.checked,
-    tts_read_header: f.tts_read_header.checked,
     tts_volume: Number(f.tts_volume.value),
   };
   applyPreview();
