@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#09090f">
+<meta name="robots" content="noindex">
+<title>Настройки донатов и OBS — renah0cki</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
+<link rel="preconnect" href="https://api.renah0cki.xyz" crossorigin>
+<link rel="preconnect" href="https://cdn.renah0cki.xyz" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Russo+One&family=Spectral:wght@600;700;800&family=Unbounded:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="/donate-settings/settings.css?v=20261122a">
+<script src="/donate-settings/settings.js?v=20261122a" defer></script>
+</head>
+<body>
+<div class="bg-glow" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="top-in">
+    <div class="top-left">
+      <a class="logo" href="/" aria-label="renah0cki — на главную">
+        <img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="" width="28" height="28">
+        <span>rena<b>h0cki</b></span>
+      </a>
+      <span class="top-sep" aria-hidden="true">/</span>
+      <span class="top-title">Настройки донатов</span>
+    </div>
+    <div class="top-right">
+      <a class="btn sm ghost" id="openMyDonate" href="/donate/" hidden>Моя страница доната ↗</a>
+      <span class="me-pill" id="mePill" hidden><img id="meAva" alt=""><span id="meName"></span></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card center-box" id="needLogin" hidden>
+    <h1>Нужно войти</h1>
+    <p class="muted">Войди в свой аккаунт на renah0cki, чтобы получить личную ссылку и настроить виджеты OBS.</p>
+    <a class="btn pri" href="/">Войти на renah0cki</a>
+  </section>
+
+  <div class="content" id="content" hidden>
+    <div class="page-head">
+      <div>
+        <h1>Настройки донатов и OBS</h1>
+        <p class="muted">Все ссылки для зрителей и OBS, плюс живой конструктор внешнего вида алертов.</p>
+      </div>
+    </div>
+
+    <!-- 1. Все ссылки -->
+    <section class="card links-card">
+      <div class="sec-head">
+        <h2>Ссылки для донатов и OBS</h2>
+      </div>
+
+      <div class="link-grid">
+        <div class="link-item">
+          <div class="link-meta">
+            <div class="link-title">
+              <b>Личная ссылка для донатов coin</b>
+              <span class="tag ok" id="myStateTag">Включена</span>
+            </div>
+            <p class="muted">Размести в описании канала или отправь зрителям — по ней тебе смогут донатить renah0cki coin.</p>
+          </div>
+          <div class="link-bar">
+            <code class="code grow" id="myLink"></code>
+            <button type="button" class="btn sm pri" data-copy="myLink">Копировать</button>
+            <a class="btn sm ghost" id="myLinkOpen" href="/donate/" target="_blank" rel="noopener">Открыть ↗</a>
+            <button type="button" class="btn sm" id="myToggle">Отключить</button>
+          </div>
+        </div>
+
+        <div class="obs-links" id="obsLinks" hidden>
+          <div class="link-item">
+            <div class="link-meta">
+              <div class="link-title">
+                <b>OBS · Алерт донатов coin</b>
+                <span class="tag obs">Браузер · 800×300</span>
+              </div>
+              <p class="muted">Добавь в OBS как источник «Браузер». Все изменения внешнего вида ниже применяются мгновенно.</p>
+            </div>
+            <div class="link-bar">
+              <code class="code grow" id="alertLink"></code>
+              <button type="button" class="btn sm pri" data-copy="alertLink">Копировать</button>
+              <a class="btn sm ghost" id="alertLinkOpen" href="/auc/alert.html" target="_blank" rel="noopener">Открыть ↗</a>
+              <button type="button" class="btn sm" data-test-obs>Тест в OBS</button>
+            </div>
+          </div>
+
+          <div class="link-item">
+            <div class="link-meta">
+              <div class="link-title">
+                <b>OBS · Оверлей и колесо аукциона</b>
+                <span class="tag obs">Браузер · 1920×1080</span>
+              </div>
+              <p class="muted">Выводит колесо и текущий аукцион поверх стрима.</p>
+            </div>
+            <div class="link-bar">
+              <code class="code grow" id="overlayLink"></code>
+              <button type="button" class="btn sm pri" data-copy="overlayLink">Копировать</button>
+              <a class="btn sm ghost" id="overlayLinkOpen" href="/auc/overlay.html" target="_blank" rel="noopener">Открыть ↗</a>
+            </div>
+          </div>
+
+          <div class="link-item">
+            <div class="link-meta">
+              <div class="link-title">
+                <b>Панель управления аукционом</b>
+                <span class="tag">Стример</span>
+              </div>
+              <p class="muted">Управление лотами, таймером, колесом и интеграциями (Twitch, DonationAlerts, DonatePay, DonateX).</p>
+            </div>
+            <div class="link-bar">
+              <code class="code grow" id="aucLink"></code>
+              <button type="button" class="btn sm" data-copy="aucLink">Копировать</button>
+              <a class="btn sm ghost" href="/auc/">Перейти →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Конструктор внешнего вида алерта OBS (для стримера / админа) -->
+    <section class="studio" id="obsStudio" hidden>
+      <form class="card controls" id="alertForm">
+        <div class="sec-head">
+          <h2>Внешний вид алерта в OBS</h2>
+          <button type="button" class="btn sm ghost" id="resetBtn">Сбросить</button>
+        </div>
+
+        <div class="grp">
+          <h3>Стиль и анимация</h3>
+          <div class="field">
+            <span class="lbl">Тема оформления</span>
+            <div class="seg" data-seg="theme">
+              <button type="button" data-val="glass">Стекло</button>
+              <button type="button" data-val="neon">Неон</button>
+              <button type="button" data-val="minimal">Минимал</button>
+              <button type="button" data-val="slay">SLAY</button>
+              <button type="button" data-val="clean">Без рамки</button>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <span class="lbl">Анимация появления</span>
+              <select class="in" name="anim">
+                <option value="pop">Выплывание (Pop)</option>
+                <option value="slide">Снизу вверх</option>
+                <option value="zoom">Увеличение (Zoom)</option>
+                <option value="bounce">Пружина (Bounce)</option>
+              </select>
+            </div>
+            <div class="field">
+              <span class="lbl">Позиция картинки</span>
+              <select class="in" name="layout">
+                <option value="top">Сверху по центру</option>
+                <option value="left">Слева от текста</option>
+                <option value="none">Без картинки</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="grp">
+          <h3>Картинка или GIF</h3>
+          <div class="field">
+            <span class="lbl">Ссылка на картинку/GIF (пусто — стандартная монета)</span>
+            <div class="row">
+              <input class="in grow" name="image_url" placeholder="https://... (PNG, GIF, WebP)">
+              <label class="btn sm" title="Загрузить свой файл">
+                <input type="file" id="imgFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                Загрузить
+              </label>
+              <button type="button" class="btn sm ghost" id="clearImg" title="Вернуть монету">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grp">
+          <h3>Цвета и подложка</h3>
+          <div class="swatches" id="swatches" aria-label="Быстрые акценты">
+            <button type="button" data-accent="#8b5cf6" style="--c:#8b5cf6" title="Фиолетовый"></button>
+            <button type="button" data-accent="#6cc4ff" style="--c:#6cc4ff" title="Голубой"></button>
+            <button type="button" data-accent="#ff7b1c" style="--c:#ff7b1c" title="SLAY Оранжевый"></button>
+            <button type="button" data-accent="#34d399" style="--c:#34d399" title="Изумрудный"></button>
+            <button type="button" data-accent="#f472b6" style="--c:#f472b6" title="Розовый"></button>
+            <button type="button" data-accent="#facc15" style="--c:#facc15" title="Золотой"></button>
+          </div>
+          <div class="grid3">
+            <label class="color-f"><span>Акцент</span><input type="color" name="accent"></label>
+            <label class="color-f"><span>Текст</span><input type="color" name="text_color"></label>
+            <label class="color-f"><span>Подложка</span><input type="color" name="bg_color"></label>
+          </div>
+          <div class="field">
+            <div class="field-top"><span class="lbl">Непрозрачность подложки</span><b class="val" id="bgAlphaVal">82%</b></div>
+            <input class="range" type="range" name="bg_alpha" min="0" max="100" step="1">
+          </div>
+        </div>
+
+        <div class="grp">
+          <h3>Шрифт и размеры</h3>
+          <div class="field">
+            <span class="lbl">Шрифт</span>
+            <select class="in" name="font">
+              <option value="Inter">Inter (современный)</option>
+              <option value="Montserrat">Montserrat (жирный)</option>
+              <option value="Unbounded">Unbounded (широкий)</option>
+              <option value="Russo One">Russo One (геймерский)</option>
+              <option value="Spectral">Spectral (премия SLAY)</option>
+            </select>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <div class="field-top"><span class="lbl">Заголовок</span><b class="val" id="headSizeVal">34px</b></div>
+              <input class="range" type="range" name="head_size" min="20" max="52" step="1">
+            </div>
+            <div class="field">
+              <div class="field-top"><span class="lbl">Сообщение</span><b class="val" id="msgSizeVal">20px</b></div>
+              <input class="range" type="range" name="msg_size" min="14" max="34" step="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="grp">
+          <h3>Поведение и звук</h3>
+          <div class="grid2">
+            <label class="field"><span class="lbl">Длительность показа (сек)</span><input class="in" name="duration" type="number" min="3" max="60" inputmode="numeric"></label>
+            <label class="field"><span class="lbl">Мин. сумма для алерта (coin)</span><input class="in" name="min" type="number" min="1" inputmode="numeric"></label>
+          </div>
+          <div class="toggles">
+            <label class="check"><input type="checkbox" name="show_message"><span>Показывать текст сообщения</span></label>
+            <label class="check"><input type="checkbox" name="sound"><span>Звук при донате</span></label>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <span class="lbl">Мелодия</span>
+              <div class="row">
+                <select class="in grow" name="sound_preset">
+                  <option value="chime">Колокольчик</option>
+                  <option value="coin">Монетка</option>
+                  <option value="crystal">Кристалл</option>
+                  <option value="soft">Мягкий аккорд</option>
+                </select>
+                <button type="button" class="btn sm" id="playSoundBtn" title="Послушать звук">🔊</button>
+              </div>
+            </div>
+            <div class="field">
+              <div class="field-top"><span class="lbl">Громкость</span><b class="val" id="volVal">75%</b></div>
+              <input class="range" type="range" name="volume" min="0" max="100" step="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="save-bar">
+          <button type="submit" class="btn pri grow" id="saveBtn">Сохранить настройки</button>
+          <button type="button" class="btn" data-test-obs>Тест в OBS</button>
+        </div>
+      </form>
+
+      <!-- Живое превью -->
+      <aside class="preview-col">
+        <div class="card preview-card">
+          <div class="sec-head">
+            <h2>Живое превью OBS</h2>
+            <div class="bg-pick" id="bgPick">
+              <button type="button" class="on" data-bg="grid" title="Прозрачность OBS">Сетка</button>
+              <button type="button" data-bg="dark" title="Тёмный фон стрима">Тёмный</button>
+              <button type="button" data-bg="game" title="Яркий фон">Градиент</button>
+            </div>
+          </div>
+
+          <div class="stage" id="stage" data-bg="grid">
+            <div class="al show" id="prevAl" data-theme="glass" data-anim="pop" data-layout="top">
+              <div class="al-img-wrap"><img class="coin" id="prevImg" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt=""></div>
+              <div class="al-body">
+                <div class="head" id="prevH">Зритель — <b>250 coin</b></div>
+                <div class="msg" id="prevM">Топ стрим, удачи сегодня!</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-acts">
+            <button type="button" class="btn sm grow" id="replayBtn">▶ Проиграть анимацию</button>
+            <button type="button" class="btn sm pri" data-test-obs>Отправить тест в OBS</button>
+          </div>
+          <p class="muted tiny">После нажатия «Сохранить настройки» виджет в OBS обновится сам без перезагрузки источника.</p>
+        </div>
+      </aside>
+    </section>
+
+    <!-- 3. Последние донаты -->
+    <section class="card" id="mineBox" hidden>
+      <div class="sec-head">
+        <h2>Последние донаты</h2>
+      </div>
+      <ol class="items" id="mine"></ol>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

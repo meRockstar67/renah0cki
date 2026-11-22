@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/donate/donate.css?v=20261122a">
-<script src="/donate/donate.js?v=20261122a" defer></script>
+<link rel="stylesheet" href="/donate/donate.css?v=20261122b">
+<script src="/donate/donate.js?v=20261122b" defer></script>
 </head>
 <body>
 <div class="bg-glow" aria-hidden="true"></div>
@@ -29,6 +29,7 @@
       <span class="top-title">Донат</span>
     </div>
     <div class="top-right">
+      <a class="btn sm ghost" id="settingsLink" href="/donate-settings/" hidden>⚙ Настройки</a>
       <span class="bal" id="bal" hidden title="Твой баланс coin">
         <img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="" width="18" height="18">
         <b id="balN">0</b>
@@ -97,44 +98,6 @@
   <section class="card" id="mineBox" hidden>
     <h2 class="h2">Мои донаты</h2>
     <ol class="items" id="mine"></ol>
-  </section>
-
-  <section class="card" id="streamer" hidden>
-    <h2 class="h2">Твоя ссылка для донатов coin</h2>
-    <p class="hint">Это видно только тебе. По этой ссылке другие пользователи могут донатить тебе renah0cki coin.</p>
-    <div class="field">
-      <span class="lbl">Личная ссылка</span>
-      <div class="row">
-        <code class="code grow" id="myLink"></code>
-        <button type="button" class="btn sm" data-copy="myLink">Копировать</button>
-      </div>
-    </div>
-    <div class="status-row">
-      <span class="dot" id="myDot"></span>
-      <span id="myState" class="grow muted"></span>
-      <button type="button" class="btn sm" id="myToggle">Отключить</button>
-    </div>
-    <div class="obs-wrap" id="obsWrap" hidden>
-      <div class="field">
-        <span class="lbl">Виджет для OBS (источник «Браузер», 800×300)</span>
-        <div class="row">
-          <code class="code grow" id="widgetLink"></code>
-          <button type="button" class="btn sm" data-copy="widgetLink">Копировать</button>
-        </div>
-      </div>
-      <form id="wForm" class="wset">
-        <div class="rates">
-          <label class="field"><span class="lbl">Показывать (сек)</span><input class="in" name="duration" type="number" min="3" max="60" inputmode="numeric"></label>
-          <label class="field"><span class="lbl">Мин. сумма (coin)</span><input class="in" name="min" type="number" min="1" inputmode="numeric"></label>
-        </div>
-        <label class="check"><input type="checkbox" name="show_message"><span>Показывать сообщение</span></label>
-        <label class="check"><input type="checkbox" name="sound"><span>Звук при донате</span></label>
-        <div class="row">
-          <button class="btn pri" type="submit">Сохранить</button>
-          <button type="button" class="btn" id="testAlert">Тестовый донат</button>
-        </div>
-      </form>
-    </div>
   </section>
 </main>
 

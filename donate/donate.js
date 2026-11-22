@@ -79,7 +79,7 @@ function render() {
   if (S.targetLoaded && !t) {
     $('#sName').textContent = TARGET_U || 'не найден';
     $('#notFound').hidden = false; $('#disabledBox').hidden = true; $('#needLogin').hidden = true; $('#formBody').hidden = true;
-    renderOwn(); return;
+    return;
   }
   $('#notFound').hidden = true;
   if (t) {
@@ -104,34 +104,6 @@ function render() {
   }
   $('#note').textContent = `coin сразу уйдут ${t?.display_name || t?.username || 'получателю'}`;
   syncAmountUi();
-  renderOwn();
-}
-
-let wFilled = false;
-function renderOwn() {
-  const me = S.me;
-  if (!S.uid || !me?.username) { $('#streamer').hidden = true; return; }
-  $('#streamer').hidden = false;
-  const link = `${location.origin}/donate/${encodeURIComponent(me.username)}`;
-  $('#myLink').textContent = link;
-  const on = me.coin_donate_enabled !== false;
-  $('#myDot').className = 'dot' + (on ? ' ok' : '');
-  $('#myState').textContent = on ? 'Приём донатов coin включён' : 'Приём донатов coin отключён';
-  const tb = $('#myToggle');
-  tb.textContent = on ? 'Отключить' : 'Подключить';
-  tb.className = 'btn sm ' + (on ? 'ghost' : 'pri');
-
-  const isStr = S.pub?.config?.streamer_id === S.uid;
-  $('#obsWrap').hidden = !isStr;
-  if (isStr) {
-    $('#widgetLink').textContent = `${location.origin}/auc/alert.html`;
-    if (!wFilled && S.pub?.config) {
-      const a = S.pub.config.alert || {}; const f = $('#wForm');
-      f.duration.value = a.duration ?? 8; f.min.value = a.min ?? 1;
-      f.show_message.checked = a.show_message !== false; f.sound.checked = a.sound !== false;
-      wFilled = true;
-    }
-  }
 }
 
 async function toggleMyDonate(nextOn) {
@@ -157,13 +129,14 @@ async function loadTarget() {
 
 async function loadMe() {
   if (!S.uid) return;
+  const sl = $('#settingsLink'); if (sl) sl.hidden = false;
   const [bal, profs, mine] = await Promise.all([
     sb('rpc/coin_balance', {}),
     sb(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,coin_donate_enabled`),
     sb('auc_donations?select=id,user_id,recipient_id,user_name,amount,message,kind,lot_label,created_at,bid_id&order=id.desc&limit=15'),
   ]);
   if (bal != null) { S.balance = bal; $('#bal').hidden = false; $('#balN').textContent = fmt(bal); }
-  if (Array.isArray(profs) && profs[0]) { S.me = profs[0]; renderOwn(); }
+  if (Array.isArray(profs) && profs[0]) S.me = profs[0];
   if (Array.isArray(mine) && mine.length) {
     $('#mineBox').hidden = false;
     $('#mine').innerHTML = mine.map(m => {
@@ -185,10 +158,7 @@ $('#msg').addEventListener('input', e => { $('#cnt').textContent = e.target.valu
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-amt]');
   if (a) { $('#amount').value = a.dataset.amt; syncAmountUi(); $('#amount').focus(); }
-  const c = e.target.closest('[data-copy]');
-  if (c) navigator.clipboard.writeText($('#' + c.dataset.copy).textContent).then(() => toast('Скопировано'), () => {});
 });
-$('#myToggle').addEventListener('click', () => toggleMyDonate(!(S.me?.coin_donate_enabled !== false)));
 $('#enableSelf').addEventListener('click', () => toggleMyDonate(true));
 
 $('#dForm').addEventListener('submit', async e => {
@@ -213,19 +183,6 @@ $('#dForm').addEventListener('submit', async e => {
   finally { btn.disabled = false; syncAmountUi(); }
 });
 $('#again').addEventListener('click', () => { $('#done').hidden = true; $('#dForm').hidden = false; $('#dForm').reset(); $('#cnt').textContent = '0'; render(); $('#amount').focus(); });
-
-$('#wForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const f = e.target;
-  try {
-    await aucApi('/auc/admin/do', { a: 'config', config: { alert: { duration: Math.min(60, Math.max(3, +f.duration.value || 8)), min: Math.max(1, +f.min.value || 1),
-      show_message: f.show_message.checked, sound: f.sound.checked } } });
-    toast('Виджет сохранён');
-  } catch (err) { toast(err.message, true); }
-});
-$('#testAlert').addEventListener('click', async () => {
-  try { await aucApi('/auc/admin/do', { a: 'test_alert' }); toast('Тестовый донат отправлен в виджет'); } catch (err) { toast(err.message, true); }
-});
 
 /* ── старт ── */
 loadTarget();

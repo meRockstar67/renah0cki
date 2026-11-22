@@ -4,67 +4,203 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Донаты coin — виджет</title>
-<!-- OBS: источник «Браузер», 800×300. Настройки — на renah0cki.xyz/donate/ (блок «Для стримера»). -->
+<title>Донаты coin — виджет OBS</title>
+<!-- OBS: источник «Браузер», 800×300. Настройки внешнего вида — на renah0cki.xyz/donate-settings/ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Russo+One&family=Spectral:wght@600;700;800&family=Unbounded:wght@600;700;800&display=swap">
 <style>
-  :root { --text: #eaf2ff; --muted: #b5c4dc; --accent: #6cc4ff; --ok: #5fd3a0; }
+  :root {
+    --al-accent: #8b5cf6;
+    --al-text: #f3f4fa;
+    --al-bg: rgba(14, 14, 24, .82);
+    --al-font: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+    --al-hsz: 34px;
+    --al-msz: 20px;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; background: transparent; overflow: hidden; }
   [hidden] { display: none !important; }
-  body { font: 700 22px/1.3 system-ui, "Segoe UI", Roboto, sans-serif; color: var(--text); display: grid; place-items: center; min-height: 100vh; }
-  .al { display: grid; justify-items: center; gap: 10px; text-align: center; max-width: 92vw; opacity: 0; transform: translateY(18px) scale(.96); transition: opacity .35s, transform .45s cubic-bezier(.2, .8, .2, 1.2); }
+  body { font-family: var(--al-font); color: var(--al-text); display: grid; place-items: center; min-height: 100vh; padding: 18px; }
+
+  .al {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    text-align: center; max-width: min(760px, 94vw);
+    padding: 20px 28px; border-radius: 22px;
+    background: var(--al-bg);
+    border: 1px solid color-mix(in srgb, var(--al-accent) 42%, rgba(255, 255, 255, .14));
+    box-shadow: 0 18px 46px rgba(0, 0, 0, .55), 0 0 34px color-mix(in srgb, var(--al-accent) 26%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    opacity: 0; pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  /* расположение иконки */
+  .al[data-layout="left"] { flex-direction: row; text-align: left; gap: 20px; padding: 18px 26px; }
+  .al[data-layout="left"] .al-body { align-items: flex-start; }
+  .al[data-layout="none"] .al-img-wrap { display: none; }
+
+  .al-img-wrap { flex: none; display: grid; place-items: center; }
+  .coin { width: 88px; height: 88px; object-fit: contain; border-radius: 14px;
+    filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--al-accent) 55%, transparent));
+    animation: bob 1.9s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
+
+  .al-body { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+  .head { font-size: var(--al-hsz); font-weight: 900; line-height: 1.15; letter-spacing: -.01em;
+    text-shadow: 0 3px 12px rgba(0, 0, 0, .7); overflow-wrap: anywhere; }
+  .head b { color: var(--al-accent); text-shadow: 0 0 22px color-mix(in srgb, var(--al-accent) 65%, transparent), 0 3px 10px rgba(0, 0, 0, .75); }
+  .msg { font-size: var(--al-msz); font-weight: 600; line-height: 1.4; color: var(--al-text); opacity: .94;
+    max-width: 680px; overflow-wrap: anywhere; text-shadow: 0 2px 8px rgba(0, 0, 0, .65); }
+
+  /* ── темы ── */
+  .al[data-theme="neon"] {
+    border: 2px solid var(--al-accent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--al-accent) 70%, transparent),
+      0 0 60px color-mix(in srgb, var(--al-accent) 32%, transparent),
+      inset 0 0 24px color-mix(in srgb, var(--al-accent) 22%, transparent);
+  }
+  .al[data-theme="minimal"] {
+    border-radius: 14px; padding: 14px 22px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-left: 4px solid var(--al-accent);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .48);
+  }
+  .al[data-theme="slay"] {
+    border-radius: 16px;
+    border: 1.5px solid color-mix(in srgb, var(--al-accent) 75%, #ffd28a);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .75),
+      0 0 36px color-mix(in srgb, var(--al-accent) 55%, transparent),
+      inset 0 1px 0 rgba(255, 224, 160, .3);
+  }
+  .al[data-theme="clean"] {
+    background: transparent !important; border: 0 !important; box-shadow: none !important;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important; padding: 8px 12px;
+  }
+  .al[data-theme="clean"] .msg {
+    padding: 8px 16px; border-radius: 12px; background: var(--al-bg);
+  }
+
+  /* ── анимации появления ── */
+  .al[data-anim="pop"]    { transform: translateY(18px) scale(.92); transition: opacity .36s ease, transform .46s cubic-bezier(.2, .85, .25, 1.18); }
+  .al[data-anim="slide"]  { transform: translateY(44px); transition: opacity .34s ease, transform .45s cubic-bezier(.22, 1, .36, 1); }
+  .al[data-anim="zoom"]   { transform: scale(.72); transition: opacity .32s ease, transform .42s cubic-bezier(.22, 1, .36, 1); }
+  .al[data-anim="bounce"] { transform: translateY(-32px) scale(.94); transition: opacity .3s ease, transform .55s cubic-bezier(.34, 1.56, .64, 1); }
   .al.show { opacity: 1; transform: none; }
-  .coin { width: 92px; height: 92px; filter: drop-shadow(0 6px 18px rgba(108, 196, 255, .45)); animation: bob 1.6s ease-in-out infinite; }
-  @keyframes bob { 50% { transform: translateY(-6px) rotate(-4deg); } }
-  .head { font-size: 34px; font-weight: 900; text-shadow: 0 3px 10px rgba(0, 0, 0, .75); }
-  .head b { color: var(--accent); }
-  .lot { display: inline-block; font-size: 18px; padding: 4px 12px; border-radius: 999px; background: rgba(11, 18, 32, .78); color: var(--ok); }
-  .msg { font-size: 22px; font-weight: 600; color: #fff; max-width: 760px; padding: 10px 16px; border-radius: 14px; background: rgba(11, 18, 32, .72); overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
-<div class="al" id="al" aria-live="polite">
-  <img class="coin" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="">
-  <div class="head" id="h"></div>
-  <div class="lot" id="lot" hidden></div>
-  <div class="msg" id="m" hidden></div>
+<div class="al" id="al" data-theme="glass" data-anim="pop" data-layout="top" aria-live="polite">
+  <div class="al-img-wrap"><img class="coin" id="img" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt=""></div>
+  <div class="al-body">
+    <div class="head" id="h"></div>
+    <div class="msg" id="m" hidden></div>
+  </div>
 </div>
 <script>
 (() => {
+  const DEFAULT_IMG = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
+  const FONTS = {
+    Inter: '"Inter", system-ui, sans-serif',
+    Montserrat: '"Montserrat", system-ui, sans-serif',
+    Unbounded: '"Unbounded", system-ui, sans-serif',
+    'Russo One': '"Russo One", system-ui, sans-serif',
+    Spectral: '"Spectral", Georgia, serif',
+  };
   const QS = new URLSearchParams(location.search);
   const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   const API = (LOCAL && QS.get('api')) || 'https://cdn.renah0cki.xyz';
   const fmt = n => (+n || 0).toLocaleString('ru-RU');
-  let cfg = { duration: 8, min: 1, show_message: true, sound: true };
-  const queue = []; let busy = false; const seen = new Set();
+
+  let cfg = {
+    duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', volume: 75,
+    theme: 'glass', anim: 'pop', layout: 'top',
+    accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
+    font: 'Inter', head_size: 34, msg_size: 20, image_url: ''
+  };
+
+  function hexToRgba(hex, a) {
+    const m = String(hex || '').replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+    if (!m) return `rgba(14, 14, 24, ${a})`;
+    return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})`;
+  }
+
+  function applyStyle() {
+    const r = document.documentElement.style;
+    const al = document.getElementById('al');
+    al.dataset.theme = ['glass', 'neon', 'minimal', 'slay', 'clean'].includes(cfg.theme) ? cfg.theme : 'glass';
+    al.dataset.anim = ['pop', 'slide', 'zoom', 'bounce'].includes(cfg.anim) ? cfg.anim : 'pop';
+    al.dataset.layout = ['top', 'left', 'none'].includes(cfg.layout) ? cfg.layout : 'top';
+    r.setProperty('--al-accent', /^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6');
+    r.setProperty('--al-text', /^#[0-9a-f]{6}$/i.test(cfg.text_color || '') ? cfg.text_color : '#f3f4fa');
+    const alpha = Math.max(0, Math.min(100, Number(cfg.bg_alpha ?? 82))) / 100;
+    r.setProperty('--al-bg', hexToRgba(cfg.bg_color || '#0e0e18', alpha));
+    r.setProperty('--al-font', FONTS[cfg.font] || FONTS.Inter);
+    r.setProperty('--al-hsz', Math.max(18, Math.min(60, Number(cfg.head_size) || 34)) + 'px');
+    r.setProperty('--al-msz', Math.max(12, Math.min(40, Number(cfg.msg_size) || 20)) + 'px');
+    const img = document.getElementById('img');
+    const src = /^https:\/\//i.test(cfg.image_url || '') ? cfg.image_url : DEFAULT_IMG;
+    if (img.src !== src) img.src = src;
+  }
+
   let ac = null;
-  function chime() {   // короткий звон без файлов
+  function playSound() {
     try {
       ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
       const t = ac.currentTime;
-      [880, 1318.5, 1760].forEach((f, i) => {
+      const vol = Math.max(0, Math.min(1, (Number(cfg.volume ?? 75)) / 100)) * 0.28;
+      if (vol <= 0.001) return;
+      const preset = cfg.sound_preset || 'chime';
+      const seq = preset === 'coin'
+        ? [[987.77, 0, .09, 'triangle'], [1318.5, .08, .35, 'triangle']]
+        : preset === 'crystal'
+          ? [[1046.5, 0, .45, 'sine'], [1567.98, .07, .5, 'sine'], [2093, .14, .65, 'sine']]
+          : preset === 'soft'
+            ? [[523.25, 0, .55, 'sine'], [659.25, .06, .55, 'sine'], [783.99, .12, .6, 'sine']]
+            : [[880, 0, .5, 'sine'], [1318.5, .09, .55, 'sine'], [1760, .18, .6, 'sine']];
+      seq.forEach(([freq, delay, dur, type]) => {
         const o = ac.createOscillator(), g = ac.createGain();
-        o.type = 'sine'; o.frequency.value = f;
-        g.gain.setValueAtTime(0, t + i * .09); g.gain.linearRampToValueAtTime(.22, t + i * .09 + .02); g.gain.exponentialRampToValueAtTime(.001, t + i * .09 + .6);
-        o.connect(g).connect(ac.destination); o.start(t + i * .09); o.stop(t + i * .09 + .65);
+        o.type = type; o.frequency.value = freq;
+        g.gain.setValueAtTime(0, t + delay);
+        g.gain.linearRampToValueAtTime(vol, t + delay + .02);
+        g.gain.exponentialRampToValueAtTime(0.0008, t + delay + dur);
+        o.connect(g).connect(ac.destination);
+        o.start(t + delay); o.stop(t + delay + dur + .05);
       });
     } catch {}
   }
+
+  const queue = []; let busy = false; const seen = new Set();
   function next() {
     if (busy || !queue.length) return;
     busy = true;
+    applyStyle();
     const d = queue.shift();
-    document.getElementById('h').innerHTML = '';
     const h = document.getElementById('h');
+    h.innerHTML = '';
     h.append(document.createTextNode((d.name || 'Аноним') + ' — '));
     const b = document.createElement('b'); b.textContent = fmt(d.amount) + ' coin'; h.append(b);
-    const lot = document.getElementById('lot'); lot.hidden = !d.lot; lot.textContent = d.lot ? 'на лот ' + d.lot : '';
-    const m = document.getElementById('m'); m.hidden = !(cfg.show_message !== false && d.message); m.textContent = d.message || '';
-    if (cfg.sound !== false) chime();
-    const al = document.getElementById('al'); al.classList.add('show');
-    setTimeout(() => { al.classList.remove('show'); setTimeout(() => { busy = false; next(); }, 600); }, Math.max(3, +cfg.duration || 8) * 1000);
+    const m = document.getElementById('m');
+    m.hidden = !(cfg.show_message !== false && d.message);
+    m.textContent = d.message || '';
+    if (cfg.sound !== false) playSound();
+    const al = document.getElementById('al');
+    al.classList.add('show');
+    setTimeout(() => {
+      al.classList.remove('show');
+      setTimeout(() => { busy = false; next(); }, 600);
+    }, Math.max(3, Math.min(60, +cfg.duration || 8)) * 1000);
   }
+
+  applyStyle();
   const es = new EventSource(API + '/auc/events');
-  es.onmessage = e => { try { const s = JSON.parse(e.data); if (s?.config?.alert) cfg = { ...cfg, ...s.config.alert }; } catch {} };
+  es.onmessage = e => {
+    try {
+      const s = JSON.parse(e.data);
+      if (s?.config?.alert) { cfg = { ...cfg, ...s.config.alert }; applyStyle(); }
+    } catch {}
+  };
   es.addEventListener('donation', e => {
     try {
       const d = JSON.parse(e.data);
