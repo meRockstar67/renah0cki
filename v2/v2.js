@@ -1780,7 +1780,7 @@ async function loadMe() {
     $('#meAva').src = avatarUrl(me);
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
-    $('#navAwards').hidden = !(me?.id === OWNER_ID || isMod() || hasRole(me, 'streamer')); // OvosheAwards — жюри (стримеры, модераторы и выше)
+    $('#navAwards').hidden = !isMod(); // OvosheAwards — только модераторам и глав модеру
     $('#meOld').hidden = !(hasRole(me, 'gl_moder') || me?.id === OWNER_ID); // старый дизайн — только главному модератору
     applyMeFrame();
     $('#navMod').hidden = !isMod();
