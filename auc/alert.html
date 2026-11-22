@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Донаты coin — виджет OBS</title>
+<title>Донаты и события — виджет OBS</title>
 <!-- OBS: источник «Браузер», 800×300. Настройки внешнего вида — на renah0cki.xyz/donate-settings/ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,6 +14,9 @@
     --al-accent: #8b5cf6;
     --al-text: #f3f4fa;
     --al-bg: rgba(14, 14, 24, .82);
+    --al-border: rgba(139, 92, 246, .48);
+    --al-glow: rgba(139, 92, 246, .32);
+    --al-glow-hi: rgba(139, 92, 246, .68);
     --al-font: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
     --al-hsz: 34px;
     --al-msz: 20px;
@@ -28,50 +31,45 @@
     text-align: center; max-width: min(760px, 94vw);
     padding: 20px 28px; border-radius: 22px;
     background: var(--al-bg);
-    border: 1px solid color-mix(in srgb, var(--al-accent) 42%, rgba(255, 255, 255, .14));
-    box-shadow: 0 18px 46px rgba(0, 0, 0, .55), 0 0 34px color-mix(in srgb, var(--al-accent) 26%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12);
+    border: 1px solid var(--al-border);
+    box-shadow: 0 18px 46px rgba(0, 0, 0, .55), 0 0 34px var(--al-glow), inset 0 1px 0 rgba(255, 255, 255, .12);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     opacity: 0; pointer-events: none;
     will-change: transform, opacity;
   }
 
-  /* расположение иконки */
   .al[data-layout="left"] { flex-direction: row; text-align: left; gap: 20px; padding: 18px 26px; }
   .al[data-layout="left"] .al-body { align-items: flex-start; }
   .al[data-layout="none"] .al-img-wrap { display: none; }
 
   .al-img-wrap { flex: none; display: grid; place-items: center; }
   .coin { width: 88px; height: 88px; object-fit: contain; border-radius: 14px;
-    filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--al-accent) 55%, transparent));
+    filter: drop-shadow(0 8px 20px var(--al-glow-hi));
     animation: bob 1.9s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
 
   .al-body { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
   .head { font-size: var(--al-hsz); font-weight: 900; line-height: 1.15; letter-spacing: -.01em;
     text-shadow: 0 3px 12px rgba(0, 0, 0, .7); overflow-wrap: anywhere; }
-  .head b { color: var(--al-accent); text-shadow: 0 0 22px color-mix(in srgb, var(--al-accent) 65%, transparent), 0 3px 10px rgba(0, 0, 0, .75); }
+  .head b { color: var(--al-accent); text-shadow: 0 0 22px var(--al-glow-hi), 0 3px 10px rgba(0, 0, 0, .75); }
   .msg { font-size: var(--al-msz); font-weight: 600; line-height: 1.4; color: var(--al-text); opacity: .94;
     max-width: 680px; overflow-wrap: anywhere; text-shadow: 0 2px 8px rgba(0, 0, 0, .65); }
 
-  /* ── темы ── */
+  /* ── темы (без color-mix — 100% совместимость со всеми версиями OBS) ── */
   .al[data-theme="neon"] {
     border: 2px solid var(--al-accent);
-    box-shadow: 0 0 22px color-mix(in srgb, var(--al-accent) 70%, transparent),
-      0 0 60px color-mix(in srgb, var(--al-accent) 32%, transparent),
-      inset 0 0 24px color-mix(in srgb, var(--al-accent) 22%, transparent);
+    box-shadow: 0 0 22px var(--al-glow-hi), 0 0 56px var(--al-glow), inset 0 0 22px var(--al-glow);
   }
   .al[data-theme="minimal"] {
     border-radius: 14px; padding: 14px 22px;
-    border: 1px solid rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .14);
     border-left: 4px solid var(--al-accent);
     box-shadow: 0 12px 32px rgba(0, 0, 0, .48);
   }
   .al[data-theme="slay"] {
     border-radius: 16px;
-    border: 1.5px solid color-mix(in srgb, var(--al-accent) 75%, #ffd28a);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, .75),
-      0 0 36px color-mix(in srgb, var(--al-accent) 55%, transparent),
-      inset 0 1px 0 rgba(255, 224, 160, .3);
+    border: 1.5px solid var(--al-accent);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .75), 0 0 36px var(--al-glow-hi), inset 0 1px 0 rgba(255, 224, 160, .3);
   }
   .al[data-theme="clean"] {
     background: transparent !important; border: 0 !important; box-shadow: none !important;
@@ -121,17 +119,21 @@
 
   function hexToRgba(hex, a) {
     const m = String(hex || '').replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-    if (!m) return `rgba(14, 14, 24, ${a})`;
+    if (!m) return `rgba(139, 92, 246, ${a})`;
     return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})`;
   }
 
   function applyStyle() {
     const r = document.documentElement.style;
     const al = document.getElementById('al');
+    const acc = /^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6';
     al.dataset.theme = ['glass', 'neon', 'minimal', 'slay', 'clean'].includes(cfg.theme) ? cfg.theme : 'glass';
     al.dataset.anim = ['pop', 'slide', 'zoom', 'bounce'].includes(cfg.anim) ? cfg.anim : 'pop';
     al.dataset.layout = ['top', 'left', 'none'].includes(cfg.layout) ? cfg.layout : 'top';
-    r.setProperty('--al-accent', /^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6');
+    r.setProperty('--al-accent', acc);
+    r.setProperty('--al-border', hexToRgba(acc, 0.48));
+    r.setProperty('--al-glow', hexToRgba(acc, 0.30));
+    r.setProperty('--al-glow-hi', hexToRgba(acc, 0.65));
     r.setProperty('--al-text', /^#[0-9a-f]{6}$/i.test(cfg.text_color || '') ? cfg.text_color : '#f3f4fa');
     const alpha = Math.max(0, Math.min(100, Number(cfg.bg_alpha ?? 82))) / 100;
     r.setProperty('--al-bg', hexToRgba(cfg.bg_color || '#0e0e18', alpha));
@@ -203,6 +205,15 @@
       h.append(b);
     }
   }
+  function enqueue(d) {
+    const key = d.replayId || d.id;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    if (seen.size > 500) seen.delete(seen.values().next().value);
+    if (d.force) queue.unshift(d);
+    else queue.push(d);
+    next();
+  }
   function next() {
     if (busy || !queue.length) return;
     if (paused && !queue[0].force) return;
@@ -223,6 +234,7 @@
   }
 
   applyStyle();
+  fetch(API + '/auc/state').then(r => r.json()).then(s => { if (s?.config?.alert) { cfg = { ...cfg, ...s.config.alert }; applyStyle(); } }).catch(() => {});
   const es = new EventSource(API + '/auc/events');
   es.onmessage = e => {
     try {
@@ -239,20 +251,12 @@
   es.addEventListener('donation', e => {
     try {
       const d = JSON.parse(e.data);
-      if (seen.has(d.id)) return; seen.add(d.id);
-      if (!d.test && +d.amount < (+cfg.min || 1)) return;
-      queue.push({ ...d, type: 'coin', unit: 'coin' }); next();
+      if (!d.test && !d.force && (!d.type || d.type === 'coin') && +d.amount < (+cfg.min || 1)) return;
+      enqueue({ ...d, type: d.type || 'coin', unit: d.unit || 'coin' });
     } catch {}
   });
   es.addEventListener('feed_alert', e => {
-    try {
-      const d = JSON.parse(e.data);
-      const key = d.replayId || d.id;
-      if (seen.has(key)) return; seen.add(key);
-      if (d.force) queue.unshift(d);
-      else queue.push(d);
-      next();
-    } catch {}
+    try { enqueue(JSON.parse(e.data)); } catch {}
   });
 })();
 </script>

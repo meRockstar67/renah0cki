@@ -83,7 +83,7 @@ async function uploadFile(file) {
   return j.url;
 }
 
-const S = { uid: readSession()?.user?.id || null, me: null, isAdmin: false, alert: { ...DEFAULTS } };
+const S = { uid: readSession()?.user?.id || null, me: null, isAdmin: false, dockKey: '', alert: { ...DEFAULTS } };
 
 function hexToRgba(hex, a) {
   const m = String(hex || '').replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
@@ -223,7 +223,7 @@ function renderLinks() {
   $('#obsLinks').hidden = !S.isAdmin;
   $('#obsStudio').hidden = !S.isAdmin;
   if (S.isAdmin) {
-    $('#feedDockLink').textContent = `${location.origin}/donate-settings/feed.html`;
+    $('#feedDockLink').textContent = `${location.origin}/donate-settings/feed.html${S.dockKey ? '?key=' + encodeURIComponent(S.dockKey) : ''}`;
     $('#feedWidgetLink').textContent = `${location.origin}/donate-settings/feed-widget.html`;
     $('#alertLink').textContent = `${location.origin}/auc/alert.html`;
     $('#overlayLink').textContent = `${location.origin}/auc/overlay.html`;
@@ -248,6 +248,8 @@ async function init() {
   if (adm?.config) {
     S.isAdmin = true;
     S.alert = { ...DEFAULTS, ...(adm.config.alert || {}) };
+    const dk = await aucApi('/auc/feed/admin', { a: 'dock_key' }).catch(() => null);
+    if (dk?.key) S.dockKey = dk.key;
     fillForm();
   }
   renderLinks();

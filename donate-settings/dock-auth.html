@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Вход в док OBS — renah0cki</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100dvh; background: #09090f; color: #f3f4fa;
+    font: 15px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: grid; place-items: center; padding: 20px; }
+  .card { width: min(420px, 100%); padding: 28px 24px; border-radius: 22px; text-align: center;
+    background: linear-gradient(180deg, #161624, #0f0f19); border: 1px solid rgba(255, 255, 255, .09);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .55); display: grid; gap: 14px; justify-items: center; }
+  .ico { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 28px;
+    background: rgba(139, 92, 246, .16); border: 1px solid rgba(167, 139, 250, .35); }
+  .ico.ok { background: rgba(52, 211, 153, .16); border-color: rgba(52, 211, 153, .4); color: #34d399; }
+  .ico.err { background: rgba(248, 113, 113, .16); border-color: rgba(248, 113, 113, .4); color: #f87171; }
+  h1 { margin: 0; font-size: 20px; font-weight: 800; }
+  p { margin: 0; color: #9ca1b8; font-size: 14px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; height: 42px; padding: 0 20px;
+    border-radius: 12px; border: 1px solid rgba(196, 181, 253, .3); text-decoration: none; color: #fff; font-weight: 700;
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9); cursor: pointer; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="ico" id="ico">🔗</div>
+  <h1 id="title">Подключаю OBS…</h1>
+  <p id="sub">Проверяю твою сессию renah0cki</p>
+  <a class="btn" id="loginBtn" href="/" hidden>Войти на renah0cki</a>
+</div>
+<script>
+(() => {
+  const SB_URL = 'https://api.renah0cki.xyz';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
+  const API = 'https://cdn.renah0cki.xyz';
+  const code = (new URLSearchParams(location.search).get('code') || '').trim();
+  const $ = s => document.querySelector(s);
+
+  function setState(kind, icon, title, sub, showLogin = false) {
+    $('#ico').className = 'ico ' + kind;
+    $('#ico').textContent = icon;
+    $('#title').textContent = title;
+    $('#sub').textContent = sub;
+    $('#loginBtn').hidden = !showLogin;
+  }
+  function readSession() { try { return JSON.parse(localStorage.getItem('fh_session')); } catch { return null; } }
+  function jwtExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch { return 0; } }
+  async function getToken() {
+    const s = readSession();
+    if (!s?.token) return null;
+    if (jwtExp(s.token) - Date.now() > 60e3) return s.token;
+    if (!s.refreshToken) return null;
+    try {
+      const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: s.refreshToken }) });
+      if (!r.ok) return null;
+      const d = await r.json();
+      localStorage.setItem('fh_session', JSON.stringify({ ...(readSession() || s), token: d.access_token, refreshToken: d.refresh_token }));
+      return d.access_token;
+    } catch { return null; }
+  }
+
+  (async () => {
+    if (!code) return setState('err', '✕', 'Нет кода входа', 'Открой эту страницу по кнопке «Войти через браузер» в док-панели OBS.');
+    const token = await getToken();
+    if (!token) {
+      return setState('', '🔑', 'Сначала войди на сайт', 'Войди в свой аккаунт на renah0cki, а потом снова открой эту ссылку.', true);
+    }
+    try {
+      const r = await fetch(API + '/auc/feed/dock-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ code }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Нет доступа');
+      setState('ok', '✓', 'OBS подключён!', 'Вход выполнен — вернись в OBS, панель событий уже открылась. Эту вкладку можно закрыть.');
+    } catch (e) {
+      setState('err', '✕', 'Не удалось войти', e.message);
+    }
+  })();
+})();
+</script>
+</body>
+</html>

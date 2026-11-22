@@ -1,4 +1,4 @@
-/* renah0cki — контроллер панели последних событий (OBS док + браузер) */
+/* renah0cki — контроллер компактной панели последних событий (OBS док + браузер) */
 (() => {
 'use strict';
 
@@ -6,6 +6,7 @@ const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
 const API = 'https://cdn.renah0cki.xyz';
 const COIN_IMG = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
+const LS_DOCK = 'feed_dock_token';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -13,13 +14,26 @@ const fmt = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('ru-R
 let toastT;
 function toast(msg, err = false) {
   const t = $('#toast'); t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show');
-  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800);
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
+// подхватываем ?key=<dockToken> из ссылки для мгновенного входа в OBS
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const k = (qs.get('key') || '').trim();
+  if (k) {
+    try { localStorage.setItem(LS_DOCK, k); } catch {}
+    qs.delete('key');
+    const clean = location.pathname + (qs.toString() ? '?' + qs.toString() : '');
+    history.replaceState(null, '', clean);
+  }
+})();
+
+function getDockToken() { try { return localStorage.getItem(LS_DOCK) || ''; } catch { return ''; } }
 function readSession() { try { return JSON.parse(localStorage.getItem('fh_session')); } catch { return null; } }
 function jwtExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch { return 0; } }
 let refreshing = null;
-async function getToken() {
+async function getJwt() {
   const s = readSession();
   if (!s?.token) return null;
   if (jwtExp(s.token) - Date.now() > 60e3) return s.token;
@@ -36,18 +50,23 @@ async function getToken() {
   return refreshing;
 }
 async function post(path, body) {
-  const t = await getToken();
+  const dk = getDockToken();
+  const jwt = dk ? null : await getJwt();
+  const auth = dk ? 'Dock ' + dk : jwt ? 'Bearer ' + jwt : '';
   const r = await fetch(API + path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) },
+    headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: auth } : {}) },
     body: JSON.stringify(body || {}),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+  if (!r.ok) {
+    if (r.status === 401 || r.status === 403) { try { localStorage.removeItem(LS_DOCK); } catch {} }
+    throw new Error(d.error || 'HTTP ' + r.status);
+  }
   return d;
 }
 
-const S = { events: [], cfg: null, ints: null, filter: 'all', isAdmin: false };
+const S = { events: [], cfg: null, ints: null, filter: 'all', sse: null };
 
 function iconHtml(ev) {
   if (ev.type === 'coin') return `<img src="${COIN_IMG}" alt="">`;
@@ -62,53 +81,45 @@ function amountLabel(ev) {
   if (ev.type === 'coin') return `${fmt(ev.amount)} coin`;
   if (ev.type === 'da') return `${fmt(ev.amount)} ${ev.unit || 'RUB'}`;
   if (ev.type === 'tw_follow') return 'Фолловер';
-  if (ev.type === 'tw_sub') return ev.amount > 1 ? `Саб · ${ev.amount} мес.` : 'Подписка';
-  if (ev.type === 'tw_gift') return `+${fmt(ev.amount)} саб.`;
-  if (ev.type === 'tw_points') return ev.amount ? `${fmt(ev.amount)} баллов` : 'Баллы';
+  if (ev.type === 'tw_sub') return ev.amount > 1 ? `Саб ${ev.amount}м` : 'Подписка';
+  if (ev.type === 'tw_gift') return `+${fmt(ev.amount)} саб`;
+  if (ev.type === 'tw_points') return ev.amount ? `${fmt(ev.amount)} б.` : 'Баллы';
   return '';
-}
-function badgeLabel(ev) {
-  if (ev.type === 'coin') return 'renah0cki coin';
-  if (ev.type === 'da') return 'DonationAlerts';
-  if (ev.type === 'tw_follow') return 'Twitch · Фолловер';
-  if (ev.type === 'tw_sub') return ev.title || 'Twitch · Подписка';
-  if (ev.type === 'tw_gift') return ev.title || 'Twitch · Подарок';
-  if (ev.type === 'tw_points') return ev.title || 'Twitch · Баллы';
-  return ev.source;
 }
 function fmtTime(iso) {
   try {
     const d = new Date(iso);
     const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-    if (diff < 45) return 'только что';
-    if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
-    return d.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    if (diff < 45) return 'сейчас';
+    if (diff < 3600) return `${Math.floor(diff / 60)} мин`;
+    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   } catch { return ''; }
 }
 
 function renderStatus() {
   const paused = !!S.cfg?.paused;
-  const pill = $('#livePill');
-  pill.classList.toggle('paused', paused);
-  $('#liveTxt').textContent = paused ? 'ПАУЗА' : 'LIVE';
+  $('#ldot').classList.toggle('paused', paused);
+  $('#liveTxt').textContent = paused ? 'На паузе' : 'Лента';
   const pb = $('#pauseBtn');
-  pb.textContent = paused ? '▶ Продолжить' : '⏸ Пауза';
+  pb.textContent = paused ? '▶ Старт' : '⏸ Пауза';
   pb.className = 'btn sm ' + (paused ? 'warn' : '');
 }
 
-function renderInts() {
-  const strip = $('#intStrip');
-  if (!S.ints) { strip.hidden = true; return; }
+function renderConnList() {
+  const box = $('#connList'); if (!box || !S.ints) return;
   const tw = S.ints.twitch || {}, da = S.ints.da || {};
   const twOk = tw.state === 'ok';
-  const needRescope = twOk && tw.subs && (!tw.subs.follow || !tw.subs.sub);
+  const twNeedScope = twOk && tw.subs && (!tw.subs.follow || !tw.subs.sub);
   const daOk = da.state === 'ok';
-  strip.hidden = false;
-  strip.innerHTML = `
-    <span class="int-chip ${twOk ? (needRescope ? 'warn' : 'ok') : ''}"><i></i>Twitch${tw.login ? ': ' + esc(tw.login) : ' выкл'}</span>
-    <span class="int-chip ${daOk ? 'ok' : ''}"><i></i>DonationAlerts${da.name ? ': ' + esc(da.name) : ' выкл'}</span>
-    ${!twOk ? '<button type="button" class="int-btn" data-connect="twitch">Подключить Twitch</button>' : needRescope ? '<button type="button" class="int-btn" data-connect="twitch">Обновить права Twitch (фолловеры + сабки)</button>' : ''}
-    ${!daOk ? '<button type="button" class="int-btn" data-connect="da">Подключить DA</button>' : ''}`;
+  box.innerHTML = `
+    <div class="conn-row ${twOk ? (twNeedScope ? 'warn' : 'ok') : ''}">
+      <b><i></i>Twitch${tw.login ? ' · ' + esc(tw.login) : ''}</b>
+      <button type="button" class="btn xs ${twOk && !twNeedScope ? 'ghost' : 'pri'}" data-connect="twitch">${!twOk ? 'Подключить' : twNeedScope ? 'Обновить права' : 'Переподкл.'}</button>
+    </div>
+    <div class="conn-row ${daOk ? 'ok' : ''}">
+      <b><i></i>DonationAlerts${da.name ? ' · ' + esc(da.name) : ''}</b>
+      <button type="button" class="btn xs ${daOk ? 'ghost' : 'pri'}" data-connect="da">${daOk ? 'Переподкл.' : 'Подключить'}</button>
+    </div>`;
 }
 
 function renderList() {
@@ -120,20 +131,18 @@ function renderList() {
   });
   $('#empty').hidden = list.length > 0;
   $('#feedList').innerHTML = list.map(ev => `<article class="ev${ev.hidden ? ' is-hidden' : ''}" data-t="${esc(ev.type)}" data-id="${esc(ev.id)}">
-    <div class="ev-ico">${iconHtml(ev)}</div>
-    <div class="ev-body">
-      <div class="ev-top">
-        <span class="ev-user">${esc(ev.user)}</span>
-        <span class="ev-amt">${esc(amountLabel(ev))}</span>
-      </div>
-      <div class="ev-meta">
-        <span class="ev-badge">${esc(badgeLabel(ev))}</span>
-        <span>${esc(fmtTime(ev.at))}</span>
-      </div>
-      ${ev.message ? `<p class="ev-msg">${esc(ev.message)}</p>` : ''}
+    <div class="ev-r1">
+      <span class="ev-ico">${iconHtml(ev)}</span>
+      <span class="ev-user">${esc(ev.user)}</span>
+      <span class="ev-amt">${esc(amountLabel(ev))}</span>
+    </div>
+    ${ev.title && ev.source === 'twitch' && ev.type !== 'tw_follow' ? `<div class="ev-title">${esc(ev.title)}</div>` : ''}
+    ${ev.message ? `<p class="ev-msg">${esc(ev.message)}</p>` : ''}
+    <div class="ev-foot">
+      <span class="ev-time">${esc(fmtTime(ev.at))}</span>
       <div class="ev-acts">
-        <button type="button" data-replay="${esc(ev.id)}" title="Проиграть на стриме со звуком">▶ Проиграть</button>
-        <button type="button" data-hide="${esc(ev.id)}" title="${ev.hidden ? 'Показать в виджете OBS' : 'Скрыть из виджета OBS'}">${ev.hidden ? '👁 Показать' : '🙈 Скрыть'}</button>
+        <button type="button" data-replay="${esc(ev.id)}" title="Проиграть на стриме">▶</button>
+        <button type="button" data-hide="${esc(ev.id)}" title="${ev.hidden ? 'Показать на стриме' : 'Скрыть со стрима'}">${ev.hidden ? '👁' : '🙈'}</button>
         <button type="button" class="del" data-del="${esc(ev.id)}" title="Удалить">✕</button>
       </div>
     </div>
@@ -144,6 +153,7 @@ function fillCfgForm() {
   const c = S.cfg; if (!c) return;
   const f = $('#cfgForm');
   $('#obsWidgetUrl').textContent = `${location.origin}/donate-settings/feed-widget.html`;
+  $('#obsAlertUrl').textContent = `${location.origin}/auc/alert.html`;
   ['coin', 'da', 'tw_follow', 'tw_sub', 'tw_gift', 'tw_points'].forEach(k => {
     f['en_' + k].checked = c.enabled?.[k] !== false;
     f['al_' + k].checked = c.alert_events?.[k] !== false;
@@ -165,29 +175,37 @@ function fillCfgForm() {
   f.show_icon.checked = c.show_icon !== false;
   $('#aVal').textContent = `${f.bg_alpha.value}%`;
   $('#fVal').textContent = `${f.font_size.value}px`;
+  renderConnList();
+}
+
+function setUiAuth(ok) {
+  $('#needAuth').hidden = ok;
+  $('#pauseBtn').hidden = !ok;
+  $('#cfgBtn').hidden = !ok;
+  $('#testMenuBtn').hidden = !ok;
+  $('#filters').hidden = !ok;
 }
 
 async function init() {
   try {
     const d = await post('/auc/feed/admin', { a: 'state' });
-    S.isAdmin = true;
+    setUiAuth(true);
     S.events = d.events || [];
     S.cfg = d.cfg || {};
     S.ints = d.integrations || null;
-    renderInts();
     renderList();
     fillCfgForm();
     connectSse();
   } catch {
-    $('#needAuth').hidden = false;
-    $('#pauseBtn').hidden = true;
-    $('#cfgBtn').hidden = true;
-    $('#testMenuBtn').hidden = true;
+    setUiAuth(false);
+    $('#empty').hidden = true;
   }
 }
 
 function connectSse() {
+  if (S.sse) S.sse.close();
   const es = new EventSource(API + '/auc/feed/events');
+  S.sse = es;
   es.addEventListener('feed_item', e => {
     try {
       const ev = JSON.parse(e.data);
@@ -198,6 +216,42 @@ function connectSse() {
   es.addEventListener('feed_cfg', e => { try { S.cfg = { ...S.cfg, ...JSON.parse(e.data) }; renderStatus(); } catch {} });
   es.addEventListener('feed_sync', e => { try { const d = JSON.parse(e.data); if (Array.isArray(d.events)) S.events = d.events; renderList(); } catch {} });
 }
+
+/* ── вход из OBS через обычный браузер ── */
+let pollT = null;
+$('#browserLoginBtn').addEventListener('click', async () => {
+  clearInterval(pollT);
+  const btn = $('#browserLoginBtn'); btn.disabled = true; btn.textContent = 'Открываю браузер…';
+  try {
+    const r = await fetch(API + '/auc/feed/dock-start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const d = await r.json();
+    if (!r.ok || !d.code) throw new Error('Не удалось создать код входа');
+    const url = `${location.origin}/donate-settings/dock-auth.html?code=${encodeURIComponent(d.code)}`;
+    $('#pairUrl').textContent = url;
+    $('#pairWait').hidden = false;
+    window.open(url, '_blank', 'noopener');
+    btn.textContent = 'Открыть браузер ещё раз'; btn.disabled = false;
+    pollT = setInterval(async () => {
+      try {
+        const pr = await fetch(`${API}/auc/feed/dock-poll?code=${encodeURIComponent(d.code)}`);
+        const pd = await pr.json();
+        if (pd.ok && pd.token) {
+          clearInterval(pollT);
+          try { localStorage.setItem(LS_DOCK, pd.token); } catch {}
+          $('#pairWait').hidden = true;
+          toast('Вход выполнен!');
+          init();
+        } else if (pd.expired) {
+          clearInterval(pollT);
+          toast('Время входа истекло — нажми кнопку ещё раз', true);
+        }
+      } catch {}
+    }, 2000);
+  } catch (err) {
+    toast(err.message, true);
+    btn.disabled = false; btn.textContent = 'Войти через браузер';
+  }
+});
 
 /* ── события ── */
 document.addEventListener('click', async e => {
@@ -211,20 +265,20 @@ document.addEventListener('click', async e => {
   }
   const cp = e.target.closest('[data-copy]');
   if (cp) {
-    navigator.clipboard.writeText($('#' + cp.dataset.copy).textContent).then(() => toast('Ссылка скопирована'), () => {});
+    navigator.clipboard.writeText($('#' + cp.dataset.copy).textContent).then(() => toast('Скопировано'), () => {});
     return;
   }
   const test = e.target.closest('[data-test]');
   if (test) {
     $('#testMenu').hidden = true;
-    try { await post('/auc/feed/admin', { a: 'test', type: test.dataset.test }); toast('Тестовое событие отправлено'); }
+    try { await post('/auc/feed/admin', { a: 'test', type: test.dataset.test }); toast('Отправлено на стрим'); }
     catch (err) { toast(err.message, true); }
     return;
   }
   const conn = e.target.closest('[data-connect]');
   if (conn) {
     try {
-      const r = await post('/auc/admin/do', { a: 'connect', service: conn.dataset.connect });
+      const r = await post('/auc/feed/admin', { a: 'connect', service: conn.dataset.connect });
       if (r.url) window.open(r.url, '_blank', 'noopener');
     } catch (err) { toast(err.message, true); }
     return;
@@ -242,7 +296,6 @@ document.addEventListener('click', async e => {
       const ev = S.events.find(x => x.id === hid.dataset.hide);
       if (ev) ev.hidden = !!r.hidden;
       renderList();
-      toast(r.hidden ? 'Скрыто на стриме' : 'Снова видно на стриме');
     } catch (err) { toast(err.message, true); }
     return;
   }
@@ -263,7 +316,7 @@ $('#pauseBtn').addEventListener('click', async () => {
     const r = await post('/auc/feed/admin', { a: 'pause', paused: next });
     S.cfg = r.cfg;
     renderStatus();
-    toast(next ? 'Отображение на стриме остановлено' : 'Отображение на стриме возобновлено');
+    toast(next ? 'На паузе' : 'Отображение включено');
   } catch (err) { toast(err.message, true); }
 });
 
@@ -299,13 +352,13 @@ $('#cfgForm').addEventListener('submit', async e => {
     });
     S.cfg = r.cfg;
     $('#drawerOv').hidden = true;
-    toast('Настройки сохранены и применены в OBS');
+    toast('Сохранено');
   } catch (err) { toast(err.message, true); }
-  finally { btn.disabled = false; btn.textContent = 'Сохранить и применить'; }
+  finally { btn.disabled = false; btn.textContent = 'Сохранить'; }
 });
 
 $('#clearAllBtn').addEventListener('click', async () => {
-  if (!confirm('Очистить всю историю ленты событий?')) return;
+  if (!confirm('Очистить всю историю ленты?')) return;
   try {
     await post('/auc/feed/admin', { a: 'clear' });
     S.events = [];

@@ -12,98 +12,109 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/donate-settings/feed.css?v=20261122a">
-<script src="/donate-settings/feed.js?v=20261122a" defer></script>
+<link rel="stylesheet" href="/donate-settings/feed.css?v=20261122b">
+<script src="/donate-settings/feed.js?v=20261122b" defer></script>
 </head>
 <body>
-<div class="bg-glow" aria-hidden="true"></div>
-
 <header class="bar">
-  <div class="bar-row">
+  <div class="bar-top">
     <div class="brand">
-      <a class="logo" href="/donate-settings/" title="К настройкам донатов">
-        <img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="" width="24" height="24">
-        <span>События</span>
-      </a>
-      <span class="live-pill" id="livePill"><i class="ldot"></i><b id="liveTxt">LIVE</b></span>
+      <span class="ldot" id="ldot" title="Статус эфира"></span>
+      <span class="title" id="liveTxt">Лента</span>
     </div>
     <div class="bar-acts">
-      <button type="button" class="btn sm" id="pauseBtn" title="Остановить или возобновить отображение на стриме">⏸ Пауза</button>
-      <button type="button" class="btn sm ghost" id="cfgBtn" title="Настройки ленты и минималок">⚙</button>
+      <button type="button" class="btn sm" id="pauseBtn" title="Остановить или продолжить отображение на стриме">⏸ Пауза</button>
+      <div class="test-wrap">
+        <button type="button" class="btn sm icon" id="testMenuBtn" title="Отправить тестовое событие">⚡</button>
+        <div class="menu" id="testMenu" hidden>
+          <div class="menu-h">Тест на стрим</div>
+          <button type="button" data-test="coin">🪙 Донат coin (250)</button>
+          <button type="button" data-test="da">🧡 DonationAlerts (500 RUB)</button>
+          <button type="button" data-test="tw_follow">💜 Twitch фолловер</button>
+          <button type="button" data-test="tw_sub">⭐ Twitch подписка</button>
+          <button type="button" data-test="tw_gift">🎁 Подарочные сабки (×5)</button>
+          <button type="button" data-test="tw_points">💎 Баллы канала (1000)</button>
+        </div>
+      </div>
+      <button type="button" class="btn sm icon" id="cfgBtn" title="Настройки ленты и OBS">⚙</button>
     </div>
   </div>
 
-  <div class="bar-row sub-row">
-    <div class="filters" id="filters">
-      <button type="button" class="on" data-f="all">Все</button>
-      <button type="button" data-f="coin">🪙 Coin</button>
-      <button type="button" data-f="da">🧡 DA</button>
-      <button type="button" data-f="twitch">💜 Twitch</button>
-    </div>
-    <div class="test-wrap">
-      <button type="button" class="btn xs ghost" id="testMenuBtn">+ Тест</button>
-      <div class="menu" id="testMenu" hidden>
-        <button type="button" data-test="coin">🪙 Донат coin (250)</button>
-        <button type="button" data-test="da">🧡 DonationAlerts (500 RUB)</button>
-        <button type="button" data-test="tw_follow">💜 Twitch фолловер</button>
-        <button type="button" data-test="tw_sub">⭐ Twitch подписка (6 мес.)</button>
-        <button type="button" data-test="tw_gift">🎁 Подарочные сабки (×5)</button>
-        <button type="button" data-test="tw_points">💎 Баллы канала (1000)</button>
-      </div>
-    </div>
+  <div class="filters" id="filters">
+    <button type="button" class="on" data-f="all">Все</button>
+    <button type="button" data-f="coin">Coin</button>
+    <button type="button" data-f="da">DA</button>
+    <button type="button" data-f="twitch">Twitch</button>
   </div>
 </header>
 
-<div class="int-strip" id="intStrip" hidden></div>
-
 <main class="feed-main">
-  <div class="center-msg" id="needAuth" hidden>
-    <b>Только для стримера</b>
-    <p>Войди в свой аккаунт на renah0cki.xyz, чтобы управлять лентой событий.</p>
-    <a class="btn sm pri" href="/">Войти на renah0cki</a>
+  <div class="auth-box" id="needAuth" hidden>
+    <div class="auth-ico">🔑</div>
+    <b>Вход в панель событий</b>
+    <p>Нажми кнопку ниже — откроется обычный браузер, где ты уже вошёл на renah0cki, и OBS авторизуется сам.</p>
+    <button type="button" class="btn pri wide" id="browserLoginBtn">Войти через браузер</button>
+    <div class="pair-wait" id="pairWait" hidden>
+      <p class="muted">Жду подтверждения в браузере… Если вкладка не открылась сама, скопируй ссылку и открой в браузере:</p>
+      <div class="copy-row">
+        <code class="code grow" id="pairUrl"></code>
+        <button type="button" class="btn xs pri" data-copy="pairUrl">Копировать</button>
+      </div>
+    </div>
   </div>
 
   <div class="empty" id="empty" hidden>
-    <div class="empty-ico">✨</div>
     <b>Событий пока нет</b>
-    <p>Здесь появятся донаты renah0cki coin, DonationAlerts, фолловеры, подписки и награды за баллы Twitch.</p>
+    <p>Новые донаты, ставки и события Twitch появятся здесь автоматически.</p>
   </div>
 
   <div class="feed-list" id="feedList"></div>
 </main>
 
-<!-- Выдвижная панель настроек (работает даже в узком доке OBS) -->
+<!-- Выдвижная панель настроек -->
 <div class="drawer-ov" id="drawerOv" hidden>
   <form class="drawer" id="cfgForm">
     <div class="drawer-head">
-      <h2>Настройки ленты и OBS</h2>
+      <h2>Настройки ленты</h2>
       <button type="button" class="btn xs ghost" id="closeDrawer">✕</button>
     </div>
 
     <div class="drawer-body">
       <div class="grp">
-        <h3>Ссылка виджета в OBS</h3>
-        <div class="copy-row">
-          <code class="code grow" id="obsWidgetUrl"></code>
-          <button type="button" class="btn xs pri" data-copy="obsWidgetUrl">Копировать</button>
-        </div>
-        <small class="muted">Источник «Браузер»: 440×520 (список) или 1200×90 (бегущая строка)</small>
+        <h3>Подключения</h3>
+        <div class="conn-list" id="connList"></div>
       </div>
 
       <div class="grp">
-        <h3>Показывать в виджете на стриме</h3>
+        <h3>Ссылки для OBS</h3>
+        <label class="fld"><span>Виджет списка на стрим (440×520)</span>
+          <div class="copy-row">
+            <code class="code grow" id="obsWidgetUrl"></code>
+            <button type="button" class="btn xs pri" data-copy="obsWidgetUrl">Коп.</button>
+          </div>
+        </label>
+        <label class="fld"><span>Алерт со звуком (800×300)</span>
+          <div class="copy-row">
+            <code class="code grow" id="obsAlertUrl"></code>
+            <button type="button" class="btn xs pri" data-copy="obsAlertUrl">Коп.</button>
+          </div>
+        </label>
+      </div>
+
+      <div class="grp">
+        <h3>Показывать в списке на стриме</h3>
         <div class="chk-grid">
-          <label class="chk"><input type="checkbox" name="en_coin"><span>🪙 renah0cki coin</span></label>
+          <label class="chk"><input type="checkbox" name="en_coin"><span>🪙 Coin</span></label>
           <label class="chk"><input type="checkbox" name="en_da"><span>🧡 DonationAlerts</span></label>
-          <label class="chk"><input type="checkbox" name="en_tw_follow"><span>💜 Фолловеры Twitch</span></label>
-          <label class="chk"><input type="checkbox" name="en_tw_sub"><span>⭐ Подписки Twitch</span></label>
-          <label class="chk"><input type="checkbox" name="en_tw_gift"><span>🎁 Подарочные сабки</span></label>
-          <label class="chk"><input type="checkbox" name="en_tw_points"><span>💎 Баллы канала</span></label>
+          <label class="chk"><input type="checkbox" name="en_tw_follow"><span>💜 Фолловеры</span></label>
+          <label class="chk"><input type="checkbox" name="en_tw_sub"><span>⭐ Подписки</span></label>
+          <label class="chk"><input type="checkbox" name="en_tw_gift"><span>🎁 Подарки саб</span></label>
+          <label class="chk"><input type="checkbox" name="en_tw_points"><span>💎 Баллы Twitch</span></label>
         </div>
       </div>
 
       <div class="grp">
-        <h3>Проигрывать алерт со звуком (/auc/alert.html)</h3>
+        <h3>Озвучивать алертом на стриме</h3>
         <div class="chk-grid">
           <label class="chk"><input type="checkbox" name="al_coin"><span>🪙 Coin</span></label>
           <label class="chk"><input type="checkbox" name="al_da"><span>🧡 DA</span></label>
@@ -117,20 +128,20 @@
       <div class="grp">
         <h3>Минимальные суммы</h3>
         <div class="g3">
-          <label class="fld"><span>Мин. coin</span><input class="in" type="number" name="min_coin" min="0" inputmode="numeric"></label>
-          <label class="fld"><span>Мин. DA</span><input class="in" type="number" name="min_da" min="0" inputmode="numeric"></label>
-          <label class="fld"><span>Мин. баллов</span><input class="in" type="number" name="min_points" min="0" inputmode="numeric"></label>
+          <label class="fld"><span>Coin</span><input class="in" type="number" name="min_coin" min="0" inputmode="numeric"></label>
+          <label class="fld"><span>DA</span><input class="in" type="number" name="min_da" min="0" inputmode="numeric"></label>
+          <label class="fld"><span>Баллы</span><input class="in" type="number" name="min_points" min="0" inputmode="numeric"></label>
         </div>
       </div>
 
       <div class="grp">
-        <h3>Внешний вид виджета OBS</h3>
+        <h3>Вид виджета на стриме</h3>
         <div class="g2">
           <label class="fld"><span>Режим</span>
             <select class="in" name="mode">
-              <option value="list">Вертикальный список</option>
+              <option value="list">Список</option>
               <option value="ticker">Бегущая строка</option>
-              <option value="single">Только последнее</option>
+              <option value="single">Последнее</option>
             </select>
           </label>
           <label class="fld"><span>Тема</span>
@@ -144,7 +155,7 @@
           </label>
         </div>
         <div class="g2">
-          <label class="fld"><span>Кол-во событий (1–20)</span><input class="in" type="number" name="limit" min="1" max="20" inputmode="numeric"></label>
+          <label class="fld"><span>Штук (1–20)</span><input class="in" type="number" name="limit" min="1" max="20" inputmode="numeric"></label>
           <label class="fld"><span>Шрифт</span>
             <select class="in" name="font">
               <option value="Inter">Inter</option>
@@ -161,8 +172,8 @@
           <label class="clr"><span>Фон</span><input type="color" name="bg_color"></label>
         </div>
         <div class="g2">
-          <label class="fld"><span>Прозрачность фона: <b id="aVal">82%</b></span><input type="range" name="bg_alpha" min="0" max="100"></label>
-          <label class="fld"><span>Размер шрифта: <b id="fVal">14px</b></span><input type="range" name="font_size" min="11" max="24"></label>
+          <label class="fld"><span>Фон: <b id="aVal">82%</b></span><input type="range" name="bg_alpha" min="0" max="100"></label>
+          <label class="fld"><span>Шрифт: <b id="fVal">14px</b></span><input type="range" name="font_size" min="11" max="24"></label>
         </div>
         <div class="chk-grid">
           <label class="chk"><input type="checkbox" name="show_message"><span>Сообщения</span></label>
@@ -171,13 +182,14 @@
         </div>
       </div>
 
-      <div class="grp danger-grp">
-        <button type="button" class="btn sm danger" id="clearAllBtn">Очистить всю ленту</button>
+      <div class="grp">
+        <a class="btn sm ghost wide" href="/donate-settings/" target="_blank" rel="noopener">Открыть конструктор алерта ↗</a>
+        <button type="button" class="btn sm danger wide" id="clearAllBtn">Очистить ленту</button>
       </div>
     </div>
 
     <div class="drawer-foot">
-      <button type="submit" class="btn pri grow" id="saveCfgBtn">Сохранить и применить</button>
+      <button type="submit" class="btn pri grow" id="saveCfgBtn">Сохранить</button>
     </div>
   </form>
 </div>
