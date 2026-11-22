@@ -401,6 +401,59 @@ a.aw-nee-sub:hover, .aw-nee-sub-a:hover { color: #ffba6b; text-decoration: under
 .aw-modal-acts { display: flex; justify-content: flex-end; gap: 8px; }
 .aw-zoom { cursor: zoom-out; }
 .aw-zoom img { max-width: 94vw; max-height: 90dvh; border-radius: 10px; box-shadow: 0 30px 90px rgba(0, 0, 0, .8); }
+.aw-ov-top { z-index: 95; }
+
+/* ── перетаскивание номинантов и участников ── */
+.aw-nee.can-drag, .aw-part-card.can-drag { cursor: grab; }
+.aw-nee.is-dragging, .aw-part-card.is-dragging { opacity: .42; transform: scale(.96); outline: 1.5px dashed rgba(255, 140, 44, .75); outline-offset: 6px; border-radius: 14px; }
+.aw-drag-grip { cursor: grab; user-select: none; color: #c7bbb1; }
+.aw-drag-grip:active { cursor: grabbing; }
+
+/* ── кликабельная картинка и кнопка «Участники» на карточке номинанта ── */
+.aw-media.is-clickable img { transition: transform .35s var(--ease), filter .28s; }
+.aw-media.is-clickable:hover img { transform: scale(1.035); filter: brightness(1.07); }
+.aw-parts-btn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 999px;
+  border: 1px solid rgba(255, 130, 38, .42); background: rgba(255, 108, 28, .1);
+  color: #ffc582; font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  transition: border-color .2s, background .2s, color .2s, transform .18s var(--ease), box-shadow .2s; }
+.aw-parts-btn:hover { border-color: #ff9c42; background: rgba(255, 118, 34, .22); color: #fff;
+  box-shadow: 0 0 18px rgba(255, 102, 20, .35); transform: translateY(-1px); }
+.aw-parts-btn span { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: rgba(255, 128, 36, .28); color: #ffd9a8; font-size: 11px; font-weight: 800; }
+.aw-parts-btn.is-empty { border-style: dashed; border-color: rgba(255, 130, 38, .28); background: rgba(255, 108, 28, .04); color: #9c948e; }
+.aw-parts-btn.is-empty:hover { border-color: rgba(255, 152, 56, .65); color: #ffd09a; }
+
+/* ── модалка участников (только просмотр + ссылки на каналы, без голосования) ── */
+.aw-parts-modal { width: min(820px, 100%); padding: 26px; gap: 20px; background: radial-gradient(ellipse 90% 45% at 50% 0%, rgba(255, 92, 18, .12), transparent 62%), #0b0706; }
+.aw-parts-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 118, 34, .22); }
+.aw-parts-head h2 { margin-top: 4px; font-size: clamp(20px, 3vw, 26px); line-height: 1.15; }
+.aw-parts-empty { margin: 20px 0; text-align: center; color: #8c847d; font-size: 14px; }
+.aw-parts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 18px; }
+.aw-part-card { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+  padding: 14px 12px 16px; border-radius: 14px; background: rgba(20, 12, 9, .78);
+  border: 1px solid rgba(255, 118, 34, .22); transition: border-color .2s, transform .2s var(--ease), box-shadow .2s; }
+.aw-part-card:hover { border-color: rgba(255, 146, 52, .48); box-shadow: 0 12px 30px rgba(0, 0, 0, .55); }
+.aw-part-adm { position: absolute; top: 8px; right: 8px; z-index: 4; display: flex; gap: 4px; opacity: .5; transition: opacity .2s; }
+.aw-part-card:hover .aw-part-adm { opacity: 1; }
+.aw-part-adm .aw-btn.icon { width: 28px; height: 28px; border-radius: 7px; background: rgba(10, 6, 4, .84); backdrop-filter: blur(6px); font-size: 12px; }
+.aw-part-media { width: 100%; aspect-ratio: 1; border-radius: 11px; overflow: hidden; background: #070403;
+  border: 1px solid rgba(255, 118, 34, .18); display: grid; place-items: center; }
+.aw-part-media img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; display: block; }
+.aw-part-ph { font-family: var(--serif); font-size: 52px; font-weight: 700; color: var(--amber);
+  width: 100%; height: 100%; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 45%, rgba(255, 96, 20, .25), transparent 72%); }
+.aw-part-info { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.aw-part-info h4 { margin: 0; font-family: var(--sans); font-size: 15px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #fff; word-break: break-word; }
+.aw-part-link { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 999px;
+  background: rgba(255, 118, 34, .12); border: 1px solid rgba(255, 130, 38, .34);
+  color: #ffb668; font-size: 12px; font-weight: 700; text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: background .2s, border-color .2s, color .2s; }
+.aw-part-link:hover { background: rgba(255, 118, 34, .26); border-color: #ff9c42; color: #fff; }
+.aw-part-add { min-height: 230px; justify-content: center; gap: 6px; border: 1.5px dashed rgba(255, 118, 34, .34); background: rgba(16, 10, 8, .35); color: #a89f97; }
+.aw-part-add span { font-size: 36px; line-height: 1; color: var(--amber); }
+.aw-part-add b { font-size: 13.5px; color: #e2d8cf; }
+.aw-part-add small { font-size: 11.5px; color: #7e7670; }
+.aw-part-add:hover { border-color: var(--amber); background: rgba(24, 14, 10, .6); color: #fff; }
 
 .aw-toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 100; transform: translate(-50%, 20px); opacity: 0;
   padding: 11px 20px; border-radius: 10px; background: linear-gradient(180deg, #ff8f2b, #d63c0a); color: #fff; font-weight: 700;
@@ -430,6 +483,8 @@ a.aw-nee-sub:hover, .aw-nee-sub-a:hover { color: #ffba6b; text-decoration: under
   .slay-btn, .slay-btn.sm { min-width: 224px; height: 48px; padding: 0 26px; font-size: 12px; }
   .aw-nees { grid-template-columns: 1fr; }
   .aw-ico-pick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .aw-parts-modal { padding: 18px; }
+  .aw-parts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 }
-a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-car-arr, .slay-faq-q, .aw-btn, .aw-sw, .aw-drop, .aw-link, .aw-add, .aw-media, .aw-ico-opt, .aw-nee-sub-a { cursor: var(--cur-ptr); }
-.slay-btn.static, .aw-nom-head .slay-emblem, .aw-media video, .aw-media.yt, .aw-nomedia { cursor: var(--cur-def); }
+a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-car-arr, .slay-faq-q, .aw-btn, .aw-sw, .aw-drop, .aw-link, .aw-add, .aw-media.is-clickable, .aw-ico-opt, .aw-nee-sub-a, .aw-parts-btn, .aw-part-link, .aw-part-add { cursor: var(--cur-ptr); }
+.slay-btn.static, .aw-nom-head .slay-emblem, .aw-media:not(.is-clickable), .aw-media video, .aw-media.yt { cursor: var(--cur-def); }

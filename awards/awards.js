@@ -63,11 +63,12 @@ async function delServerMedia(payload) {
   await fetch(CDN + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) }).catch(() => {});
 }
 /* ── состояние ── */
-const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0, homeScroll: 0, view: '', lastVoted: null };
+const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0, homeScroll: 0, view: '', lastVoted: null, justDragged: false };
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
 const thumb = (u, w = 720) => { const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+\.(?:jpe?g|png|webp))$/i); return m ? `${CDN}/thumb/${w}/${m[1]}` : u; };
 const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return n > 10 && n < 20 ? c : k > 1 && k < 5 ? b : k === 1 ? a : c; };
 const neesOf = id => S.nees.filter(x => x.nomination_id === id).sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
+const partsOf = x => Array.isArray(x?.participants) ? x.participants : [];
 
 /* ── официальные 3D-иконки номинаций SLAY 2026 ── */
 let svgUid = 0;
@@ -355,13 +356,17 @@ function viewHome(restoreScroll = false) {
 }
 
 /* ── номинация (#/n/<id>) ── */
-function mediaHtml(x, big) {
+function mediaHtml(x, canOpenParts = false) {
   const u = x.media_url || '';
-  if (x.media_type === 'image') return `<button class="aw-media is-img" data-zoom="${esc(u)}"><img src="${esc(big ? u : thumb(u, 720))}" alt="" loading="lazy"></button>`;
+  const openAttr = canOpenParts
+    ? ` role="button" tabindex="0" data-open-parts="${x.id}" title="${partsOf(x).length ? `Участники (${partsOf(x).length})` : 'Добавить участников'}"`
+    : '';
+  const clickCls = canOpenParts ? ' is-clickable' : '';
+  if (x.media_type === 'image') return `<div class="aw-media is-img${clickCls}"${openAttr}><img src="${esc(thumb(u, 720))}" alt="" loading="lazy" draggable="false"></div>`;
   if (x.media_type === 'video') return `<div class="aw-media is-vid"><video src="${esc(u)}" controls playsinline preload="metadata"></video></div>`;
   if (x.media_type === 'youtube' && ytId(u)) return `<div class="aw-media yt"><iframe src="https://www.youtube-nocookie.com/embed/${ytId(u)}" allowfullscreen loading="lazy"></iframe></div>`;
   if (x.media_type === 'link') return `<a class="aw-media aw-link" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>🔗</span>${esc(u.replace(/^https?:\/\//, '').slice(0, 60))}</a>`;
-  return `<div class="aw-media aw-nomedia">${esc((x.title || '?').slice(0, 1).toUpperCase())}</div>`;
+  return `<div class="aw-media aw-nomedia${clickCls}"${openAttr}>${esc((x.title || '?').slice(0, 1).toUpperCase())}</div>`;
 }
 function autoLinkLabel(url) {
   if (/twitchtracker\.com/i.test(url)) return 'TwitchTracker';
@@ -428,14 +433,16 @@ function viewNom(id) {
         <button class="aw-btn danger" data-del-nom="${n.id}">Удалить</button>
       </div>` : ''}
     </section>
-    <div class="aw-nees">${list.map((x, i) => {
+    <div class="aw-nees" data-nom-grid="${id}">${list.map((x, i) => {
       const on = mine === x.id, v = S.results?.get(x.id) || 0;
-      return `<article class="aw-nee${on ? ' on' : ''}${just === x.id ? ' just-voted' : ''}" style="--i:${i}">
-        ${S.admin ? `<div class="aw-nee-adm"><button class="aw-btn icon" data-edit-nee="${x.id}" title="Изменить">✎</button><button class="aw-btn icon danger" data-del-nee="${x.id}" title="Удалить">✕</button></div>` : ''}
-        ${mediaHtml(x)}
+      const parts = partsOf(x), canOpenParts = parts.length > 0 || S.admin;
+      return `<article class="aw-nee${on ? ' on' : ''}${just === x.id ? ' just-voted' : ''}${S.admin ? ' can-drag' : ''}" data-nee-id="${x.id}"${S.admin ? ' draggable="true"' : ''} style="--i:${i}">
+        ${S.admin ? `<div class="aw-nee-adm"><span class="aw-btn icon aw-drag-grip" title="Перетащить номинанта">⠿</span><button type="button" class="aw-btn icon" data-open-parts="${x.id}" title="Участники">👥</button><button type="button" class="aw-btn icon" data-edit-nee="${x.id}" title="Изменить">✎</button><button type="button" class="aw-btn icon danger" data-del-nee="${x.id}" title="Удалить">✕</button></div>` : ''}
+        ${mediaHtml(x, canOpenParts)}
         <div class="aw-nee-body">
           <h3>${esc(x.title)}</h3>
           ${neeSubHtml(x.description)}
+          ${parts.length ? `<button type="button" class="aw-parts-btn" data-open-parts="${x.id}">Участники <span>${parts.length}</span></button>` : S.admin ? `<button type="button" class="aw-parts-btn is-empty" data-open-parts="${x.id}">＋ Участники</button>` : ''}
           ${S.results && S.showRes ? `<div class="aw-res"><div class="aw-res-bar"><i style="width:${v / max * 100}%"></i></div><span>${v} ${plural(v, 'голос', 'голоса', 'голосов')}</span></div>` : ''}
           <div class="aw-nee-line" aria-hidden="true"></div>
           <div class="aw-nee-acts">${n.is_open ? `<button class="slay-btn sm${on ? ' cancel' : mine ? ' dim' : ''}" data-vote="${x.id}">${on ? 'ОТМЕНИТЬ ВЫБОР' : 'ВЫБРАТЬ'}</button>` : on ? '<span class="slay-btn sm cancel static">✓ ВЫБРАНО</span>' : ''}</div>
@@ -455,6 +462,268 @@ function viewNom(id) {
     if (img.complete) check();
     else img.addEventListener('load', check, { once: true });
   });
+  if (S.admin) initNeeDrag(id);
+}
+
+/* ── перетаскивание номинантов для смены порядка (модераторы) ── */
+function initNeeDrag(nomId) {
+  const grid = page.querySelector(`.aw-nees[data-nom-grid="${nomId}"]`);
+  if (!grid) return;
+  let dragEl = null, startOrder = '';
+  const idsNow = () => [...grid.querySelectorAll('.aw-nee[data-nee-id]')].map(el => el.dataset.neeId);
+
+  grid.addEventListener('dragstart', e => {
+    if (e.target.closest('button, a, input, textarea, video, iframe')) { e.preventDefault(); return; }
+    const card = e.target.closest('.aw-nee[data-nee-id]');
+    if (!card) return;
+    dragEl = card;
+    startOrder = idsNow().join(',');
+    card.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', card.dataset.neeId); } catch {}
+  });
+  grid.addEventListener('dragover', e => {
+    if (!dragEl) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.aw-nee[data-nee-id]');
+    if (!target || target === dragEl) return;
+    const cards = [...grid.querySelectorAll('.aw-nee[data-nee-id]')];
+    const from = cards.indexOf(dragEl), to = cards.indexOf(target);
+    if (from < 0 || to < 0) return;
+    if (from < to) grid.insertBefore(dragEl, target.nextSibling);
+    else grid.insertBefore(dragEl, target);
+  });
+  grid.addEventListener('drop', e => { if (dragEl) e.preventDefault(); });
+  grid.addEventListener('dragend', async () => {
+    if (!dragEl) return;
+    dragEl.classList.remove('is-dragging');
+    dragEl = null;
+    S.justDragged = true;
+    setTimeout(() => { S.justDragged = false; }, 120);
+    const orderedIds = idsNow();
+    if (orderedIds.join(',') === startOrder) return;
+    const changed = [];
+    orderedIds.forEach((neeId, i) => {
+      const item = S.nees.find(y => y.id === neeId);
+      const pos = i + 1;
+      if (item && item.position !== pos) {
+        item.position = pos;
+        changed.push({ id: neeId, position: pos });
+      }
+    });
+    if (!changed.length) return;
+    try {
+      await Promise.all(changed.map(c => api(`aw_nominees?id=eq.${c.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { position: c.position } })));
+      toast('Порядок сохранён');
+    } catch (er) {
+      toast('Не удалось сохранить порядок: ' + er.message, true);
+      await loadAll(); route();
+    }
+  });
+}
+
+/* ── модалка участников внутри номинанта (без голосования за них) ── */
+async function saveNomineeParts(nomineeId, nextParts) {
+  await api(`aw_nominees?id=eq.${nomineeId}`, { method: 'PATCH', prefer: 'return=minimal', body: { participants: nextParts } });
+  const x = S.nees.find(y => y.id === nomineeId);
+  if (x) x.participants = nextParts;
+}
+
+function partEditDialog(nomineeId, existingPart, onDone) {
+  let file = null;
+  const oldPhoto = existingPart?.photo || '';
+  const f = modal(`<h2>${existingPart ? 'Изменить участника' : 'Новый участник'}</h2>
+    <label>Имя / ник<input name="n" maxlength="80" required value="${esc(existingPart?.name || '')}" placeholder="Например: Renamid"></label>
+    <div class="aw-row">
+      <label style="flex:0 0 40%">Подпись ссылки<input name="lt" maxlength="50" value="${esc(existingPart?.label || '')}" placeholder="Twitch / Канал"></label>
+      <label>Ссылка на канал<input name="lu" maxlength="400" value="${esc(existingPart?.url || '')}" placeholder="https://twitch.tv/..."></label>
+    </div>
+    <div class="aw-media-pick"><span>Фото участника</span>
+      <label class="aw-drop"><input type="file" accept="image/*" hidden><b>${oldPhoto ? 'Заменить фото' : 'Загрузить фото'}</b><small>до 15 МБ · Ctrl+V из буфера или перетащи сюда</small></label>
+      <div class="aw-or">или ссылка на картинку</div>
+      <div class="aw-row"><input name="u" placeholder="https://..." value="${esc(oldPhoto)}"><button type="button" class="aw-btn danger" data-clear-media${oldPhoto ? '' : ' hidden'}>Удалить фото</button></div>
+      <div class="aw-prev"></div></div>`, async (f, say) => {
+    const name = f.n.value.trim();
+    if (!name) throw new Error('Укажи имя или ник');
+    const url = f.lu.value.trim();
+    if (url && !/^https?:\/\/\S+$/i.test(url)) throw new Error('Ссылка на канал должна начинаться с https://');
+    const label = f.lt.value.trim().slice(0, 50);
+    let photo = f.u.value.trim();
+    if (file) {
+      photo = await upload(file, p => say(`Загрузка: ${p}%`));
+    } else if (photo && !/^https:\/\//i.test(photo)) {
+      throw new Error('Ссылка на фото должна начинаться с https://');
+    }
+    const x = S.nees.find(y => y.id === nomineeId);
+    if (!x) throw new Error('Номинант не найден');
+    const cur = partsOf(x).slice();
+    const entry = {
+      id: existingPart?.id || ('p-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6)),
+      name,
+      photo: photo || '',
+      url: url || '',
+      label: label || '',
+    };
+    if (existingPart) {
+      const idx = cur.findIndex(p => p.id === existingPart.id);
+      if (idx >= 0) cur[idx] = entry; else cur.push(entry);
+    } else {
+      cur.push(entry);
+    }
+    await saveNomineeParts(nomineeId, cur);
+    if (oldPhoto && oldPhoto !== photo) await delServerMedia({ awardUrl: oldPhoto });
+    toast(existingPart ? 'Участник обновлён' : 'Участник добавлен');
+    onDone?.();
+  });
+  f.closest('.aw-ov')?.classList.add('aw-ov-top');
+  const fi = $('input[type=file]', f), pv = $('.aw-prev', f), clr = $('[data-clear-media]', f), drop = $('.aw-drop', f);
+  if (oldPhoto) pv.innerHTML = `<img src="${esc(thumb(oldPhoto, 560))}" alt="">`;
+  function pickFile(raw, fromPaste = false) {
+    if (!raw) return;
+    if (!/^image\//.test(raw.type || '')) return toast('Поддерживаются только изображения (PNG, JPG, WebP, GIF)', true);
+    if (raw.size > 15 * 1048576) return toast('Файл больше 15 МБ', true);
+    const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[raw.type] || 'png';
+    const fname = !raw.name || /^image\.\w+$/i.test(raw.name) ? `part_${Date.now()}.${ext}` : raw.name;
+    file = fname === raw.name ? raw : new File([raw], fname, { type: raw.type });
+    const u = URL.createObjectURL(file); f.u.value = ''; clr.hidden = false;
+    pv.innerHTML = `<img src="${u}" alt="">`;
+    $('b', drop).textContent = fromPaste ? `Из буфера (${fname})` : fname;
+    if (fromPaste) toast('Фото вставлено из буфера обмена');
+  }
+  clr.onclick = () => { file = null; fi.value = ''; f.u.value = ''; pv.innerHTML = ''; clr.hidden = true; $('b', drop).textContent = 'Загрузить фото'; };
+  f.u.oninput = () => { clr.hidden = !f.u.value.trim() && !file; };
+  fi.onchange = () => pickFile(fi.files[0]);
+  const onPaste = ev => {
+    if (!f.isConnected) { document.removeEventListener('paste', onPaste); return; }
+    const items = [...(ev.clipboardData?.items || [])];
+    const mediaItem = items.find(it => it.kind === 'file' && /^image\//.test(it.type));
+    const pasted = mediaItem?.getAsFile() || [...(ev.clipboardData?.files || [])].find(fl => /^image\//.test(fl.type));
+    if (!pasted) return;
+    ev.preventDefault();
+    pickFile(pasted, true);
+  };
+  document.addEventListener('paste', onPaste);
+  drop.addEventListener('dragover', ev => { ev.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+  drop.addEventListener('drop', ev => {
+    ev.preventDefault(); drop.classList.remove('drag');
+    const dropped = ev.dataTransfer?.files?.[0];
+    if (dropped) pickFile(dropped);
+  });
+}
+
+function openPartsModal(nomineeId) {
+  const x0 = S.nees.find(y => y.id === nomineeId);
+  if (!x0) return;
+  if (!S.admin && !partsOf(x0).length) return;
+  const ov = document.createElement('div');
+  ov.className = 'aw-ov';
+  const close = () => { document.removeEventListener('keydown', onKey); ov.remove(); };
+  const onKey = e => { if (e.key === 'Escape' && !document.querySelector('.aw-ov-top')) close(); };
+  document.addEventListener('keydown', onKey);
+
+  function render() {
+    const x = S.nees.find(y => y.id === nomineeId);
+    if (!x) return close();
+    const parts = partsOf(x);
+    ov.innerHTML = `<div class="aw-modal aw-parts-modal" role="dialog" aria-modal="true">
+      <div class="aw-parts-head">
+        <div>
+          <div class="aw-kicker">Участники${parts.length ? ` · ${parts.length}` : ''}</div>
+          <h2>${esc(x.title)}</h2>
+        </div>
+        <button type="button" class="aw-btn icon" data-close-parts title="Закрыть">✕</button>
+      </div>
+      ${!parts.length && !S.admin ? '<p class="aw-parts-empty">Участники пока не добавлены.</p>' : ''}
+      <div class="aw-parts-grid">${parts.map(p => `<article class="aw-part-card${S.admin ? ' can-drag' : ''}" data-part-id="${esc(p.id)}"${S.admin ? ' draggable="true"' : ''}>
+        ${S.admin ? `<div class="aw-part-adm"><span class="aw-btn icon aw-drag-grip" title="Перетащить">⠿</span><button type="button" class="aw-btn icon" data-edit-part="${esc(p.id)}" title="Изменить">✎</button><button type="button" class="aw-btn icon danger" data-del-part="${esc(p.id)}" title="Удалить">✕</button></div>` : ''}
+        <div class="aw-part-media">${p.photo ? `<img src="${esc(thumb(p.photo, 560))}" alt="${esc(p.name)}" loading="lazy" draggable="false">` : `<div class="aw-part-ph">${esc((p.name || '?').slice(0, 1).toUpperCase())}</div>`}</div>
+        <div class="aw-part-info">
+          <h4>${esc(p.name)}</h4>
+          ${p.url ? `<a class="aw-part-link" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.label || autoLinkLabel(p.url))} ↗</a>` : ''}
+        </div>
+      </article>`).join('')}
+      ${S.admin ? `<button type="button" class="aw-part-card aw-part-add" data-add-part><span>＋</span><b>Добавить участника</b><small>фото и ссылка на канал</small></button>` : ''}
+      </div>
+    </div>`;
+
+    if (S.admin) {
+      const grid = $('.aw-parts-grid', ov);
+      let dragEl = null, startOrder = '';
+      const idsNow = () => [...grid.querySelectorAll('.aw-part-card[data-part-id]')].map(el => el.dataset.partId);
+      grid.addEventListener('dragstart', e => {
+        if (e.target.closest('button, a, input')) { e.preventDefault(); return; }
+        const card = e.target.closest('.aw-part-card[data-part-id]');
+        if (!card) return;
+        dragEl = card; startOrder = idsNow().join(',');
+        card.classList.add('is-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', card.dataset.partId); } catch {}
+      });
+      grid.addEventListener('dragover', e => {
+        if (!dragEl) return;
+        e.preventDefault();
+        const target = e.target.closest('.aw-part-card[data-part-id]');
+        if (!target || target === dragEl) return;
+        const cards = [...grid.querySelectorAll('.aw-part-card[data-part-id]')];
+        const from = cards.indexOf(dragEl), to = cards.indexOf(target);
+        if (from < 0 || to < 0) return;
+        if (from < to) grid.insertBefore(dragEl, target.nextSibling);
+        else grid.insertBefore(dragEl, target);
+      });
+      grid.addEventListener('drop', e => { if (dragEl) e.preventDefault(); });
+      grid.addEventListener('dragend', async () => {
+        if (!dragEl) return;
+        dragEl.classList.remove('is-dragging');
+        dragEl = null;
+        const ids = idsNow();
+        if (ids.join(',') === startOrder) return;
+        const cur = partsOf(S.nees.find(y => y.id === nomineeId));
+        const byId = new Map(cur.map(p => [p.id, p]));
+        const nextParts = ids.map(id => byId.get(id)).filter(Boolean);
+        try {
+          await saveNomineeParts(nomineeId, nextParts);
+          toast('Порядок участников сохранён');
+        } catch (er) {
+          toast('Ошибка: ' + er.message, true);
+          render();
+        }
+      });
+    }
+  }
+
+  ov.addEventListener('click', async e => {
+    if (e.target === ov || e.target.closest('[data-close-parts]')) return close();
+    if (!S.admin) return;
+    if (e.target.closest('[data-add-part]')) {
+      return partEditDialog(nomineeId, null, () => { render(); route(); });
+    }
+    const ep = e.target.closest('[data-edit-part]');
+    if (ep) {
+      const x = S.nees.find(y => y.id === nomineeId);
+      const p = partsOf(x).find(i => i.id === ep.dataset.editPart);
+      if (p) partEditDialog(nomineeId, p, () => { render(); route(); });
+      return;
+    }
+    const dp = e.target.closest('[data-del-part]');
+    if (dp) {
+      if (!confirm('Удалить участника?')) return;
+      const x = S.nees.find(y => y.id === nomineeId);
+      const cur = partsOf(x);
+      const target = cur.find(i => i.id === dp.dataset.delPart);
+      const nextParts = cur.filter(i => i.id !== dp.dataset.delPart);
+      try {
+        await saveNomineeParts(nomineeId, nextParts);
+        if (target?.photo) await delServerMedia({ awardUrl: target.photo });
+        toast('Участник удалён');
+        render(); route();
+      } catch (er) { toast(er.message, true); }
+    }
+  });
+
+  render();
+  document.body.append(ov);
 }
 
 /* ── голос ── */
@@ -605,6 +874,11 @@ page.addEventListener('click', async e => {
   const fq = t.closest('[data-faq]');
   if (fq) { fq.closest('.slay-faq-item')?.classList.toggle('open'); return; }
   const v = t.closest('[data-vote]'); if (v) return vote(v.dataset.vote);
+  const op = t.closest('[data-open-parts]');
+  if (op) {
+    if (S.justDragged) return;
+    return openPartsModal(op.dataset.openParts);
+  }
   const z = t.closest('[data-zoom]'); if (z) { const ov = document.createElement('div'); ov.className = 'aw-ov aw-zoom'; ov.innerHTML = `<img src="${esc(z.dataset.zoom)}" alt="">`; ov.onclick = () => ov.remove(); document.body.append(ov); return; }
   if (!S.admin) return;
   if (t.closest('[data-add-nom]')) return nomDialog(null);
@@ -612,11 +886,31 @@ page.addEventListener('click', async e => {
   const tn = t.closest('[data-toggle-nom]');
   if (tn) { const n = S.noms.find(x => x.id === tn.dataset.toggleNom); await api(`aw_nominations?id=eq.${n.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { is_open: !n.is_open } }).catch(er => toast(er.message, true)); await loadAll(); return route(); }
   const dn = t.closest('[data-del-nom]');
-  if (dn) { if (!confirm('Удалить номинацию вместе с номинантами, фото и голосами?')) return; await delServerMedia({ awardNominationId: dn.dataset.delNom }); await api(`aw_nominations?id=eq.${dn.dataset.delNom}`, { method: 'DELETE' }).catch(er => toast(er.message, true)); await loadAll(); location.hash = '#/'; return; }
+  if (dn) {
+    if (!confirm('Удалить номинацию вместе с номинантами, фото и голосами?')) return;
+    for (const nee of neesOf(dn.dataset.delNom)) {
+      for (const p of partsOf(nee)) if (p.photo) await delServerMedia({ awardUrl: p.photo });
+    }
+    await delServerMedia({ awardNominationId: dn.dataset.delNom });
+    await api(`aw_nominations?id=eq.${dn.dataset.delNom}`, { method: 'DELETE' }).catch(er => toast(er.message, true));
+    await loadAll(); location.hash = '#/'; return;
+  }
   const an = t.closest('[data-add-nee]'); if (an) return neeDialog(an.dataset.addNee, null);
   const ee = t.closest('[data-edit-nee]'); if (ee) { const x = S.nees.find(y => y.id === ee.dataset.editNee); return neeDialog(x.nomination_id, x); }
   const de = t.closest('[data-del-nee]');
-  if (de) { if (!confirm('Удалить номинанта и его фото?')) return; await delServerMedia({ awardNomineeId: de.dataset.delNee }); await api(`aw_nominees?id=eq.${de.dataset.delNee}`, { method: 'DELETE' }).catch(er => toast(er.message, true)); await loadAll(); return route(); }
+  if (de) {
+    if (!confirm('Удалить номинанта и его фото?')) return;
+    const x = S.nees.find(y => y.id === de.dataset.delNee);
+    for (const p of partsOf(x)) if (p.photo) await delServerMedia({ awardUrl: p.photo });
+    await delServerMedia({ awardNomineeId: de.dataset.delNee });
+    await api(`aw_nominees?id=eq.${de.dataset.delNee}`, { method: 'DELETE' }).catch(er => toast(er.message, true));
+    await loadAll(); return route();
+  }
+});
+page.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const op = e.target.closest('[role="button"][data-open-parts]');
+  if (op) { e.preventDefault(); openPartsModal(op.dataset.openParts); }
 });
 page.addEventListener('change', e => {
   if (e.target.matches('[data-show-res]')) { S.showRes = e.target.checked; route(); }
