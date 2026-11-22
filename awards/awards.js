@@ -586,7 +586,7 @@ function partEditDialog(nomineeId, existingPart, onDone) {
   });
   f.closest('.aw-ov')?.classList.add('aw-ov-top');
   const fi = $('input[type=file]', f), pv = $('.aw-prev', f), clr = $('[data-clear-media]', f), drop = $('.aw-drop', f);
-  if (oldPhoto) pv.innerHTML = `<img src="${esc(thumb(oldPhoto, 560))}" alt="">`;
+  if (oldPhoto) pv.innerHTML = `<img src="${esc(thumb(oldPhoto, 480))}" alt="">`;
   function pickFile(raw, fromPaste = false) {
     if (!raw) return;
     const mime = inferMime(raw);
@@ -647,7 +647,7 @@ function openPartsModal(nomineeId) {
       ${!parts.length && !S.admin ? '<p class="aw-parts-empty">Участники пока не добавлены.</p>' : ''}
       <div class="aw-parts-grid">${parts.map(p => `<article class="aw-part-card${S.admin ? ' can-drag' : ''}" data-part-id="${esc(p.id)}"${S.admin ? ' draggable="true"' : ''}>
         ${S.admin ? `<div class="aw-part-adm"><span class="aw-btn icon aw-drag-grip" title="Перетащить">⠿</span><button type="button" class="aw-btn icon" data-edit-part="${esc(p.id)}" title="Изменить">✎</button><button type="button" class="aw-btn icon danger" data-del-part="${esc(p.id)}" title="Удалить">✕</button></div>` : ''}
-        <div class="aw-part-media">${p.photo ? `<img src="${esc(thumb(p.photo, 560))}" alt="${esc(p.name)}" loading="lazy" draggable="false">` : `<div class="aw-part-ph">${esc((p.name || '?').slice(0, 1).toUpperCase())}</div>`}</div>
+        <div class="aw-part-media">${p.photo ? `<img src="${esc(thumb(p.photo, 480))}" alt="${esc(p.name)}" loading="lazy" draggable="false">` : `<div class="aw-part-ph">${esc((p.name || '?').slice(0, 1).toUpperCase())}</div>`}</div>
         <div class="aw-part-info">
           <h4>${esc(p.name)}</h4>
           ${p.url ? `<a class="aw-part-link" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.label || autoLinkLabel(p.url))} ↗</a>` : ''}
