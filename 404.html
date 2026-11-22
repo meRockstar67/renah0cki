@@ -17,8 +17,13 @@
   // Дальше просто перекладываем путь в query-параметр ?redirect= и уходим
   // на главную страницу — там index.html сам разберёт короткий код через
   // resolveShortLinkFromPath() и откроет нужный пост/сборник/профиль.
-  var path = location.pathname.replace(/^\//, '');
-  location.replace('/?redirect=' + encodeURIComponent(path) + location.search + location.hash);
+  var path = location.pathname.replace(/^\/+/, '');
+  var q = location.search ? '&' + location.search.slice(1) : '';
+  if (path.indexOf('v2/') === 0) {
+    location.replace('/v2/?redirect=' + encodeURIComponent(path.slice(3)) + q + location.hash);
+  } else {
+    location.replace('/?redirect=' + encodeURIComponent(path) + q + location.hash);
+  }
 </script>
 </body>
 </html>

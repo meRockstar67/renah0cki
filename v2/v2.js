@@ -68,13 +68,32 @@ async function api(path, { method = 'GET', body, prefer } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
-/* ── база адресов: сейчас /v2/, после открытия для всех — / ── */
+/* ── база адресов и чистый History API роутинг (/shop, /art, /u/..., без #/) ── */
 const BASE = location.pathname.startsWith('/v2/') ? '/v2/' : '/';
+const SPA_TOP = new Set(['art', 'video', 'fanfic', 'news', 'suggest', 'u', 'p', 'c', 'notifications', 'support', 'new', 'collections', 'mod', 'rules', 'wallet', 'shop', 'settings', 'streak']);
+function curRoute() {
+  if (location.hash.startsWith('#/')) return location.hash.slice(2).replace(/^\/+|\/+$/g, '');
+  const p = location.pathname.startsWith(BASE) ? location.pathname.slice(BASE.length) : location.pathname.replace(/^\/+/, '');
+  return p.replace(/^\/+|\/+$/g, '');
+}
+function routeUrl(to) {
+  const clean = String(to || '').replace(/^#?\/+/, '').replace(/\/+$/, '');
+  return clean ? BASE + clean : BASE;
+}
+function go(to, { replace = false } = {}) {
+  const mm = $('#meMenu'), np = $('#notifPop');
+  if (mm) mm.hidden = true;
+  if (np) np.hidden = true;
+  const url = routeUrl(to);
+  if (url === location.pathname && !location.search && !location.hash) return route();
+  history[replace ? 'replaceState' : 'pushState'](null, '', url);
+  route();
+}
 
 /* ── вход через Twitch: Supabase возвращает #access_token=… — завершаем вход здесь же ── */
 async function finishOAuth() {
   const hp = new URLSearchParams(location.hash.slice(1));
-  const back = (() => { try { const b = localStorage.getItem('fh_after_login'); localStorage.removeItem('fh_after_login'); return b && /^\/(v2\/)?(#.*)?$/.test(b) ? b : BASE; } catch { return BASE; } })();
+  const back = (() => { try { const b = localStorage.getItem('fh_after_login'); localStorage.removeItem('fh_after_login'); return b && /^\/(?!\/)/.test(b) ? b : BASE; } catch { return BASE; } })();
   const show = t => { document.body.innerHTML = `<div style="min-height:100dvh;display:grid;place-items:center;font:600 16px system-ui;color:#8ea3c2;background:#0b1220">${t}</div>`; };
   history.replaceState(null, '', location.pathname + location.search);
   if (hp.get('error')) { show('Вход не удался: ' + esc(hp.get('error_description') || hp.get('error'))); setTimeout(() => location.replace(back), 2500); return; }
@@ -105,31 +124,38 @@ async function finishOAuth() {
 }
 if (/[#&]access_token=|[#&]error=/.test(location.hash)) { finishOAuth(); return; }
 
-/* ── старые адреса сайта → разделы v2: /КОД, /@ник, /n/КОД, ?post=, ?collection=, ?news=, ?user=, ?rules, ?streak, /y/… ── */
+/* ── старые и прямые адреса сайта → чистые пути v2: /shop, /art, /КОД, /@ник, /n/КОД, ?post=, ?redirect=, #/... ── */
 async function resolveLegacy() {
-  let path = location.pathname.slice(BASE.length).replace(/\/+$/, '');
+  let path = location.pathname.startsWith(BASE) ? location.pathname.slice(BASE.length).replace(/^\/+|\/+$/g, '') : '';
   const qs = new URLSearchParams(location.search);
+  const hadRedir = qs.has('redirect');
   if (!path && qs.get('redirect')) path = qs.get('redirect').replace(/^\/+|\/+$/g, '');
-  let hash = null;
+  let target = null;
+  const firstSeg = path.split('/')[0];
   const ym = path.match(/^y\/(.+)$/);
   if (ym) { location.replace('/rp/#/' + (ym[1].includes('/') ? ym[1] : 'p/' + ym[1])); return false; }
-  if (path.startsWith('@')) hash = '#/u/' + encodeURIComponent(decodeURIComponent(path.slice(1)));
-  else if (/^n\/[A-Za-z0-9]{4,12}$/.test(path)) hash = '#/news/' + path.slice(2);
+  if (path && SPA_TOP.has(firstSeg)) target = path;
+  else if (path.startsWith('@')) target = 'u/' + encodeURIComponent(decodeURIComponent(path.slice(1)));
+  else if (/^n\/[A-Za-z0-9]{4,12}$/.test(path)) target = 'news/' + path.slice(2);
   else if (/^[A-Za-z0-9]{4,12}$/.test(path) && path !== 'old') {
     const sel = t => api(`${t}?short_code=eq.${path}&select=id,short_code`).catch(() => []);
     const [[c], [k], [n]] = await Promise.all([sel('content'), sel('collections'), sel('news')]);
-    hash = c ? '#/p/' + path : k ? '#/c/' + path : n ? '#/news/' + n.id : '#/';
+    target = c ? 'p/' + path : k ? 'c/' + path : n ? 'news/' + n.id : '';
   }
-  else if (qs.get('post')) hash = '#/p/' + qs.get('post');
-  else if (qs.get('collection')) hash = '#/c/' + qs.get('collection');
-  else if (qs.get('news')) hash = '#/news/' + qs.get('news');
-  else if (qs.get('user')) hash = '#/u/' + qs.get('user');
-  else if (qs.get('rules')) hash = '#/rules';
-  else if (qs.get('streak')) hash = '#/streak';
-  else if (qs.get('openModeration')) hash = '#/mod';
-  if (hash == null && !path && !['post', 'collection', 'news', 'user', 'redirect'].some(k => qs.has(k))) return true;
+  else if (qs.get('post')) target = 'p/' + qs.get('post');
+  else if (qs.get('collection')) target = 'c/' + qs.get('collection');
+  else if (qs.get('news')) target = 'news/' + qs.get('news');
+  else if (qs.get('user')) target = 'u/' + qs.get('user');
+  else if (qs.get('rules')) target = 'rules';
+  else if (qs.get('streak')) target = 'streak';
+  else if (qs.get('openModeration')) target = 'mod';
+  else if (location.hash.startsWith('#/')) target = location.hash.slice(2).replace(/^\/+|\/+$/g, '');
+
+  const hasLegacyQ = hadRedir || ['post', 'collection', 'news', 'user', 'rules', 'streak', 'openModeration'].some(k => qs.has(k));
+  if (target == null && !hasLegacyQ && !location.hash.startsWith('#/')) return true;
   const keep = new URLSearchParams(); if (qs.get('tglink')) keep.set('tglink', qs.get('tglink'));
-  history.replaceState(null, '', BASE + (keep.toString() ? '?' + keep : '') + (hash || location.hash || '#/'));
+  const cleanUrl = routeUrl(target || '') + (keep.toString() ? '?' + keep : '');
+  history.replaceState(null, '', cleanUrl);
   return true;
 }
 
@@ -351,7 +377,7 @@ function viewFeed(type) {
         <div class="filter-pop" hidden>
           <h4>Теги${FEED.tags.length ? ` <button class="ftag-clear" data-ftagclear>сбросить</button>` : ''}</h4><div class="chips">${ALL_TAGS.map(t => `<button class="chip${FEED.tags.includes(t) ? ' on' : ''}" data-ftag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>
           <h4>Тип</h4><div class="chips">${Object.entries(TYPE_NAMES).map(([k, v]) => `<button class="chip${FEED.type === k ? ' on' : ''}" data-ftype="${k}">${v}</button>`).join('')}</div>
-          <h4>Ещё</h4><div class="chips"><a class="chip" href="#/collections">🗂️ Сборники</a></div>
+          <h4>Ещё</h4><div class="chips"><a class="chip" href="${routeUrl('collections')}">🗂️ Сборники</a></div>
           <h4>Сортировка</h4><div class="chips"><button class="chip${FEED.sort === 'new' ? ' on' : ''}" data-fsort="new">Новые</button><button class="chip${FEED.sort === 'top' ? ' on' : ''}" data-fsort="top">Популярные</button></div>
         </div></div>
     </div>
@@ -441,7 +467,7 @@ page.addEventListener('click', e => {
   if (tab) { FEED.tab = tab.dataset.tab; subsIds = null; return viewFeed(FEED.type); }
   if (e.target.closest('[data-filter-toggle]')) { const p = $('.filter-pop', page); p.hidden = !p.hidden; $('[data-filter-toggle]', page).classList.toggle('on', !p.hidden); return; }
   const ft = e.target.closest('[data-ftype]');
-  if (ft) { const t = ft.dataset.ftype; location.hash = t === 'all' ? '#/' : '#/' + t; return; }
+  if (ft) { const t = ft.dataset.ftype; go(t === 'all' ? '' : t); return; }
   const ftg = e.target.closest('[data-ftag]');
   if (ftg) { const t = ftg.dataset.ftag; FEED.tags = FEED.tags.includes(t) ? FEED.tags.filter(x => x !== t) : [...FEED.tags, t]; viewFeed(FEED.type); $('.filter-pop', page).hidden = false; $('[data-filter-toggle]', page)?.classList.add('on'); return; }
   if (e.target.closest('[data-ftagclear]')) { FEED.tags = []; viewFeed(FEED.type); $('.filter-pop', page).hidden = false; return; }
@@ -457,7 +483,7 @@ document.addEventListener('click', e => {
 let searchT;
 $('#searchInput').addEventListener('input', e => {
   clearTimeout(searchT);
-  searchT = setTimeout(() => { FEED.q = e.target.value.trim(); if (!location.hash.match(/^#\/(art|video|fanfic)?$/) && location.hash !== '') location.hash = '#/'; else viewFeed(FEED.type); }, 350);
+  searchT = setTimeout(() => { FEED.q = e.target.value.trim(); if (!/^(art|video|fanfic)?$/.test(curRoute())) go(''); else viewFeed(FEED.type); }, 350);
 });
 
 /* ── страница поста ── */
@@ -665,7 +691,7 @@ addEventListener('keydown', e => {
 }, true);
 
 /* ── лайтбокс: пост поверх ленты ── */
-let lbBaseHash = location.hash;
+let lbBaseRoute = curRoute();
 function closeLightboxUi() {
   if (!LB.el) return;
   $$('video, iframe', LB.el).forEach(m => { if (m.tagName === 'VIDEO') m.pause(); else m.src = 'about:blank'; });
@@ -686,7 +712,7 @@ function lbEnsure() {
     if (e.target.closest('[data-lb-close]')) return closeLightbox();
     const st = e.target.closest('[data-lb-step]'); if (st) return lbStep(+st.dataset.lbStep);
     const u = e.target.closest('[data-user]');
-    if (u) { closeLightbox(true); location.hash = '#/u/' + encodeURIComponent(u.dataset.user); }
+    if (u) { closeLightbox(true); go('u/' + encodeURIComponent(u.dataset.user)); }
   });
   // свайп влево/вправо на телефоне — соседняя работа
   let sx = 0, sy = 0, st = 0;
@@ -726,8 +752,8 @@ function lbPrefetch(keys, i) {
 }
 function openLightbox(key) {
   const el = lbEnsure();
-  if (!LB.open) { LB.open = true; history.pushState({ lb: 1 }, '', '#/p/' + key); }
-  else history.replaceState({ lb: 1 }, '', '#/p/' + key);
+  if (!LB.open) { LB.open = true; history.pushState({ lb: 1 }, '', routeUrl('p/' + key)); }
+  else history.replaceState({ lb: 1 }, '', routeUrl('p/' + key));
   document.documentElement.classList.add('lb-lock');
   el.classList.add('show');
   lbRender(key);
@@ -735,7 +761,7 @@ function openLightbox(key) {
 function lbStep(d) {
   const keys = lbKeys(), i = keys.indexOf(LB.key);
   const k = keys[i + d]; if (!k) return;
-  history.replaceState({ lb: 1 }, '', '#/p/' + k);
+  history.replaceState({ lb: 1 }, '', routeUrl('p/' + k));
   lbRender(k);
   $(`[data-open="${CSS.escape(k)}"]`, page)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
@@ -744,7 +770,7 @@ function closeLightbox(keepHash = false) {
   if (!LB.open) return;
   LB.open = false;
   closeLightboxUi();
-  if (!keepHash && /^#\/p\//.test(location.hash)) { LB.skip = true; history.back(); }
+  if (!keepHash && curRoute().startsWith('p/')) { LB.skip = true; history.back(); }
 }
 addEventListener('keydown', e => {
   if (!LB.open) return;
@@ -857,7 +883,7 @@ function reportDialog(commentId) {
   };
   document.body.append(ov);
 }
-page.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : (location.hash = '#/'); } });
+page.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : go(''); } });
 
 /* ── роли (модераторы видят «Одобрить» в предложке) ── */
 const MOD_ROLES = ['moderator', 'gl_moder', 'admin'];
@@ -939,7 +965,7 @@ function newsCardHtml(n) {
 }
 async function viewNews() {
   setNav('news');
-  page.innerHTML = `<div class="page-head"><h1>Новости</h1>${isMod() ? '<a class="btn accent" href="#/news/new">Написать</a>' : ''}</div><div class="grid grid-big" id="newsGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
+  page.innerHTML = `<div class="page-head"><h1>Новости</h1>${isMod() ? `<a class="btn accent" href="${routeUrl('news/new')}">Написать</a>` : ''}</div><div class="grid grid-big" id="newsGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
   try {
     await swr('news', fetchNews, data => {
       applyNews(data);
@@ -982,7 +1008,7 @@ async function viewNewsArticle(key) {
     ${cover ? `<div class="post-media"><img src="${esc(cover)}" alt=""></div>` : ''}
     <h1>${esc(n.title)}</h1>
     <div class="post-head">${avaHtml(by.ava, by.name)}<div><b>${esc(by.name)}</b><div class="sub">${when(n.created_at)} · ${fmt(n.views)} просмотров</div></div>
-      <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="newsLike">${I.heart}<span>${fmt(n.likes_count)}</span></button><button class="btn" id="newsCopy" title="Скопировать ссылку">${I.link}</button>${isMod() ? `<a class="btn" href="#/news/edit/${n.id}">Изменить</a><button class="btn" id="newsPin">${n.pinned ? 'Открепить' : 'Закрепить'}</button>` : ''}</div></div>
+      <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="newsLike">${I.heart}<span>${fmt(n.likes_count)}</span></button><button class="btn" id="newsCopy" title="Скопировать ссылку">${I.link}</button>${isMod() ? `<a class="btn" href="${routeUrl('news/edit/' + n.id)}">Изменить</a><button class="btn" id="newsPin">${n.pinned ? 'Открепить' : 'Закрепить'}</button>` : ''}</div></div>
     <div class="news-body">${newsBody(n.body)}</div>
     <section class="comments" id="newsComments"><h3>Комментарии</h3><div class="empty" style="padding:20px">Загрузка…</div></section>
   </article>`;
@@ -1023,7 +1049,7 @@ async function newsLoadComments(n) {
   };
 }
 page.addEventListener('click', e => {
-  const nc = e.target.closest('[data-news]'); if (nc) { location.hash = '#/news/' + nc.dataset.news; return; }
+  const nc = e.target.closest('[data-news]'); if (nc) { go('news/' + nc.dataset.news); return; }
   const sp = e.target.closest('[data-spoiler]'); if (sp) sp.classList.toggle('open');
 });
 
@@ -1109,7 +1135,7 @@ page.addEventListener('click', async e => {
 
 /* ── профиль ── */
 const ROLE_LABEL = { moderator: 'Модератор', gl_moder: 'Главный модератор', admin: 'Админ', sponsor: 'Спонсор', respect_plus: 'Respect+', streamer: 'Стример' };
-const userPath = p => '#/u/' + encodeURIComponent(p?.username || p?.id || '');
+const userPath = p => routeUrl('u/' + encodeURIComponent(p?.username || p?.id || ''));
 async function viewProfile(key) {
   setNav(S.me && (key === S.me.username || key === S.me.id) ? 'me' : '');
   page.innerHTML = `<div class="prof"><div class="skel" style="aspect-ratio:auto;height:180px"></div></div>`;
@@ -1175,7 +1201,7 @@ async function viewProfile(key) {
 }
 page.addEventListener('click', e => {
   const au = e.target.closest('[data-user]');
-  if (au) { e.stopPropagation(); location.hash = '#/u/' + encodeURIComponent(au.dataset.user); }
+  if (au) { e.stopPropagation(); go('u/' + encodeURIComponent(au.dataset.user)); }
 });
 
 /* ── уведомления ── */
@@ -1224,7 +1250,7 @@ const NOTIF_TEXT = { like: 'лайкнул(а) вашу работу', comment: 
 const NOTIF_ICON = { like: I.heart, comment: I.comment, follow: '<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 19.5c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M18 8v6M15 11h6"/></svg>', reject: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>' };
 function notifHtml(n, seen) {
   const unread = new Date(n.at).getTime() > seen;
-  const href = n.type === 'follow' ? userPath(n.actor) : n.target ? (n.coll ? `#/c/${n.target.short_code || n.target.id}` : `#/p/${n.target.short_code || n.target.id}`) : '#/';
+  const href = n.type === 'follow' ? userPath(n.actor) : n.target ? routeUrl(n.coll ? `c/${n.target.short_code || n.target.id}` : `p/${n.target.short_code || n.target.id}`) : routeUrl('');
   return `<a class="notif${unread ? ' unread' : ''} n-${n.type}" href="${esc(href)}">
     <span class="notif-ic">${NOTIF_ICON[n.type]}</span>
     ${avaHtml(n.actor?.avatar_url, pname(n.actor))}
@@ -1293,7 +1319,7 @@ function viewNew(type) {
       <div class="drop-preview" hidden></div></label>`;
   page.innerHTML = `<div class="up">
     <div class="page-head"><h1>Новая работа</h1></div>
-    <div class="up-tabs">${[['art', 'Арт'], ['video', 'Видео'], ['fanfic', 'Фанфик'], ...(isMod() ? [['collection', 'Сборник']] : [])].map(([k, v]) => `<a class="up-tab${T === k ? ' on' : ''}" href="#/new/${k}">${v}</a>`).join('')}</div>
+    <div class="up-tabs">${[['art', 'Арт'], ['video', 'Видео'], ['fanfic', 'Фанфик'], ...(isMod() ? [['collection', 'Сборник']] : [])].map(([k, v]) => `<a class="up-tab${T === k ? ' on' : ''}" href="${routeUrl('new/' + k)}">${v}</a>`).join('')}</div>
     <form class="up-form" id="upForm" novalidate>
       <label class="fld"><span>Название</span><input name="title" maxlength="120" placeholder="${T === 'fanfic' ? 'Название произведения' : T === 'video' ? 'Название видео' : 'Название арта'}" required></label>
       ${T === 'art' ? drop('upDrop', 'image/png,image/jpeg,image/webp,image/gif,image/avif,.avif', 'Перетащите картинку сюда', 'или нажмите, чтобы выбрать · PNG, JPG, WEBP, GIF') : ''}
@@ -1357,7 +1383,7 @@ function viewNew(type) {
       if (T === 'fanfic') Object.assign(body, { fandom: form.fandom.value.trim() || null, pairing: form.pairing.value.trim() || null, description: form.desc.value.trim() || null, age_rating: form.r18.checked ? '18+' : 'pg13', cover_image_url });
       await api('content', { method: 'POST', body, prefer: 'return=minimal' });
       fetch(CDN_URL + '/notify-moderators', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await getToken()) }, body: JSON.stringify({ kind: T, title }) }).catch(() => {});
-      page.innerHTML = `<div class="up-done"><div class="up-done-ic"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h1>Отправлено на проверку!</h1><p>Модераторы посмотрят работу и опубликуют её. Если что-то будет не так — придёт уведомление с причиной.</p><div class="up-done-acts"><a class="btn accent" href="#/new/${T}">Добавить ещё</a><a class="btn" href="#/">В ленту</a></div></div>`;
+      page.innerHTML = `<div class="up-done"><div class="up-done-ic"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h1>Отправлено на проверку!</h1><p>Модераторы посмотрят работу и опубликуют её. Если что-то будет не так — придёт уведомление с причиной.</p><div class="up-done-acts"><a class="btn accent" href="${routeUrl('new/' + T)}">Добавить ещё</a><a class="btn" href="${routeUrl('')}">В ленту</a></div></div>`;
     } catch (er) { say('Ошибка: ' + er.message, true); btn.disabled = false; }
   };
 }
@@ -1550,7 +1576,7 @@ async function loadMe() {
 /* ── вход / выход (Twitch, как на основном сайте) ── */
 // Вход завершает основной сайт (он принимает ответ Twitch и создаёт профиль), потом возвращает сюда.
 function login() {
-  try { localStorage.setItem('fh_after_login', location.pathname + location.hash); } catch {}
+  try { localStorage.setItem('fh_after_login', location.pathname + location.search); } catch {}
   location.href = `${SB_URL}/auth/v1/authorize?provider=twitch&redirect_to=${encodeURIComponent(location.origin + '/')}`;
 }
 async function logout() {
@@ -1623,7 +1649,7 @@ function editProfile() {
       try { const s = readSession(); if (s?.user) { Object.assign(s.user, patch); localStorage.setItem(LS_SESSION, JSON.stringify(s)); } } catch {}
       $('#meAva').src = avatarUrl(me);
       close(); toast('Профиль сохранён');
-      if (/^#\/u\//.test(location.hash)) route();
+      if (curRoute().startsWith('u/')) route();
     } catch (er) { hint.textContent = 'Ошибка: ' + er.message; btn.disabled = false; }
   };
   document.body.append(ov);
@@ -1651,7 +1677,7 @@ function viewMod(tab) {
   if (!S.me) { page.innerHTML = '<div class="empty">Загрузка…</div>'; return; }
   if (!isMod()) { page.innerHTML = '<div class="empty">Раздел только для модераторов.</div>'; return; }
   MOD.tab = ['reports', 'users', 'bans'].includes(tab) ? tab : 'queue';
-  const tb = (k, t, h) => `<a class="tab${MOD.tab === k ? ' on' : ''}" data-modtab="${k}" href="#/mod${h}">${t} <i></i></a>`;
+  const tb = (k, t, h) => `<a class="tab${MOD.tab === k ? ' on' : ''}" data-modtab="${k}" href="${routeUrl('mod' + h)}">${t} <i></i></a>`;
   page.innerHTML = `<div class="mod"><div class="page-head"><h1>Модерация</h1></div>
     <div class="tabs mod-tabs">${tb('queue', 'На проверке', '')}${tb('reports', 'Жалобы', '/reports')}${tb('users', 'Пользователи', '/users')}${tb('bans', 'Баны', '/bans')}</div>
     <div id="modList">${'<div class="skel" style="aspect-ratio:auto;height:140px;margin-bottom:12px"></div>'.repeat(3)}</div></div>`;
@@ -1807,7 +1833,7 @@ async function modReports() {
       <div class="mod-top"><span class="role role-moderator">${esc(RN[r.reason] || r.reason)}</span><span>от <b data-user="${esc(rep?.username || r.reporter_id)}">${esc(pname(rep))}</b> · ${when(r.created_at)}</span></div>
       ${r.details ? `<p class="mod-desc">«${esc(r.details)}»</p>` : ''}
       ${c ? `<div class="cmt">${avaHtml(au?.avatar_url, pname(au))}<div class="cmt-main"><div class="cmt-head"><b data-user="${esc(au?.username || c.author_id)}">${esc(pname(au))}</b><span>${when(c.created_at)}</span></div><div class="cmt-body">${esc(c.body || '')}</div></div></div>
-        ${post ? `<a class="mod-post" href="#/p/${esc(post.short_code || post.id)}">к посту «${esc(post.title || 'без названия')}»</a>` : ''}` : '<div class="mod-desc">Комментарий уже удалён.</div>'}
+        ${post ? `<a class="mod-post" href="${routeUrl('p/' + (post.short_code || post.id))}">к посту «${esc(post.title || 'без названия')}»</a>` : ''}` : '<div class="mod-desc">Комментарий уже удалён.</div>'}
       <div class="mod-acts">${c ? `<button class="btn accent" data-rdel="${r.id}" data-cid="${c.id}">Удалить комментарий</button>` : ''}<button class="btn" data-rno="${r.id}">${c ? 'Оставить' : 'Закрыть жалобу'}</button></div>
     </article>`;
   }).join('') : '<div class="empty">Жалоб нет.</div>';
@@ -2042,7 +2068,7 @@ async function deletePost(it) {
     dropFeedCache(); toast('Работа удалена');
     if (LB.open) closeLightbox();
     $$(`[data-open="${CSS.escape(it.short_code || it.id)}"]`).forEach(c => c.remove());
-    if (!LB.open && /^#\/p\//.test(location.hash)) location.hash = '#/';
+    if (!LB.open && curRoute().startsWith('p/')) go('');
   } catch (er) { toast(er.message, true); }
 }
 
@@ -2051,7 +2077,7 @@ const NOTIF_OPTS = [['notify_likes', 'Лайки на моих работах'],
 function viewSettings() {
   setNav('settings');
   if (!S.uid) { page.innerHTML = `<div class="empty">Войдите, чтобы открыть настройки.<br><br><button class="btn accent" data-login>Войти</button></div>`; return; }
-  if (!S.me) { page.innerHTML = '<div class="empty">Загрузка…</div>'; loadMe().then(() => { if (location.hash.startsWith('#/settings')) viewSettings(); }); return; }
+  if (!S.me) { page.innerHTML = '<div class="empty">Загрузка…</div>'; loadMe().then(() => { if (curRoute().startsWith('settings')) viewSettings(); }); return; }
   const me = S.me, sw = (name, title, sub, on) => `<label class="sw"><input type="checkbox" name="${name}"${on ? ' checked' : ''}><i></i><div><b>${title}</b>${sub ? `<span>${sub}</span>` : ''}</div></label>`;
   const opts = [...NOTIF_OPTS, ...(isMod() ? [['notify_new_submission', 'Новые работы на проверку (модераторам)']] : [])];
   page.innerHTML = `<div class="sets">
@@ -2065,7 +2091,7 @@ function viewSettings() {
       <p>Бот <a href="https://t.me/renah0ckibot" target="_blank" rel="noopener">@renah0ckibot</a> присылает уведомления модераторам и открывает Y прямо в Telegram.</p>
       <ol class="sets-steps"><li>Откройте бота и нажмите <b>/start</b>.</li><li>Бот пришлёт ссылку — откройте её в этом браузере, где вы вошли на сайт.</li><li>Готово: бот сам подтвердит привязку.</li></ol>
       <a class="btn accent" href="https://t.me/renah0ckibot" target="_blank" rel="noopener">Открыть бота</a></section>
-    <section class="rules-card sets-card"><h2>Аккаунт</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>Редактировать профиль</button><a class="btn" href="#/rules">Правила</a><button class="btn danger" type="button" data-logout>Выйти</button></div></section>
+    <section class="rules-card sets-card"><h2>Аккаунт</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>Редактировать профиль</button><a class="btn" href="${routeUrl('rules')}">Правила</a><button class="btn danger" type="button" data-logout>Выйти</button></div></section>
   </div>`;
   page.querySelector('[name=puzzle]').onchange = e => { try { localStorage.setItem('v2_puzzle', e.target.checked ? '1' : '0'); } catch {} toast(e.target.checked ? 'Пазлы включены' : 'Пазлы выключены'); };
   $('#setNotif').onchange = async e => {
@@ -2082,7 +2108,7 @@ function viewSettings() {
 (async () => {
   const t = new URLSearchParams(location.search).get('tglink');
   if (!t || !/^[0-9a-f]{32}$/.test(t)) return;
-  history.replaceState(null, '', location.pathname + location.hash);
+  history.replaceState(null, '', location.pathname);
   if (!S.uid) { try { localStorage.setItem('fh_tglink', t); } catch {} toast('Войдите, чтобы привязать Telegram'); return; }
   try { const ok = await rpc('claim_tg_link', { p_token: t }); toast(ok ? 'Готово! Вернитесь в Telegram-бота — он подключит вас за пару секунд.' : 'Ссылка из бота устарела. Нажмите /start в боте ещё раз.', !ok); }
   catch (er) { toast(er.message, true); }
@@ -2105,7 +2131,7 @@ function collCard(c) {
 }
 async function viewCollections() {
   setNav('collections');
-  page.innerHTML = `<div class="page-head"><h1>Сборники</h1>${isMod() ? '<a class="btn accent" href="#/new/collection">Новый сборник</a>' : ''}</div><div class="grid grid-big" id="collGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
+  page.innerHTML = `<div class="page-head"><h1>Сборники</h1>${isMod() ? `<a class="btn accent" href="${routeUrl('new/collection')}">Новый сборник</a>` : ''}</div><div class="grid grid-big" id="collGrid">${'<div class="skel"></div>'.repeat(6)}</div>`;
   try {
     await swr('colls', () => api(`collections?status=eq.published&select=${COLL_SEL}&order=published_at.desc.nullslast,created_at.desc&limit=60`), rows => {
       rows.forEach(c => { COLL.set(c.id, c); if (c.short_code) COLL.set(c.short_code, c); });
@@ -2170,18 +2196,18 @@ async function viewCollection(key) {
       await fetch(CDN_URL + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await getToken()) }, body: JSON.stringify({ collectionId: c.id }) }).catch(() => {});
       await api(`collections?id=eq.${c.id}`, { method: 'DELETE' });
       COLL.delete(c.id); COLL.delete(c.short_code); MEM.delete('colls'); try { localStorage.removeItem(LSC + 'colls'); } catch {}
-      toast('Сборник удалён'); location.hash = '#/collections';
+      toast('Сборник удалён'); go('collections');
     } catch (er) { toast(er.message, true); }
   };
   loadComments(c.id, 'collection');
 }
-page.addEventListener('click', e => { const c = e.target.closest('[data-coll]'); if (c && !e.target.closest('[data-user]')) location.hash = '#/c/' + c.dataset.coll; });
+page.addEventListener('click', e => { const c = e.target.closest('[data-coll]'); if (c && !e.target.closest('[data-user]')) go('c/' + c.dataset.coll); });
 function viewNewCollection() {
   setNav('');
   if (!isMod()) { page.innerHTML = '<div class="empty">Сборники создают модераторы.</div>'; return; }
   const files = [];
   page.innerHTML = `<div class="up"><div class="page-head"><h1>Новый сборник</h1></div>
-    <div class="up-tabs"><a class="up-tab" href="#/new/art">Арт</a><a class="up-tab" href="#/new/video">Видео</a><a class="up-tab" href="#/new/fanfic">Фанфик</a><a class="up-tab on" href="#/new/collection">Сборник</a></div>
+    <div class="up-tabs"><a class="up-tab" href="${routeUrl('new/art')}">Арт</a><a class="up-tab" href="${routeUrl('new/video')}">Видео</a><a class="up-tab" href="${routeUrl('new/fanfic')}">Фанфик</a><a class="up-tab on" href="${routeUrl('new/collection')}">Сборник</a></div>
     <form class="up-form" id="cForm" novalidate>
       <label class="fld"><span>Название</span><input name="title" maxlength="120" placeholder="Название сборника" required></label>
       <label class="fld"><span>Описание (необязательно)</span><textarea name="desc" rows="2" maxlength="600"></textarea></label>
@@ -2218,7 +2244,7 @@ function viewNewCollection() {
       await api('collection_items', { method: 'POST', prefer: 'return=minimal', body: items });
       await api(`collections?id=eq.${c.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { cover_url: items[0].media_url, cover_type: items[0].media_type, item_count: items.length } });
       MEM.delete('colls'); toast('Сборник опубликован');
-      location.hash = '#/c/' + (c.short_code || c.id);
+      go('c/' + (c.short_code || c.id));
     } catch (er) { say('Ошибка: ' + er.message, true); btn.disabled = false; }
   };
 }
@@ -2271,7 +2297,7 @@ async function viewNewsEditor(id) {
     if (n?.channel_name) { if (n.channel_id && ch.some(c => c.id === n.channel_id)) f.chan.value = n.channel_id; else { f.chan.insertAdjacentHTML('beforeend', `<option value="__keep__">${esc(n.channel_name)} (как было)</option>`); f.chan.value = '__keep__'; } }
   }).catch(() => {});
   const del = $('[data-nedel]', f);
-  if (del) del.onclick = async () => { if (!confirm('Удалить новость?')) return; try { await api(`news?id=eq.${n.id}`, { method: 'DELETE' }); NEWS.cache.delete(n.id); MEM.delete('news'); try { localStorage.removeItem(LSC + 'news'); } catch {} toast('Новость удалена'); location.hash = '#/news'; } catch (er) { say(er.message, true); } };
+  if (del) del.onclick = async () => { if (!confirm('Удалить новость?')) return; try { await api(`news?id=eq.${n.id}`, { method: 'DELETE' }); NEWS.cache.delete(n.id); MEM.delete('news'); try { localStorage.removeItem(LSC + 'news'); } catch {} toast('Новость удалена'); go('news'); } catch (er) { say(er.message, true); } };
   f.onsubmit = async e => {
     e.preventDefault();
     const title = f.title.value.trim(), body = ta.value.trim();
@@ -2285,7 +2311,7 @@ async function viewNewsEditor(id) {
       else await api('news', { method: 'POST', prefer: 'return=minimal', body: { ...payload, author_id: S.uid } });
       MEM.delete('news'); try { localStorage.removeItem(LSC + 'news'); } catch {} if (n) NEWS.cache.delete(n.id);
       toast(n ? 'Новость сохранена' : 'Новость опубликована');
-      location.hash = n ? '#/news/' + n.id : '#/news';
+      go(n ? 'news/' + n.id : 'news');
     } catch (er) { say('Ошибка: ' + er.message, true); btn.disabled = false; }
   };
 }
@@ -2479,7 +2505,7 @@ async function updateStreak() {
     const c = $('#streakChip'); $('#streakVal').textContent = fmt(n); c.hidden = false;
   } catch {}
 }
-$('#streakChip').onclick = () => { location.hash = '#/streak'; };
+$('#streakChip').onclick = () => { go('streak'); };
 async function viewStreak() {
   setNav('');
   page.innerHTML = `<div class="sets"><div class="page-head"><h1>🔥 Топ 10 по посещаемости</h1></div><section class="rules-card" id="stList">${'<div class="skel" style="aspect-ratio:auto;height:48px;margin-bottom:8px"></div>'.repeat(5)}</section>
@@ -2513,12 +2539,12 @@ async function viewWallet(tab) {
       <div class="wal-coin"><img src="${COIN}" alt=""></div>
       <div class="wal-sum"><span>Ваш баланс</span><b><i id="walBal">${esc($('#coinVal').textContent)}</i> coin</b></div>
       <div class="wal-acts">
-        <a class="btn accent" href="#/wallet/topup">${TXI.plus}Пополнить</a>
-        <a class="btn" href="#/wallet/send">${TXI.swap}Перевести</a>
+        <a class="btn accent" href="${routeUrl('wallet/topup')}">${TXI.plus}Пополнить</a>
+        <a class="btn" href="${routeUrl('wallet/send')}">${TXI.swap}Перевести</a>
       </div>
-      <p class="wal-what">renah0cki coin — монеты сайта. Ими можно оплатить подписку в Y, подарить автору монеты за работу или перевести другу. <a href="#/rules">Правила coin</a></p>
+      <p class="wal-what">renah0cki coin — монеты сайта. Ими можно оплатить подписку в Y, подарить автору монеты за работу или перевести другу. <a href="${routeUrl('rules')}">Правила coin</a></p>
     </section>
-    <div class="tabs wal-tabs"><a class="tab${T === 'topup' ? ' on' : ''}" href="#/wallet/topup">Пополнить</a><a class="tab${T === 'history' ? ' on' : ''}" href="#/wallet/history">История</a><a class="tab${T === 'send' ? ' on' : ''}" href="#/wallet/send">Перевести</a></div>
+    <div class="tabs wal-tabs"><a class="tab${T === 'topup' ? ' on' : ''}" href="${routeUrl('wallet/topup')}">Пополнить</a><a class="tab${T === 'history' ? ' on' : ''}" href="${routeUrl('wallet/history')}">История</a><a class="tab${T === 'send' ? ' on' : ''}" href="${routeUrl('wallet/send')}">Перевести</a></div>
     <div id="walBody"></div>
   </div>`;
   rpc('coin_balance').then(v => setBalance(v || 0)).catch(() => {});
@@ -2533,7 +2559,7 @@ async function viewWallet(tab) {
         <li><div><b>Вставьте код в сообщение к донату</b> — по нему мы поймём, что монеты ваши.</div></li>
       </ol>
       <div class="wal-rate"><img src="${COIN}" alt=""><span>${DA_RATES_TXT}</span></div>
-      <p class="wal-warn">Донат без кода — это просто поддержка сайта, монеты не начисляются. Донат добровольный и не возвращается. Ошиблись в коде — напишите в <a href="#/support">поддержку</a>.</p>
+      <p class="wal-warn">Донат без кода — это просто поддержка сайта, монеты не начисляются. Донат добровольный и не возвращается. Ошиблись в коде — напишите в <a href="${routeUrl('support')}">поддержку</a>.</p>
       <div class="wal-admin" id="walAdmin" hidden></div>
     </section>`;
     $('#walCopy').onclick = async () => { const c = $('#walCode').textContent; if (!/^RN-/.test(c)) return; try { await navigator.clipboard.writeText(c); toast('Код скопирован — вставьте его в сообщение к донату'); } catch { prompt('Ваш код', c); } };
@@ -2577,7 +2603,7 @@ async function viewWallet(tab) {
   }
 }
 page.addEventListener('click', e => { const b = e.target.closest('[data-sendto]'); if (b) coinSendDialog(S.profiles.get(b.dataset.sendto)); });
-$('#coinChip').onclick = () => { location.hash = '#/wallet'; };
+$('#coinChip').onclick = () => { go('wallet'); };
 const SEND_AMTS = [10, 50, 100, 500];
 function coinSendDialog(p) {
   if (!S.uid || !p) return;
@@ -2691,10 +2717,10 @@ async function viewShop(tab) {
     page.innerHTML = `<div class="shop">
       <div class="shop-head">
         <h1>Магазин косметики</h1>
-        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> coin<a href="#/wallet/topup">Пополнить</a></div>` : '<button type="button" class="btn accent" data-login>Войти, чтобы покупать</button>'}
+        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> coin<a href="${routeUrl('wallet/topup')}">Пополнить</a></div>` : '<button type="button" class="btn accent" data-login>Войти, чтобы покупать</button>'}
       </div>
       ${renderPreview()}
-      <div class="tabs shop-tabs">${SHOP_CATS.map(([k, l]) => `<a class="tab${T === k ? ' on' : ''}" href="#/shop${k === 'all' ? '' : '/' + k}">${l}${k === 'mine' ? ` (${owned.size})` : ''}</a>`).join('')}</div>
+      <div class="tabs shop-tabs">${SHOP_CATS.map(([k, l]) => `<a class="tab${T === k ? ' on' : ''}" href="${routeUrl(k === 'all' ? 'shop' : 'shop/' + k)}">${l}${k === 'mine' ? ` (${owned.size})` : ''}</a>`).join('')}</div>
       ${list.length ? `<div class="shop-grid">${list.map(it => {
         const isOwn = owned.has(it.id), isEq = eq[it.category] === it.id, isTry = tryOn[it.category] === it.id;
         return `<article class="shop-card${isEq ? ' is-eq' : ''}${isTry ? ' is-try' : ''}">
@@ -2790,7 +2816,7 @@ function viewRules() {
       <p>Потраченные, подаренные и переведённые монеты не возвращаются.</p>
       <h3>Ограничения</h3><ul><li>Запрещено пользоваться ошибками сайта, накручивать монеты, продавать или покупать их за деньги вне сайта, выманивать монеты обманом.</li><li>За нарушения администрация может списать монеты, обнулить баланс или заблокировать аккаунт. Монеты, начисленные по ошибке, могут быть списаны.</li><li>При удалении аккаунта монеты сгорают.</li></ul>
       <h3>Изменения</h3><p>Цены, курс и то, на что тратятся монеты, могут меняться. Система монет может быть изменена или закрыта; деньги за монеты при этом не возвращаются.</p></section>
-    <p class="rules-foot">Вопросы — в <a href="#/support">поддержку</a>.</p>
+    <p class="rules-foot">Вопросы — в <a href="${routeUrl('support')}">поддержку</a>.</p>
   </article>`;
 }
 
@@ -2818,16 +2844,32 @@ function viewRules() {
   }, { passive: true });
 })();
 
+/* ── перехват кликов по внутренним ссылкам SPA (чистые адреса без перезагрузки) ── */
+document.addEventListener('click', e => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a[href]');
+  if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
+  const raw = a.getAttribute('href') || '';
+  if (raw.startsWith('#/')) { e.preventDefault(); go(raw.slice(2)); return; }
+  let u; try { u = new URL(a.href); } catch { return; }
+  if (u.origin !== location.origin || u.search) return;
+  if (!u.pathname.startsWith(BASE)) return;
+  const rel = u.pathname.slice(BASE.length).replace(/^\/+|\/+$/g, '');
+  const first = rel.split('/')[0];
+  if (rel === '' || SPA_TOP.has(first)) { e.preventDefault(); go(rel); }
+});
+
 /* ── роутер ── */
 function route() {
-  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
+  const cur = curRoute();
+  const parts = cur.split('/').filter(Boolean).map(decodeURIComponent);
   if (LB.skip) { LB.skip = false; return; }       // закрыли лайтбокс сами — лента остаётся как была
   if (LB.open) {
     if (parts[0] === 'p' && parts[1]) { if (parts[1] !== LB.key) lbRender(parts[1]); return; }
     LB.open = false; closeLightboxUi();
-    if (lbBaseHash === location.hash) return;   // вернулись туда, откуда открыли — ленту не перерисовываем
+    if (lbBaseRoute === cur) return;               // вернулись туда, откуда открыли — ленту не перерисовываем
   }
-  if (!(parts[0] === 'p')) lbBaseHash = location.hash;
+  if (parts[0] !== 'p') lbBaseRoute = cur;
   scrollTo(0, 0);
   page.classList.remove('pg-in'); void page.offsetWidth; page.classList.add('pg-in');
   if (parts[0] === 'p' && parts[1]) return viewPost(parts[1]);
@@ -2851,8 +2893,11 @@ function route() {
   if (parts[0] === 'streak') return viewStreak();
   return viewFeed('all');
 }
-addEventListener('hashchange', route);
+addEventListener('popstate', route);
+addEventListener('hashchange', () => {
+  if (location.hash.startsWith('#/')) go(location.hash.slice(2), { replace: true });
+});
 loadAllMyLikes();
-loadMe().then(() => { if (/^#\/(suggest|news|u\/|mod|collections|new\/collection|shop)/.test(location.hash)) route(); }); // роли нужны для кнопок модератора
+loadMe().then(() => { if (/^(suggest|news|u\/|mod|collections|new\/collection|shop)/.test(curRoute())) route(); }); // роли нужны для кнопок модератора
 resolveLegacy().then(ok => { if (ok) route(); });
 })();
