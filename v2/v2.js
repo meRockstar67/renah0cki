@@ -204,7 +204,7 @@ const S = {
   items: new Map(),               // посты, уже показанные в лентах (для мгновенного открытия)
 };
 // автор приходит вместе с постом (один запрос вместо двух)
-const AUTHOR = 'author:profiles!content_submitted_by_fkey(id,username,display_name,avatar_url)';
+const AUTHOR = 'author:profiles!content_submitted_by_fkey(id,username,display_name,avatar_url,name_color,role,extra_roles)';
 const CARD_SEL = `id,short_code,title,description,source_url,cover_image_url,media_items,content_type,submitted_by,views,likes,comments_count,is_blurred,puzzle_difficulty,published_at,created_at,${AUTHOR}`;
 function absorb(rows) {
   rows.forEach(r => {
@@ -219,11 +219,11 @@ function loadAllMyLikes() {
   if (!S.uid) return Promise.resolve();
   return likesReady ||= api(`content_likes?user_id=eq.${S.uid}&select=content_id&order=created_at.desc&limit=5000`).then(r => r.forEach(x => S.liked.add(x.content_id))).catch(() => {});
 }
-async function loadProfiles(ids) {
-  const need = [...new Set(ids.filter(id => id && !S.profiles.has(id)))];
+async function loadProfiles(ids, forceRoles = false) {
+  const need = [...new Set(ids.filter(id => id && (!S.profiles.has(id) || (forceRoles && S.profiles.get(id)?.role === undefined))))];
   for (let i = 0; i < need.length; i += 80) {
-    const rows = await api(`profiles?id=in.(${need.slice(i, i + 80).join(',')})&select=id,username,display_name,avatar_url,name_color,short_code`).catch(() => []);
-    rows.forEach(p => S.profiles.set(p.id, p));
+    const rows = await api(`profiles?id=in.(${need.slice(i, i + 80).join(',')})&select=id,username,display_name,avatar_url,name_color,short_code,role,extra_roles`).catch(() => []);
+    rows.forEach(p => S.profiles.set(p.id, { ...(S.profiles.get(p.id) || {}), ...p }));
   }
 }
 async function loadMyLikes(ids) {
@@ -275,15 +275,30 @@ function hasGoldPostBorder(uidOrProf) {
 function applyGoldCards() {
   $$('.card[data-auid]').forEach(el => el.classList.toggle('card-gold', hasGoldPostBorder(el.dataset.auid)));
 }
+function inlineRolesHtml(p, uidFallback = '') {
+  const uid = p?.id || uidFallback || '';
+  const prof = S.profiles.get(uid) || p || { id: uid };
+  const eq = eqOf(uid || prof);
+  const roles = visibleUserRoles(prof, eq);
+  return `<span class="post-roles" data-roles-uid="${esc(uid)}">${roles.map(r => roleChipHtml(r, eq)).join('')}</span>`;
+}
+function refreshInlineRoles() {
+  $$('[data-roles-uid]').forEach(el => {
+    const uid = el.dataset.rolesUid; if (!uid) return;
+    const prof = S.profiles.get(uid) || { id: uid };
+    const eq = eqOf(uid);
+    el.innerHTML = visibleUserRoles(prof, eq).map(r => roleChipHtml(r, eq)).join('');
+  });
+}
 function saveEqRow(row) {
   if (!row?.user_id) return;
   EQ.set(row.user_id, { ...(EQ.get(row.user_id) || {}), ...row });
   cacheSet('eq_all', [...EQ.values()]);
-  applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards();
+  applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles();
 }
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
 let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,owned_roles,hidden_roles&limit=1000')
-  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); })
+  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
 const badgeHtml = id => {
@@ -543,7 +558,7 @@ async function viewPost(key, root = page) {
   root.innerHTML = `<div class="post">
     ${inLb ? '' : `<button class="back" data-back>${I.back} Назад</button>`}
     ${media ? `<div class="post-media${it.is_blurred ? ' blur' : ''}" id="postMedia">${media}</div>` : ''}
-    <div class="post-head">${cosAva(a, 'av', ` data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"`)}<div><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${cosName(a)}</b><div class="sub">${when(it.published_at || it.created_at)}${it.content_type === 'fanfic' ? '' : ` · ${fmt(it.views)} просмотров`}</div></div>
+    <div class="post-head">${cosAva(a, 'av', ` data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"`)}<div><div class="post-author-row"><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${cosName(a)}</b>${inlineRolesHtml(a, it.submitted_by)}</div><div class="sub">${when(it.published_at || it.created_at)}${it.content_type === 'fanfic' ? '' : ` · ${fmt(it.views)} просмотров`}</div></div>
       <div class="post-actions"><div class="react-wrap" id="reactWrap"></div><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button>${postMenuHtml(it)}</div></div>
     <h1>${esc(it.title || 'Без названия')}</h1>
     ${it.description && it.content_type !== 'fanfic' ? `<p class="post-desc">${esc(it.description)}</p>` : ''}
@@ -551,6 +566,9 @@ async function viewPost(key, root = page) {
     ${Array.isArray(it.tags) && it.tags.length ? `<div class="tags">${it.tags.map(t => `<span class="tag">#${esc(t)}</span>`).join('')}</div>` : ''}
     ${it.content_type === 'fanfic' ? (it.source_url ? `<a class="btn accent fic-read" href="${esc(it.source_url)}" target="_blank" rel="noopener noreferrer">Читать фанфик</a>` : '') : `<section class="comments" id="comments"><h3>Комментарии</h3><div class="empty" style="padding:20px">Загрузка…</div></section>`}
   </div>`;
+  if (it.submitted_by && S.profiles.get(it.submitted_by)?.role === undefined) {
+    loadProfiles([it.submitted_by], true).then(refreshInlineRoles);
+  }
   const pmEl = root.querySelector('#postMedia');
   if (pmEl) pmEl.addEventListener('click', ev => {
     const z = ev.target.closest('[data-zoom]'); if (!z) return;
@@ -2324,7 +2342,7 @@ function viewSettings() {
 })();
 
 /* ── сборники: смотрят все, создают модераторы и выше (сразу публикуются) ── */
-const COLL_SEL = `id,title,description,short_code,cover_url,cover_type,item_count,views,likes,comments_count,published_at,created_at,submitted_by,author:profiles!collections_submitted_by_fkey(id,username,display_name,avatar_url,name_color)`;
+const COLL_SEL = `id,title,description,short_code,cover_url,cover_type,item_count,views,likes,comments_count,published_at,created_at,submitted_by,author:profiles!collections_submitted_by_fkey(id,username,display_name,avatar_url,name_color,role,extra_roles)`;
 const COLL = new Map();
 function collCard(c) {
   const a = c.author || S.profiles.get(c.submitted_by);
@@ -2369,7 +2387,7 @@ async function viewCollection(key) {
   page.innerHTML = `<div class="post coll-page">
     <button class="back" data-back>${I.back} Назад</button>
     <h1>${esc(c.title || 'Сборник')}</h1>
-    <div class="post-head">${cosAva(a)}<div><b data-user="${esc(a?.username || c.submitted_by)}" style="cursor:pointer">${cosName(a)}</b><div class="sub">${when(c.published_at || c.created_at)} · ${fmt(items.length)} файлов · ${fmt(c.views)} просмотров</div></div>
+    <div class="post-head">${cosAva(a)}<div><div class="post-author-row"><b data-user="${esc(a?.username || c.submitted_by)}" style="cursor:pointer">${cosName(a)}</b>${inlineRolesHtml(a, c.submitted_by)}</div><div class="sub">${when(c.published_at || c.created_at)} · ${fmt(items.length)} файлов · ${fmt(c.views)} просмотров</div></div>
       <div class="post-actions"><button class="btn like-btn${liked ? ' liked' : ''}" id="collLike">${I.heart}<span>${fmt(c.likes)}</span></button>
       ${S.uid && (own || isMod()) ? `<button class="btn" id="collEdit">Изменить</button><button class="btn danger" id="collDel">Удалить</button>` : ''}</div></div>
     ${c.description ? `<p class="post-desc">${esc(c.description)}</p>` : ''}

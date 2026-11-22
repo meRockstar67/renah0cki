@@ -147,6 +147,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .post-head { display: flex; align-items: center; gap: 12px; margin: 16px 0 6px; }
 .post-head .av { width: 40px; height: 40px; }
 .post-head b { font-size: 16px; }
+.post-author-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.post-roles { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.post-roles .role { font-size: 10.5px; padding: 2px 8px; line-height: 1.3; }
 .post-head .sub { color: var(--muted); font-size: 13px; }
 .post-actions { margin-left: auto; display: flex; gap: 8px; }
 .post h1 { margin: 6px 0 8px; font-size: 24px; line-height: 1.25; overflow-wrap: anywhere; }
