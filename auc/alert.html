@@ -20,6 +20,7 @@
     --al-font: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
     --al-hsz: 34px;
     --al-msz: 20px;
+    --al-isz: 92px;
   }
   *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; background: transparent; overflow: hidden; }
@@ -43,7 +44,7 @@
   .al[data-layout="none"] .al-img-wrap { display: none; }
 
   .al-img-wrap { flex: none; display: grid; place-items: center; }
-  .coin { width: 88px; height: 88px; object-fit: contain; border-radius: 14px;
+  .coin { width: var(--al-isz); height: var(--al-isz); object-fit: contain; border-radius: 14px;
     filter: drop-shadow(0 8px 20px var(--al-glow-hi));
     animation: bob 1.9s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
@@ -113,11 +114,11 @@
 
   const DA_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffb347"/><stop offset="55%" stop-color="#ff7a18"/><stop offset="100%" stop-color="#e3380c"/></linearGradient></defs><rect width="96" height="96" rx="24" fill="url(#g)"/><path d="M48 73s-22-13.2-22-29.2C26 35 32.5 29 40 29c4.5 0 8 2.4 8 2.4S51.5 29 56 29c7.5 0 14 6 14 14.8C70 59.8 48 73 48 73z" fill="#fff"/></svg>');
   let cfg = {
-    duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', volume: 75,
-    tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_read_header: true, tts_volume: 85,
+    duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', sound_url: '', volume: 75,
+    tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_volume: 85, tts_rate: 1,
     theme: 'glass', anim: 'pop', layout: 'top',
     accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
-    font: 'Inter', head_size: 34, msg_size: 20, image_url: '', da_image_url: ''
+    font: 'Inter', head_size: 34, msg_size: 20, img_size: 92, image_url: '', da_image_url: ''
   };
 
   function hexToRgba(hex, a) {
@@ -143,6 +144,7 @@
     r.setProperty('--al-font', FONTS[cfg.font] || FONTS.Inter);
     r.setProperty('--al-hsz', Math.max(18, Math.min(60, Number(cfg.head_size) || 34)) + 'px');
     r.setProperty('--al-msz', Math.max(12, Math.min(40, Number(cfg.msg_size) || 20)) + 'px');
+    r.setProperty('--al-isz', Math.max(48, Math.min(240, Number(cfg.img_size) || 92)) + 'px');
     const img = document.getElementById('img');
     const src = kind === 'da'
       ? (/^https:\/\//i.test(cfg.da_image_url || '') ? cfg.da_image_url : DA_SVG)
@@ -150,8 +152,8 @@
     if (img.src !== src) img.src = src;
   }
 
-  let ac = null, chimeGain = null;
-  function playSound() {
+  let ac = null, chimeGain = null, curSound = null;
+  function playChime() {
     try {
       ac = ac || new (window.AudioContext || window.webkitAudioContext)();
       if (ac.state === 'suspended') ac.resume();
@@ -181,6 +183,26 @@
       });
     } catch {}
   }
+  function playAlertSound(skipP) {
+    const vol = Math.max(0, Math.min(1, (Number(cfg.volume ?? 75)) / 100));
+    if (vol <= 0.001) return Promise.resolve();
+    if (/^https:\/\//i.test(cfg.sound_url || '')) {
+      return new Promise(resolve => {
+        const a = new Audio(cfg.sound_url);
+        curSound = a;
+        a.volume = vol;
+        let finished = false;
+        const done = () => { if (finished) return; finished = true; clearTimeout(cap); resolve(); };
+        const cap = setTimeout(done, 5500);
+        a.onended = a.onpause = done;
+        a.onerror = () => { if (curSound === a) curSound = null; playChime(); setTimeout(done, 620); };
+        a.play().catch(() => { if (curSound === a) curSound = null; playChime(); setTimeout(done, 620); });
+        skipP.then(done);
+      });
+    }
+    playChime();
+    return Promise.race([new Promise(r => setTimeout(r, 620)), skipP]);
+  }
 
   function pluralRu(n, a, b, c) {
     n = Math.abs(Math.floor(Number(n) || 0)) % 100;
@@ -201,6 +223,7 @@
   let skipCur = null;
   function stopCurrentAudio() {
     try { if (chimeGain) { chimeGain.gain.setValueAtTime(0, ac.currentTime); chimeGain = null; } } catch {}
+    try { if (curSound) { curSound.pause(); curSound.currentTime = 0; curSound = null; } } catch {}
     try { if (curAudio) { curAudio.pause(); curAudio.currentTime = 0; curAudio = null; } } catch {}
     try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch {}
   }
@@ -211,7 +234,7 @@
     al.classList.remove('show');
     if (skipCur) { const fn = skipCur; skipCur = null; fn(); }
   }
-  function speakFallback(text, voice, vol) {
+  function speakFallback(text, voice, vol, rate = 1) {
     return new Promise(resolve => {
       try {
         if (!('speechSynthesis' in window) || vol <= 0.001) return resolve();
@@ -219,7 +242,7 @@
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'ru-RU';
         u.volume = vol;
-        u.rate = 1.02;
+        u.rate = Math.max(0.65, Math.min(1.6, Number(rate) || 1));
         u.pitch = voice === 'male' ? 0.82 : 1.08;
         const voices = speechSynthesis.getVoices().filter(v => /^ru/i.test(v.lang));
         const pick = voice === 'male'
@@ -238,10 +261,11 @@
     if (vol <= 0.001) return;
     const voice = (cfg.tts_viewer_pick !== false && (d.voice === 'female' || d.voice === 'male'))
       ? d.voice : (cfg.tts_voice === 'male' ? 'male' : 'female');
+    const rate = Math.max(0.65, Math.min(1.6, Number(cfg.tts_rate) || 1));
     const text = (cfg.show_message !== false && d.message) ? String(d.message).trim().slice(0, 350) : '';
     if (!text) return;
 
-    const url = `${API}/auc/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`;
+    const url = `${API}/auc/tts?voice=${encodeURIComponent(voice)}&rate=${encodeURIComponent(rate.toFixed(2))}&text=${encodeURIComponent(text)}`;
     try {
       const r = await fetch(url);
       if (!r.ok || aborted()) throw new Error('tts ' + r.status);
@@ -258,7 +282,7 @@
         audio.play().catch(done);
       });
     } catch {
-      if (!aborted()) await speakFallback(text, voice, vol);
+      if (!aborted()) await speakFallback(text, voice, vol, rate);
     }
   }
 
@@ -314,7 +338,6 @@
     m.hidden = !(cfg.show_message !== false && d.message);
     m.textContent = d.message || '';
     const hasSound = cfg.sound !== false;
-    if (hasSound) playSound();
     const al = document.getElementById('al');
     al.classList.remove('instant');
     void al.offsetWidth;
@@ -323,12 +346,13 @@
     const skipP = new Promise(r => { skipCur = () => { skipped = true; r(); }; });
     let minT;
     const minWait = new Promise(r => { minT = setTimeout(r, Math.max(3, Math.min(60, +cfg.duration || 8)) * 1000); });
+    const soundP = hasSound ? playAlertSound(skipP) : Promise.resolve();
     const ttsWait = (async () => {
       if (cfg.tts === false || skipped) return;
-      if (hasSound) await Promise.race([new Promise(r => setTimeout(r, 620)), skipP]);
+      await soundP;
       if (!skipped) await speakTts(d, () => skipped);
     })();
-    await Promise.race([Promise.all([minWait, ttsWait]), skipP]);
+    await Promise.race([Promise.all([minWait, soundP, ttsWait]), skipP]);
     clearTimeout(minT);
     skipCur = null;
     stopCurrentAudio();

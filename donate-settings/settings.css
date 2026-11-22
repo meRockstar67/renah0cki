@@ -20,6 +20,7 @@
   --al-font: "Inter", system-ui, sans-serif;
   --al-hsz: 34px;
   --al-msz: 20px;
+  --al-isz: 92px;
   color-scheme: dark;
 }
 
@@ -191,7 +192,7 @@ select.in { cursor: pointer; }
 .al[data-layout="left"] .al-body { align-items: flex-start; }
 .al[data-layout="none"] .al-img-wrap { display: none; }
 .al-img-wrap { flex: none; display: grid; place-items: center; }
-.coin { width: 76px; height: 76px; object-fit: contain; border-radius: 12px;
+.coin { width: var(--al-isz); height: var(--al-isz); object-fit: contain; border-radius: 12px;
   filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--al-accent) 55%, transparent));
   animation: bob 1.9s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(-5px) rotate(-3deg); } }

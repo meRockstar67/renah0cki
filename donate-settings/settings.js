@@ -14,11 +14,11 @@ const FONTS = {
   Spectral: '"Spectral", Georgia, serif',
 };
 const DEFAULTS = {
-  duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', volume: 75,
-  tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_volume: 85,
+  duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', sound_url: '', volume: 75,
+  tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_volume: 85, tts_rate: 1,
   theme: 'glass', anim: 'pop', layout: 'top',
   accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
-  font: 'Inter', head_size: 34, msg_size: 20, image_url: '', da_image_url: '',
+  font: 'Inter', head_size: 34, msg_size: 20, img_size: 92, image_url: '', da_image_url: '',
 };
 
 const $ = s => document.querySelector(s);
@@ -93,14 +93,22 @@ function hexToRgba(hex, a) {
 }
 
 /* ── звук (1 в 1 с /auc/alert.html) ── */
-let ac = null;
+let ac = null, prevSnd = null;
 function playPreviewSound() {
+  const volRaw = Math.max(0, Math.min(1, (Number(S.alert.volume ?? 75)) / 100));
+  if (volRaw <= 0.001) return;
+  try { prevSnd?.pause(); } catch {}
+  if (/^https:\/\//i.test(S.alert.sound_url || '')) {
+    prevSnd = new Audio(S.alert.sound_url);
+    prevSnd.volume = volRaw;
+    prevSnd.play().catch(() => toast('Не удалось воспроизвести MP3', true));
+    return;
+  }
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     if (ac.state === 'suspended') ac.resume();
     const t = ac.currentTime;
-    const vol = Math.max(0, Math.min(1, (Number(S.alert.volume ?? 75)) / 100)) * 0.45;
-    if (vol <= 0.001) return;
+    const vol = volRaw * 0.45;
     const p = S.alert.sound_preset || 'chime';
     const seq = p === 'coin'
       ? [[987.77, 0, .09, 'triangle'], [1318.5, .08, .35, 'triangle']]
@@ -126,10 +134,11 @@ async function playPreviewTts() {
   const vol = Math.max(0, Math.min(1, (Number(S.alert.tts_volume ?? 85)) / 100));
   if (vol <= 0.001) return toast('Громкость озвучки на 0%');
   const voice = S.alert.tts_voice === 'male' ? 'male' : 'female';
+  const rate = Math.max(0.65, Math.min(1.6, Number(S.alert.tts_rate) || 1));
   const text = 'Топ стрим, удачи сегодня!';
   try { prevAudio?.pause(); } catch {}
   try {
-    const r = await fetch(`${API}/auc/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`);
+    const r = await fetch(`${API}/auc/tts?voice=${encodeURIComponent(voice)}&rate=${encodeURIComponent(rate.toFixed(2))}&text=${encodeURIComponent(text)}`);
     if (!r.ok) throw new Error('tts ' + r.status);
     const url = URL.createObjectURL(await r.blob());
     prevAudio = new Audio(url);
@@ -140,7 +149,7 @@ async function playPreviewTts() {
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ru-RU'; u.volume = vol; u.pitch = voice === 'male' ? 0.82 : 1.08;
+      u.lang = 'ru-RU'; u.volume = vol; u.rate = rate; u.pitch = voice === 'male' ? 0.82 : 1.08;
       speechSynthesis.speak(u);
     } else toast('Озвучка недоступна', true);
   }
@@ -160,6 +169,7 @@ function applyPreview() {
   r.setProperty('--al-font', FONTS[a.font] || FONTS.Inter);
   r.setProperty('--al-hsz', a.head_size + 'px');
   r.setProperty('--al-msz', a.msg_size + 'px');
+  r.setProperty('--al-isz', (a.img_size ?? 92) + 'px');
   const src = /^https:\/\//i.test(a.image_url || '') ? a.image_url : DEFAULT_IMG;
   if ($('#prevImg').src !== src) $('#prevImg').src = src;
   $('#prevM').hidden = !a.show_message;
@@ -167,8 +177,10 @@ function applyPreview() {
   $('#bgAlphaVal').textContent = `${a.bg_alpha}%`;
   $('#headSizeVal').textContent = `${a.head_size}px`;
   $('#msgSizeVal').textContent = `${a.msg_size}px`;
+  $('#imgSizeVal').textContent = `${a.img_size ?? 92}px`;
   $('#volVal').textContent = `${a.volume}%`;
   $('#ttsVolVal').textContent = `${a.tts_volume}%`;
+  $('#ttsRateVal').textContent = `${Number(a.tts_rate || 1).toFixed(2)}×`;
 
   document.querySelectorAll('[data-seg="theme"] button').forEach(b => b.classList.toggle('on', b.dataset.val === a.theme));
   document.querySelectorAll('[data-seg="tts_voice"] button').forEach(b => b.classList.toggle('on', b.dataset.val === (a.tts_voice === 'male' ? 'male' : 'female')));
@@ -182,6 +194,7 @@ function fillForm() {
   f.layout.value = a.layout;
   f.image_url.value = a.image_url || '';
   f.da_image_url.value = a.da_image_url || '';
+  f.img_size.value = a.img_size ?? 92;
   f.accent.value = a.accent;
   f.text_color.value = a.text_color;
   f.bg_color.value = a.bg_color;
@@ -193,11 +206,13 @@ function fillForm() {
   f.min.value = a.min;
   f.show_message.checked = !!a.show_message;
   f.sound.checked = !!a.sound;
+  f.sound_url.value = a.sound_url || '';
   f.sound_preset.value = a.sound_preset;
   f.volume.value = a.volume;
   f.tts.checked = a.tts !== false;
   f.tts_viewer_pick.checked = a.tts_viewer_pick !== false;
   f.tts_volume.value = a.tts_volume ?? 85;
+  f.tts_rate.value = a.tts_rate ?? 1;
   applyPreview();
 }
 
@@ -209,6 +224,7 @@ function readForm() {
     layout: f.layout.value,
     image_url: f.image_url.value.trim(),
     da_image_url: f.da_image_url.value.trim(),
+    img_size: Number(f.img_size.value) || 92,
     accent: f.accent.value,
     text_color: f.text_color.value,
     bg_color: f.bg_color.value,
@@ -220,11 +236,13 @@ function readForm() {
     min: Math.max(1, Number(f.min.value) || 1),
     show_message: f.show_message.checked,
     sound: f.sound.checked,
+    sound_url: f.sound_url.value.trim(),
     sound_preset: f.sound_preset.value,
     volume: Number(f.volume.value),
     tts: f.tts.checked,
     tts_viewer_pick: f.tts_viewer_pick.checked,
     tts_volume: Number(f.tts_volume.value),
+    tts_rate: Number(f.tts_rate.value) || 1,
   };
   applyPreview();
 }
@@ -348,22 +366,24 @@ $('#playTtsBtn').addEventListener('click', playPreviewTts);
 $('#replayBtn').addEventListener('click', replayAnim);
 $('#clearImg').addEventListener('click', () => { $('#alertForm').image_url.value = ''; readForm(); });
 $('#clearDaImg').addEventListener('click', () => { $('#alertForm').da_image_url.value = ''; readForm(); });
+$('#clearSound').addEventListener('click', () => { $('#alertForm').sound_url.value = ''; readForm(); });
 
-async function handleUploadTo(inputEl, targetName) {
+async function handleUploadTo(inputEl, targetName, kindLabel = 'файл') {
   const file = inputEl.files?.[0];
   inputEl.value = '';
   if (!file) return;
   if (file.size > 15 * 1048576) return toast('Файл больше 15 МБ', true);
   try {
-    toast('Загружаю картинку…');
+    toast(`Загружаю ${kindLabel}…`);
     const url = await uploadFile(file);
     $('#alertForm')[targetName].value = url;
     readForm();
-    toast('Картинка загружена — нажми «Сохранить»');
+    toast('Загружено — нажми «Сохранить настройки»');
   } catch (err) { toast(err.message, true); }
 }
-$('#imgFile').addEventListener('change', e => handleUploadTo(e.target, 'image_url'));
-$('#daImgFile').addEventListener('change', e => handleUploadTo(e.target, 'da_image_url'));
+$('#imgFile').addEventListener('change', e => handleUploadTo(e.target, 'image_url', 'картинку'));
+$('#daImgFile').addEventListener('change', e => handleUploadTo(e.target, 'da_image_url', 'картинку'));
+$('#soundFile').addEventListener('change', e => handleUploadTo(e.target, 'sound_url', 'звук'));
 
 $('#resetBtn').addEventListener('click', () => {
   S.alert = { ...DEFAULTS };
@@ -375,6 +395,8 @@ $('#alertForm').addEventListener('submit', async e => {
   e.preventDefault();
   readForm();
   if (S.alert.image_url && !/^https:\/\//i.test(S.alert.image_url)) return toast('Ссылка на картинку должна начинаться с https://', true);
+  if (S.alert.da_image_url && !/^https:\/\//i.test(S.alert.da_image_url)) return toast('Ссылка на картинку DA должна начинаться с https://', true);
+  if (S.alert.sound_url && !/^https:\/\//i.test(S.alert.sound_url)) return toast('Ссылка на звук должна начинаться с https://', true);
   const btn = $('#saveBtn'); btn.disabled = true; btn.textContent = 'Сохраняю…';
   try {
     await aucApi('/auc/admin/do', { a: 'config', config: { alert: S.alert } });
