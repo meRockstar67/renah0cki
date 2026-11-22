@@ -1160,7 +1160,7 @@ async function viewProfile(key) {
   let subscribed = !!followRows[0], subs = subCount;
   const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
   const socialLabel = u => { try { return /^(?:.+\.)?(?:t\.me|telegram\.(?:me|dog|org))$/i.test(new URL(u).hostname) ? 'Телеграм' : 'Соцсеть'; } catch { return 'Соцсеть'; } };
-  const coinDonateLink = p.username && coinTarget?.coin_donate_enabled !== false ? `${location.origin}/donate/${encodeURIComponent(p.username)}` : null;
+  const coinDonateLink = p.username && coinTarget?.coin_donate_enabled === true ? `${location.origin}/donate/${encodeURIComponent(p.username)}` : null;
   const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url], coinDonateLink && ['Донат coin', coinDonateLink]].filter(x => x && /^https?:\/\//.test(x[1]));
   const eq = eqOf(p), bgCls = eq?.banner && /^bg_[a-z0-9_]+$/i.test(eq.banner) ? ` cbg cbg-${esc(eq.banner)}` : '';
   page.innerHTML = `<div class="prof">
@@ -1607,7 +1607,7 @@ function editProfile() {
     ${hasRole(me, 'streamer') ? `<label>Ссылка на Twitch<input name="tw" value="${esc(me.stream_twitch_url || '')}" placeholder="https://twitch.tv/..."></label><label>Соцсеть (Telegram, VK…)<input name="so" value="${esc(me.stream_social_url || '')}" placeholder="https://t.me/..."></label><label>Ссылка на донат<input name="dn" value="${esc(me.stream_donate_url || '')}" placeholder="https://..."></label>` : ''}
     ${me.username ? `<div class="pe-color" style="gap:8px"><span>Личная ссылка для доната renah0cki coin</span>
       <div style="display:flex;gap:6px;align-items:center"><input type="text" readonly value="${esc(location.origin + '/donate/' + encodeURIComponent(me.username))}" style="flex:1;min-width:0;opacity:.85"><button type="button" class="btn" id="peCopyDn" style="flex:none">Копировать</button></div>
-      <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:500"><input type="checkbox" name="cdon" checked style="width:16px;height:16px;flex:none"><span>Принимать донаты renah0cki coin по моей ссылке</span></label></div>` : ''}
+      <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:500"><input type="checkbox" name="cdon" style="width:16px;height:16px;flex:none"><span>Принимать донаты renah0cki coin и показывать кнопку в профиле</span></label></div>` : ''}
     <p class="hint">Логин Twitch (@${esc(me.username || '')}) не меняется.</p>
     <div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
   const close = () => ov.remove();
@@ -1656,7 +1656,7 @@ function editProfile() {
   if (me.username) {
     const cp = $('#peCopyDn', ov);
     if (cp) cp.onclick = () => navigator.clipboard.writeText(`${location.origin}/donate/${encodeURIComponent(me.username)}`).then(() => toast('Ссылка скопирована'), () => {});
-    rpc('coin_donate_target', { p_username: me.username }).then(t => { if (t && $('[name=cdon]', ov)) $('[name=cdon]', ov).checked = t.coin_donate_enabled !== false; }).catch(() => {});
+    rpc('coin_donate_target', { p_username: me.username }).then(t => { if (t && $('[name=cdon]', ov)) $('[name=cdon]', ov).checked = t.coin_donate_enabled === true; }).catch(() => {});
   }
 }
 
@@ -2084,6 +2084,9 @@ function viewSettings() {
     <div class="page-head"><h1>Настройки</h1></div>
     <section class="rules-card sets-card"><h2>Просмотр</h2>
       ${sw('puzzle', 'Пазлы на спойлерах', 'Размытый арт собирается из кусочков. Выключено — открывается сразу по клику.', puzzleOn())}</section>
+    ${me.username ? `<section class="rules-card sets-card" id="setDonate"><h2>Донаты coin</h2>
+      ${sw('coin_donate', 'Кнопка «Донат coin» в профиле', 'Показывать кнопку доната в профиле и принимать переводы по личной ссылке.', false)}
+      <div class="wal-code" id="setDnRow" hidden style="margin-top:10px"><span>${esc(location.origin + '/donate/' + encodeURIComponent(me.username))}</span><button class="btn" type="button" id="setDnCopy">Скопировать</button></div></section>` : ''}
     <section class="rules-card sets-card" id="setNotif"><h2>Уведомления</h2>
       <p class="muted">Сами события происходят, просто не будут показываться в колокольчике.</p>
       ${opts.map(([k, t]) => sw(k, t, '', me[k] !== false)).join('')}</section>
@@ -2094,6 +2097,24 @@ function viewSettings() {
     <section class="rules-card sets-card"><h2>Аккаунт</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>Редактировать профиль</button><a class="btn" href="${routeUrl('rules')}">Правила</a><button class="btn danger" type="button" data-logout>Выйти</button></div></section>
   </div>`;
   page.querySelector('[name=puzzle]').onchange = e => { try { localStorage.setItem('v2_puzzle', e.target.checked ? '1' : '0'); } catch {} toast(e.target.checked ? 'Пазлы включены' : 'Пазлы выключены'); };
+  if (me.username) {
+    const dnIn = page.querySelector('[name=coin_donate]'), dnRow = $('#setDnRow'), dnCopy = $('#setDnCopy');
+    rpc('coin_donate_target', { p_username: me.username }).then(t => {
+      const on = t?.coin_donate_enabled === true;
+      if (dnIn) dnIn.checked = on;
+      if (dnRow) dnRow.hidden = !on;
+    }).catch(() => {});
+    if (dnIn) dnIn.onchange = async e => {
+      const v = e.target.checked; e.target.disabled = true;
+      try {
+        await rpc('coin_donate_toggle', { p_enabled: v });
+        if (dnRow) dnRow.hidden = !v;
+        toast(v ? 'Кнопка доната включена в профиле' : 'Кнопка доната скрыта');
+      } catch (er) { e.target.checked = !v; toast(er.message, true); }
+      e.target.disabled = false;
+    };
+    if (dnCopy) dnCopy.onclick = () => navigator.clipboard.writeText(`${location.origin}/donate/${encodeURIComponent(me.username)}`).then(() => toast('Ссылка скопирована'), () => {});
+  }
   $('#setNotif').onchange = async e => {
     const k = e.target.name; if (!k) return;
     const v = e.target.checked; e.target.disabled = true;
