@@ -224,13 +224,16 @@
   }
   let curAudio = null;
   let skipCur = null;
+  let curItem = null;
+  let skipSilent = false;
   function stopCurrentAudio() {
     try { if (chimeGain) { chimeGain.gain.setValueAtTime(0, ac.currentTime); chimeGain = null; } } catch {}
     try { if (curSound) { curSound.pause(); curSound.currentTime = 0; curSound = null; } } catch {}
     try { if (curAudio) { curAudio.pause(); curAudio.currentTime = 0; curAudio = null; } } catch {}
     try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch {}
   }
-  function skipCurrent() {
+  function skipCurrent(silent = false) {
+    if (silent) skipSilent = true;
     stopCurrentAudio();
     const al = document.getElementById('al');
     al.classList.add('instant');
@@ -326,15 +329,15 @@
     if (!key || seen.has(key)) return;
     seen.add(key);
     if (seen.size > 500) seen.delete(seen.values().next().value);
-    if (d.force) queue.unshift(d);
-    else queue.push(d);
+    queue.push(d);
     next();
   }
   async function next() {
-    if (busy || !queue.length) return;
-    if (paused && !queue[0].force) return;
+    if (busy || !queue.length || paused) return;
     busy = true;
+    skipSilent = false;
     const d = queue.shift();
+    curItem = d;
     applyStyle(d.type === 'da' ? 'da' : /^tw_/.test(d.type || '') ? 'tw' : 'coin');
     formatHead(d);
     const m = document.getElementById('m');
@@ -358,10 +361,13 @@
     await Promise.race([Promise.all([minWait, soundP, ttsWait]), skipP]);
     clearTimeout(minT);
     skipCur = null;
+    curItem = null;
     stopCurrentAudio();
     al.classList.remove('show');
     const doneId = d.feedId || d.id;
-    if (doneId) fetch(API + '/auc/feed/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: doneId }) }).catch(() => {});
+    if (doneId && !skipSilent && !paused) {
+      fetch(API + '/auc/feed/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: doneId }) }).catch(() => {});
+    }
     setTimeout(() => { busy = false; next(); }, 450);
   }
 
@@ -377,10 +383,27 @@
   es.addEventListener('feed_cfg', e => {
     try {
       const c = JSON.parse(e.data);
-      if (typeof c?.paused === 'boolean') { paused = c.paused; if (!paused) next(); }
+      if (typeof c?.paused === 'boolean') {
+        paused = c.paused;
+        if (paused) { queue.length = 0; skipCurrent(true); }
+        else next();
+      }
     } catch {}
   });
-  es.addEventListener('alert_skip', () => skipCurrent());
+  es.addEventListener('alert_skip', e => {
+    let d = {};
+    try { d = JSON.parse(e.data || '{}'); } catch {}
+    if (d.reason === 'pause') { queue.length = 0; skipCurrent(true); return; }
+    if (d.id) {
+      for (let i = queue.length - 1; i >= 0; i--) {
+        if (queue[i].feedId === d.id || queue[i].id === d.id) queue.splice(i, 1);
+      }
+      if (curItem && (curItem.feedId === d.id || curItem.id === d.id)) skipCurrent(false);
+    } else {
+      queue.length = 0;
+      skipCurrent(false);
+    }
+  });
   es.addEventListener('donation', e => {
     try {
       const d = JSON.parse(e.data);

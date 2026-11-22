@@ -310,8 +310,10 @@ document.addEventListener('click', async e => {
   const test = e.target.closest('[data-test]');
   if (test) {
     $('#testMenu').hidden = true;
-    try { await post('/auc/feed/admin', { a: 'test', type: test.dataset.test }); toast('Отправлено на стрим'); }
-    catch (err) { toast(err.message, true); }
+    try {
+      await post('/auc/feed/admin', { a: 'test', type: test.dataset.test });
+      toast(S.cfg?.paused ? 'В очереди (лента на паузе)' : 'Отправлено на стрим');
+    } catch (err) { toast(err.message, true); }
     return;
   }
   const conn = e.target.closest('[data-connect]');
@@ -327,9 +329,9 @@ document.addEventListener('click', async e => {
     const id = rep.dataset.replay;
     rep.disabled = true;
     try {
-      await post('/auc/feed/admin', { a: 'replay', id });
+      const r = await post('/auc/feed/admin', { a: 'replay', id });
       updateCardState(id, 'queued');
-      toast('Воспроизводится на стриме');
+      toast(r?.paused || S.cfg?.paused ? 'В очереди (лента на паузе)' : 'Воспроизводится на стриме');
     } catch (err) { toast(err.message, true); rep.disabled = false; }
     return;
   }
