@@ -647,15 +647,28 @@ function openPartsModal(nomineeId) {
       ${!parts.length && !S.admin ? '<p class="aw-parts-empty">Участники пока не добавлены.</p>' : ''}
       <div class="aw-parts-grid">${parts.map(p => `<article class="aw-part-card${S.admin ? ' can-drag' : ''}" data-part-id="${esc(p.id)}"${S.admin ? ' draggable="true"' : ''}>
         ${S.admin ? `<div class="aw-part-adm"><span class="aw-btn icon aw-drag-grip" title="Перетащить">⠿</span><button type="button" class="aw-btn icon" data-edit-part="${esc(p.id)}" title="Изменить">✎</button><button type="button" class="aw-btn icon danger" data-del-part="${esc(p.id)}" title="Удалить">✕</button></div>` : ''}
-        <div class="aw-part-media">${p.photo ? `<img src="${esc(thumb(p.photo, 480))}" alt="${esc(p.name)}" loading="lazy" draggable="false">` : `<div class="aw-part-ph">${esc((p.name || '?').slice(0, 1).toUpperCase())}</div>`}</div>
+        ${p.photo
+          ? `<div class="aw-part-media is-img"><img src="${esc(thumb(p.photo, 480))}" alt="${esc(p.name)}" loading="lazy" draggable="false"></div>`
+          : `<div class="aw-part-media aw-nomedia">${esc((p.name || '?').slice(0, 1).toUpperCase())}</div>`}
         <div class="aw-part-info">
           <h4>${esc(p.name)}</h4>
-          ${p.url ? `<a class="aw-part-link" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.label || autoLinkLabel(p.url))} ↗</a>` : ''}
+          ${p.url ? `<a class="aw-nee-sub" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.label || autoLinkLabel(p.url))}</a>` : ''}
+          <div class="aw-nee-line" aria-hidden="true"></div>
         </div>
       </article>`).join('')}
       ${S.admin ? `<button type="button" class="aw-part-card aw-part-add" data-add-part><span>＋</span><b>Добавить участника</b><small>фото и ссылка на канал</small></button>` : ''}
       </div>
     </div>`;
+
+    ov.querySelectorAll('.aw-part-media.is-img img').forEach(img => {
+      const check = () => {
+        if (img.naturalWidth && img.naturalHeight && img.naturalWidth / img.naturalHeight >= 1.32) {
+          img.closest('.aw-part-media')?.classList.add('is-wide');
+        }
+      };
+      if (img.complete) check();
+      else img.addEventListener('load', check, { once: true });
+    });
 
     if (S.admin) {
       const grid = $('.aw-parts-grid', ov);

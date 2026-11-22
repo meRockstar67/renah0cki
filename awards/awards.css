@@ -423,36 +423,40 @@ a.aw-nee-sub:hover, .aw-nee-sub-a:hover { color: #ffba6b; text-decoration: under
 .aw-parts-btn.is-empty { border-style: dashed; border-color: rgba(255, 130, 38, .28); background: rgba(255, 108, 28, .04); color: #9c948e; }
 .aw-parts-btn.is-empty:hover { border-color: rgba(255, 152, 56, .65); color: #ffd09a; }
 
-/* ── модалка участников (только просмотр + ссылки на каналы, без голосования) ── */
-.aw-parts-modal { width: min(820px, 100%); padding: 26px; gap: 20px; background: radial-gradient(ellipse 90% 45% at 50% 0%, rgba(255, 92, 18, .12), transparent 62%), #0b0706; }
-.aw-parts-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 118, 34, .22); }
-.aw-parts-head h2 { margin-top: 4px; font-size: clamp(20px, 3vw, 26px); line-height: 1.15; }
+/* ── модалка участников (1 в 1 стиль номинантов SLAY — без рамок, растворение в чёрном, без голосования) ── */
+.aw-parts-modal { width: min(980px, 100%); padding: 28px 30px 34px; gap: 22px; background: #000000; border: 1px solid rgba(255, 118, 34, .34); }
+.aw-parts-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid rgba(255, 118, 34, .24); }
+.aw-parts-head h2 { margin-top: 4px; font-size: clamp(22px, 3vw, 28px); line-height: 1.15; }
 .aw-parts-empty { margin: 20px 0; text-align: center; color: #8c847d; font-size: 14px; }
-.aw-parts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 18px; }
-.aw-part-card { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
-  padding: 14px 12px 16px; border-radius: 14px; background: rgba(20, 12, 9, .78);
-  border: 1px solid rgba(255, 118, 34, .22); transition: border-color .2s, transform .2s var(--ease), box-shadow .2s; }
-.aw-part-card:hover { border-color: rgba(255, 146, 52, .48); box-shadow: 0 12px 30px rgba(0, 0, 0, .55); }
-.aw-part-adm { position: absolute; top: 8px; right: 8px; z-index: 4; display: flex; gap: 4px; opacity: .5; transition: opacity .2s; }
+.aw-parts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 268px)); justify-content: center; gap: 46px 38px; padding: 10px 0 4px; }
+.aw-part-card { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center;
+  background: transparent; border: 0; border-radius: 0; padding: 0; overflow: visible; }
+.aw-part-adm { position: absolute; top: 4px; right: 4px; z-index: 6; display: flex; gap: 5px; opacity: .45; transition: opacity .2s; }
 .aw-part-card:hover .aw-part-adm { opacity: 1; }
-.aw-part-adm .aw-btn.icon { width: 28px; height: 28px; border-radius: 7px; background: rgba(10, 6, 4, .84); backdrop-filter: blur(6px); font-size: 12px; }
-.aw-part-media { width: 100%; aspect-ratio: 1; border-radius: 11px; overflow: hidden; background: #070403;
-  border: 1px solid rgba(255, 118, 34, .18); display: grid; place-items: center; }
-.aw-part-media img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; display: block; }
-.aw-part-ph { font-family: var(--serif); font-size: 52px; font-weight: 700; color: var(--amber);
-  width: 100%; height: 100%; display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 45%, rgba(255, 96, 20, .25), transparent 72%); }
-.aw-part-info { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
-.aw-part-info h4 { margin: 0; font-family: var(--sans); font-size: 15px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #fff; word-break: break-word; }
-.aw-part-link { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 999px;
-  background: rgba(255, 118, 34, .12); border: 1px solid rgba(255, 130, 38, .34);
-  color: #ffb668; font-size: 12px; font-weight: 700; text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  transition: background .2s, border-color .2s, color .2s; }
-.aw-part-link:hover { background: rgba(255, 118, 34, .26); border-color: #ff9c42; color: #fff; }
-.aw-part-add { min-height: 230px; justify-content: center; gap: 6px; border: 1.5px dashed rgba(255, 118, 34, .34); background: rgba(16, 10, 8, .35); color: #a89f97; }
-.aw-part-add span { font-size: 36px; line-height: 1; color: var(--amber); }
-.aw-part-add b { font-size: 13.5px; color: #e2d8cf; }
-.aw-part-add small { font-size: 11.5px; color: #7e7670; }
+.aw-part-adm .aw-btn.icon { width: 30px; height: 30px; border-radius: 8px; background: rgba(10, 6, 4, .78); backdrop-filter: blur(6px); font-size: 12.5px; }
+.aw-part-media { position: relative; display: block; width: 236px; height: 246px; border: 0; padding: 0; background: transparent; overflow: hidden; }
+.aw-part-media::before { content: ""; position: absolute; inset: 14% 8% 8%; z-index: 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse 68% 60% at 50% 60%, rgba(255, 98, 16, .42), rgba(168, 28, 6, .18) 54%, transparent 74%);
+  filter: blur(12px); }
+.aw-part-media.is-img::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, .05) 0%, transparent 20%, transparent 56%, rgba(0, 0, 0, .72) 82%, #000000 100%),
+    linear-gradient(90deg, #000000 0%, rgba(0, 0, 0, .35) 10%, transparent 24%, transparent 76%, rgba(0, 0, 0, .35) 90%, #000000 100%); }
+.aw-part-media img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: center 14%; display: block; border: 0; }
+.aw-part-media.is-wide { width: 100%; max-width: 268px; height: auto; aspect-ratio: 16 / 9; border-radius: 12px; }
+.aw-part-media.is-wide img { object-fit: cover; object-position: center; }
+.aw-part-media.is-wide::after {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, .06) 0%, transparent 14%, transparent 74%, rgba(0, 0, 0, .55) 92%, #000000 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, .5) 0%, transparent 7%, transparent 93%, rgba(0, 0, 0, .5) 100%); }
+.aw-part-media.aw-nomedia { display: grid; place-items: center; }
+.aw-part-info { width: 100%; padding: 6px 8px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.aw-part-info h4 { margin: 0; font-family: var(--sans); font-size: 20px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #ffffff; word-break: break-word; }
+.aw-part-add { min-height: 280px; width: 100%; justify-content: center; gap: 8px; padding: 24px; border-radius: 16px;
+  border: 1.5px dashed rgba(255, 118, 34, .34); background: rgba(16, 10, 8, .35); color: #a89f97; font-weight: 600; }
+.aw-part-add span { font-size: 42px; line-height: 1; color: var(--amber); }
+.aw-part-add b { font-size: 14px; color: #e2d8cf; }
+.aw-part-add small { font-size: 12px; font-weight: 500; color: #7e7670; }
 .aw-part-add:hover { border-color: var(--amber); background: rgba(24, 14, 10, .6); color: #fff; }
 
 .aw-toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 100; transform: translate(-50%, 20px); opacity: 0;
@@ -484,7 +488,7 @@ a.aw-nee-sub:hover, .aw-nee-sub-a:hover { color: #ffba6b; text-decoration: under
   .aw-nees { grid-template-columns: 1fr; }
   .aw-ico-pick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .aw-parts-modal { padding: 18px; }
-  .aw-parts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .aw-parts-grid { grid-template-columns: 1fr; gap: 36px; }
 }
 a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-car-arr, .slay-faq-q, .aw-btn, .aw-sw, .aw-drop, .aw-link, .aw-add, .aw-media.is-clickable, .aw-ico-opt, .aw-nee-sub-a, .aw-parts-btn, .aw-part-link, .aw-part-add { cursor: var(--cur-ptr); }
 .slay-btn.static, .aw-nom-head .slay-emblem, .aw-media:not(.is-clickable), .aw-media video, .aw-media.yt { cursor: var(--cur-def); }
