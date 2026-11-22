@@ -59,10 +59,11 @@
   /* цвета по типам (без color-mix — работает во всех версиях OBS) */
   .ev[data-t="coin"]      { --c: var(--w-accent); --ib: var(--w-accent-bg); --bd: var(--w-accent-bd); }
   .ev[data-t="da"]        { --c: #ff8a24; --ib: rgba(255, 138, 36, .18); --bd: rgba(255, 138, 36, .42); }
-  .ev[data-t="tw_follow"] { --c: #a970ff; --ib: rgba(169, 112, 255, .18); --bd: rgba(169, 112, 255, .42); }
-  .ev[data-t="tw_sub"]    { --c: #facc15; --ib: rgba(250, 204, 21, .18); --bd: rgba(250, 204, 21, .42); }
-  .ev[data-t="tw_gift"]   { --c: #f472b6; --ib: rgba(244, 114, 182, .18); --bd: rgba(244, 114, 182, .42); }
-  .ev[data-t="tw_points"] { --c: #38bdf8; --ib: rgba(56, 189, 248, .18); --bd: rgba(56, 189, 248, .42); }
+  .ev[data-t="tw_follow"],
+  .ev[data-t="tw_sub"],
+  .ev[data-t="tw_gift"],
+  .ev[data-t="tw_points"] { --c: #9146ff; --ib: rgba(145, 70, 255, .20); --bd: rgba(145, 70, 255, .48); }
+  .ev[data-t^="tw_"] .amt { color: #b983ff; }
 
   .root[data-theme="neon"] .ev {
     border: 1.5px solid var(--c, var(--w-accent));

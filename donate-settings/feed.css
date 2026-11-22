@@ -88,10 +88,11 @@ button { cursor: pointer; }
 
 .ev[data-t="coin"]      { --c: #8b5cf6; }
 .ev[data-t="da"]        { --c: #ff8a24; }
-.ev[data-t="tw_follow"] { --c: #a970ff; }
-.ev[data-t="tw_sub"]    { --c: #facc15; }
-.ev[data-t="tw_gift"]   { --c: #f472b6; }
-.ev[data-t="tw_points"] { --c: #38bdf8; }
+.ev[data-t="tw_follow"],
+.ev[data-t="tw_sub"],
+.ev[data-t="tw_gift"],
+.ev[data-t="tw_points"] { --c: #9146ff; }
+.ev[data-t^="tw_"] .ev-amt { color: #b983ff; }
 
 .ev-r1 { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .ev-ico { width: 18px; height: 18px; flex: none; display: grid; place-items: center; font-size: 14px; }
