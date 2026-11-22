@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Russo+One&family=Spectral:wght@600;700;800&family=Unbounded:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="/donate-settings/settings.css?v=20261122c">
-<script src="/donate-settings/settings.js?v=20261122c" defer></script>
+<link rel="stylesheet" href="/donate-settings/settings.css?v=20261122d">
+<script src="/donate-settings/settings.js?v=20261122d" defer></script>
 </head>
 <body>
 <div class="bg-glow" aria-hidden="true"></div>
@@ -267,7 +267,7 @@
           </div>
           <div class="grid2">
             <div class="field">
-              <span class="lbl">Мелодия</span>
+              <span class="lbl">Мелодия алерта</span>
               <div class="row">
                 <select class="in grow" name="sound_preset">
                   <option value="chime">Колокольчик</option>
@@ -275,12 +275,35 @@
                   <option value="crystal">Кристалл</option>
                   <option value="soft">Мягкий аккорд</option>
                 </select>
-                <button type="button" class="btn sm" id="playSoundBtn" title="Послушать звук">🔊</button>
+                <button type="button" class="btn sm" id="playSoundBtn" title="Послушать звук алерта">🔊</button>
               </div>
             </div>
             <div class="field">
-              <div class="field-top"><span class="lbl">Громкость</span><b class="val" id="volVal">75%</b></div>
+              <div class="field-top"><span class="lbl">Громкость звука алерта</span><b class="val" id="volVal">75%</b></div>
               <input class="range" type="range" name="volume" min="0" max="100" step="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="grp">
+          <h3>Озвучка донатов (TTS)</h3>
+          <div class="toggles">
+            <label class="check"><input type="checkbox" name="tts"><span>Включить озвучку голосом</span></label>
+            <label class="check"><input type="checkbox" name="tts_viewer_pick"><span>Зритель может выбрать голос</span></label>
+            <label class="check"><input type="checkbox" name="tts_read_header"><span>Читать имя и сумму</span></label>
+          </div>
+          <div class="field">
+            <span class="lbl">Голос по умолчанию</span>
+            <div class="seg seg2" data-seg="tts_voice">
+              <button type="button" data-val="female">♀ Женский (Светлана)</button>
+              <button type="button" data-val="male">♂ Мужской (Дмитрий)</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-top"><span class="lbl">Громкость озвучки (TTS)</span><b class="val" id="ttsVolVal">85%</b></div>
+            <div class="row">
+              <input class="range grow" type="range" name="tts_volume" min="0" max="100" step="1">
+              <button type="button" class="btn sm" id="playTtsBtn" title="Послушать выбранный голос">🗣 Послушать</button>
             </div>
           </div>
         </div>

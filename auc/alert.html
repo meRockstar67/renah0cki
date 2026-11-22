@@ -112,6 +112,7 @@
 
   let cfg = {
     duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', volume: 75,
+    tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_read_header: true, tts_volume: 85,
     theme: 'glass', anim: 'pop', layout: 'top',
     accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
     font: 'Inter', head_size: 34, msg_size: 20, image_url: ''
@@ -151,7 +152,7 @@
       ac = ac || new (window.AudioContext || window.webkitAudioContext)();
       if (ac.state === 'suspended') ac.resume();
       const t = ac.currentTime;
-      const vol = Math.max(0, Math.min(1, (Number(cfg.volume ?? 75)) / 100)) * 0.28;
+      const vol = Math.max(0, Math.min(1, (Number(cfg.volume ?? 75)) / 100)) * 0.45;
       if (vol <= 0.001) return;
       const preset = cfg.sound_preset || 'chime';
       const seq = preset === 'coin'
@@ -171,6 +172,65 @@
         o.start(t + delay); o.stop(t + delay + dur + .05);
       });
     } catch {}
+  }
+
+  function coinWord(n) {
+    n = Math.abs(Math.floor(Number(n) || 0)) % 100;
+    const k = n % 10;
+    return n > 10 && n < 20 ? 'коинов' : k === 1 ? 'коин' : k > 1 && k < 5 ? 'коина' : 'коинов';
+  }
+  function speakFallback(text, voice, vol) {
+    return new Promise(resolve => {
+      try {
+        if (!('speechSynthesis' in window) || vol <= 0.001) return resolve();
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ru-RU';
+        u.volume = vol;
+        u.rate = 1.02;
+        u.pitch = voice === 'male' ? 0.82 : 1.08;
+        const voices = speechSynthesis.getVoices().filter(v => /^ru/i.test(v.lang));
+        const pick = voice === 'male'
+          ? voices.find(v => /dmitry|pavel|yuri|maxim|male/i.test(v.name)) || voices[0]
+          : voices.find(v => /svetlana|irina|tatyana|milena|elena|female/i.test(v.name)) || voices[0];
+        if (pick) u.voice = pick;
+        const cap = setTimeout(resolve, 25000);
+        u.onend = u.onerror = () => { clearTimeout(cap); resolve(); };
+        speechSynthesis.speak(u);
+      } catch { resolve(); }
+    });
+  }
+  async function speakTts(d) {
+    if (cfg.tts === false) return;
+    const vol = Math.max(0, Math.min(1, (Number(cfg.tts_volume ?? 85)) / 100));
+    if (vol <= 0.001) return;
+    const voice = (cfg.tts_viewer_pick !== false && (d.voice === 'female' || d.voice === 'male'))
+      ? d.voice : (cfg.tts_voice === 'male' ? 'male' : 'female');
+    const parts = [];
+    if (cfg.tts_read_header !== false) {
+      parts.push(`${d.user || d.name || 'Аноним'}, ${Math.round(Number(d.amount) || 0)} ${coinWord(d.amount)}.`);
+    }
+    if (cfg.show_message !== false && d.message) parts.push(String(d.message).trim());
+    const text = parts.join(' ').trim().slice(0, 350);
+    if (!text) return;
+
+    const url = `${API}/auc/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`;
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('tts ' + r.status);
+      const blob = await r.blob();
+      const objUrl = URL.createObjectURL(blob);
+      await new Promise(resolve => {
+        const audio = new Audio(objUrl);
+        audio.volume = vol;
+        const done = () => { clearTimeout(cap); URL.revokeObjectURL(objUrl); resolve(); };
+        const cap = setTimeout(done, 42000);
+        audio.onended = audio.onerror = done;
+        audio.play().catch(done);
+      });
+    } catch {
+      await speakFallback(text, voice, vol);
+    }
   }
 
   const queue = []; let busy = false; let paused = false; const seen = new Set();
@@ -214,7 +274,7 @@
     else queue.push(d);
     next();
   }
-  function next() {
+  async function next() {
     if (busy || !queue.length) return;
     if (paused && !queue[0].force) return;
     busy = true;
@@ -224,13 +284,19 @@
     const m = document.getElementById('m');
     m.hidden = !(cfg.show_message !== false && d.message);
     m.textContent = d.message || '';
-    if (cfg.sound !== false) playSound();
+    const hasSound = cfg.sound !== false;
+    if (hasSound) playSound();
     const al = document.getElementById('al');
     al.classList.add('show');
-    setTimeout(() => {
-      al.classList.remove('show');
-      setTimeout(() => { busy = false; next(); }, 600);
-    }, Math.max(3, Math.min(60, +cfg.duration || 8)) * 1000);
+    const minWait = new Promise(r => setTimeout(r, Math.max(3, Math.min(60, +cfg.duration || 8)) * 1000));
+    const ttsWait = (async () => {
+      if (cfg.tts === false) return;
+      if (hasSound) await new Promise(r => setTimeout(r, 620));
+      await speakTts(d);
+    })();
+    await Promise.all([minWait, ttsWait]);
+    al.classList.remove('show');
+    setTimeout(() => { busy = false; next(); }, 600);
   }
 
   applyStyle();

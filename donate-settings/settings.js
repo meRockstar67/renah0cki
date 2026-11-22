@@ -15,6 +15,7 @@ const FONTS = {
 };
 const DEFAULTS = {
   duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', volume: 75,
+  tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_read_header: true, tts_volume: 85,
   theme: 'glass', anim: 'pop', layout: 'top',
   accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
   font: 'Inter', head_size: 34, msg_size: 20, image_url: '',
@@ -98,7 +99,7 @@ function playPreviewSound() {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     if (ac.state === 'suspended') ac.resume();
     const t = ac.currentTime;
-    const vol = Math.max(0, Math.min(1, (Number(S.alert.volume ?? 75)) / 100)) * 0.28;
+    const vol = Math.max(0, Math.min(1, (Number(S.alert.volume ?? 75)) / 100)) * 0.45;
     if (vol <= 0.001) return;
     const p = S.alert.sound_preset || 'chime';
     const seq = p === 'coin'
@@ -118,6 +119,33 @@ function playPreviewSound() {
       o.start(t + delay); o.stop(t + delay + dur + .05);
     });
   } catch {}
+}
+
+let prevAudio = null;
+async function playPreviewTts() {
+  const vol = Math.max(0, Math.min(1, (Number(S.alert.tts_volume ?? 85)) / 100));
+  if (vol <= 0.001) return toast('Громкость озвучки на 0%');
+  const voice = S.alert.tts_voice === 'male' ? 'male' : 'female';
+  const text = S.alert.tts_read_header !== false
+    ? 'Зритель, 250 коинов. Топ стрим, удачи сегодня!'
+    : 'Топ стрим, удачи сегодня!';
+  try { prevAudio?.pause(); } catch {}
+  try {
+    const r = await fetch(`${API}/auc/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`);
+    if (!r.ok) throw new Error('tts ' + r.status);
+    const url = URL.createObjectURL(await r.blob());
+    prevAudio = new Audio(url);
+    prevAudio.volume = vol;
+    prevAudio.onended = () => URL.revokeObjectURL(url);
+    await prevAudio.play();
+  } catch {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ru-RU'; u.volume = vol; u.pitch = voice === 'male' ? 0.82 : 1.08;
+      speechSynthesis.speak(u);
+    } else toast('Озвучка недоступна', true);
+  }
 }
 
 /* ── синхронизация формы ↔ живого превью ── */
@@ -142,8 +170,10 @@ function applyPreview() {
   $('#headSizeVal').textContent = `${a.head_size}px`;
   $('#msgSizeVal').textContent = `${a.msg_size}px`;
   $('#volVal').textContent = `${a.volume}%`;
+  $('#ttsVolVal').textContent = `${a.tts_volume}%`;
 
   document.querySelectorAll('[data-seg="theme"] button').forEach(b => b.classList.toggle('on', b.dataset.val === a.theme));
+  document.querySelectorAll('[data-seg="tts_voice"] button').forEach(b => b.classList.toggle('on', b.dataset.val === (a.tts_voice === 'male' ? 'male' : 'female')));
   document.querySelectorAll('#swatches [data-accent]').forEach(b => b.classList.toggle('on', b.dataset.accent.toLowerCase() === a.accent.toLowerCase()));
 }
 
@@ -166,6 +196,10 @@ function fillForm() {
   f.sound.checked = !!a.sound;
   f.sound_preset.value = a.sound_preset;
   f.volume.value = a.volume;
+  f.tts.checked = a.tts !== false;
+  f.tts_viewer_pick.checked = a.tts_viewer_pick !== false;
+  f.tts_read_header.checked = a.tts_read_header !== false;
+  f.tts_volume.value = a.tts_volume ?? 85;
   applyPreview();
 }
 
@@ -189,6 +223,10 @@ function readForm() {
     sound: f.sound.checked,
     sound_preset: f.sound_preset.value,
     volume: Number(f.volume.value),
+    tts: f.tts.checked,
+    tts_viewer_pick: f.tts_viewer_pick.checked,
+    tts_read_header: f.tts_read_header.checked,
+    tts_volume: Number(f.tts_volume.value),
   };
   applyPreview();
 }
@@ -200,6 +238,7 @@ function replayAnim() {
   setTimeout(() => {
     al.classList.add('show');
     if (S.alert.sound) playPreviewSound();
+    if (S.alert.tts) setTimeout(playPreviewTts, S.alert.sound ? 600 : 80);
   }, 80);
 }
 
@@ -278,6 +317,8 @@ document.addEventListener('click', async e => {
   }
   const seg = e.target.closest('[data-seg="theme"] button');
   if (seg) { S.alert.theme = seg.dataset.val; applyPreview(); return; }
+  const vseg = e.target.closest('[data-seg="tts_voice"] button');
+  if (vseg) { S.alert.tts_voice = vseg.dataset.val; applyPreview(); return; }
   const sw = e.target.closest('#swatches [data-accent]');
   if (sw) { S.alert.accent = sw.dataset.accent; $('#alertForm').accent.value = sw.dataset.accent; applyPreview(); return; }
   const bg = e.target.closest('#bgPick [data-bg]');
@@ -287,7 +328,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if (e.target.closest('[data-test-obs]')) {
-    try { await aucApi('/auc/admin/do', { a: 'test_alert' }); toast('Тестовый донат отправлен в OBS'); }
+    try { await aucApi('/auc/admin/do', { a: 'test_alert', voice: S.alert.tts_voice }); toast('Тестовый донат отправлен в OBS'); }
     catch (err) { toast(err.message, true); }
   }
 });
@@ -305,6 +346,7 @@ $('#myToggle').addEventListener('click', async () => {
 $('#alertForm').addEventListener('input', readForm);
 $('#alertForm').addEventListener('change', readForm);
 $('#playSoundBtn').addEventListener('click', playPreviewSound);
+$('#playTtsBtn').addEventListener('click', playPreviewTts);
 $('#replayBtn').addEventListener('click', replayAnim);
 $('#clearImg').addEventListener('click', () => { $('#alertForm').image_url.value = ''; readForm(); });
 

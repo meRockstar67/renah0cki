@@ -57,7 +57,7 @@ async function aucApi(path, body) {
   return d;
 }
 
-const S = { pub: null, uid: readSession()?.user?.id || null, me: null, target: null, targetLoaded: false, balance: null };
+const S = { pub: null, uid: readSession()?.user?.id || null, me: null, target: null, targetLoaded: false, balance: null, voice: 'female', voiceTouched: false };
 const targetEnabled = () => {
   if (!S.target) return true;
   if (S.target.coin_donate_enabled === false) return false;
@@ -103,6 +103,11 @@ function render() {
     $('#chips').innerHTML = chips.map(n => `<button type="button" data-amt="${n}">${fmt(n)}</button>`).join('');
   }
   $('#note').textContent = `coin сразу уйдут ${t?.display_name || t?.username || 'получателю'}`;
+  const al = d?.config?.alert || {};
+  const showVoice = !!(t?.is_streamer && al.tts !== false && al.tts_viewer_pick !== false);
+  $('#voiceField').hidden = !showVoice;
+  if (!S.voiceTouched && (al.tts_voice === 'male' || al.tts_voice === 'female')) S.voice = al.tts_voice;
+  document.querySelectorAll('#voicePick [data-voice]').forEach(b => b.classList.toggle('on', b.dataset.voice === S.voice));
   syncAmountUi();
 }
 
@@ -158,6 +163,11 @@ $('#msg').addEventListener('input', e => { $('#cnt').textContent = e.target.valu
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-amt]');
   if (a) { $('#amount').value = a.dataset.amt; syncAmountUi(); $('#amount').focus(); }
+  const v = e.target.closest('#voicePick [data-voice]');
+  if (v) {
+    S.voice = v.dataset.voice; S.voiceTouched = true;
+    document.querySelectorAll('#voicePick [data-voice]').forEach(b => b.classList.toggle('on', b === v));
+  }
 });
 $('#enableSelf').addEventListener('click', () => toggleMyDonate(true));
 
@@ -172,7 +182,7 @@ $('#dForm').addEventListener('submit', async e => {
     const recId = S.target?.id || null;
     const isStr = !S.target || !!S.target.is_streamer;
     const r = isStr
-      ? await aucApi('/auc/donate', { amount, message: $('#msg').value.trim(), lot_id: null, lot_name: null, recipient_id: recId })
+      ? await aucApi('/auc/donate', { amount, message: $('#msg').value.trim(), voice: $('#voiceField').hidden ? null : S.voice, lot_id: null, lot_name: null, recipient_id: recId })
       : await sb('rpc/auc_coin_donate', { p_amount: amount, p_message: $('#msg').value.trim() || null, p_lot_id: null, p_lot_name: null, p_recipient_id: recId }, true);
     $('#dForm').hidden = true; $('#done').hidden = false;
     $('#doneT').textContent = `${fmt(r.amount)} coin отправлено!`;

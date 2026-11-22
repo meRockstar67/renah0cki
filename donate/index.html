@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/donate/donate.css?v=20261122b">
-<script src="/donate/donate.js?v=20261122b" defer></script>
+<link rel="stylesheet" href="/donate/donate.css?v=20261122c">
+<script src="/donate/donate.js?v=20261122c" defer></script>
 </head>
 <body>
 <div class="bg-glow" aria-hidden="true"></div>
@@ -81,6 +81,14 @@
           <small class="count"><span id="cnt">0</span>/300</small>
         </div>
         <textarea class="in" name="message" id="msg" maxlength="300" rows="3" placeholder="Напиши что-нибудь приятное..."></textarea>
+      </div>
+
+      <div class="field" id="voiceField" hidden>
+        <span class="lbl">Голос озвучки на стриме</span>
+        <div class="voice-pick" id="voicePick">
+          <button type="button" class="on" data-voice="female">♀ Женский</button>
+          <button type="button" data-voice="male">♂ Мужской</button>
+        </div>
       </div>
 
       <button class="btn pri wide big-btn" id="send" type="submit">Отправить</button>
