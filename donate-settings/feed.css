@@ -86,7 +86,7 @@ button { cursor: pointer; }
 .ev:hover { background: #181828; border-color: rgba(255, 255, 255, .13); }
 @keyframes evIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 
-.ev[data-t="coin"]      { --c: #8b5cf6; }
+.ev[data-t="coin"]      { --c: #5cc8ff; }
 .ev[data-t="da"]        { --c: #ff8a24; }
 .ev[data-t="tw_follow"],
 .ev[data-t="tw_sub"],
