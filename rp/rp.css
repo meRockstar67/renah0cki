@@ -776,3 +776,20 @@ html[data-chat="tg"][data-theme="light"] .bub-row.me .ticks.read { color: #4fae4
 .bub-status svg { width: 16px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .bub-status.read { color: var(--accent); }
 html[data-chat="tg"] .bub-status { display: none; }
+
+/* синяя галочка VIP (как в X) и баннер профиля */
+.vip-badge { display: inline-flex; align-items: center; justify-content: center; margin-left: 3px; vertical-align: -3px; cursor: pointer; flex: none; }
+.vip-check { width: 18px; height: 18px; display: block; }
+.cp-name { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.cp-name .vip-badge { margin-left: 1px; vertical-align: 0; }
+.cp-name .vip-check { width: 20px; height: 20px; }
+.ce-banner-lock { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(15,20,25,.75); color: #fff; font-size: 13px; font-weight: 700; cursor: default; }
+.ce-banner-lock svg { width: 16px; height: 16px; }
+.vip-info-modal { max-width: 380px !important; border-radius: 20px !important; }
+.vip-info-body { padding: 26px 24px 22px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.vip-info-ic .vip-check { width: 48px; height: 48px; }
+.vip-info-body h2 { margin: 2px 0 0; font-size: 21px; font-weight: 800; }
+.vip-info-body p { margin: 0; font-size: 14.5px; line-height: 1.45; }
+.vip-info-sub { color: var(--muted); font-size: 13.5px !important; }
+.vip-info-acts { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 10px; }
+.vip-info-acts .btn { width: 100%; min-height: 40px; }

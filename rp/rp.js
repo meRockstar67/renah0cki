@@ -45,6 +45,7 @@ const I = {
   flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
   calendar: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.9-.3 5 1.4 5.5 4.4"/></svg>',
+  verify: '<svg class="vip-check" viewBox="0 0 22 22" aria-label="VIP статус"><path fill="#1d9bf0" stroke="none" d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816z"/><path fill="#fff" stroke="none" d="M9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>',
 };
 
 /* ── утилиты ────────────────────────────────────────────── */
@@ -80,7 +81,7 @@ const ERR = {
   'slot taken': 'Этот персонаж уже занят', 'slot limit reached': 'Достигнут лимит слотов', 'room archived': 'Комната в архиве',
   'no access': 'Нет доступа', 'not authenticated': 'Нужно войти', 'forbidden': 'Нет прав', 'bad image url': 'Неверная картинка',
   'row-level security': 'Нет прав на это действие', 'duplicate key': 'Уже существует', 'slots_room_id_handle_key': 'Такой @ник уже есть в комнате',
-  'posts_one_repost': 'Уже есть репост', 'characters_handle_uq': 'Такой @ник уже занят другим персонажем', 'character not found': 'Персонаж не найден', 'avatar needs goy': 'Свою аватарку могут ставить ГОЙ и выше', 'bad word in handle': 'В @нике запрещённое слово', 'website_check': 'Неверная ссылка на сайт', 'JWT expired': 'Сессия истекла, обновите страницу',
+  'posts_one_repost': 'Уже есть репост', 'characters_handle_uq': 'Такой @ник уже занят другим персонажем', 'character not found': 'Персонаж не найден', 'avatar needs goy': 'Свою аватарку могут ставить ГОЙ и выше', 'banner needs vip': 'Шапку профиля могут ставить VIP и выше', 'bad word in handle': 'В @нике запрещённое слово', 'website_check': 'Неверная ссылка на сайт', 'JWT expired': 'Сессия истекла, обновите страницу',
 };
 function errText(e) {
   const m = String(e?.message || e);
@@ -178,8 +179,36 @@ const S = {
 };
 // действующая роль: старшая из выданной (rp_role) и купленной (paid_role, пока не истекла)
 const paidActive = p => !!(p?.paid_role && p.paid_until && new Date(p.paid_until).getTime() > Date.now());
-const effRole = p => (paidActive(p) && (ROLE_RANK[p.paid_role] ?? 0) > (ROLE_RANK[p.rp_role] ?? 0)) ? p.paid_role : (p?.rp_role || 'user');
+const effRole = p => (paidActive(p) && (ROLE_RANK[p.paid_role] ?? 0) > (ROLE_RANK[p?.rp_role] ?? 0)) ? p.paid_role : (p?.rp_role || 'user');
 const rank = () => ROLE_RANK[effRole(S.me)] ?? 0;
+const isVip = p => (ROLE_RANK[effRole(p)] ?? 0) >= 2;
+const slotVip = s => isVip(s?.player || s?.user);
+const vipBadge = () => `<span class="vip-badge" data-vip-info title="Статус VIP в Y (купленная подписка, не официальный аккаунт)">${I.verify}</span>`;
+function vipInfoDialog() {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal vip-info-modal" role="dialog" aria-modal="true" aria-label="Статус VIP">
+    <div class="vip-info-body">
+      <div class="vip-info-ic">${I.verify}</div>
+      <h2>Статус VIP в Y</h2>
+      <p>Эта синяя галочка показывает, что игрок приобрёл статус <b>VIP</b> в Y за renah0cki coin.</p>
+      <p class="vip-info-sub">Галочка <b>не означает</b> официальный аккаунт и не подтверждает, что за профилем или персонажем стоит реальный человек.</p>
+      <div class="vip-info-acts">
+        <button type="button" class="btn blue" data-close>Понятно</button>
+        ${rank() < 2 ? '<a class="btn ghost" href="#/settings" data-close>Оформить VIP</a>' : ''}
+      </div>
+    </div>
+  </div>`;
+  const close = () => { ov.remove(); if (!$('.overlay')) document.body.style.overflow = ''; };
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) close(); });
+  document.body.append(ov); document.body.style.overflow = 'hidden';
+}
+document.addEventListener('click', e => {
+  const vb = e.target.closest('[data-vip-info]');
+  if (!vb) return;
+  e.preventDefault(); e.stopPropagation();
+  vipInfoDialog();
+});
 const isStaff = () => rank() >= 3;
 const isOwner = () => !!S.room && !!S.uid && (S.room.owner_id === S.uid || isStaff());
 const mySlot = () => S.slots.find(s => s.player_id && s.player_id === S.uid) || null;
@@ -188,9 +217,9 @@ function actingSlot() {
   return S.room ? mySlot() : null;
 }
 
-const SLOT_SEL = 'id,char_name,handle,avatar_url,character_id';
+const SLOT_SEL = 'id,char_name,handle,avatar_url,character_id,player:profiles!player_id(rp_role,paid_role,paid_until)';
 const P_FIELDS = 'id,short_code,room_id,slot_id,body,images,voice_url,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,created_at';
-const AU_SEL = 'author:author_user(user_id,nick,y_name,avatar_url,y_avatar_url,username)';
+const AU_SEL = 'author:author_user(user_id,nick,y_name,avatar_url,y_avatar_url,username,rp_role,paid_role,paid_until)';
 const P_SEL = `${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),${AU_SEL},parent:reply_to(id,slot:slots!slot_id(handle),author:author_user(username)),`
   + `quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL}),${AU_SEL}),`
   + `orig:repost_of(${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),${AU_SEL},parent:reply_to(id,slot:slots!slot_id(handle),author:author_user(username)),quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL}),${AU_SEL}))`;
@@ -225,7 +254,7 @@ async function loadRoom(key) {
 async function ensureRoomMine() { if (S.room && S.mineScope !== 'room:' + S.room.id) await loadMine(); }
 async function loadSlots() {
   if (!S.room) return;
-  S.slots = await api(`slots?room_id=eq.${S.room.id}&select=*,player:profiles!player_id(nick)&order=created_at.asc`) || [];
+  S.slots = await api(`slots?room_id=eq.${S.room.id}&select=*,player:profiles!player_id(nick,rp_role,paid_role,paid_until)&order=created_at.asc`) || [];
   S.slotMap = new Map(S.slots.map(s => [s.id, s]));
   updateNav();
 }
@@ -377,7 +406,7 @@ function quoteHtml(q) {
   const body = q.is_deleted ? '<div class="deleted">Этот пост удалён.</div>'
     : `<div class="text">${richText(q.body)}</div>${mediaHtml(q.images)}`;
   return `<div class="quote-card" data-open="${q.id}">
-    <div class="post-top">${avatar(q.slot, 'xs')}<span class="name">${esc(q.slot?.char_name)}</span><span class="handle">@${esc(q.slot?.handle)}</span><span class="dot">·</span><time>${ago(q.created_at)}</time></div>
+    <div class="post-top">${avatar(q.slot, 'xs')}<span class="name">${esc(q.slot?.char_name)}</span>${slotVip(q.slot) ? vipBadge() : ''}<span class="handle">@${esc(q.slot?.handle)}</span><span class="dot">·</span><time>${ago(q.created_at)}</time></div>
     ${body}</div>`;
 }
 function roomLine(rm) {
@@ -430,7 +459,7 @@ function renderPost(p, { line = false, showRoom = false, threads = false } = {})
   el.innerHTML = `${line ? '<div class="thread-line"></div>' : ''}
     <a href="${p.slot?.user ? userPath(p.slot.user) : p.slot?.character_id ? `#/c/${p.slot.character_id}` : `#/r/${p.room_id}/chars`}" class="av-link" aria-label="${esc(p.slot?.char_name)}">${avatar(p.slot)}</a>
     <div class="post-main">
-      <div class="post-top"><span class="name">${esc(p.slot?.char_name)}</span>${p.slot?.user ? '<span class="viewer-tag">зритель</span>' : ''}<span class="handle">@${esc(p.slot?.handle)}</span><span class="dot">·</span><time datetime="${p.created_at}" title="${esc(fullDate(p.created_at))}">${ago(p.created_at)}</time>
+      <div class="post-top"><span class="name">${esc(p.slot?.char_name)}</span>${slotVip(p.slot) ? vipBadge() : ''}${p.slot?.user ? '<span class="viewer-tag">зритель</span>' : ''}<span class="handle">@${esc(p.slot?.handle)}</span><span class="dot">·</span><time datetime="${p.created_at}" title="${esc(fullDate(p.created_at))}">${ago(p.created_at)}</time>
         ${!p.is_deleted && S.uid ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
       ${p.reply_to && p.parent?.slot ? `<div class="reply-to">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
       <div data-body="${p.id}">${bodyHtml(p)}</div>
@@ -451,7 +480,7 @@ function bigStats(p) {
 function renderBigPost(p) {
   const el = document.createElement('article');
   el.className = 'post-big'; el.dataset.post = p.id;
-  el.innerHTML = `<div class="post-top who" style="gap:12px">${avatar(p.slot)}<div style="min-width:0"><span class="name">${esc(p.slot?.char_name)}</span><span class="handle">@${esc(p.slot?.handle)}</span></div>
+  el.innerHTML = `<div class="post-top who" style="gap:12px">${avatar(p.slot)}<div style="min-width:0"><span class="name">${esc(p.slot?.char_name)}${slotVip(p.slot) ? vipBadge() : ''}</span><span class="handle">@${esc(p.slot?.handle)}</span></div>
       ${!p.is_deleted && S.uid ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
     ${p.reply_to && p.parent?.slot ? `<div class="reply-to" style="margin-top:8px">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
     <div data-body="${p.id}">${bodyHtml(p)}</div>
@@ -972,8 +1001,8 @@ function renderMe() {
   const a = S.room ? (mySlot() || null) : null;
   box.href = S.me ? userPath(S.me) : '/';
   box.innerHTML = a
-    ? `${avatar(a)}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.char_name)}</div><div style="color:var(--muted);font-size:14px">@${esc(a.handle)}</div></div>`
-    : `${avatar(userAv(S.me))}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(yName(S.me))}</div><div style="color:var(--muted);font-size:14px">${S.me?.username ? '@' + esc(S.me.username) : ''}</div></div>`;
+    ? `${avatar(a)}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.char_name)}${isVip(S.me) ? vipBadge() : ''}</div><div style="color:var(--muted);font-size:14px">@${esc(a.handle)}</div></div>`
+    : `${avatar(userAv(S.me))}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(yName(S.me))}${isVip(S.me) ? vipBadge() : ''}</div><div style="color:var(--muted);font-size:14px">${S.me?.username ? '@' + esc(S.me.username) : ''}</div></div>`;
 }
 
 /* главная: лента комнаты */
@@ -1215,14 +1244,19 @@ function modal(title, html, { onSubmit, submitLabel = 'Сохранить' } = {
 /* ── редактор персонажа (библиотека) ────────────────────── */
 const canEditChar = c => !!S.uid && (c.owner_id === S.uid || isStaff());
 function characterEditor(c, onSaved) {
+  const canBanner = rank() >= 2;
   const form = modal(c ? 'Изменить персонажа' : 'Новый персонаж', `
-    <div class="ce-head no-banner">
+    <div class="ce-head">
+      <label class="ce-banner" style="${bannerStyle(c || {})}" title="${canBanner ? 'Шапка персонажа' : 'Шапку персонажа могут ставить VIP и выше'}">
+        ${canBanner ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку">` : `<span class="ce-banner-lock">${I.lock}<span>Шапка — с роли VIP</span></span>`}
+      </label>
       <label class="ce-av" title="Аватар">${c?.avatar_url ? `<img class="av ce-av-img" src="${esc(c.avatar_url)}" alt="">` : '<span class="av ce-av-img" style="background:var(--placeholder)"></span>'}
         <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар"></label>
     </div>
-    <div class="ce-note">Нажмите на аватар, чтобы загрузить и обрезать картинку.</div>
+    <div class="ce-note">Нажмите на аватар${canBanner ? ' или шапку' : ' (шапка доступна с роли VIP)'}, чтобы загрузить и обрезать картинку.</div>
     <input type="hidden" name="avatar_url" value="${esc(c?.avatar_url || '')}">
     <input type="hidden" name="banner_url" value="${esc(c?.banner_url || '')}">
+    <div class="ce-rm-row">${c?.banner_url && canBanner ? '<button type="button" class="btn ghost small" data-rm="banner">Убрать шапку</button>' : ''}</div>
     <div class="field"><label for="f-name">Имя персонажа</label><input id="f-name" name="char_name" required maxlength="50" value="${esc(c?.char_name || '')}" autocomplete="off"></div>
     <div class="field"><label for="f-handle">@ник (подставится из имени, можно поменять)</label><input id="f-handle" name="handle" required maxlength="30" value="${esc(c?.handle || '')}" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
     <div class="field"><label for="f-bio">Био</label><textarea id="f-bio" name="bio" rows="3" maxlength="300">${esc(c?.bio || '')}</textarea></div>
@@ -1230,7 +1264,8 @@ function characterEditor(c, onSaved) {
     submitLabel: c ? 'Сохранить' : 'Создать',
     onSubmit: async f => {
       if (+f.dataset.busy) throw new Error('Дождитесь загрузки картинки');
-      const body = { char_name: f.char_name.value.trim(), handle: f.handle.value.trim().replace(/^@/, ''), bio: f.bio.value.trim(), avatar_url: f.avatar_url.value || null, banner_url: f.banner_url.value || null };
+      const body = { char_name: f.char_name.value.trim(), handle: f.handle.value.trim().replace(/^@/, ''), bio: f.bio.value.trim(), avatar_url: f.avatar_url.value || null };
+      if (canBanner) body.banner_url = f.banner_url.value || null;
       if (!body.char_name) throw new Error('Укажите имя');
       if (!/^[A-Za-z0-9_]{1,30}$/.test(body.handle)) throw new Error('@ник: только латиница, цифры и _');
       const [row] = c
@@ -1253,9 +1288,13 @@ function characterEditor(c, onSaved) {
     try {
       const url = await uploadImage(blob);
       if (isAv) { form.avatar_url.value = url; $('.ce-av-img', box).outerHTML = `<img class="av ce-av-img" src="${esc(url)}" alt="">`; }
-      else { form.banner_url.value = url; box.style.backgroundImage = `url("${url}")`; }
+      else { form.banner_url.value = url; box.style.background = ''; box.style.backgroundImage = `url("${url}")`; }
     } catch (e) { toast(errText(e), true); }
     box.classList.remove('loading'); form.dataset.busy = +form.dataset.busy - 1;
+  });
+  $$('[data-rm]', form).forEach(b => b.onclick = () => {
+    if (b.dataset.rm === 'banner') { form.banner_url.value = ''; $('.ce-banner', form).setAttribute('style', bannerStyle({})); }
+    b.remove();
   });
   const del = $('[data-del-char]', form);
   if (del) del.onclick = async () => {
@@ -1301,7 +1340,7 @@ async function viewCharacter(key) {
   main.innerHTML = head('Персонаж', { back: true }) + loader();
   let c, rooms, id;
   try {
-    [c] = await api(`characters?${keyFilter(key)}&select=*`);
+    [c] = await api(`characters?${keyFilter(key)}&select=*,owner:profiles!owner_id(rp_role,paid_role,paid_until)`);
     if (!c) return errorView('Персонаж не найден');
     id = c.id;
     [rooms] = await Promise.all([
@@ -1310,9 +1349,11 @@ async function viewCharacter(key) {
   } catch (e) { return errorView(errText(e)); }
   if (!c) return errorView('Персонаж не найден');
   if (S.view !== 'char') return;
+  const hasCharBanner = !!(c.banner_url && isVip(c.owner));
   main.innerHTML = head(c.char_name, { back: true, sub: `${rooms.length} ${plural(rooms.length, 'комната', 'комнаты', 'комнат')}` })
-    + `<div class="cp-top no-banner">${avatar(c, 'xl')}<div class="cp-acts"><button class="icon-btn bordered" data-copy="${charPath(c)}" aria-label="Скопировать ссылку">${I.link}</button>${canEditChar(c) ? '<button class="btn ghost" data-edit-char>Изменить</button>' : ''}</div></div>
-    <div class="cp-info"><div class="cp-name">${esc(c.char_name)}</div><div class="cp-handle">@${esc(c.handle)}</div>${c.bio ? `<div class="cp-bio">${richText(c.bio)}</div>` : ''}</div>
+    + (hasCharBanner ? `<div class="cp-banner" style="${bannerStyle(c)}"></div>` : '')
+    + `<div class="cp-top${hasCharBanner ? '' : ' no-banner'}">${avatar(c, 'xl')}<div class="cp-acts"><button class="icon-btn bordered" data-copy="${charPath(c)}" aria-label="Скопировать ссылку">${I.link}</button>${canEditChar(c) ? '<button class="btn ghost" data-edit-char>Изменить</button>' : ''}</div></div>
+    <div class="cp-info"><div class="cp-name"><span>${esc(c.char_name)}</span>${isVip(c.owner) ? vipBadge() : ''}</div><div class="cp-handle">@${esc(c.handle)}</div>${c.bio ? `<div class="cp-bio">${richText(c.bio)}</div>` : ''}</div>
     <div class="tabs" style="border-bottom:1px solid var(--border)"><span class="active" style="flex:1;text-align:center;padding:16px 8px;font-weight:700;position:relative">Комнаты</span></div>
     ${rooms.length ? rooms.map(r => {
       const free = r.slots.some(s => !s.player_id);
@@ -1385,7 +1426,7 @@ function renderChars() {
       acts.push(`<button class="btn small ghost" data-rm-slot="${s.id}" aria-label="Убрать из комнаты">Убрать</button>`);
     }
     const link = s.character_id ? ` data-href="#/c/${s.character_id}"` : '';
-    main.insertAdjacentHTML('beforeend', `<div class="char${s.character_id ? ' editable' : ''}"${link}>${avatar(s)}<div class="char-main"><div class="name">${esc(s.char_name)}</div><div class="handle">@${esc(s.handle)}</div>${s.bio ? `<div class="bio">${richText(s.bio)}</div>` : ''}${st}</div><div class="char-acts">${acts.join('')}</div></div>`);
+    main.insertAdjacentHTML('beforeend', `<div class="char${s.character_id ? ' editable' : ''}"${link}>${avatar(s)}<div class="char-main"><div class="name">${esc(s.char_name)}${slotVip(s) ? vipBadge() : ''}</div><div class="handle">@${esc(s.handle)}</div>${s.bio ? `<div class="bio">${richText(s.bio)}</div>` : ''}${st}</div><div class="char-acts">${acts.join('')}</div></div>`);
   });
   if (!S.slots.length) main.insertAdjacentHTML('beforeend', `<div class="empty"><h2>Нет персонажей</h2><p>${own ? 'Нажмите «Добавить» и выберите персонажей из библиотеки.' : 'Владелец комнаты ещё не добавил персонажей.'}</p></div>`);
 }
@@ -1713,10 +1754,12 @@ async function viewUser(key) {
   if (u.location) meta.push(`<span class="cp-meta">${I.pin}<span>${esc(u.location)}</span></span>`);
   if (u.website) meta.push(`<a class="cp-meta cp-site" href="${esc(u.website)}" target="_blank" rel="noopener noreferrer nofollow">${I.link}<span>${esc(siteHost(u.website))}</span></a>`);
   if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>Дата рождения: ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
+  const hasBanner = !!(u.banner_url && isVip(u));
   main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="Настройки" style="margin:0">${I.gear}</a>` : '' })
-    + `<div class="cp-top no-banner">${avatar(userAv(u), 'xl')}${isMe ? '<button class="btn ghost small cp-edit-top only-d" data-edit-profile>Изменить</button>'
+    + (hasBanner ? `<div class="cp-banner" style="${bannerStyle(u)}"></div>` : '')
+    + `<div class="cp-top${hasBanner ? '' : ' no-banner'}">${avatar(userAv(u), 'xl')}${isMe ? '<button class="btn ghost small cp-edit-top only-d" data-edit-profile>Изменить</button>'
       : S.uid ? `<button class="btn small cp-follow${iFollow ? ' ghost' : ''}" data-follow>${iFollow ? 'Вы подписаны' : 'Подписаться'}</button>` : ''}</div>
-    <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span></div>
+    <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span>${isVip(u) ? vipBadge() : ''}</div>
       ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="Скопировать ссылку на профиль">@${esc(u.username)}</button>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
@@ -1768,15 +1811,19 @@ async function viewUser(key) {
 
 /* ── редактирование профиля Y (как в X; на renah0cki не влияет) ── */
 function profileEditor(u, onSaved) {
-  const canAvatar = rank() >= 1;
+  const canAvatar = rank() >= 1, canBanner = rank() >= 2;
   const form = modal('Изменить профиль', `
-    <div class="ce-head no-banner">
+    <div class="ce-head">
+      <label class="ce-banner" style="${bannerStyle(u)}" title="${canBanner ? 'Шапка профиля' : 'Шапку профиля могут ставить VIP и выше'}">
+        ${canBanner ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку">` : `<span class="ce-banner-lock">${I.lock}<span>Шапка — с роли VIP</span></span>`}
+      </label>
       <label class="ce-av${canAvatar ? '' : ' ce-av-static'}" title="${canAvatar ? 'Аватар' : 'Менять аватарку могут ГОЙ и выше'}">${avatar(userAv(u), 'ce-av-img')}
         ${canAvatar ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар">` : ''}</label>
     </div>
-    <div class="ce-note">${canAvatar ? 'Нажмите на аватар, чтобы загрузить и обрезать картинку.' : 'Свою аватарку в Y могут ставить ГОЙ и выше.'} Изменения действуют только в Y — на renah0cki ничего не меняется.</div>
+    <div class="ce-note">${canAvatar ? `Нажмите на аватар${canBanner ? ' или шапку' : ' (шапка доступна с роли VIP)'}, чтобы загрузить и обрезать картинку.` : 'Свою аватарку в Y могут ставить ГОЙ и выше, а шапку — VIP и выше.'} Изменения действуют только в Y — на renah0cki ничего не меняется.</div>
     <input type="hidden" name="y_avatar_url" value="${esc(u.y_avatar_url || '')}">
-    <div class="ce-rm-row">${u.y_avatar_url && canAvatar ? '<button type="button" class="btn ghost small" data-rm="avatar">Вернуть аватарку с renah0cki</button>' : ''}</div>
+    <input type="hidden" name="banner_url" value="${esc(u.banner_url || '')}">
+    <div class="ce-rm-row">${u.banner_url && canBanner ? '<button type="button" class="btn ghost small" data-rm="banner">Убрать шапку</button>' : ''}${u.y_avatar_url && canAvatar ? '<button type="button" class="btn ghost small" data-rm="avatar">Вернуть аватарку с renah0cki</button>' : ''}</div>
     <div class="field"><label for="p-name">Имя</label><input id="p-name" name="y_name" maxlength="50" value="${esc(u.y_name || '')}" placeholder="${esc(u.nick || '')}" autocomplete="off"></div>
     <div class="field"><label for="p-about">О себе</label><textarea id="p-about" name="about" rows="3" maxlength="300" placeholder="${esc(u.bio || '')}">${esc(u.about || '')}</textarea></div>
     <div class="field"><label for="p-loc">Местоположение</label><input id="p-loc" name="location" maxlength="30" value="${esc(u.location || '')}" autocomplete="off"></div>
@@ -1790,6 +1837,7 @@ function profileEditor(u, onSaved) {
       const body = { about: f.about.value.trim(), y_name: f.y_name.value.trim() || null,
         location: f.location.value.trim(), website: web, birthday: f.birthday.value || null };
       if (canAvatar) body.y_avatar_url = f.y_avatar_url.value || null;
+      if (canBanner) body.banner_url = f.banner_url.value || null;
       await api(`profiles?user_id=eq.${S.uid}`, { method: 'PATCH', body, prefer: 'return=minimal' });
       Object.assign(S.me, body); renderMe(); toast('Профиль сохранён'); onSaved?.();
     },
@@ -1952,8 +2000,9 @@ function viewRules() {
     <p>Личные сообщения между персонажами могут читать игроки, чья роль <b>выше роли обоих участников</b> переписки: переписки обычных игроков видят ГОИ и выше, переписки ГОЕВ — VIP и выше, переписки VIP — модераторы и админы. Читать можно только в комнатах, которые этот игрок и так видит, и только просмотр — писать от вашего имени никто не может.</p>
     <p>Не пишите в ЛС ничего личного и настоящего: это часть ролевой игры.</p>
 
-    <h2>5. Подписки и монеты</h2>
+    <h2>5. Подписки, синяя галочка и монеты</h2>
     <p>Роли ГОЙ и VIP покупаются за renah0cki coin на 30 дней и сами не продлеваются. Монеты — внутренняя валюта сайта, их нельзя вывести или обменять на деньги. Пополнение — добровольная поддержка renah0cki и не возвращается. При бане за нарушение правил оплаченный срок не компенсируется.</p>
+    <p><b>Синяя галочка (✓)</b> возле имени профиля или персонажа в Y показывает исключительно то, что пользователь приобрёл статус <b>VIP</b>. Она <b>не означает</b> официальный аккаунт и не подтверждает, что за профилем или персонажем стоит реальный человек.</p>
 
     <h2>6. Модерация</h2>
     <p>Любой пост можно отправить модераторам через «⋯ → Пожаловаться». Модераторы могут удалять посты и ответы, освобождать персонажей, закрывать комнаты и блокировать аккаунт. Запрещённые слова автоматически скрываются звёздочками.</p>
@@ -2098,7 +2147,7 @@ function bindChatLook(root) {
 const shopVisible = () => !!S.uid; // подписки ГОЙ/VIP — всем вошедшим
 const SHOP_ROLES = [
   { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Читать переписки обычных игроков'] },
-  { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Доступ к закрытым комнатам «VIP и выше»', 'Читать переписки ГОЕВ'] },
+  { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Синяя галочка VIP ✓ у имени и персонажей (как в X)', 'Свой баннер (шапка) в профиле Y и у персонажей', 'Доступ к закрытым комнатам «VIP и выше»', 'Читать переписки ГОЕВ'] },
 ];
 function shopHtml() {
   const me = S.me || {};
@@ -2118,7 +2167,7 @@ function shopHtml() {
         <ul>${r.perks.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
         <button type="button" class="btn${base || higher ? ' ghost' : ' blue'} small" data-buy-role="${r.id}"${base || higher ? ' disabled' : ''}>${label}</button></div>`;
     }).join('')}</div>
-    <p style="margin:12px 0 0">Роль не продлевается сама: когда срок закончится, её можно купить снова. При переходе с ГОЯ на VIP оставшиеся дни пересчитываются в дни VIP.</p></div>`;
+    <p style="margin:12px 0 0">Роль не продлевается сама: когда срок закончится, её можно купить снова. При переходе с ГОЯ на VIP оставшиеся дни пересчитываются в дни VIP. Синяя галочка ✓ означает активную подписку VIP в Y и не является подтверждением личности или официального аккаунта.</p></div>`;
 }
 function bindShop(root) {
   $$('[data-buy-role]', root).forEach(b => b.onclick = async () => {
