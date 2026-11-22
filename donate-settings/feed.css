@@ -96,7 +96,7 @@ button { cursor: pointer; }
 
 .ev-r1 { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .ev-ico { width: 18px; height: 18px; flex: none; display: grid; place-items: center; font-size: 14px; }
-.ev-ico img { width: 16px; height: 16px; object-fit: contain; }
+.ev-ico img, .ev-ico svg { width: 16px; height: 16px; object-fit: contain; display: block; }
 .ev-user { font-weight: 800; font-size: 13px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .ev-amt { font-weight: 800; font-size: 12.5px; color: var(--c); white-space: nowrap; font-variant-numeric: tabular-nums; flex: none; }
 

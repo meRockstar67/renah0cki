@@ -112,7 +112,8 @@
   const API = (LOCAL && QS.get('api')) || 'https://cdn.renah0cki.xyz';
   const fmt = n => (+n || 0).toLocaleString('ru-RU');
 
-  const DA_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffb347"/><stop offset="55%" stop-color="#ff7a18"/><stop offset="100%" stop-color="#e3380c"/></linearGradient></defs><rect width="96" height="96" rx="24" fill="url(#g)"/><path d="M48 73s-22-13.2-22-29.2C26 35 32.5 29 40 29c4.5 0 8 2.4 8 2.4S51.5 29 56 29c7.5 0 14 6 14 14.8C70 59.8 48 73 48 73z" fill="#fff"/></svg>');
+  const DA_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 69 80"><path fill="#f57507" d="M34.86 46.59h-5.42a1.1 1.1 0 0 1-1.11-1.1l.48-4.89a1.1 1.1 0 0 1 1.11-.91h5.42a1.1 1.1 0 0 1 1.11 1.1l-.48 4.88a1.1 1.1 0 0 1-1.11.92zm.87-9.57h-5.52a1.1 1.1 0 0 1-1.11-1.06l1.5-16.51a1.1 1.1 0 0 1 1.11-.94h5.52a1.1 1.1 0 0 1 1.11 1.06l-1.54 16.52a1.1 1.1 0 0 1-1.06.93zm32.46-19.25c.59.68.88 1.57.8 2.46l-2.16 24.53c-.07.8-.43 1.55-1.01 2.11L48.17 63.91a3.3 3.3 0 0 1-2.35.94H27.04L10.5 80l1.28-15.16H3.37A3.37 3.37 0 0 1 .01 61.2L5.15 3.01A3.38 3.38 0 0 1 8.5 0h42.83c.99 0 1.92.43 2.56 1.17l14.3 16.6zM55.11 40.08l1.37-15.14a3.3 3.3 0 0 0-.86-2.45l-8.07-9.25a3.3 3.3 0 0 0-2.54-1.16H19.6a3.38 3.38 0 0 0-3.36 3.01l-3.03 34.07a3.37 3.37 0 0 0 3.36 3.64h24.99c.87 0 1.7-.33 2.33-.92l10.21-9.67c.59-.56.94-1.32 1.01-2.13z"/></svg>');
+  const TW_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 2800"><path fill="#9146ff" d="M500 0 0 500v1800h600v500l500-500h400l900-900V0H500zm1700 1300-400 400h-400l-350 350v-350H600V200h1600v1100z"/><rect fill="#9146ff" x="1700" y="550" width="200" height="600"/><rect fill="#9146ff" x="1150" y="550" width="200" height="600"/></svg>');
   let cfg = {
     duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', sound_url: '', volume: 75,
     tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_volume: 85, tts_rate: 1,
@@ -130,7 +131,7 @@
   function applyStyle(kind = 'coin') {
     const r = document.documentElement.style;
     const al = document.getElementById('al');
-    const acc = kind === 'da' ? '#ff8a24' : (/^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6');
+    const acc = kind === 'da' ? '#ff8a24' : kind === 'tw' ? '#9146ff' : (/^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6');
     al.dataset.theme = ['glass', 'neon', 'minimal', 'slay', 'clean'].includes(cfg.theme) ? cfg.theme : 'glass';
     al.dataset.anim = ['pop', 'slide', 'zoom', 'bounce'].includes(cfg.anim) ? cfg.anim : 'pop';
     al.dataset.layout = ['top', 'left', 'none'].includes(cfg.layout) ? cfg.layout : 'top';
@@ -148,7 +149,9 @@
     const img = document.getElementById('img');
     const src = kind === 'da'
       ? (/^https:\/\//i.test(cfg.da_image_url || '') ? cfg.da_image_url : DA_SVG)
-      : (/^https:\/\//i.test(cfg.image_url || '') ? cfg.image_url : DEFAULT_IMG);
+      : kind === 'tw'
+        ? TW_SVG
+        : (/^https:\/\//i.test(cfg.image_url || '') ? cfg.image_url : DEFAULT_IMG);
     if (img.src !== src) img.src = src;
   }
 
@@ -332,7 +335,7 @@
     if (paused && !queue[0].force) return;
     busy = true;
     const d = queue.shift();
-    applyStyle(d.type === 'da' ? 'da' : 'coin');
+    applyStyle(d.type === 'da' ? 'da' : /^tw_/.test(d.type || '') ? 'tw' : 'coin');
     formatHead(d);
     const m = document.getElementById('m');
     m.hidden = !(cfg.show_message !== false && d.message);

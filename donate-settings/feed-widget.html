@@ -47,7 +47,7 @@
   .ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 17px; flex: none;
     background: var(--ib, var(--w-accent-bg));
     border: 1px solid var(--bd, var(--w-accent-bd)); }
-  .ico img { width: 22px; height: 22px; object-fit: contain; }
+  .ico img, .ico svg { width: 20px; height: 20px; object-fit: contain; display: block; }
   .body { min-width: 0; display: grid; gap: 3px; }
   .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .who { font-weight: 800; color: var(--w-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -80,7 +80,7 @@
   .root[data-mode="ticker"] .ev { flex: none; display: inline-flex; align-items: center; gap: 9px; padding: 8px 14px; border-radius: 999px; }
   .root[data-mode="ticker"] .ev::before { display: none; }
   .root[data-mode="ticker"] .ico { width: 26px; height: 26px; font-size: 14px; border-radius: 50%; }
-  .root[data-mode="ticker"] .ico img { width: 16px; height: 16px; }
+  .root[data-mode="ticker"] .ico img, .root[data-mode="ticker"] .ico svg { width: 15px; height: 15px; }
   .root[data-mode="ticker"] .body { display: inline-flex; align-items: center; gap: 8px; }
   .root[data-mode="ticker"] .sub, .root[data-mode="ticker"] .msg { display: none; }
   .root[data-mode="single"] .ev { padding: 14px 18px; }
@@ -124,13 +124,12 @@
     if (ev.type === 'tw_points' && Number(ev.amount || 0) < (Number(cfg.min_points) || 0)) return false;
     return true;
   }
+  const LOGO_DA = '<svg viewBox="0 0 69 80" aria-hidden="true"><path fill="#f57507" d="M34.86 46.59h-5.42a1.1 1.1 0 0 1-1.11-1.1l.48-4.89a1.1 1.1 0 0 1 1.11-.91h5.42a1.1 1.1 0 0 1 1.11 1.1l-.48 4.88a1.1 1.1 0 0 1-1.11.92zm.87-9.57h-5.52a1.1 1.1 0 0 1-1.11-1.06l1.5-16.51a1.1 1.1 0 0 1 1.11-.94h5.52a1.1 1.1 0 0 1 1.11 1.06l-1.54 16.52a1.1 1.1 0 0 1-1.06.93zm32.46-19.25c.59.68.88 1.57.8 2.46l-2.16 24.53c-.07.8-.43 1.55-1.01 2.11L48.17 63.91a3.3 3.3 0 0 1-2.35.94H27.04L10.5 80l1.28-15.16H3.37A3.37 3.37 0 0 1 .01 61.2L5.15 3.01A3.38 3.38 0 0 1 8.5 0h42.83c.99 0 1.92.43 2.56 1.17l14.3 16.6zM55.11 40.08l1.37-15.14a3.3 3.3 0 0 0-.86-2.45l-8.07-9.25a3.3 3.3 0 0 0-2.54-1.16H19.6a3.38 3.38 0 0 0-3.36 3.01l-3.03 34.07a3.37 3.37 0 0 0 3.36 3.64h24.99c.87 0 1.7-.33 2.33-.92l10.21-9.67c.59-.56.94-1.32 1.01-2.13z"/></svg>';
+  const LOGO_TW = '<svg viewBox="0 0 2400 2800" aria-hidden="true"><path fill="#9146ff" d="M500 0 0 500v1800h600v500l500-500h400l900-900V0H500zm1700 1300-400 400h-400l-350 350v-350H600V200h1600v1100z"/><rect fill="#9146ff" x="1700" y="550" width="200" height="600"/><rect fill="#9146ff" x="1150" y="550" width="200" height="600"/></svg>';
   function iconHtml(ev) {
     if (ev.type === 'coin') return `<img src="${COIN_IMG}" alt="">`;
-    if (ev.type === 'da') return '🧡';
-    if (ev.type === 'tw_follow') return '💜';
-    if (ev.type === 'tw_sub') return '⭐';
-    if (ev.type === 'tw_gift') return '🎁';
-    if (ev.type === 'tw_points') return '💎';
+    if (ev.type === 'da') return LOGO_DA;
+    if (ev.source === 'twitch' || /^tw_/.test(ev.type || '')) return LOGO_TW;
     return '✨';
   }
   function rightLabel(ev) {
