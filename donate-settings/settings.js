@@ -74,9 +74,10 @@ async function aucApi(path, body) {
 async function uploadFile(file) {
   const token = await getToken();
   if (!token) throw new Error('Нужно войти');
+  const mime = file.type || (/\.avif$/i.test(file.name) ? 'image/avif' : /\.webp$/i.test(file.name) ? 'image/webp' : 'application/octet-stream');
   const r = await fetch(API + '/upload', {
     method: 'POST',
-    headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name), 'X-User-Id': S.uid, Authorization: 'Bearer ' + token },
+    headers: { 'Content-Type': mime, 'X-File-Name': encodeURIComponent(file.name), 'X-User-Id': S.uid, Authorization: 'Bearer ' + token },
     body: file,
   });
   const j = await r.json().catch(() => ({}));

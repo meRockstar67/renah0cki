@@ -1288,12 +1288,12 @@ function viewNew(type) {
     <div class="up-tabs">${[['art', 'Арт'], ['video', 'Видео'], ['fanfic', 'Фанфик'], ...(isMod() ? [['collection', 'Сборник']] : [])].map(([k, v]) => `<a class="up-tab${T === k ? ' on' : ''}" href="#/new/${k}">${v}</a>`).join('')}</div>
     <form class="up-form" id="upForm" novalidate>
       <label class="fld"><span>Название</span><input name="title" maxlength="120" placeholder="${T === 'fanfic' ? 'Название произведения' : T === 'video' ? 'Название видео' : 'Название арта'}" required></label>
-      ${T === 'art' ? drop('upDrop', 'image/png,image/jpeg,image/webp,image/gif', 'Перетащите картинку сюда', 'или нажмите, чтобы выбрать · PNG, JPG, WEBP, GIF') : ''}
+      ${T === 'art' ? drop('upDrop', 'image/png,image/jpeg,image/webp,image/gif,image/avif,.avif', 'Перетащите картинку сюда', 'или нажмите, чтобы выбрать · PNG, JPG, WEBP, GIF') : ''}
       ${T === 'video' ? `${drop('upDrop', 'video/mp4,video/webm,video/quicktime', 'Перетащите видео сюда', 'MP4, WEBM, MOV до 30 МБ')}<div class="or"><span>или ссылка</span></div><label class="fld"><input name="url" placeholder="https://youtube.com/... или https://bilibili.com/..."></label>` : ''}
       ${T === 'fanfic' ? `<label class="fld"><span>Ссылка на оригинал</span><input name="url" placeholder="https://ficbook.net/... или https://archiveofourown.org/..."></label>
         <div class="fld-row"><label class="fld"><span>Фэндом</span><input name="fandom" maxlength="80" placeholder="например, Гарри Поттер"></label><label class="fld"><span>Пейринг</span><input name="pairing" maxlength="80" placeholder="например, Гарри/Драко"></label></div>
         <label class="fld"><span>Краткое описание</span><textarea name="desc" rows="3" maxlength="600" placeholder="1–2 предложения о том, что внутри"></textarea></label>
-        <label class="fld"><span>Обложка (необязательно)</span></label>${drop('upCover', 'image/png,image/jpeg,image/webp,image/gif', 'Обложка', 'необязательно')}` : ''}
+        <label class="fld"><span>Обложка (необязательно)</span></label>${drop('upCover', 'image/png,image/jpeg,image/webp,image/gif,image/avif,.avif', 'Обложка', 'необязательно')}` : ''}
       <div class="fld"><span>Теги</span><div class="chips up-tags">${ALL_TAGS.map(t => `<button type="button" class="chip" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div></div>
       ${T === 'art' ? `<label class="sw"><input type="checkbox" name="blur"><i></i><div><b>Спойлер / пазл</b><span>Картинка в ленте будет размытой</span></div></label>
         <label class="fld puzzle" hidden><span>Сложность пазла</span><select name="puzzle"><option value="easy">Лёгкий</option><option value="x2">Сложный (×2)</option><option value="x3">Сложный (×3)</option><option value="x4">Очень сложный (×4)</option><option value="choice">На выбор зрителя</option></select></label>` : ''}
@@ -1368,7 +1368,7 @@ async function viewSupport(threadArg) {
       <header class="sup-head"><div class="sup-ava"><img src="${COIN}" alt=""></div><div><b>Поддержка renah0cki</b><span>Модераторы ответят здесь. Обычно в течение дня.</span></div></header>
       <div class="sup-msgs" id="supMsgs"><div class="empty">Загрузка…</div></div>
       <div class="sup-attach" id="supAttach" hidden></div>
-      <form class="sup-form" id="supForm"><label class="btn sup-clip" title="Прикрепить фото" aria-label="Прикрепить фото"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><svg viewBox="0 0 24 24"><path d="M20 11.5 12.6 19a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3"/></svg></label><textarea rows="1" maxlength="2000" placeholder="Сообщение…" aria-label="Сообщение"></textarea><button class="btn accent" type="submit" aria-label="Отправить"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></form>
+      <form class="sup-form" id="supForm"><label class="btn sup-clip" title="Прикрепить фото" aria-label="Прикрепить фото"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.avif" hidden><svg viewBox="0 0 24 24"><path d="M20 11.5 12.6 19a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3"/></svg></label><textarea rows="1" maxlength="2000" placeholder="Сообщение…" aria-label="Сообщение"></textarea><button class="btn accent" type="submit" aria-label="Отправить"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></form>
     </section></div>`;
   const form = $('#supForm'), ta = $('textarea', form), fileIn = $('.sup-clip input', form), att = $('#supAttach');
   SUP.file = null;
@@ -1564,7 +1564,7 @@ function editProfile() {
   const ov = document.createElement('div');
   ov.className = 'v2-overlay';
   ov.innerHTML = `<form class="v2-modal pe"><h2>Редактировать профиль</h2>
-    <div class="pe-ava"><img src="${esc(avatarUrl(me))}" alt=""><label class="btn">Загрузить фото<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label></div>
+    <div class="pe-ava"><img src="${esc(avatarUrl(me))}" alt=""><label class="btn">Загрузить фото<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.avif" hidden></label></div>
     <label>Никнейм<input name="n" maxlength="40" value="${esc(me.display_name || me.username || '')}" placeholder="Как тебя называть"></label>
     <label>Описание профиля<textarea name="b" rows="3" maxlength="100" placeholder="Расскажи немного о себе (до 100 символов)">${esc(me.bio || '')}</textarea></label>
     ${canColor(me) ? `<div class="pe-color"><span>Цвет ника</span><div class="sw-row" data-colors><button type="button" class="nc-sw none${!me.name_color ? ' on' : ''}" data-nc="" title="Без цвета">✕</button>${NAME_COLORS.map(c => `<button type="button" class="nc-sw${me.name_color === c ? ' on' : ''}" data-nc="${c}" style="background:${c}"></button>`).join('')}</div>
@@ -2177,7 +2177,7 @@ function viewNewCollection() {
     <form class="up-form" id="cForm" novalidate>
       <label class="fld"><span>Название</span><input name="title" maxlength="120" placeholder="Название сборника" required></label>
       <label class="fld"><span>Описание (необязательно)</span><textarea name="desc" rows="2" maxlength="600"></textarea></label>
-      <label class="drop" id="cDrop"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple hidden>
+      <label class="drop" id="cDrop"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.avif,video/mp4,video/webm,video/quicktime" multiple hidden>
         <div class="drop-empty"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg><b>Перетащите файлы сюда</b><span>картинки и видео (до 30 МБ), сразу несколько</span></div></label>
       <div class="c-files" id="cFiles"></div>
       <p class="muted" style="margin:0;font-size:13px">Сборник модератора публикуется сразу, без проверки.</p>
@@ -2234,7 +2234,7 @@ async function viewNewsEditor(id) {
       <label class="fld"><span>Заголовок</span><input name="title" maxlength="160" value="${esc(n?.title || '')}" required></label>
       <div class="fld"><span>Обложка (необязательно)</span><div class="ne-cover" id="neCover"></div></div>
       <div class="fld"><span>Текст</span>
-        <div class="ne-tools">${NE_TOOLS.map(([k, t]) => `<button type="button" class="ne-tool" data-ne="${k}" title="${t}">${NE_ICON[k]}</button>`).join('')}<label class="ne-tool" title="Картинка в текст">🖼️<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden data-neimg></label><span class="ne-sp"></span><button type="button" class="chip" data-neprev>Предпросмотр</button></div>
+        <div class="ne-tools">${NE_TOOLS.map(([k, t]) => `<button type="button" class="ne-tool" data-ne="${k}" title="${t}">${NE_ICON[k]}</button>`).join('')}<label class="ne-tool" title="Картинка в текст">🖼️<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.avif" hidden data-neimg></label><span class="ne-sp"></span><button type="button" class="chip" data-neprev>Предпросмотр</button></div>
         <textarea name="body" rows="14" maxlength="20000" placeholder="Текст новости. Ссылку на YouTube на отдельной строке — вставится плеер.">${esc(n?.body || '')}</textarea>
         <div class="news-body ne-prev" hidden></div></div>
       <div class="fld-row"><label class="fld"><span>Публиковать от имени</span><select name="chan"><option value="">Моё имя</option></select></label>
@@ -2243,7 +2243,7 @@ async function viewNewsEditor(id) {
     </form></div>`;
   const f = $('#neForm'), ta = f.body, st = $('#neStatus');
   const say = (t, err) => { st.textContent = t; st.classList.toggle('err', !!err); };
-  const drawCover = () => { $('#neCover').innerHTML = cover ? `<div class="ne-cover-img"><img src="${esc(cover)}" alt=""><button type="button" class="drop-x" data-necx aria-label="Убрать">✕</button></div>` : `<label class="btn">Загрузить обложку<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden data-necov></label>`; };
+  const drawCover = () => { $('#neCover').innerHTML = cover ? `<div class="ne-cover-img"><img src="${esc(cover)}" alt=""><button type="button" class="drop-x" data-necx aria-label="Убрать">✕</button></div>` : `<label class="btn">Загрузить обложку<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.avif" hidden data-necov></label>`; };
   drawCover();
   const wrap = (a, b) => { const s0 = ta.selectionStart, s1 = ta.selectionEnd, sel = ta.value.slice(s0, s1); ta.setRangeText(a + sel + b, s0, s1, 'end'); if (!sel) ta.selectionStart = ta.selectionEnd = s0 + a.length; ta.focus(); };
   f.addEventListener('click', e => {

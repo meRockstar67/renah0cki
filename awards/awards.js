@@ -44,12 +44,20 @@ async function api(path, { method = 'GET', body, prefer } = {}) {
   return d;
 }
 const rpc = (fn, a = {}) => api('rpc/' + fn, { method: 'POST', body: a });
+const EXT_MIME = { avif: 'image/avif', webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime' };
+const MIME_EXT = { 'image/avif': 'avif', 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' };
+function inferMime(raw) {
+  if (raw?.type && raw.type !== 'application/octet-stream') return raw.type;
+  const m = String(raw?.name || '').match(/\.([a-z0-9]+)$/i);
+  return (m && EXT_MIME[m[1].toLowerCase()]) || '';
+}
 async function upload(file, onPct) {
   const token = await getToken(); if (!token) throw new Error('Нужно войти');
+  const mime = inferMime(file) || 'application/octet-stream';
   return new Promise((ok, bad) => {
     const x = new XMLHttpRequest();
     x.open('POST', CDN + '/upload'); x.timeout = 180000;
-    x.setRequestHeader('Content-Type', file.type); x.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
+    x.setRequestHeader('Content-Type', mime); x.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
     x.setRequestHeader('X-User-Id', S.uid); x.setRequestHeader('Authorization', 'Bearer ' + token);
     x.upload.onprogress = e => { if (e.lengthComputable) onPct?.(Math.round(e.loaded / e.total * 100)); };
     x.onload = () => { try { const j = JSON.parse(x.responseText); x.status < 300 && j.url ? ok(j.url) : bad(new Error(j.error || 'Ошибка загрузки')); } catch { bad(new Error('Ошибка загрузки')); } };
@@ -540,7 +548,7 @@ function partEditDialog(nomineeId, existingPart, onDone) {
       <label>Ссылка на канал<input name="lu" maxlength="400" value="${esc(existingPart?.url || '')}" placeholder="https://twitch.tv/..."></label>
     </div>
     <div class="aw-media-pick"><span>Фото участника</span>
-      <label class="aw-drop"><input type="file" accept="image/*" hidden><b>${oldPhoto ? 'Заменить фото' : 'Загрузить фото'}</b><small>до 15 МБ · Ctrl+V из буфера или перетащи сюда</small></label>
+      <label class="aw-drop"><input type="file" accept="image/*,.avif,.webp" hidden><b>${oldPhoto ? 'Заменить фото' : 'Загрузить фото'}</b><small>до 15 МБ · PNG, JPG, GIF, WebP, AVIF (7TV) · Ctrl+V</small></label>
       <div class="aw-or">или ссылка на картинку</div>
       <div class="aw-row"><input name="u" placeholder="https://..." value="${esc(oldPhoto)}"><button type="button" class="aw-btn danger" data-clear-media${oldPhoto ? '' : ' hidden'}>Удалить фото</button></div>
       <div class="aw-prev"></div></div>`, async (f, say) => {
@@ -581,11 +589,12 @@ function partEditDialog(nomineeId, existingPart, onDone) {
   if (oldPhoto) pv.innerHTML = `<img src="${esc(thumb(oldPhoto, 560))}" alt="">`;
   function pickFile(raw, fromPaste = false) {
     if (!raw) return;
-    if (!/^image\//.test(raw.type || '')) return toast('Поддерживаются только изображения (PNG, JPG, WebP, GIF)', true);
+    const mime = inferMime(raw);
+    if (!/^image\//.test(mime)) return toast('Поддерживаются только изображения (PNG, JPG, WebP, GIF, AVIF)', true);
     if (raw.size > 15 * 1048576) return toast('Файл больше 15 МБ', true);
-    const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[raw.type] || 'png';
+    const ext = MIME_EXT[mime] || 'png';
     const fname = !raw.name || /^image\.\w+$/i.test(raw.name) ? `part_${Date.now()}.${ext}` : raw.name;
-    file = fname === raw.name ? raw : new File([raw], fname, { type: raw.type });
+    file = fname === raw.name && raw.type === mime ? raw : new File([raw], fname, { type: mime });
     const u = URL.createObjectURL(file); f.u.value = ''; clr.hidden = false;
     pv.innerHTML = `<img src="${u}" alt="">`;
     $('b', drop).textContent = fromPaste ? `Из буфера (${fname})` : fname;
@@ -597,8 +606,8 @@ function partEditDialog(nomineeId, existingPart, onDone) {
   const onPaste = ev => {
     if (!f.isConnected) { document.removeEventListener('paste', onPaste); return; }
     const items = [...(ev.clipboardData?.items || [])];
-    const mediaItem = items.find(it => it.kind === 'file' && /^image\//.test(it.type));
-    const pasted = mediaItem?.getAsFile() || [...(ev.clipboardData?.files || [])].find(fl => /^image\//.test(fl.type));
+    const mediaItem = items.find(it => it.kind === 'file' && (/^image\//.test(it.type) || /\.avif$/i.test(it.getAsFile()?.name || '')));
+    const pasted = mediaItem?.getAsFile() || [...(ev.clipboardData?.files || [])].find(fl => /^image\//.test(inferMime(fl)));
     if (!pasted) return;
     ev.preventDefault();
     pickFile(pasted, true);
@@ -782,7 +791,7 @@ function neeDialog(nomId, x) {
     </div>
     <label>Описание (необязательно, можно [текст](https://...))<textarea name="d" rows="2" maxlength="550" placeholder="Дополнительный текст">${esc(parsed.text)}</textarea></label>
     <div class="aw-media-pick"><span>Медиа</span>
-      <label class="aw-drop"><input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden><b>${oldUrl ? 'Заменить фото, гиф или видео' : 'Загрузить фото, гиф или видео'}</b><small>до 30 МБ · Ctrl+V из буфера или перетащи сюда</small></label>
+      <label class="aw-drop"><input type="file" accept="image/*,.avif,.webp,video/mp4,video/webm,video/quicktime" hidden><b>${oldUrl ? 'Заменить фото, гиф или видео' : 'Загрузить фото, гиф или видео'}</b><small>до 30 МБ · PNG, JPG, GIF, WebP, AVIF (7TV), MP4 · Ctrl+V</small></label>
       <div class="aw-or">или ссылка</div>
       <div class="aw-row"><input name="u" placeholder="YouTube, ссылка на картинку (7TV и т.п.) или любая ссылка" value="${esc(oldUrl)}"><button type="button" class="aw-btn danger" data-clear-media${oldUrl ? '' : ' hidden'}>Удалить фото</button></div>
       <div class="aw-prev"></div></div>`, async (f, say) => {
@@ -813,11 +822,12 @@ function neeDialog(nomId, x) {
   showCur();
   function pickFile(raw, fromPaste = false) {
     if (!raw) return;
-    if (!/^(image\/|video\/(mp4|webm|quicktime))/.test(raw.type || '')) return toast('Поддерживаются фото, GIF и видео (MP4/WebM/MOV)', true);
+    const mime = inferMime(raw);
+    if (!/^(image\/|video\/(mp4|webm|quicktime))/.test(mime)) return toast('Поддерживаются фото (включая AVIF/WebP/GIF) и видео (MP4/WebM/MOV)', true);
     if (raw.size > 30 * 1048576) return toast('Файл больше 30 МБ', true);
-    const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' })[raw.type] || 'png';
+    const ext = MIME_EXT[mime] || 'png';
     const name = !raw.name || /^image\.\w+$/i.test(raw.name) ? `paste_${Date.now()}.${ext}` : raw.name;
-    file = name === raw.name ? raw : new File([raw], name, { type: raw.type });
+    file = name === raw.name && raw.type === mime ? raw : new File([raw], name, { type: mime });
     const u = URL.createObjectURL(file); f.u.value = ''; clr.hidden = false;
     pv.innerHTML = /^video/.test(file.type) ? `<video src="${u}" muted controls></video>` : `<img src="${u}" alt="">`;
     $('b', drop).textContent = fromPaste ? `Из буфера (${name})` : name;
@@ -829,8 +839,8 @@ function neeDialog(nomId, x) {
   const onPaste = ev => {
     if (!f.isConnected) { document.removeEventListener('paste', onPaste); return; }
     const items = [...(ev.clipboardData?.items || [])];
-    const mediaItem = items.find(it => it.kind === 'file' && /^(image\/|video\/)/.test(it.type));
-    const pasted = mediaItem?.getAsFile() || [...(ev.clipboardData?.files || [])].find(fl => /^(image\/|video\/)/.test(fl.type));
+    const mediaItem = items.find(it => it.kind === 'file' && (/^(image\/|video\/)/.test(it.type) || /\.avif$/i.test(it.getAsFile()?.name || '')));
+    const pasted = mediaItem?.getAsFile() || [...(ev.clipboardData?.files || [])].find(fl => /^(image\/|video\/)/.test(inferMime(fl)));
     if (!pasted) return;
     ev.preventDefault();
     pickFile(pasted, true);
