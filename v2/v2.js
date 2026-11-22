@@ -3118,9 +3118,9 @@ async function viewShop(tab) {
           : it.id === 'role_puzomafia'
             ? '<span class="shop-perk">🎨 Свой цвет · 🛡️ Посты не удаляются</span>'
             : it.id === 'gift_role_custom'
-              ? '<span class="shop-perk">🎁 Только в подарок (2 нед / 1 мес) · 🔒 1 нед. не снять</span>'
+              ? '<span class="shop-perk">🎁 Только в подарок · 🔒 1 нед. не снять</span>'
               : it.category === 'gift_role'
-                ? '<span class="shop-perk">⏳ На 2 недели · 🎁 Себе или в подарок · 🛡️ Посты не удаляются</span>'
+                ? '<span class="shop-perk">⏳ На 2 недели · 🛡️ Посты не удаляются</span>'
                 : it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : '';
       return `<div class="shop-prev-role">${roleChipHtml(it.id, myEq())}${perk}</div>`;
     }
@@ -3154,9 +3154,9 @@ async function viewShop(tab) {
         const salePct = oldP > it.price ? Math.round((1 - it.price / oldP) * 100) : 0;
         let acts = '';
         if (it.id === 'gift_role_custom') {
-          acts = `<button type="button" class="btn accent shop-buy" data-shgift="${esc(it.id)}" data-shdays="14">🎁 2 нед · <img src="${COIN}" alt="">500</button><button type="button" class="btn accent shop-buy" data-shgift="${esc(it.id)}" data-shdays="30">🎁 1 мес · <img src="${COIN}" alt="">700</button>`;
+          acts = `<button type="button" class="btn accent shop-buy" data-shgift="${esc(it.id)}" data-shdays="14">2 нед · <img src="${COIN}" alt="">500</button><button type="button" class="btn accent shop-buy" data-shgift="${esc(it.id)}" data-shdays="30">1 мес · <img src="${COIN}" alt="">700</button>`;
         } else if (isGiftCat) {
-          acts = `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuyself="${esc(it.id)}" title="Купить себе на 2 недели">Себе · <img src="${COIN}" alt="">${fmt(it.price)}</button><button type="button" class="btn gift-btn" data-shgift="${esc(it.id)}" title="Подарить другому пользователю">🎁</button>`;
+          acts = `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuyself="${esc(it.id)}" title="Купить себе на 2 недели"><img src="${COIN}" alt="">${fmt(it.price)}</button><button type="button" class="btn gift-btn" data-shgift="${esc(it.id)}" title="Подарить другому пользователю">🎁</button>`;
         } else if (isOwn && isRole) {
           const giftBtn = it.id !== 'role_custom' ? `<button type="button" class="btn gift-btn" data-shgift="${esc(it.id)}" title="Подарить другому пользователю">🎁</button>` : '';
           acts = it.id === 'role_custom'
