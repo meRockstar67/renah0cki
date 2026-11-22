@@ -179,6 +179,16 @@
     const k = n % 10;
     return n > 10 && n < 20 ? 'коинов' : k === 1 ? 'коин' : k > 1 && k < 5 ? 'коина' : 'коинов';
   }
+  let curAudio = null;
+  let skipCur = null;
+  function stopCurrentAudio() {
+    try { if (curAudio) { curAudio.pause(); curAudio.currentTime = 0; curAudio = null; } } catch {}
+    try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch {}
+  }
+  function skipCurrent() {
+    stopCurrentAudio();
+    if (skipCur) { const fn = skipCur; skipCur = null; fn(); }
+  }
   function speakFallback(text, voice, vol) {
     return new Promise(resolve => {
       try {
@@ -200,8 +210,8 @@
       } catch { resolve(); }
     });
   }
-  async function speakTts(d) {
-    if (cfg.tts === false) return;
+  async function speakTts(d, aborted) {
+    if (cfg.tts === false || aborted()) return;
     const vol = Math.max(0, Math.min(1, (Number(cfg.tts_volume ?? 85)) / 100));
     if (vol <= 0.001) return;
     const voice = (cfg.tts_viewer_pick !== false && (d.voice === 'female' || d.voice === 'male'))
@@ -217,19 +227,21 @@
     const url = `${API}/auc/tts?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`;
     try {
       const r = await fetch(url);
-      if (!r.ok) throw new Error('tts ' + r.status);
+      if (!r.ok || aborted()) throw new Error('tts ' + r.status);
       const blob = await r.blob();
+      if (aborted()) return;
       const objUrl = URL.createObjectURL(blob);
       await new Promise(resolve => {
         const audio = new Audio(objUrl);
+        curAudio = audio;
         audio.volume = vol;
-        const done = () => { clearTimeout(cap); URL.revokeObjectURL(objUrl); resolve(); };
+        const done = () => { clearTimeout(cap); if (curAudio === audio) curAudio = null; URL.revokeObjectURL(objUrl); resolve(); };
         const cap = setTimeout(done, 42000);
-        audio.onended = audio.onerror = done;
+        audio.onended = audio.onerror = audio.onpause = done;
         audio.play().catch(done);
       });
     } catch {
-      await speakFallback(text, voice, vol);
+      if (!aborted()) await speakFallback(text, voice, vol);
     }
   }
 
@@ -288,15 +300,21 @@
     if (hasSound) playSound();
     const al = document.getElementById('al');
     al.classList.add('show');
-    const minWait = new Promise(r => setTimeout(r, Math.max(3, Math.min(60, +cfg.duration || 8)) * 1000));
+    let skipped = false;
+    const skipP = new Promise(r => { skipCur = () => { skipped = true; r(); }; });
+    let minT;
+    const minWait = new Promise(r => { minT = setTimeout(r, Math.max(3, Math.min(60, +cfg.duration || 8)) * 1000); });
     const ttsWait = (async () => {
-      if (cfg.tts === false) return;
-      if (hasSound) await new Promise(r => setTimeout(r, 620));
-      await speakTts(d);
+      if (cfg.tts === false || skipped) return;
+      if (hasSound) await Promise.race([new Promise(r => setTimeout(r, 620)), skipP]);
+      if (!skipped) await speakTts(d, () => skipped);
     })();
-    await Promise.all([minWait, ttsWait]);
+    await Promise.race([Promise.all([minWait, ttsWait]), skipP]);
+    clearTimeout(minT);
+    skipCur = null;
+    stopCurrentAudio();
     al.classList.remove('show');
-    setTimeout(() => { busy = false; next(); }, 600);
+    setTimeout(() => { busy = false; next(); }, 450);
   }
 
   applyStyle();
@@ -314,6 +332,7 @@
       if (typeof c?.paused === 'boolean') { paused = c.paused; if (!paused) next(); }
     } catch {}
   });
+  es.addEventListener('alert_skip', () => skipCurrent());
   es.addEventListener('donation', e => {
     try {
       const d = JSON.parse(e.data);

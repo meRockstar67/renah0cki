@@ -123,15 +123,13 @@ function renderConnList() {
     </div>`;
 }
 
-function renderList() {
-  renderStatus();
-  const list = S.events.filter(ev => {
-    if (S.filter === 'all') return true;
-    if (S.filter === 'twitch') return ev.source === 'twitch';
-    return ev.source === S.filter;
-  });
-  $('#empty').hidden = list.length > 0;
-  $('#feedList').innerHTML = list.map(ev => `<article class="ev${ev.hidden ? ' is-hidden' : ''}" data-t="${esc(ev.type)}" data-id="${esc(ev.id)}">
+function matchesFilter(ev) {
+  if (S.filter === 'all') return true;
+  if (S.filter === 'twitch') return ev.source === 'twitch';
+  return ev.source === S.filter;
+}
+function cardHtml(ev, isNew = false) {
+  return `<article class="ev${isNew ? ' is-new' : ''}" data-t="${esc(ev.type)}" data-id="${esc(ev.id)}">
     <div class="ev-r1">
       <span class="ev-ico">${iconHtml(ev)}</span>
       <span class="ev-user">${esc(ev.user)}</span>
@@ -140,14 +138,34 @@ function renderList() {
     ${ev.title && ev.source === 'twitch' && ev.type !== 'tw_follow' ? `<div class="ev-title">${esc(ev.title)}</div>` : ''}
     ${ev.message ? `<p class="ev-msg">${esc(ev.message)}</p>` : ''}
     <div class="ev-foot">
-      <span class="ev-time">${esc(fmtTime(ev.at))}</span>
+      <span class="ev-time" data-at="${esc(ev.at)}">${esc(fmtTime(ev.at))}</span>
       <div class="ev-acts">
         ${ev.type === 'coin' || ev.type === 'da' ? `<button type="button" data-replay="${esc(ev.id)}" title="${ev.type === 'da' ? 'Повторить в виджете DonationAlerts' : 'Повторить донат coin на стриме'}">↻ Повтор</button>` : ''}
-        <button type="button" data-hide="${esc(ev.id)}" title="${ev.hidden ? 'Показать на стриме' : 'Скрыть со стрима'}">${ev.hidden ? '👁' : '🙈'}</button>
+        <button type="button" data-skip title="Пропустить текущий алерт на стриме">⏭ Пропустить</button>
         <button type="button" class="del" data-del="${esc(ev.id)}" title="Удалить">✕</button>
       </div>
     </div>
-  </article>`).join('');
+  </article>`;
+}
+function renderList() {
+  renderStatus();
+  const list = S.events.filter(matchesFilter);
+  $('#empty').hidden = list.length > 0;
+  $('#feedList').innerHTML = list.map(ev => cardHtml(ev, false)).join('');
+}
+function prependEvent(ev) {
+  if (!matchesFilter(ev)) return;
+  const box = $('#feedList');
+  if (box.querySelector(`[data-id="${CSS.escape(ev.id)}"]`)) return;
+  $('#empty').hidden = true;
+  box.insertAdjacentHTML('afterbegin', cardHtml(ev, true));
+  while (box.children.length > 100) box.lastElementChild.remove();
+}
+function refreshTimes() {
+  document.querySelectorAll('#feedList .ev-time[data-at]').forEach(el => {
+    const txt = fmtTime(el.dataset.at);
+    if (el.textContent !== txt) el.textContent = txt;
+  });
 }
 
 function fillCfgForm() {
@@ -181,6 +199,7 @@ function fillCfgForm() {
 function setUiAuth(ok) {
   $('#needAuth').hidden = ok;
   $('#pauseBtn').hidden = !ok;
+  $('#skipBtn').hidden = !ok;
   $('#cfgBtn').hidden = !ok;
   $('#testMenuBtn').hidden = !ok;
   $('#filters').hidden = !ok;
@@ -209,8 +228,11 @@ function connectSse() {
   es.addEventListener('feed_item', e => {
     try {
       const ev = JSON.parse(e.data);
-      if (!S.events.some(x => x.id === ev.id)) { S.events.unshift(ev); if (S.events.length > 100) S.events.length = 100; }
-      renderList();
+      if (!S.events.some(x => x.id === ev.id)) {
+        S.events.unshift(ev);
+        if (S.events.length > 100) S.events.length = 100;
+        prependEvent(ev);
+      }
     } catch {}
   });
   es.addEventListener('feed_cfg', e => { try { S.cfg = { ...S.cfg, ...JSON.parse(e.data) }; renderStatus(); } catch {} });
@@ -294,23 +316,24 @@ document.addEventListener('click', async e => {
     finally { rep.disabled = false; }
     return;
   }
-  const hid = e.target.closest('[data-hide]');
-  if (hid) {
-    try {
-      const r = await post('/auc/feed/admin', { a: 'toggle_hide', id: hid.dataset.hide });
-      const ev = S.events.find(x => x.id === hid.dataset.hide);
-      if (ev) ev.hidden = !!r.hidden;
-      renderList();
-    } catch (err) { toast(err.message, true); }
+  const sk = e.target.closest('[data-skip], #skipBtn');
+  if (sk) {
+    sk.disabled = true;
+    try { await post('/auc/feed/admin', { a: 'skip' }); toast('Алерт пропущен'); }
+    catch (err) { toast(err.message, true); }
+    finally { sk.disabled = false; }
     return;
   }
   const del = e.target.closest('[data-del]');
   if (del) {
+    const id = del.dataset.del;
+    del.disabled = true;
     try {
-      await post('/auc/feed/admin', { a: 'delete', id: del.dataset.del });
-      S.events = S.events.filter(x => x.id !== del.dataset.del);
-      renderList();
-    } catch (err) { toast(err.message, true); }
+      await post('/auc/feed/admin', { a: 'delete', id });
+      S.events = S.events.filter(x => x.id !== id);
+      del.closest('.ev')?.remove();
+      $('#empty').hidden = $('#feedList').children.length > 0;
+    } catch (err) { toast(err.message, true); del.disabled = false; }
   }
 });
 
@@ -372,6 +395,6 @@ $('#clearAllBtn').addEventListener('click', async () => {
   } catch (err) { toast(err.message, true); }
 });
 
-setInterval(() => { if (S.events.length) renderList(); }, 30000);
+setInterval(refreshTimes, 30000);
 init();
 })();
