@@ -268,15 +268,22 @@ const SHOP_ROLES = {
 const STATUS_COLORS = ['#ff9e2c', '#f43f5e', '#f472b6', '#c084fc', '#9146ff', '#60a5fa', '#38bdf8', '#22d3ee', '#34d399', '#4ade80', '#a3e635', '#fde047', '#fb923c', '#e2e8f0'];
 const SHOP_ITEMS = new Map();
 function absorbEq(rows) { EQ.clear(); (rows || []).forEach(r => EQ.set(r.user_id, r)); }
+function hasGoldPostBorder(uidOrProf) {
+  const eq = eqOf(uidOrProf);
+  return !!(eq?.owned_roles || []).includes('role_oligarh') && !(eq?.hidden_roles || []).includes('role_oligarh');
+}
+function applyGoldCards() {
+  $$('.card[data-auid]').forEach(el => el.classList.toggle('card-gold', hasGoldPostBorder(el.dataset.auid)));
+}
 function saveEqRow(row) {
   if (!row?.user_id) return;
   EQ.set(row.user_id, { ...(EQ.get(row.user_id) || {}), ...row });
   cacheSet('eq_all', [...EQ.values()]);
-  applyMeFrame(); drawSponsors(); drawTopDonors();
+  applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards();
 }
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
 let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,owned_roles,hidden_roles&limit=1000')
-  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); })
+  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
 const badgeHtml = id => {
@@ -346,7 +353,8 @@ function cardHtml(it) {
   const a = S.profiles.get(it.submitted_by) || it.author;
   const b = TYPE_BADGE[it.content_type];
   const liked = S.liked.has(it.id);
-  return `<article class="card" data-open="${esc(it.short_code || it.id)}">
+  const gold = hasGoldPostBorder(it.submitted_by || a);
+  return `<article class="card${gold ? ' card-gold' : ''}" data-open="${esc(it.short_code || it.id)}" data-auid="${esc(it.submitted_by || a?.id || '')}">
     <div class="card-media${it.is_blurred ? ' blur' : ''}">${thumbHtml(it)}
       ${it.is_blurred ? `<div class="eye">${I.eye}</div>` : ''}
       ${it.pinned ? `<span class="badge pin">${I.pin} Закреплено</span>` : ''}
@@ -2905,7 +2913,10 @@ async function viewShop(tab) {
   };
   const cardPreview = it => {
     if (it.category === 'role') {
-      return `<div class="shop-prev-role">${roleChipHtml(it.id, myEq())}${it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : ''}</div>`;
+      const perk = it.id === 'role_oligarh'
+        ? '<span class="shop-perk">✨ Золотая обводка постов · 🛡️ Не удаляются</span>'
+        : it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : '';
+      return `<div class="shop-prev-role">${roleChipHtml(it.id, myEq())}${perk}</div>`;
     }
     if (it.category === 'frame') return cosAva(me, 'prof-ava', '', it.id);
     if (it.category === 'nick_fx') return `<div class="shop-prev-nick"><span${nameAttr(null, it.id)}>${esc(pname(me))}</span></div>`;
