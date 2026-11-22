@@ -258,12 +258,12 @@ const SHOP_BADGES = {
 };
 const SHOP_ROLES = {
   role_custom:  { title: 'Кастомный статус', color: '#ff9e2c', custom: true },
-  role_ovosh:   { title: 'Овощ в законе', color: '#4ade80' },
-  role_goy:     { title: 'Главный по завозам', color: '#fb923c' },
-  role_divan:   { title: 'Диванный критик', color: '#38bdf8' },
-  role_skuf:    { title: 'Альфа-овощ', color: '#f472b6' },
-  role_bezson:  { title: 'Ночной дозор', color: '#a78bfa' },
-  role_oligarh: { title: 'Коиновый магнат', color: '#fde047' },
+  role_ovosh:   { title: 'Альфа', color: '#f43f5e' },
+  role_goy:     { title: 'Омега', color: '#a78bfa' },
+  role_divan:   { title: 'Завозер', color: '#fb923c' },
+  role_skuf:    { title: 'Анимешник', color: '#f472b6' },
+  role_bezson:  { title: 'Мажор', color: '#fde047' },
+  role_oligarh: { title: 'renah0cki', color: '#6cc4ff', keepCase: true },
 };
 const STATUS_COLORS = ['#ff9e2c', '#f43f5e', '#f472b6', '#c084fc', '#9146ff', '#60a5fa', '#38bdf8', '#22d3ee', '#34d399', '#4ade80', '#a3e635', '#fde047', '#fb923c', '#e2e8f0'];
 const SHOP_ITEMS = new Map();
@@ -1177,7 +1177,7 @@ function roleChipHtml(r, eq = null) {
   if (sr || it?.category === 'role') {
     const txt = it?.title || sr?.title || r;
     const clr = it?.meta?.color || sr?.color || '#6cc4ff';
-    return `<span class="role role-custom" style="--rc:${clr}">${esc(txt)}</span>`;
+    return `<span class="role role-custom${sr?.keepCase ? ' role-brand' : ''}" style="--rc:${clr}">${esc(txt)}</span>`;
   }
   return `<span class="role role-${esc(r)}">${esc(ROLE_LABEL[r] || r)}</span>`;
 }

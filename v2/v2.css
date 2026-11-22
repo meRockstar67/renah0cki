@@ -258,6 +258,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .role-streamer { background: #2b1946; color: #b48bff; }
 .role-user { background: rgba(148,163,184,.14); color: #94a3b8; }
 .role-custom { background: color-mix(in srgb, var(--rc, #ff9e2c) 18%, #0c1424); color: var(--rc, #ff9e2c); border: 1px solid color-mix(in srgb, var(--rc, #ff9e2c) 45%, transparent); }
+.role-brand { text-transform: none; letter-spacing: .2px; }
 .prof-stats { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; color: var(--muted); font-size: 14px; }
 .prof-stats b { color: var(--text); }
 .prof-coin { display: inline-flex; align-items: center; gap: 5px; }
