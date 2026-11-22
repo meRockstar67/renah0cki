@@ -3,69 +3,87 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#09090f">
 <meta name="robots" content="noindex">
 <title>Донат coin — renah0cki</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
 <link rel="preconnect" href="https://api.renah0cki.xyz" crossorigin>
 <link rel="preconnect" href="https://cdn.renah0cki.xyz" crossorigin>
-<link rel="stylesheet" href="/auc/auc.css?v=20261121r">
-<link rel="stylesheet" href="/donate/donate.css?v=20261121r">
-<script src="/donate/donate.js?v=20261121r" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/donate/donate.css?v=20261122a">
+<script src="/donate/donate.js?v=20261122a" defer></script>
 </head>
 <body>
+<div class="bg-glow" aria-hidden="true"></div>
+
 <header class="top">
-  <a class="logo" href="/" aria-label="renah0cki — на главную">
-    <img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="" width="30" height="30">
-    <span>rena<b>h0cki</b></span>
-  </a>
-  <span class="top-sep" aria-hidden="true">/</span>
-  <span class="top-title">Донат</span>
-  <div class="top-right">
-    <span class="bal" id="bal" hidden title="Твой баланс coin"><img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="" width="18" height="18"><b id="balN">0</b></span>
+  <div class="top-in">
+    <div class="top-left">
+      <a class="logo" href="/" aria-label="renah0cki — на главную">
+        <img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="" width="28" height="28">
+        <span>rena<b>h0cki</b></span>
+      </a>
+      <span class="top-sep" aria-hidden="true">/</span>
+      <span class="top-title">Донат</span>
+    </div>
+    <div class="top-right">
+      <span class="bal" id="bal" hidden title="Твой баланс coin">
+        <img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="" width="18" height="18">
+        <b id="balN">0</b>
+        <span class="bal-u">coin</span>
+      </span>
+    </div>
   </div>
 </header>
 
 <main class="dn">
   <section class="card dn-head">
-    <img class="dn-ava" id="sAva" alt="" width="72" height="72" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png">
-    <div>
-      <p class="muted dn-kicker">Донат renah0cki coin для</p>
-      <h1 id="sName">стримера</h1>
+    <div class="dn-ava-wrap">
+      <img class="dn-ava" id="sAva" alt="" width="76" height="76" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png">
+    </div>
+    <div class="dn-meta">
+      <p class="dn-kicker">Донат renah0cki coin для</p>
+      <h1 id="sName">…</h1>
     </div>
   </section>
 
-  <form class="card" id="dForm" novalidate>
-    <div id="notFound" hidden>
+  <form class="card dn-form" id="dForm" novalidate>
+    <div class="state-box" id="notFound" hidden>
       <p class="hint">Пользователь не найден. Проверь ссылку.</p>
       <a class="btn wide" href="/">На главную</a>
     </div>
-    <div id="disabledBox" hidden>
+    <div class="state-box" id="disabledBox" hidden>
       <p class="hint">Этот пользователь отключил приём донатов renah0cki coin.</p>
       <button type="button" class="btn pri wide" id="enableSelf" hidden>Подключить приём донатов</button>
     </div>
-    <div id="needLogin" hidden>
+    <div class="state-box" id="needLogin" hidden>
       <p class="hint">Чтобы отправить coin, войди на renah0cki — потом вернись по этой ссылке.</p>
       <a class="btn pri wide" href="/">Войти на renah0cki</a>
     </div>
-    <div id="formBody">
-      <label class="field"><span>Сколько coin</span>
-        <input class="in big" name="amount" id="amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="100"></label>
-      <div class="amounts" id="chips"></div>
 
-      <label class="field"><span>Сообщение</span>
-        <textarea class="in" name="message" id="msg" maxlength="300" rows="3" placeholder="Привет со стрима!"></textarea>
-        <small class="muted count"><span id="cnt">0</span>/300</small></label>
+    <div class="form-body" id="formBody">
+      <div class="field">
+        <label class="lbl" for="amount">Сумма доната</label>
+        <div class="amt-wrap">
+          <img class="amt-ico" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="" width="24" height="24">
+          <input class="in amt-in" name="amount" id="amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="100">
+          <span class="amt-suf">coin</span>
+        </div>
+        <div class="amounts" id="chips"></div>
+      </div>
 
-      <fieldset class="auc" id="aucBox" hidden>
-        <legend><span class="live-dot"></span> Идёт аукцион <b id="aTimer" class="num"></b></legend>
-        <p class="hint">Можно поставить донат на лот. Если лот не победит — coin вернутся тебе.</p>
-        <ul class="pick" id="lotPick"></ul>
-        <label class="field" id="ownLot" hidden><span>Твой вариант лота</span><input class="in" name="lot_name" maxlength="80" autocomplete="off"></label>
-      </fieldset>
+      <div class="field">
+        <div class="field-top">
+          <label class="lbl" for="msg">Сообщение</label>
+          <small class="count"><span id="cnt">0</span>/300</small>
+        </div>
+        <textarea class="in" name="message" id="msg" maxlength="300" rows="3" placeholder="Напиши что-нибудь приятное..."></textarea>
+      </div>
 
-      <button class="btn pri wide big-btn" id="send">Отправить</button>
-      <p class="hint center" id="note"></p>
+      <button class="btn pri wide big-btn" id="send" type="submit">Отправить</button>
+      <p class="note" id="note"></p>
     </div>
   </form>
 
@@ -73,7 +91,7 @@
     <div class="done-ico" aria-hidden="true">✓</div>
     <h2 id="doneT">Отправлено!</h2>
     <p class="muted" id="doneS"></p>
-    <button class="btn wide" id="again">Отправить ещё</button>
+    <button type="button" class="btn wide" id="again">Отправить ещё</button>
   </section>
 
   <section class="card" id="mineBox" hidden>
@@ -84,28 +102,42 @@
   <section class="card" id="streamer" hidden>
     <h2 class="h2">Твоя ссылка для донатов coin</h2>
     <p class="hint">Это видно только тебе. По этой ссылке другие пользователи могут донатить тебе renah0cki coin.</p>
-    <div class="field"><span class="lbl">Личная ссылка</span>
-      <div class="row"><code class="code grow" id="myLink"></code><button type="button" class="btn sm" data-copy="myLink">Копировать</button></div></div>
-    <div class="row" style="margin-bottom:14px">
-      <span class="dot" id="myDot"></span><span id="myState" class="grow muted"></span>
+    <div class="field">
+      <span class="lbl">Личная ссылка</span>
+      <div class="row">
+        <code class="code grow" id="myLink"></code>
+        <button type="button" class="btn sm" data-copy="myLink">Копировать</button>
+      </div>
+    </div>
+    <div class="status-row">
+      <span class="dot" id="myDot"></span>
+      <span id="myState" class="grow muted"></span>
       <button type="button" class="btn sm" id="myToggle">Отключить</button>
     </div>
-    <div id="obsWrap" hidden>
-      <div class="field"><span class="lbl">Виджет для OBS (источник «Браузер», 800×300)</span>
-        <div class="row"><code class="code grow" id="widgetLink"></code><button type="button" class="btn sm" data-copy="widgetLink">Копировать</button></div></div>
+    <div class="obs-wrap" id="obsWrap" hidden>
+      <div class="field">
+        <span class="lbl">Виджет для OBS (источник «Браузер», 800×300)</span>
+        <div class="row">
+          <code class="code grow" id="widgetLink"></code>
+          <button type="button" class="btn sm" data-copy="widgetLink">Копировать</button>
+        </div>
+      </div>
       <form id="wForm" class="wset">
         <div class="rates">
-          <label>Показывать (сек)<input class="in" name="duration" type="number" min="3" max="60" inputmode="numeric"></label>
-          <label>Мин. сумма (coin)<input class="in" name="min" type="number" min="1" inputmode="numeric"></label>
+          <label class="field"><span class="lbl">Показывать (сек)</span><input class="in" name="duration" type="number" min="3" max="60" inputmode="numeric"></label>
+          <label class="field"><span class="lbl">Мин. сумма (coin)</span><input class="in" name="min" type="number" min="1" inputmode="numeric"></label>
         </div>
         <label class="check"><input type="checkbox" name="show_message"><span>Показывать сообщение</span></label>
         <label class="check"><input type="checkbox" name="sound"><span>Звук при донате</span></label>
-        <div class="row"><button class="btn pri">Сохранить</button><button type="button" class="btn" id="testAlert">Тестовый донат</button></div>
+        <div class="row">
+          <button class="btn pri" type="submit">Сохранить</button>
+          <button type="button" class="btn" id="testAlert">Тестовый донат</button>
+        </div>
       </form>
     </div>
   </section>
 </main>
 
-<div class="toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

@@ -1,5 +1,5 @@
-/* renah0cki — личная ссылка для донатов renah0cki coin (/donate/?u=<username>).
-   Для ссылки стримера во время аукциона можно выбрать лот. Каждый аккаунт может включать и отключать приём донатов. */
+/* renah0cki — личная ссылка для донатов renah0cki coin (/donate/<username>).
+   Каждый аккаунт может включать и отключать приём донатов. */
 (() => {
 'use strict';
 
@@ -21,7 +21,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('ru-RU');
 let toastT;
-function toast(msg, err = false) { const t = $('#toast'); t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3500); }
+function toast(msg, err = false) { const t = $('#toast'); t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3200); }
 
 function readSession() { try { return JSON.parse(localStorage.getItem(LS_SESSION)); } catch { return null; } }
 function jwtExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch { return 0; } }
@@ -57,18 +57,20 @@ async function aucApi(path, body) {
   return d;
 }
 
-const S = { pub: null, off: 0, uid: readSession()?.user?.id || null, me: null, target: null, targetLoaded: false, balance: null, lot: '' };
-const aucOpen = () => {
-  const a = S.pub?.auction;
-  return !!a && (['running', 'paused'].includes(a.status) || (a.status === 'idle' && a.accepting));
-};
-const canUseAuc = () => !!(S.target?.is_streamer && S.target.site_enabled !== false && S.pub?.config?.site_enabled !== false && aucOpen());
+const S = { pub: null, uid: readSession()?.user?.id || null, me: null, target: null, targetLoaded: false, balance: null };
 const targetEnabled = () => {
   if (!S.target) return true;
   if (S.target.coin_donate_enabled === false) return false;
   if (S.target.is_streamer && (S.target.site_enabled === false || S.pub?.config?.site_enabled === false)) return false;
   return true;
 };
+
+function syncAmountUi() {
+  const v = Math.floor(Number($('#amount').value)) || 0;
+  document.querySelectorAll('#chips [data-amt]').forEach(b => b.classList.toggle('on', Number(b.dataset.amt) === v));
+  const btn = $('#send');
+  if (!btn.disabled) btn.textContent = v > 0 ? `Отправить ${fmt(v)} coin` : 'Отправить';
+}
 
 /* ── отрисовка ── */
 function render() {
@@ -96,32 +98,14 @@ function render() {
   $('#amount').min = min;
   const chips = [min, 50, 100, 250, 500, 1000].filter((v, i, a) => v >= min && a.indexOf(v) === i).slice(0, 6);
   const ch = chips.join(',');
-  if ($('#chips').dataset.v !== ch) { $('#chips').dataset.v = ch; $('#chips').innerHTML = chips.map(n => `<button type="button" data-amt="${n}">${n}</button>`).join(''); }
-
-  // аукцион — только на личной ссылке стримера, пока аукцион открыт
-  const showAuc = canUseAuc() && !!d;
-  $('#aucBox').hidden = !showAuc;
-  if (showAuc) {
-    const lots = d.lots.slice().sort((a, b) => a.num - b.num);
-    if (S.lot && S.lot !== 'own' && !lots.some(l => String(l.id) === S.lot)) S.lot = '';
-    const html = `<li><label><input type="radio" name="lot" value="" ${S.lot === '' ? 'checked' : ''}><span class="grow">Просто донат, без лота</span></label></li>` +
-      lots.map(l => `<li><label><input type="radio" name="lot" value="${l.id}" ${S.lot === String(l.id) ? 'checked' : ''}><span class="grow">#${l.num} ${esc(l.name)}</span><span class="muted num">${fmt(l.total)}</span></label></li>`).join('') +
-      `<li><label><input type="radio" name="lot" value="own" ${S.lot === 'own' ? 'checked' : ''}><span class="grow">Свой вариант…</span></label></li>`;
-    if ($('#lotPick').dataset.h !== html) { $('#lotPick').innerHTML = html; $('#lotPick').dataset.h = html; }
-    $('#ownLot').hidden = S.lot !== 'own';
-  } else S.lot = '';
-  $('#note').textContent = showAuc && S.lot ? 'coin спишутся сейчас; вернутся, если лот проиграет' : `coin сразу уйдут ${t?.display_name || t?.username || 'получателю'}`;
-  tick();
+  if ($('#chips').dataset.v !== ch) {
+    $('#chips').dataset.v = ch;
+    $('#chips').innerHTML = chips.map(n => `<button type="button" data-amt="${n}">${fmt(n)}</button>`).join('');
+  }
+  $('#note').textContent = `coin сразу уйдут ${t?.display_name || t?.username || 'получателю'}`;
+  syncAmountUi();
   renderOwn();
 }
-function tick() {
-  const a = S.pub?.auction; const el = $('#aTimer'); if (!a || !el) return;
-  let ms = a.status === 'running' && a.ends_at ? Date.parse(a.ends_at) - (Date.now() + S.off) : a.status === 'paused' ? a.left_ms : null;
-  if (ms == null) { el.textContent = ''; return; }
-  const s = Math.ceil(Math.max(0, ms) / 1000);
-  el.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}${a.status === 'paused' ? ' (пауза)' : ''}`;
-}
-setInterval(tick, 500);
 
 let wFilled = false;
 function renderOwn() {
@@ -189,19 +173,21 @@ async function loadMe() {
         : m.kind === 'bid'
           ? `<span class="src site">ставка${m.lot_label ? ': ' + esc(m.lot_label) : ''}</span>`
           : '<span class="src">донат</span>';
-      return `<li class="item"><span class="main"><b>${incoming ? '+' : ''}${fmt(m.amount)} coin</b> ${tag}</span>
-        <span class="side muted">${new Date(m.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>${m.message ? `<span class="meta">«${esc(m.message)}»</span>` : ''}</li>`;
+      return `<li class="item"><span class="main"><b${incoming ? ' class="inc"' : ''}>${incoming ? '+' : ''}${fmt(m.amount)} coin</b> ${tag}</span>
+        <span class="side">${new Date(m.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>${m.message ? `<span class="meta">«${esc(m.message)}»</span>` : ''}</li>`;
     }).join('');
   }
 }
 
 /* ── события ── */
+$('#amount').addEventListener('input', syncAmountUi);
 $('#msg').addEventListener('input', e => { $('#cnt').textContent = e.target.value.length; });
 document.addEventListener('click', e => {
-  const a = e.target.closest('[data-amt]'); if (a) { $('#amount').value = a.dataset.amt; $('#amount').focus(); }
-  const c = e.target.closest('[data-copy]'); if (c) navigator.clipboard.writeText($('#' + c.dataset.copy).textContent).then(() => toast('Скопировано'), () => {});
+  const a = e.target.closest('[data-amt]');
+  if (a) { $('#amount').value = a.dataset.amt; syncAmountUi(); $('#amount').focus(); }
+  const c = e.target.closest('[data-copy]');
+  if (c) navigator.clipboard.writeText($('#' + c.dataset.copy).textContent).then(() => toast('Скопировано'), () => {});
 });
-$('#lotPick').addEventListener('change', e => { if (e.target.name === 'lot') { S.lot = e.target.value; render(); if (S.lot === 'own') $('#ownLot input').focus(); } });
 $('#myToggle').addEventListener('click', () => toggleMyDonate(!(S.me?.coin_donate_enabled !== false)));
 $('#enableSelf').addEventListener('click', () => toggleMyDonate(true));
 
@@ -211,26 +197,22 @@ $('#dForm').addEventListener('submit', async e => {
   const min = (S.target?.is_streamer ? S.pub?.config?.min_site_bid : 1) || 1;
   if (!amount || amount < min) return toast(`Минимум — ${min} coin`, true);
   if (S.balance != null && amount > S.balance) return toast('Не хватает coin', true);
-  const lotName = S.lot === 'own' ? $('#ownLot input').value.trim() : '';
-  if (S.lot === 'own' && !lotName) return toast('Напиши свой вариант лота', true);
   const btn = $('#send'); btn.disabled = true; btn.textContent = 'Отправляю…';
   try {
     const recId = S.target?.id || null;
     const isStr = !S.target || !!S.target.is_streamer;
     const r = isStr
-      ? await aucApi('/auc/donate', { amount, message: $('#msg').value.trim(), lot_id: S.lot && S.lot !== 'own' ? Number(S.lot) : null, lot_name: lotName || null, recipient_id: recId })
+      ? await aucApi('/auc/donate', { amount, message: $('#msg').value.trim(), lot_id: null, lot_name: null, recipient_id: recId })
       : await sb('rpc/auc_coin_donate', { p_amount: amount, p_message: $('#msg').value.trim() || null, p_lot_id: null, p_lot_name: null, p_recipient_id: recId }, true);
     $('#dForm').hidden = true; $('#done').hidden = false;
     $('#doneT').textContent = `${fmt(r.amount)} coin отправлено!`;
-    $('#doneS').textContent = r.kind === 'bid'
-      ? (r.status === 'queue' ? 'Ставка принята — стример добавит твой лот. Если он не победит, coin вернутся.' : `Ставка на ${r.lot}. Если лот не победит, coin вернутся.`)
-      : `Спасибо! Донат уже у ${S.target?.display_name || S.target?.username || 'получателя'}.`;
+    $('#doneS').textContent = `Спасибо! Донат уже у ${S.target?.display_name || S.target?.username || 'получателя'}.`;
     S.balance = r.balance; $('#balN').textContent = fmt(r.balance);
     loadMe();
   } catch (err) { toast(err.message, true); }
-  finally { btn.disabled = false; btn.textContent = 'Отправить'; }
+  finally { btn.disabled = false; syncAmountUi(); }
 });
-$('#again').addEventListener('click', () => { $('#done').hidden = true; $('#dForm').hidden = false; $('#dForm').reset(); $('#cnt').textContent = '0'; S.lot = ''; render(); $('#amount').focus(); });
+$('#again').addEventListener('click', () => { $('#done').hidden = true; $('#dForm').hidden = false; $('#dForm').reset(); $('#cnt').textContent = '0'; render(); $('#amount').focus(); });
 
 $('#wForm').addEventListener('submit', async e => {
   e.preventDefault();
@@ -248,7 +230,5 @@ $('#testAlert').addEventListener('click', async () => {
 /* ── старт ── */
 loadTarget();
 loadMe();
-const es = new EventSource(API + '/auc/events');
-es.onmessage = ev => { try { const d = JSON.parse(ev.data); if (d) { S.pub = d; S.off = Date.parse(d.now) - Date.now(); render(); } } catch {} };
-fetch(API + '/auc/state').then(r => r.json()).then(d => { if (!S.pub && d?.auction) { S.pub = d; S.off = Date.parse(d.now) - Date.now(); render(); } }).catch(() => {});
+fetch(API + '/auc/state').then(r => r.json()).then(d => { if (d) { S.pub = d; render(); } }).catch(() => {});
 })();
