@@ -111,14 +111,15 @@ function renderConnList() {
   const twOk = tw.state === 'ok';
   const twNeedScope = twOk && tw.subs && (!tw.subs.follow || !tw.subs.sub);
   const daOk = da.state === 'ok';
+  const daNeedScope = daOk && !da.hasCustomAlert;
   box.innerHTML = `
     <div class="conn-row ${twOk ? (twNeedScope ? 'warn' : 'ok') : ''}">
       <b><i></i>Twitch${tw.login ? ' · ' + esc(tw.login) : ''}</b>
       <button type="button" class="btn xs ${twOk && !twNeedScope ? 'ghost' : 'pri'}" data-connect="twitch">${!twOk ? 'Подключить' : twNeedScope ? 'Обновить права' : 'Переподкл.'}</button>
     </div>
-    <div class="conn-row ${daOk ? 'ok' : ''}">
+    <div class="conn-row ${daOk ? (daNeedScope ? 'warn' : 'ok') : ''}">
       <b><i></i>DonationAlerts${da.name ? ' · ' + esc(da.name) : ''}</b>
-      <button type="button" class="btn xs ${daOk ? 'ghost' : 'pri'}" data-connect="da">${daOk ? 'Переподкл.' : 'Подключить'}</button>
+      <button type="button" class="btn xs ${daOk && !daNeedScope ? 'ghost' : 'pri'}" data-connect="da">${!daOk ? 'Подключить' : daNeedScope ? 'Обновить права' : 'Переподкл.'}</button>
     </div>`;
 }
 
@@ -284,8 +285,13 @@ document.addEventListener('click', async e => {
   }
   const rep = e.target.closest('[data-replay]');
   if (rep) {
-    try { await post('/auc/feed/admin', { a: 'replay', id: rep.dataset.replay }); toast('Проиграно на стриме'); }
-    catch (err) { toast(err.message, true); }
+    rep.disabled = true;
+    try {
+      const ev = S.events.find(x => x.id === rep.dataset.replay);
+      await post('/auc/feed/admin', { a: 'replay', id: rep.dataset.replay });
+      toast(ev?.type === 'da' ? 'Повтор отправлен в виджет DonationAlerts' : 'Донат coin проигран на стриме');
+    } catch (err) { toast(err.message, true); }
+    finally { rep.disabled = false; }
     return;
   }
   const hid = e.target.closest('[data-hide]');
