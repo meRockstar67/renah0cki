@@ -258,6 +258,7 @@ const SHOP_BADGES = {
 };
 const SHOP_ROLES = {
   role_custom:    { title: 'Кастомный статус', color: '#ff9e2c', custom: true },
+  role_puzomafia: { title: '𝐩𝐮𝐳𝐨𝐦𝐚𝐟𝐢𝐚', color: '#e11d48', keepCase: true, customColor: true },
   role_divan:     { title: 'Завозер', color: '#fb923c' },
   role_goy:       { title: 'Омежка', color: '#a78bfa' },
   role_skuf:      { title: 'Анимешник', color: '#f472b6' },
@@ -307,7 +308,7 @@ function saveEqRow(row) {
   applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles();
 }
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
-let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,syro_role_color,owned_roles,hidden_roles&limit=1000')
+let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,syro_role_color,puzo_role_color,owned_roles,hidden_roles&limit=1000')
   .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
@@ -1212,11 +1213,12 @@ function roleChipHtml(r, eq = null) {
   const sr = SHOP_ROLES[r], it = SHOP_ITEMS.get(r);
   if (sr || it?.category === 'role') {
     const txt = it?.title || sr?.title || r;
-    const clr = (r === 'role_oligarh' && /^#[0-9a-f]{6}$/i.test(eq?.brand_role_color || ''))
-      ? eq.brand_role_color
-      : (r === 'role_syroh0cki' && /^#[0-9a-f]{6}$/i.test(eq?.syro_role_color || ''))
-        ? eq.syro_role_color
-        : (it?.meta?.color || sr?.color || '#6cc4ff');
+    const savedClr = r === 'role_oligarh' ? eq?.brand_role_color
+      : r === 'role_syroh0cki' ? eq?.syro_role_color
+      : r === 'role_puzomafia' ? eq?.puzo_role_color : null;
+    const clr = /^#[0-9a-f]{6}$/i.test(savedClr || '')
+      ? savedClr
+      : (it?.meta?.color || sr?.color || '#6cc4ff');
     return `<span class="role role-custom${sr?.keepCase ? ' role-brand' : ''}" style="--rc:${clr}">${esc(txt)}</span>`;
   }
   return `<span class="role role-${esc(r)}">${esc(ROLE_LABEL[r] || r)}</span>`;
@@ -1224,15 +1226,15 @@ function roleChipHtml(r, eq = null) {
 function brandColorDialog(roleId = 'role_oligarh', onSaved) {
   if (typeof roleId === 'function') { onSaved = roleId; roleId = 'role_oligarh'; }
   if (!S.uid) return;
-  const isSyro = roleId === 'role_syroh0cki';
-  const lbl = isSyro ? 'сырохоки' : 'renah0cki';
+  const sr = SHOP_ROLES[roleId] || SHOP_ROLES.role_oligarh;
+  const lbl = sr.title;
   const eq = EQ.get(S.uid) || {};
-  const savedClr = isSyro ? eq.syro_role_color : eq.brand_role_color;
-  let clr = /^#[0-9a-f]{6}$/i.test(savedClr || '') ? savedClr : (isSyro ? '#c4844e' : '#6cc4ff');
+  const savedClr = roleId === 'role_syroh0cki' ? eq.syro_role_color : roleId === 'role_puzomafia' ? eq.puzo_role_color : eq.brand_role_color;
+  let clr = /^#[0-9a-f]{6}$/i.test(savedClr || '') ? savedClr : (sr.color || '#6cc4ff');
   const ov = document.createElement('div');
   ov.className = 'v2-overlay';
-  ov.innerHTML = `<form class="v2-modal cs-mod"><h2>Цвет статуса ${lbl}</h2>
-    <div class="cs-prev"><span class="role role-custom role-brand" id="csPrev" style="--rc:${clr}">${lbl}</span></div>
+  ov.innerHTML = `<form class="v2-modal cs-mod"><h2>Цвет статуса ${esc(lbl)}</h2>
+    <div class="cs-prev"><span class="role role-custom role-brand" id="csPrev" style="--rc:${clr}">${esc(lbl)}</span></div>
     <div class="pe-color"><span>Выбери цвет</span>
       <div class="sw-row">${STATUS_COLORS.map(c => `<button type="button" class="nc-sw${clr.toLowerCase() === c ? ' on' : ''}" data-sc="${c}" style="background:${c}"></button>`).join('')}
         <label class="cs-pick" title="Свой цвет"><input type="color" name="c" value="${clr}">🎨</label>
@@ -1258,7 +1260,7 @@ function brandColorDialog(roleId = 'role_oligarh', onSaved) {
     const hint = $('.hint', ov), btn = $('button[type=submit]', ov);
     btn.disabled = true;
     try {
-      const row = await rpc('shop_set_brand_color', { p_color: clr, p_role_id: isSyro ? 'role_syroh0cki' : 'role_oligarh' });
+      const row = await rpc('shop_set_brand_color', { p_color: clr, p_role_id: roleId });
       saveEqRow(row);
       toast('Цвет сохранён');
       close();
@@ -2315,7 +2317,7 @@ function viewSettings() {
       const on = !hid.has(r) || (visCnt === 0 && r === all[0]);
       return `<div class="set-role-row">
         <label class="sw"><input type="checkbox" data-roletog="${esc(r)}"${on ? ' checked' : ''}><i></i><div>${roleChipHtml(r, eq)}</div></label>
-        ${r === 'role_custom' ? '<button type="button" class="btn" data-editcs style="height:30px;padding:0 10px;font-size:12.5px">Настроить</button>' : (r === 'role_oligarh' || r === 'role_syroh0cki') ? `<button type="button" class="btn" data-editbrand="${esc(r)}" style="height:30px;padding:0 10px;font-size:12.5px">Цвет</button>` : ''}
+        ${r === 'role_custom' ? '<button type="button" class="btn" data-editcs style="height:30px;padding:0 10px;font-size:12.5px">Настроить</button>' : SHOP_ROLES[r]?.customColor ? `<button type="button" class="btn" data-editbrand="${esc(r)}" style="height:30px;padding:0 10px;font-size:12.5px">Цвет</button>` : ''}
       </div>`;
     }).join('');
     box.onchange = async e => {
@@ -2961,7 +2963,9 @@ async function viewShop(tab) {
         ? '<span class="shop-perk">✨ Золотая обводка постов · 🛡️ Не удаляются</span>'
         : it.id === 'role_syroh0cki'
           ? '<span class="shop-perk">🟤 Коричневая обводка постов · 🛡️ Не удаляются</span>'
-          : it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : '';
+          : it.id === 'role_puzomafia'
+            ? '<span class="shop-perk">🎨 Свой цвет · 🛡️ Посты не удаляются</span>'
+            : it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : '';
       return `<div class="shop-prev-role">${roleChipHtml(it.id, myEq())}${perk}</div>`;
     }
     if (it.category === 'frame') return cosAva(me, 'prof-ava', '', it.id);
@@ -2993,7 +2997,7 @@ async function viewShop(tab) {
         if (isOwn && isRole) {
           acts = it.id === 'role_custom'
             ? `<button type="button" class="btn accent" style="flex:1" data-shcustom>Настроить</button><button type="button" class="btn ${isRoleVis ? 'eq-on' : ''}" style="flex:none" data-shroletog="${esc(it.id)}">${isRoleVis ? 'Видно ✓' : 'Скрыто'}</button>`
-            : (it.id === 'role_oligarh' || it.id === 'role_syroh0cki')
+            : SHOP_ROLES[it.id]?.customColor
               ? `<button type="button" class="btn accent" style="flex:1" data-shbrand="${esc(it.id)}">Цвет</button><button type="button" class="btn ${isRoleVis ? 'eq-on' : ''}" style="flex:none" data-shroletog="${esc(it.id)}">${isRoleVis ? 'Видно ✓' : 'Скрыто'}</button>`
               : `<button type="button" class="btn ${isRoleVis ? 'eq-on' : 'accent'}" style="flex:1" data-shroletog="${esc(it.id)}">${isRoleVis ? 'В профиле ✓' : 'Показать в профиле'}</button>`;
         } else if (isOwn) {
@@ -3093,7 +3097,7 @@ async function viewShop(tab) {
             toast(`Куплено: ${it.title}`);
             draw();
             if (it.id === 'role_custom') customStatusDialog(() => draw());
-            else if (it.id === 'role_oligarh' || it.id === 'role_syroh0cki') brandColorDialog(it.id, () => draw());
+            else if (SHOP_ROLES[it.id]?.customColor) brandColorDialog(it.id, () => draw());
           } else {
             saveEqLocal({ ...cur, [it.category]: it.id });
             toast(`Куплено и надето: ${it.title}`);
