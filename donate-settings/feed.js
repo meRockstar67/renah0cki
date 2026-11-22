@@ -141,7 +141,7 @@ function renderList() {
     <div class="ev-foot">
       <span class="ev-time">${esc(fmtTime(ev.at))}</span>
       <div class="ev-acts">
-        ${ev.type === 'coin' ? `<button type="button" data-replay="${esc(ev.id)}" title="Проиграть алерт coin на стриме">▶</button>` : ''}
+        ${ev.type === 'coin' || ev.type === 'da' ? `<button type="button" data-replay="${esc(ev.id)}" title="${ev.type === 'da' ? 'Повторить в виджете DonationAlerts' : 'Повторить донат coin на стриме'}">↻ Повтор</button>` : ''}
         <button type="button" data-hide="${esc(ev.id)}" title="${ev.hidden ? 'Показать на стриме' : 'Скрыть со стрима'}">${ev.hidden ? '👁' : '🙈'}</button>
         <button type="button" class="del" data-del="${esc(ev.id)}" title="Удалить">✕</button>
       </div>
