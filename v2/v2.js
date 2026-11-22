@@ -256,10 +256,26 @@ const SHOP_BADGES = {
   badge_skull: ['Череп', '<svg viewBox="0 0 24 24"><path fill="#e9d5ff" d="M12 2.6c-4.8 0-8.4 3.4-8.4 7.8 0 2.7 1.3 5 3.4 6.3v2.5c0 1 .8 1.8 1.8 1.8h6.4c1 0 1.8-.8 1.8-1.8v-2.5c2.1-1.3 3.4-3.6 3.4-6.3 0-4.4-3.6-7.8-8.4-7.8z"/><path fill="#1e1b4b" d="M8.6 10.6a2.1 2.1 0 1 0 0 4.2 2.1 2.1 0 0 0 0-4.2zm6.8 0a2.1 2.1 0 1 0 0 4.2 2.1 2.1 0 0 0 0-4.2z"/><circle cx="8.6" cy="12.7" r=".95" fill="#a855f7"/><circle cx="15.4" cy="12.7" r=".95" fill="#a855f7"/><polygon points="12,14.3 10.9,16.4 13.1,16.4" fill="#3b0764"/><path fill="none" stroke="#7e22ce" stroke-width="1.3" stroke-linecap="round" d="M9.6 18.2v2.4M12 18.2v2.4M14.4 18.2v2.4"/></svg>'],
   badge_wings: ['Крылья', '<svg viewBox="0 0 24 24"><path fill="#f59e0b" d="M11.4 12.6C9.5 8.4 5.8 5.2 2 4.8c.5 2.5 2 4.6 4 5.9-1.4-.1-2.5-.4-3.4-.9.7 2.2 2.2 3.8 4.4 4.5-1 .1-2 0-2.8-.3.9 1.9 2.7 3 5.1 3.1.9 0 1.7-.3 2.1-1zM12.6 12.6c1.9-4.2 5.6-7.4 9.4-7.8-.5 2.5-2 4.6-4 5.9 1.4-.1 2.5-.4 3.4-.9-.7 2.2-2.2 3.8-4.4 4.5 1 .1 2 0 2.8-.3-.9 1.9-2.7 3-5.1 3.1-.9 0-1.7-.3-2.1-1z"/><path fill="#fde047" d="M11 13.4c-1.5-3.2-4.3-5.8-7.4-6.4.6 1.8 1.9 3.3 3.7 4.2-1 .1-1.9 0-2.6-.3.7 1.4 2 2.5 3.7 2.8-.6.2-1.3.2-1.9.1.8 1.1 2.1 1.7 3.7 1.6.5 0 .8-.5.8-2zM13 13.4c1.5-3.2 4.3-5.8 7.4-6.4-.6 1.8-1.9 3.3-3.7 4.2 1 .1 1.9 0 2.6-.3-.7 1.4-2 2.5-3.7 2.8.6.2 1.3.2 1.9.1-.8 1.1-2.1 1.7-3.7 1.6-.5 0-.8-.5-.8-2z"/><circle cx="12" cy="14" r="1.9" fill="#fffbeb"/></svg>'],
 };
+const SHOP_ROLES = {
+  role_custom:  { title: 'Кастомный статус', color: '#ff9e2c', custom: true },
+  role_ovosh:   { title: 'Овощ в законе', color: '#4ade80' },
+  role_goy:     { title: 'Главный по завозам', color: '#fb923c' },
+  role_divan:   { title: 'Диванный критик', color: '#38bdf8' },
+  role_skuf:    { title: 'Альфа-овощ', color: '#f472b6' },
+  role_bezson:  { title: 'Ночной дозор', color: '#a78bfa' },
+  role_oligarh: { title: 'Коиновый магнат', color: '#fde047' },
+};
+const STATUS_COLORS = ['#ff9e2c', '#f43f5e', '#f472b6', '#c084fc', '#9146ff', '#60a5fa', '#38bdf8', '#22d3ee', '#34d399', '#4ade80', '#a3e635', '#fde047', '#fb923c', '#e2e8f0'];
 const SHOP_ITEMS = new Map();
 function absorbEq(rows) { EQ.clear(); (rows || []).forEach(r => EQ.set(r.user_id, r)); }
+function saveEqRow(row) {
+  if (!row?.user_id) return;
+  EQ.set(row.user_id, { ...(EQ.get(row.user_id) || {}), ...row });
+  cacheSet('eq_all', [...EQ.values()]);
+  applyMeFrame(); drawSponsors(); drawTopDonors();
+}
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
-let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner&limit=1000')
+let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,owned_roles,hidden_roles&limit=1000')
   .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
@@ -1134,7 +1150,85 @@ page.addEventListener('click', async e => {
 });
 
 /* ── профиль ── */
-const ROLE_LABEL = { moderator: 'Модератор', gl_moder: 'Главный модератор', admin: 'Админ', sponsor: 'Спонсор', respect_plus: 'Respect+', streamer: 'Стример' };
+const ROLE_LABEL = { user: 'Нормис', moderator: 'Модератор', gl_moder: 'Главный модератор', admin: 'Админ', sponsor: 'Спонсор', respect_plus: 'Respect+', streamer: 'Стример' };
+function allUserRoles(p, eq = eqOf(p)) {
+  const sys = [p?.role, ...(p?.extra_roles || [])].filter((r, i, a) => r && r !== 'user' && ROLE_LABEL[r] && a.indexOf(r) === i);
+  const bought = (eq?.owned_roles || []).filter((r, i, a) => r && (SHOP_ROLES[r] || SHOP_ITEMS.get(r)?.category === 'role') && a.indexOf(r) === i);
+  if (sys.length || bought.length) return [...sys, ...bought];
+  return ['user'];
+}
+function visibleUserRoles(p, eq = eqOf(p), tryRole = null) {
+  let all = allUserRoles(p, eq);
+  if (tryRole) {
+    all = all.filter(r => r !== 'user');
+    if (!all.includes(tryRole)) all.push(tryRole);
+  }
+  const hid = new Set(eq?.hidden_roles || []);
+  const vis = all.filter(r => !hid.has(r) || r === tryRole);
+  return vis.length ? vis : all.slice(0, 1);
+}
+function roleChipHtml(r, eq = null) {
+  if (r === 'role_custom') {
+    const txt = eq?.custom_status_text || 'Кастомный статус';
+    const clr = /^#[0-9a-f]{6}$/i.test(eq?.custom_status_color || '') ? eq.custom_status_color : '#ff9e2c';
+    return `<span class="role role-custom" style="--rc:${clr}">${esc(txt)}</span>`;
+  }
+  const sr = SHOP_ROLES[r], it = SHOP_ITEMS.get(r);
+  if (sr || it?.category === 'role') {
+    const txt = it?.title || sr?.title || r;
+    const clr = it?.meta?.color || sr?.color || '#6cc4ff';
+    return `<span class="role role-custom" style="--rc:${clr}">${esc(txt)}</span>`;
+  }
+  return `<span class="role role-${esc(r)}">${esc(ROLE_LABEL[r] || r)}</span>`;
+}
+function customStatusDialog(onSaved) {
+  if (!S.uid) return;
+  const eq = EQ.get(S.uid) || {};
+  let clr = /^#[0-9a-f]{6}$/i.test(eq.custom_status_color || '') ? eq.custom_status_color : '#ff9e2c';
+  const curText = eq.custom_status_text || '';
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal cs-mod"><h2>Кастомный статус</h2>
+    <div class="cs-prev"><span class="role role-custom" id="csPrev" style="--rc:${clr}">${esc(curText || 'Мой статус')}</span></div>
+    <label>Название статуса (до 24 символов)<input name="t" maxlength="24" required value="${esc(curText)}" placeholder="Например: Король чата"></label>
+    <div class="pe-color"><span>Цвет статуса</span>
+      <div class="sw-row">${STATUS_COLORS.map(c => `<button type="button" class="nc-sw${clr.toLowerCase() === c ? ' on' : ''}" data-sc="${c}" style="background:${c}"></button>`).join('')}
+        <label class="cs-pick" title="Свой цвет"><input type="color" name="c" value="${clr}">🎨</label>
+      </div>
+    </div>
+    <p class="hint"></p>
+    <div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
+  const close = () => ov.remove();
+  const prev = $('#csPrev', ov), inp = $('[name=t]', ov), cp = $('[name=c]', ov);
+  const sync = () => {
+    prev.textContent = inp.value.trim() || 'Мой статус';
+    prev.style.setProperty('--rc', clr);
+    cp.value = clr;
+    $$('[data-sc]', ov).forEach(b => b.classList.toggle('on', b.dataset.sc.toLowerCase() === clr.toLowerCase()));
+  };
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-x]')) return close();
+    const sw = e.target.closest('[data-sc]');
+    if (sw) { clr = sw.dataset.sc; sync(); }
+  });
+  inp.oninput = sync;
+  cp.oninput = () => { clr = cp.value; sync(); };
+  $('form', ov).onsubmit = async e => {
+    e.preventDefault();
+    const txt = inp.value.trim(), hint = $('.hint', ov), btn = $('button[type=submit]', ov);
+    if (!txt) { hint.textContent = 'Введите название статуса'; return; }
+    btn.disabled = true;
+    try {
+      const row = await rpc('shop_set_custom_status', { p_text: txt, p_color: clr });
+      saveEqRow(row);
+      toast('Статус сохранён');
+      close();
+      onSaved?.(row);
+    } catch (er) { hint.textContent = er.message; btn.disabled = false; }
+  };
+  document.body.append(ov);
+  setTimeout(() => inp.focus(), 30);
+}
 const userPath = p => routeUrl('u/' + encodeURIComponent(p?.username || p?.id || ''));
 async function viewProfile(key) {
   setNav(S.me && (key === S.me.username || key === S.me.id) ? 'me' : '');
@@ -1158,17 +1252,17 @@ async function viewProfile(key) {
   ]);
   await loadAllMyLikes();
   let subscribed = !!followRows[0], subs = subCount;
-  const roles = [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && ROLE_LABEL[r] && a.indexOf(r) === i);
+  const eq = eqOf(p), bgCls = eq?.banner && /^bg_[a-z0-9_]+$/i.test(eq.banner) ? ` cbg cbg-${esc(eq.banner)}` : '';
+  const roles = visibleUserRoles(p, eq);
   const socialLabel = u => { try { return /^(?:.+\.)?(?:t\.me|telegram\.(?:me|dog|org))$/i.test(new URL(u).hostname) ? 'Телеграм' : 'Соцсеть'; } catch { return 'Соцсеть'; } };
   const coinDonateLink = p.username && coinTarget?.coin_donate_enabled === true ? `${location.origin}/donate/${encodeURIComponent(p.username)}` : null;
   const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && ['Донат', p.stream_donate_url], coinDonateLink && ['Донат coin', coinDonateLink]].filter(x => x && /^https?:\/\//.test(x[1]));
-  const eq = eqOf(p), bgCls = eq?.banner && /^bg_[a-z0-9_]+$/i.test(eq.banner) ? ` cbg cbg-${esc(eq.banner)}` : '';
   page.innerHTML = `<div class="prof">
     <section class="prof-card${bgCls}">
       <div class="prof-left">${cosAva(p, 'prof-ava')}
         ${links.length ? `<div class="prof-links">${links.map(([n, u]) => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${n}</a>`).join('')}</div>` : ''}</div>
       <div class="prof-main">
-        ${roles.length ? `<div class="prof-roles">${roles.map(r => `<span class="role role-${r}">${ROLE_LABEL[r]}</span>`).join('')}</div>` : ''}
+        ${roles.length ? `<div class="prof-roles">${roles.map(r => roleChipHtml(r, eq)).join('')}</div>` : ''}
         <h1>${cosName(p)}</h1>
         ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
         ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
@@ -2087,6 +2181,9 @@ function viewSettings() {
     ${me.username ? `<section class="rules-card sets-card" id="setDonate"><h2>Донаты coin</h2>
       ${sw('coin_donate', 'Кнопка «Донат coin» в профиле', 'Показывать кнопку доната в профиле и принимать переводы по личной ссылке.', false)}
       <div class="wal-code" id="setDnRow" hidden style="margin-top:10px"><span>${esc(location.origin + '/donate/' + encodeURIComponent(me.username))}</span><button class="btn" type="button" id="setDnCopy">Скопировать</button></div></section>` : ''}
+    <section class="rules-card sets-card" id="setRoles"><h2>Отображение ролей</h2>
+      <p class="muted">Выбери, какие роли показывать в профиле. Должна быть включена минимум 1 роль.</p>
+      <div id="setRolesList" class="sets-roles"></div></section>
     <section class="rules-card sets-card" id="setNotif"><h2>Уведомления</h2>
       <p class="muted">Сами события происходят, просто не будут показываться в колокольчике.</p>
       ${opts.map(([k, t]) => sw(k, t, '', me[k] !== false)).join('')}</section>
@@ -2115,6 +2212,44 @@ function viewSettings() {
     };
     if (dnCopy) dnCopy.onclick = () => navigator.clipboard.writeText(`${location.origin}/donate/${encodeURIComponent(me.username)}`).then(() => toast('Ссылка скопирована'), () => {});
   }
+  const drawRolesSet = () => {
+    const box = $('#setRolesList'); if (!box) return;
+    const eq = eqOf(me) || {};
+    const all = allUserRoles(me, eq);
+    const hid = new Set(eq.hidden_roles || []);
+    const visCnt = all.filter(r => !hid.has(r)).length;
+    box.innerHTML = all.map(r => {
+      const on = !hid.has(r) || (visCnt === 0 && r === all[0]);
+      return `<div class="set-role-row">
+        <label class="sw"><input type="checkbox" data-roletog="${esc(r)}"${on ? ' checked' : ''}><i></i><div>${roleChipHtml(r, eq)}</div></label>
+        ${r === 'role_custom' ? '<button type="button" class="btn" data-editcs style="height:30px;padding:0 10px;font-size:12.5px">Настроить</button>' : ''}
+      </div>`;
+    }).join('');
+    box.onchange = async e => {
+      const inp = e.target.closest('[data-roletog]'); if (!inp) return;
+      const r = inp.dataset.roletog;
+      const curEq = eqOf(me) || {};
+      const nextHid = new Set(curEq.hidden_roles || []);
+      if (inp.checked) nextHid.delete(r); else nextHid.add(r);
+      const left = all.filter(x => !nextHid.has(x)).length;
+      if (left < 1) {
+        inp.checked = true;
+        return toast('Нужна минимум 1 отображаемая роль', true);
+      }
+      inp.disabled = true;
+      try {
+        const row = await rpc('shop_set_hidden_roles', { p_hidden: [...nextHid] });
+        saveEqRow(row);
+        toast('Сохранено');
+      } catch (er) { inp.checked = !inp.checked; toast(er.message, true); }
+      inp.disabled = false;
+    };
+    box.onclick = e => {
+      if (e.target.closest('[data-editcs]')) customStatusDialog(() => drawRolesSet());
+    };
+  };
+  eqReady.then(drawRolesSet);
+  drawRolesSet();
   $('#setNotif').onchange = async e => {
     const k = e.target.name; if (!k) return;
     const v = e.target.checked; e.target.disabled = true;
@@ -2658,16 +2793,17 @@ function coinSendDialog(p) {
   document.body.append(ov);
 }
 
-/* ── магазин косметики (пока только для владельца) ── */
+/* ── магазин косметики ── */
 const SHOP_CATS = [
   ['all', 'Все'],
+  ['role', 'Роли'],
   ['frame', 'Рамки'],
   ['nick_fx', 'Эффекты ника'],
   ['badge', 'Значки'],
   ['banner', 'Фоны профиля'],
   ['mine', 'Мои'],
 ];
-const SHOP_SLOT_LBL = { frame: 'Рамка', nick_fx: 'Ник', badge: 'Значок', banner: 'Фон' };
+const SHOP_SLOT_LBL = { role: 'Роль', frame: 'Рамка', nick_fx: 'Ник', badge: 'Значок', banner: 'Фон' };
 const SHOP_RAR_LBL = { common: 'Обычный', rare: 'Редкий', epic: 'Эпический', legendary: 'Легендарный' };
 async function viewShop(tab) {
   setNav('shop');
@@ -2691,21 +2827,18 @@ async function viewShop(tab) {
   }
   const me = S.me || readSession()?.user || { id: S.uid || '', username: 'Гость', display_name: 'Гость' };
   const tryOn = {};
-  const myEq = () => (S.uid && EQ.get(S.uid)) || { user_id: S.uid || '', frame: null, nick_fx: null, badge: null, banner: null };
+  const myEq = () => (S.uid && EQ.get(S.uid)) || { user_id: S.uid || '', frame: null, nick_fx: null, badge: null, banner: null, owned_roles: [], hidden_roles: [] };
   const activeVal = cat => (cat in tryOn ? tryOn[cat] : myEq()[cat] || null);
-  const saveEqLocal = row => {
-    EQ.set(S.uid, row);
-    cacheSet('eq_all', [...EQ.values()]);
-    applyMeFrame();
-    drawSponsors();
-    drawTopDonors();
-  };
+  const saveEqLocal = row => saveEqRow({ ...myEq(), ...row, user_id: S.uid });
   const renderPreview = () => {
+    const eq = myEq();
     const f = activeVal('frame'), fx = activeVal('nick_fx'), bg = activeVal('badge'), bn = activeVal('banner');
+    const tryRole = tryOn.role || null;
+    const prevRoles = visibleUserRoles(me, eq, tryRole);
     const bgCls = bn && /^bg_[a-z0-9_]+$/i.test(bn) ? ` cbg cbg-${esc(bn)}` : '';
     const hasTry = Object.keys(tryOn).length > 0;
-    const slotsHtml = ['frame', 'nick_fx', 'badge', 'banner'].map(cat => {
-      const id = activeVal(cat);
+    const slotsHtml = ['frame', 'nick_fx', 'badge', 'banner', 'role'].map(cat => {
+      const id = cat === 'role' ? tryRole : activeVal(cat);
       if (!id) return '';
       const it = SHOP_ITEMS.get(id), isTry = cat in tryOn;
       return `<span class="shop-slot${isTry ? ' try' : ''}">${SHOP_SLOT_LBL[cat]}: <b>${esc(it?.title || id)}</b>${isTry ? ' (примерка)' : ''}<button type="button" data-unslot="${cat}" data-istry="${isTry ? '1' : ''}" title="${isTry ? 'Убрать из примерки' : 'Снять'}">✕</button></span>`;
@@ -2714,9 +2847,9 @@ async function viewShop(tab) {
       <section class="prof-card${bgCls}">
         <div class="prof-left">${cosAva(me, 'prof-ava', '', f)}</div>
         <div class="prof-main">
-          <div class="prof-roles"><span class="role role-admin">Предпросмотр</span></div>
+          <div class="prof-roles">${prevRoles.map(r => roleChipHtml(r, eq)).join('')}</div>
           <h1>${cosName(me, fx, bg)}</h1>
-          ${me.bio ? `<p class="prof-bio">${esc(me.bio)}</p>` : '<p class="prof-bio">Так ваш профиль, аватарка и ник будут выглядеть на сайте.</p>'}
+          ${me.bio ? `<p class="prof-bio">${esc(me.bio)}</p>` : '<p class="prof-bio">Так ваш профиль, роли, аватарка и ник будут выглядеть на сайте.</p>'}
         </div>
       </section>
       <div class="shop-preview-bar">
@@ -2726,6 +2859,9 @@ async function viewShop(tab) {
     </div>`;
   };
   const cardPreview = it => {
+    if (it.category === 'role') {
+      return `<div class="shop-prev-role">${roleChipHtml(it.id, myEq())}${it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : ''}</div>`;
+    }
     if (it.category === 'frame') return cosAva(me, 'prof-ava', '', it.id);
     if (it.category === 'nick_fx') return `<div class="shop-prev-nick"><span${nameAttr(null, it.id)}>${esc(pname(me))}</span></div>`;
     if (it.category === 'badge') return `<div class="shop-prev-badge"><span>${esc(pname(me))}</span>${badgeHtml(it.id)}</div>`;
@@ -2734,6 +2870,7 @@ async function viewShop(tab) {
   };
   const draw = () => {
     const eq = myEq();
+    const hidRoles = new Set(eq.hidden_roles || []);
     const list = T === 'all' ? items : T === 'mine' ? items.filter(it => owned.has(it.id)) : items.filter(it => it.category === T);
     page.innerHTML = `<div class="shop">
       <div class="shop-head">
@@ -2743,23 +2880,35 @@ async function viewShop(tab) {
       ${renderPreview()}
       <div class="tabs shop-tabs">${SHOP_CATS.map(([k, l]) => `<a class="tab${T === k ? ' on' : ''}" href="${routeUrl(k === 'all' ? 'shop' : 'shop/' + k)}">${l}${k === 'mine' ? ` (${owned.size})` : ''}</a>`).join('')}</div>
       ${list.length ? `<div class="shop-grid">${list.map(it => {
-        const isOwn = owned.has(it.id), isEq = eq[it.category] === it.id, isTry = tryOn[it.category] === it.id;
+        const isOwn = owned.has(it.id);
+        const isRole = it.category === 'role';
+        const isRoleVis = isRole && isOwn && !hidRoles.has(it.id);
+        const isEq = isRole ? isRoleVis : eq[it.category] === it.id;
+        const isTry = tryOn[it.category] === it.id;
+        const oldP = Number(it.meta?.old_price || 0);
+        const salePct = oldP > it.price ? Math.round((1 - it.price / oldP) * 100) : 0;
+        let acts = '';
+        if (isOwn && isRole) {
+          acts = it.id === 'role_custom'
+            ? `<button type="button" class="btn accent" style="flex:1" data-shcustom>Настроить</button><button type="button" class="btn ${isRoleVis ? 'eq-on' : ''}" style="flex:none" data-shroletog="${esc(it.id)}">${isRoleVis ? 'Видно ✓' : 'Скрыто'}</button>`
+            : `<button type="button" class="btn ${isRoleVis ? 'eq-on' : 'accent'}" style="flex:1" data-shroletog="${esc(it.id)}">${isRoleVis ? 'В профиле ✓' : 'Показать в профиле'}</button>`;
+        } else if (isOwn) {
+          acts = isEq
+            ? `<button type="button" class="btn eq-on" data-sheq="${esc(it.category)}" data-shid="">Надето ✓</button>`
+            : `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent" style="flex:1" data-sheq="${esc(it.category)}" data-shid="${esc(it.id)}">Надеть</button>`;
+        } else {
+          acts = `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuy="${esc(it.id)}"><img src="${COIN}" alt="">${oldP > it.price ? `<s class="shop-old-p">${fmt(oldP)}</s>` : ''}${fmt(it.price)}</button>`;
+        }
         return `<article class="shop-card${isEq ? ' is-eq' : ''}${isTry ? ' is-try' : ''}">
           <div class="shop-prev">
             <span class="shop-rar ${esc(it.rarity)}">${SHOP_RAR_LBL[it.rarity] || it.rarity}</span>
-            ${isOwn ? '<span class="shop-own-tag">Куплено</span>' : ''}
+            ${isOwn ? '<span class="shop-own-tag">Куплено</span>' : salePct ? `<span class="shop-sale">-${salePct}%</span>` : ''}
             ${cardPreview(it)}
           </div>
           <div class="shop-info">
             <h3>${esc(it.title)}</h3>
             <p>${esc(it.description)}</p>
-            <div class="shop-acts">
-              ${isOwn
-                ? (isEq
-                  ? `<button type="button" class="btn eq-on" data-sheq="${esc(it.category)}" data-shid="">Надето ✓</button>`
-                  : `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent" style="flex:1" data-sheq="${esc(it.category)}" data-shid="${esc(it.id)}">Надеть</button>`)
-                : `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuy="${esc(it.id)}"><img src="${COIN}" alt="">${fmt(it.price)}</button>`}
-            </div>
+            <div class="shop-acts">${acts}</div>
           </div>
         </article>`;
       }).join('')}</div>` : `<div class="empty">${T === 'mine' ? 'У вас пока нет купленных предметов.' : 'В этой категории пока пусто.'}</div>`}
@@ -2768,6 +2917,24 @@ async function viewShop(tab) {
     if (rst) rst.onclick = () => { Object.keys(tryOn).forEach(k => delete tryOn[k]); draw(); };
     const sh = $('.shop', page);
     if (sh) sh.onclick = async e => {
+      const cs = e.target.closest('[data-shcustom]');
+      if (cs) { customStatusDialog(() => draw()); return; }
+      const rt = e.target.closest('[data-shroletog]');
+      if (rt) {
+        const rid = rt.dataset.shroletog;
+        const curEq = myEq(), all = allUserRoles(me, curEq);
+        const nextHid = new Set(curEq.hidden_roles || []);
+        if (nextHid.has(rid)) nextHid.delete(rid); else nextHid.add(rid);
+        if (all.filter(x => !nextHid.has(x)).length < 1) return toast('Нужна минимум 1 отображаемая роль', true);
+        rt.disabled = true;
+        try {
+          const row = await rpc('shop_set_hidden_roles', { p_hidden: [...nextHid] });
+          saveEqLocal(row);
+          toast(nextHid.has(rid) ? 'Роль скрыта в профиле' : 'Роль показана в профиле');
+          draw();
+        } catch (er) { toast(er.message, true); rt.disabled = false; }
+        return;
+      }
       const tr = e.target.closest('[data-shtry]');
       if (tr) {
         const it = SHOP_ITEMS.get(tr.dataset.shtry); if (!it) return;
@@ -2807,9 +2974,24 @@ async function viewShop(tab) {
         try {
           const bal = await rpc('shop_buy', { p_item_id: it.id });
           setBalance(bal); owned.add(it.id); delete tryOn[it.category];
-          saveEqLocal({ ...myEq(), [it.category]: it.id });
-          toast(`Куплено и надето: ${it.title}`);
-          draw();
+          const cur = myEq();
+          if (it.category === 'role') {
+            const nextRoles = [...new Set([...(cur.owned_roles || []), it.id])];
+            const nextHid = (cur.hidden_roles || []).filter(x => x !== it.id);
+            saveEqLocal({
+              ...cur,
+              owned_roles: nextRoles,
+              hidden_roles: nextHid,
+              ...(it.id === 'role_custom' && !cur.custom_status_text ? { custom_status_text: 'Мой статус', custom_status_color: '#ff9e2c' } : {}),
+            });
+            toast(`Куплено: ${it.title}`);
+            draw();
+            if (it.id === 'role_custom') customStatusDialog(() => draw());
+          } else {
+            saveEqLocal({ ...cur, [it.category]: it.id });
+            toast(`Куплено и надето: ${it.title}`);
+            draw();
+          }
         } catch (er) { toast(er.message, true); buyBtn.disabled = false; }
       }
     };
