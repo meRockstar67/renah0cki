@@ -258,12 +258,12 @@ const SHOP_BADGES = {
 };
 const SHOP_ROLES = {
   role_custom:  { title: 'Кастомный статус', color: '#ff9e2c', custom: true },
-  role_ovosh:   { title: 'Альфа', color: '#f43f5e' },
-  role_goy:     { title: 'Омега', color: '#a78bfa' },
   role_divan:   { title: 'Завозер', color: '#fb923c' },
+  role_goy:     { title: 'Омежка', color: '#a78bfa' },
   role_skuf:    { title: 'Анимешник', color: '#f472b6' },
+  role_ovosh:   { title: 'Альфа', color: '#f43f5e' },
   role_bezson:  { title: 'Мажор', color: '#fde047' },
-  role_oligarh: { title: 'renah0cki', color: '#6cc4ff', keepCase: true },
+  role_oligarh: { title: 'renah0cki', color: '#6cc4ff', keepCase: true, customColor: true },
 };
 const STATUS_COLORS = ['#ff9e2c', '#f43f5e', '#f472b6', '#c084fc', '#9146ff', '#60a5fa', '#38bdf8', '#22d3ee', '#34d399', '#4ade80', '#a3e635', '#fde047', '#fb923c', '#e2e8f0'];
 const SHOP_ITEMS = new Map();
@@ -275,7 +275,7 @@ function saveEqRow(row) {
   applyMeFrame(); drawSponsors(); drawTopDonors();
 }
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
-let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,owned_roles,hidden_roles&limit=1000')
+let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,owned_roles,hidden_roles&limit=1000')
   .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
@@ -1176,10 +1176,54 @@ function roleChipHtml(r, eq = null) {
   const sr = SHOP_ROLES[r], it = SHOP_ITEMS.get(r);
   if (sr || it?.category === 'role') {
     const txt = it?.title || sr?.title || r;
-    const clr = it?.meta?.color || sr?.color || '#6cc4ff';
+    const clr = (r === 'role_oligarh' && /^#[0-9a-f]{6}$/i.test(eq?.brand_role_color || ''))
+      ? eq.brand_role_color
+      : (it?.meta?.color || sr?.color || '#6cc4ff');
     return `<span class="role role-custom${sr?.keepCase ? ' role-brand' : ''}" style="--rc:${clr}">${esc(txt)}</span>`;
   }
   return `<span class="role role-${esc(r)}">${esc(ROLE_LABEL[r] || r)}</span>`;
+}
+function brandColorDialog(onSaved) {
+  if (!S.uid) return;
+  const eq = EQ.get(S.uid) || {};
+  let clr = /^#[0-9a-f]{6}$/i.test(eq.brand_role_color || '') ? eq.brand_role_color : '#6cc4ff';
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal cs-mod"><h2>Цвет статуса renah0cki</h2>
+    <div class="cs-prev"><span class="role role-custom role-brand" id="csPrev" style="--rc:${clr}">renah0cki</span></div>
+    <div class="pe-color"><span>Выбери цвет</span>
+      <div class="sw-row">${STATUS_COLORS.map(c => `<button type="button" class="nc-sw${clr.toLowerCase() === c ? ' on' : ''}" data-sc="${c}" style="background:${c}"></button>`).join('')}
+        <label class="cs-pick" title="Свой цвет"><input type="color" name="c" value="${clr}">🎨</label>
+      </div>
+    </div>
+    <p class="hint"></p>
+    <div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div></form>`;
+  const close = () => ov.remove();
+  const prev = $('#csPrev', ov), cp = $('[name=c]', ov);
+  const sync = () => {
+    prev.style.setProperty('--rc', clr);
+    cp.value = clr;
+    $$('[data-sc]', ov).forEach(b => b.classList.toggle('on', b.dataset.sc.toLowerCase() === clr.toLowerCase()));
+  };
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-x]')) return close();
+    const sw = e.target.closest('[data-sc]');
+    if (sw) { clr = sw.dataset.sc; sync(); }
+  });
+  cp.oninput = () => { clr = cp.value; sync(); };
+  $('form', ov).onsubmit = async e => {
+    e.preventDefault();
+    const hint = $('.hint', ov), btn = $('button[type=submit]', ov);
+    btn.disabled = true;
+    try {
+      const row = await rpc('shop_set_brand_color', { p_color: clr });
+      saveEqRow(row);
+      toast('Цвет сохранён');
+      close();
+      onSaved?.(row);
+    } catch (er) { hint.textContent = er.message; btn.disabled = false; }
+  };
+  document.body.append(ov);
 }
 function customStatusDialog(onSaved) {
   if (!S.uid) return;
@@ -2222,7 +2266,7 @@ function viewSettings() {
       const on = !hid.has(r) || (visCnt === 0 && r === all[0]);
       return `<div class="set-role-row">
         <label class="sw"><input type="checkbox" data-roletog="${esc(r)}"${on ? ' checked' : ''}><i></i><div>${roleChipHtml(r, eq)}</div></label>
-        ${r === 'role_custom' ? '<button type="button" class="btn" data-editcs style="height:30px;padding:0 10px;font-size:12.5px">Настроить</button>' : ''}
+        ${r === 'role_custom' ? '<button type="button" class="btn" data-editcs style="height:30px;padding:0 10px;font-size:12.5px">Настроить</button>' : r === 'role_oligarh' ? '<button type="button" class="btn" data-editbrand style="height:30px;padding:0 10px;font-size:12.5px">Цвет</button>' : ''}
       </div>`;
     }).join('');
     box.onchange = async e => {
@@ -2246,6 +2290,7 @@ function viewSettings() {
     };
     box.onclick = e => {
       if (e.target.closest('[data-editcs]')) customStatusDialog(() => drawRolesSet());
+      else if (e.target.closest('[data-editbrand]')) brandColorDialog(() => drawRolesSet());
     };
   };
   eqReady.then(drawRolesSet);
@@ -2891,7 +2936,9 @@ async function viewShop(tab) {
         if (isOwn && isRole) {
           acts = it.id === 'role_custom'
             ? `<button type="button" class="btn accent" style="flex:1" data-shcustom>Настроить</button><button type="button" class="btn ${isRoleVis ? 'eq-on' : ''}" style="flex:none" data-shroletog="${esc(it.id)}">${isRoleVis ? 'Видно ✓' : 'Скрыто'}</button>`
-            : `<button type="button" class="btn ${isRoleVis ? 'eq-on' : 'accent'}" style="flex:1" data-shroletog="${esc(it.id)}">${isRoleVis ? 'В профиле ✓' : 'Показать в профиле'}</button>`;
+            : it.id === 'role_oligarh'
+              ? `<button type="button" class="btn accent" style="flex:1" data-shbrand>Цвет</button><button type="button" class="btn ${isRoleVis ? 'eq-on' : ''}" style="flex:none" data-shroletog="${esc(it.id)}">${isRoleVis ? 'Видно ✓' : 'Скрыто'}</button>`
+              : `<button type="button" class="btn ${isRoleVis ? 'eq-on' : 'accent'}" style="flex:1" data-shroletog="${esc(it.id)}">${isRoleVis ? 'В профиле ✓' : 'Показать в профиле'}</button>`;
         } else if (isOwn) {
           acts = isEq
             ? `<button type="button" class="btn eq-on" data-sheq="${esc(it.category)}" data-shid="">Надето ✓</button>`
@@ -2919,6 +2966,8 @@ async function viewShop(tab) {
     if (sh) sh.onclick = async e => {
       const cs = e.target.closest('[data-shcustom]');
       if (cs) { customStatusDialog(() => draw()); return; }
+      const br = e.target.closest('[data-shbrand]');
+      if (br) { brandColorDialog(() => draw()); return; }
       const rt = e.target.closest('[data-shroletog]');
       if (rt) {
         const rid = rt.dataset.shroletog;
@@ -2987,6 +3036,7 @@ async function viewShop(tab) {
             toast(`Куплено: ${it.title}`);
             draw();
             if (it.id === 'role_custom') customStatusDialog(() => draw());
+            else if (it.id === 'role_oligarh') brandColorDialog(() => draw());
           } else {
             saveEqLocal({ ...cur, [it.category]: it.id });
             toast(`Куплено и надето: ${it.title}`);
