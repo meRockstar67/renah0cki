@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Russo+One&family=Spectral:wght@600;700;800&family=Unbounded:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="/donate-settings/settings.css?v=20261122d">
-<script src="/donate-settings/settings.js?v=20261122d" defer></script>
+<link rel="stylesheet" href="/donate-settings/settings.css?v=20261122e">
+<script src="/donate-settings/settings.js?v=20261122e" defer></script>
 </head>
 <body>
 <div class="bg-glow" aria-hidden="true"></div>
@@ -198,7 +198,7 @@
         <div class="grp">
           <h3>Картинка или GIF</h3>
           <div class="field">
-            <span class="lbl">Ссылка на картинку/GIF (пусто — стандартная монета)</span>
+            <span class="lbl">Для донатов renah0cki coin (пусто — стандартная монета)</span>
             <div class="row">
               <input class="in grow" name="image_url" placeholder="https://... (PNG, GIF, WebP)">
               <label class="btn sm" title="Загрузить свой файл">
@@ -206,6 +206,17 @@
                 Загрузить
               </label>
               <button type="button" class="btn sm ghost" id="clearImg" title="Вернуть монету">✕</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="lbl">Для донатов DonationAlerts (пусто — оранжевое сердце)</span>
+            <div class="row">
+              <input class="in grow" name="da_image_url" placeholder="https://... (PNG, GIF, WebP)">
+              <label class="btn sm" title="Загрузить свой файл для DA">
+                <input type="file" id="daImgFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                Загрузить
+              </label>
+              <button type="button" class="btn sm ghost" id="clearDaImg" title="Сбросить">✕</button>
             </div>
           </div>
         </div>

@@ -117,9 +117,9 @@ function renderConnList() {
       <b><i></i>Twitch${tw.login ? ' · ' + esc(tw.login) : ''}</b>
       <button type="button" class="btn xs ${twOk && !twNeedScope ? 'ghost' : 'pri'}" data-connect="twitch">${!twOk ? 'Подключить' : twNeedScope ? 'Обновить права' : 'Переподкл.'}</button>
     </div>
-    <div class="conn-row ${daOk ? (daNeedScope ? 'warn' : 'ok') : ''}">
+    <div class="conn-row ${daOk ? 'ok' : ''}">
       <b><i></i>DonationAlerts${da.name ? ' · ' + esc(da.name) : ''}</b>
-      <button type="button" class="btn xs ${daOk && !daNeedScope ? 'ghost' : 'pri'}" data-connect="da">${!daOk ? 'Подключить' : daNeedScope ? 'Обновить права' : 'Переподкл.'}</button>
+      <button type="button" class="btn xs ${daOk ? 'ghost' : 'pri'}" data-connect="da">${daOk ? 'Переподкл.' : 'Подключить'}</button>
     </div>`;
 }
 
@@ -327,10 +327,9 @@ document.addEventListener('click', async e => {
     const id = rep.dataset.replay;
     rep.disabled = true;
     try {
-      const ev = S.events.find(x => x.id === id);
       await post('/auc/feed/admin', { a: 'replay', id });
       updateCardState(id, 'queued');
-      toast(ev?.type === 'da' ? 'Отправлено в DonationAlerts' : 'Проигрывается на стриме');
+      toast('Воспроизводится на стриме');
     } catch (err) { toast(err.message, true); rep.disabled = false; }
     return;
   }

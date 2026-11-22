@@ -18,7 +18,7 @@ const DEFAULTS = {
   tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_read_header: true, tts_volume: 85,
   theme: 'glass', anim: 'pop', layout: 'top',
   accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
-  font: 'Inter', head_size: 34, msg_size: 20, image_url: '',
+  font: 'Inter', head_size: 34, msg_size: 20, image_url: '', da_image_url: '',
 };
 
 const $ = s => document.querySelector(s);
@@ -183,6 +183,7 @@ function fillForm() {
   f.anim.value = a.anim;
   f.layout.value = a.layout;
   f.image_url.value = a.image_url || '';
+  f.da_image_url.value = a.da_image_url || '';
   f.accent.value = a.accent;
   f.text_color.value = a.text_color;
   f.bg_color.value = a.bg_color;
@@ -210,6 +211,7 @@ function readForm() {
     anim: f.anim.value,
     layout: f.layout.value,
     image_url: f.image_url.value.trim(),
+    da_image_url: f.da_image_url.value.trim(),
     accent: f.accent.value,
     text_color: f.text_color.value,
     bg_color: f.bg_color.value,
@@ -349,20 +351,23 @@ $('#playSoundBtn').addEventListener('click', playPreviewSound);
 $('#playTtsBtn').addEventListener('click', playPreviewTts);
 $('#replayBtn').addEventListener('click', replayAnim);
 $('#clearImg').addEventListener('click', () => { $('#alertForm').image_url.value = ''; readForm(); });
+$('#clearDaImg').addEventListener('click', () => { $('#alertForm').da_image_url.value = ''; readForm(); });
 
-$('#imgFile').addEventListener('change', async e => {
-  const file = e.target.files?.[0];
-  e.target.value = '';
+async function handleUploadTo(inputEl, targetName) {
+  const file = inputEl.files?.[0];
+  inputEl.value = '';
   if (!file) return;
   if (file.size > 15 * 1048576) return toast('Файл больше 15 МБ', true);
   try {
     toast('Загружаю картинку…');
     const url = await uploadFile(file);
-    $('#alertForm').image_url.value = url;
+    $('#alertForm')[targetName].value = url;
     readForm();
     toast('Картинка загружена — нажми «Сохранить»');
   } catch (err) { toast(err.message, true); }
-});
+}
+$('#imgFile').addEventListener('change', e => handleUploadTo(e.target, 'image_url'));
+$('#daImgFile').addEventListener('change', e => handleUploadTo(e.target, 'da_image_url'));
 
 $('#resetBtn').addEventListener('click', () => {
   S.alert = { ...DEFAULTS };

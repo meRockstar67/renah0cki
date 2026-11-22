@@ -111,12 +111,13 @@
   const API = (LOCAL && QS.get('api')) || 'https://cdn.renah0cki.xyz';
   const fmt = n => (+n || 0).toLocaleString('ru-RU');
 
+  const DA_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffb347"/><stop offset="55%" stop-color="#ff7a18"/><stop offset="100%" stop-color="#e3380c"/></linearGradient></defs><rect width="96" height="96" rx="24" fill="url(#g)"/><path d="M48 73s-22-13.2-22-29.2C26 35 32.5 29 40 29c4.5 0 8 2.4 8 2.4S51.5 29 56 29c7.5 0 14 6 14 14.8C70 59.8 48 73 48 73z" fill="#fff"/></svg>');
   let cfg = {
     duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', volume: 75,
     tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_read_header: true, tts_volume: 85,
     theme: 'glass', anim: 'pop', layout: 'top',
     accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
-    font: 'Inter', head_size: 34, msg_size: 20, image_url: ''
+    font: 'Inter', head_size: 34, msg_size: 20, image_url: '', da_image_url: ''
   };
 
   function hexToRgba(hex, a) {
@@ -125,10 +126,10 @@
     return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})`;
   }
 
-  function applyStyle() {
+  function applyStyle(kind = 'coin') {
     const r = document.documentElement.style;
     const al = document.getElementById('al');
-    const acc = /^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6';
+    const acc = kind === 'da' ? '#ff8a24' : (/^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6');
     al.dataset.theme = ['glass', 'neon', 'minimal', 'slay', 'clean'].includes(cfg.theme) ? cfg.theme : 'glass';
     al.dataset.anim = ['pop', 'slide', 'zoom', 'bounce'].includes(cfg.anim) ? cfg.anim : 'pop';
     al.dataset.layout = ['top', 'left', 'none'].includes(cfg.layout) ? cfg.layout : 'top';
@@ -143,7 +144,9 @@
     r.setProperty('--al-hsz', Math.max(18, Math.min(60, Number(cfg.head_size) || 34)) + 'px');
     r.setProperty('--al-msz', Math.max(12, Math.min(40, Number(cfg.msg_size) || 20)) + 'px');
     const img = document.getElementById('img');
-    const src = /^https:\/\//i.test(cfg.image_url || '') ? cfg.image_url : DEFAULT_IMG;
+    const src = kind === 'da'
+      ? (/^https:\/\//i.test(cfg.da_image_url || '') ? cfg.da_image_url : DA_SVG)
+      : (/^https:\/\//i.test(cfg.image_url || '') ? cfg.image_url : DEFAULT_IMG);
     if (img.src !== src) img.src = src;
   }
 
@@ -179,10 +182,20 @@
     } catch {}
   }
 
-  function coinWord(n) {
+  function pluralRu(n, a, b, c) {
     n = Math.abs(Math.floor(Number(n) || 0)) % 100;
     const k = n % 10;
-    return n > 10 && n < 20 ? 'коинов' : k === 1 ? 'коин' : k > 1 && k < 5 ? 'коина' : 'коинов';
+    return n > 10 && n < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c;
+  }
+  function unitWord(n, unit) {
+    const u = String(unit || 'coin').toUpperCase();
+    if (u === 'RUB' || u === 'RUR' || u === '₽') return pluralRu(n, 'рубль', 'рубля', 'рублей');
+    if (u === 'USD' || u === '$') return pluralRu(n, 'доллар', 'доллара', 'долларов');
+    if (u === 'EUR' || u === '€') return 'евро';
+    if (u === 'UAH' || u === '₴') return pluralRu(n, 'гривна', 'гривны', 'гривен');
+    if (u === 'KZT' || u === '₸') return 'тенге';
+    if (u === 'BYN') return pluralRu(n, 'белорусский рубль', 'белорусских рубля', 'белорусских рублей');
+    return pluralRu(n, 'коин', 'коина', 'коинов');
   }
   let curAudio = null;
   let skipCur = null;
@@ -227,7 +240,7 @@
       ? d.voice : (cfg.tts_voice === 'male' ? 'male' : 'female');
     const parts = [];
     if (cfg.tts_read_header !== false) {
-      parts.push(`${d.user || d.name || 'Аноним'}, ${Math.round(Number(d.amount) || 0)} ${coinWord(d.amount)}.`);
+      parts.push(`${d.user || d.name || 'Аноним'}, ${Math.round(Number(d.amount) || 0)} ${unitWord(d.amount, d.unit || (d.type === 'da' ? 'RUB' : 'coin'))}.`);
     }
     if (cfg.show_message !== false && d.message) parts.push(String(d.message).trim());
     const text = parts.join(' ').trim().slice(0, 350);
@@ -299,8 +312,8 @@
     if (busy || !queue.length) return;
     if (paused && !queue[0].force) return;
     busy = true;
-    applyStyle();
     const d = queue.shift();
+    applyStyle(d.type === 'da' ? 'da' : 'coin');
     formatHead(d);
     const m = document.getElementById('m');
     m.hidden = !(cfg.show_message !== false && d.message);
@@ -349,9 +362,10 @@
   es.addEventListener('donation', e => {
     try {
       const d = JSON.parse(e.data);
-      if (d.type && d.type !== 'coin') return;
-      if (!d.test && !d.force && +d.amount < (+cfg.min || 1)) return;
-      enqueue({ ...d, type: 'coin', unit: 'coin' });
+      const t = d.type === 'da' ? 'da' : 'coin';
+      if (d.type && d.type !== 'coin' && d.type !== 'da') return;
+      if (!d.test && !d.force && t === 'coin' && +d.amount < (+cfg.min || 1)) return;
+      enqueue({ ...d, type: t, unit: d.unit || (t === 'da' ? 'RUB' : 'coin') });
     } catch {}
   });
 })();
