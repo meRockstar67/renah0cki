@@ -85,6 +85,7 @@
   .al[data-anim="zoom"]   { transform: scale(.72); transition: opacity .32s ease, transform .42s cubic-bezier(.22, 1, .36, 1); }
   .al[data-anim="bounce"] { transform: translateY(-32px) scale(.94); transition: opacity .3s ease, transform .55s cubic-bezier(.34, 1.56, .64, 1); }
   .al.show { opacity: 1; transform: none; }
+  .al.instant { transition: none !important; opacity: 0 !important; }
 </style>
 </head>
 <body>
@@ -146,7 +147,7 @@
     if (img.src !== src) img.src = src;
   }
 
-  let ac = null;
+  let ac = null, chimeGain = null;
   function playSound() {
     try {
       ac = ac || new (window.AudioContext || window.webkitAudioContext)();
@@ -154,6 +155,10 @@
       const t = ac.currentTime;
       const vol = Math.max(0, Math.min(1, (Number(cfg.volume ?? 75)) / 100)) * 0.45;
       if (vol <= 0.001) return;
+      const master = ac.createGain();
+      master.gain.value = 1;
+      master.connect(ac.destination);
+      chimeGain = master;
       const preset = cfg.sound_preset || 'chime';
       const seq = preset === 'coin'
         ? [[987.77, 0, .09, 'triangle'], [1318.5, .08, .35, 'triangle']]
@@ -168,7 +173,7 @@
         g.gain.setValueAtTime(0, t + delay);
         g.gain.linearRampToValueAtTime(vol, t + delay + .02);
         g.gain.exponentialRampToValueAtTime(0.0008, t + delay + dur);
-        o.connect(g).connect(ac.destination);
+        o.connect(g).connect(master);
         o.start(t + delay); o.stop(t + delay + dur + .05);
       });
     } catch {}
@@ -182,11 +187,15 @@
   let curAudio = null;
   let skipCur = null;
   function stopCurrentAudio() {
+    try { if (chimeGain) { chimeGain.gain.setValueAtTime(0, ac.currentTime); chimeGain = null; } } catch {}
     try { if (curAudio) { curAudio.pause(); curAudio.currentTime = 0; curAudio = null; } } catch {}
     try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch {}
   }
   function skipCurrent() {
     stopCurrentAudio();
+    const al = document.getElementById('al');
+    al.classList.add('instant');
+    al.classList.remove('show');
     if (skipCur) { const fn = skipCur; skipCur = null; fn(); }
   }
   function speakFallback(text, voice, vol) {
@@ -299,6 +308,8 @@
     const hasSound = cfg.sound !== false;
     if (hasSound) playSound();
     const al = document.getElementById('al');
+    al.classList.remove('instant');
+    void al.offsetWidth;
     al.classList.add('show');
     let skipped = false;
     const skipP = new Promise(r => { skipCur = () => { skipped = true; r(); }; });
