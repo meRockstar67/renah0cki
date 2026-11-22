@@ -141,7 +141,7 @@ function renderList() {
     <div class="ev-foot">
       <span class="ev-time">${esc(fmtTime(ev.at))}</span>
       <div class="ev-acts">
-        <button type="button" data-replay="${esc(ev.id)}" title="Проиграть на стриме">▶</button>
+        ${ev.type === 'coin' ? `<button type="button" data-replay="${esc(ev.id)}" title="Проиграть алерт coin на стриме">▶</button>` : ''}
         <button type="button" data-hide="${esc(ev.id)}" title="${ev.hidden ? 'Показать на стриме' : 'Скрыть со стрима'}">${ev.hidden ? '👁' : '🙈'}</button>
         <button type="button" class="del" data-del="${esc(ev.id)}" title="Удалить">✕</button>
       </div>
@@ -156,7 +156,6 @@ function fillCfgForm() {
   $('#obsAlertUrl').textContent = `${location.origin}/auc/alert.html`;
   ['coin', 'da', 'tw_follow', 'tw_sub', 'tw_gift', 'tw_points'].forEach(k => {
     f['en_' + k].checked = c.enabled?.[k] !== false;
-    f['al_' + k].checked = c.alert_events?.[k] !== false;
   });
   f.min_coin.value = c.min_coin ?? 1;
   f.min_da.value = c.min_da ?? 1;
@@ -330,17 +329,16 @@ $('#cfgForm').addEventListener('input', () => {
 $('#cfgForm').addEventListener('submit', async e => {
   e.preventDefault();
   const f = e.target;
-  const enabled = {}, alert_events = {};
+  const enabled = {};
   ['coin', 'da', 'tw_follow', 'tw_sub', 'tw_gift', 'tw_points'].forEach(k => {
     enabled[k] = f['en_' + k].checked;
-    alert_events[k] = f['al_' + k].checked;
   });
   const btn = $('#saveCfgBtn'); btn.disabled = true; btn.textContent = 'Сохраняю…';
   try {
     const r = await post('/auc/feed/admin', {
       a: 'cfg',
       cfg: {
-        enabled, alert_events,
+        enabled,
         min_coin: Number(f.min_coin.value) || 0,
         min_da: Number(f.min_da.value) || 0,
         min_points: Number(f.min_points.value) || 0,

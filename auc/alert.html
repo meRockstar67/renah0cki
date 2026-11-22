@@ -251,12 +251,10 @@
   es.addEventListener('donation', e => {
     try {
       const d = JSON.parse(e.data);
-      if (!d.test && !d.force && (!d.type || d.type === 'coin') && +d.amount < (+cfg.min || 1)) return;
-      enqueue({ ...d, type: d.type || 'coin', unit: d.unit || 'coin' });
+      if (d.type && d.type !== 'coin') return;
+      if (!d.test && !d.force && +d.amount < (+cfg.min || 1)) return;
+      enqueue({ ...d, type: 'coin', unit: 'coin' });
     } catch {}
-  });
-  es.addEventListener('feed_alert', e => {
-    try { enqueue(JSON.parse(e.data)); } catch {}
   });
 })();
 </script>
