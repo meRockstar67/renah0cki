@@ -128,6 +128,17 @@ function matchesFilter(ev) {
   if (S.filter === 'twitch') return ev.source === 'twitch';
   return ev.source === S.filter;
 }
+const ICO_REPLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+const ICO_SKIP   = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l10 7-10 7V5zm12 0h2.5v14H17V5z"/></svg>';
+const ICO_DEL    = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.89 18.3 9.17 12 2.89 5.71 4.3 4.29l6.29 6.3 6.29-6.3z"/></svg>';
+
+function actionBtnHtml(ev) {
+  if (ev.type !== 'coin' && ev.type !== 'da') return '';
+  if (ev.playState === 'queued') {
+    return `<button type="button" class="is-skip" data-skip="${esc(ev.id)}" title="Пропустить алерт" aria-label="Пропустить">${ICO_SKIP}</button>`;
+  }
+  return `<button type="button" data-replay="${esc(ev.id)}" title="${ev.type === 'da' ? 'Повторить в DonationAlerts' : 'Повторить донат'}" aria-label="Повторить">${ICO_REPLAY}</button>`;
+}
 function cardHtml(ev, isNew = false) {
   return `<article class="ev${isNew ? ' is-new' : ''}" data-t="${esc(ev.type)}" data-id="${esc(ev.id)}">
     <div class="ev-r1">
@@ -140,12 +151,17 @@ function cardHtml(ev, isNew = false) {
     <div class="ev-foot">
       <span class="ev-time" data-at="${esc(ev.at)}">${esc(fmtTime(ev.at))}</span>
       <div class="ev-acts">
-        ${ev.type === 'coin' || ev.type === 'da' ? `<button type="button" data-replay="${esc(ev.id)}" title="${ev.type === 'da' ? 'Повторить в виджете DonationAlerts' : 'Повторить донат coin на стриме'}">↻ Повтор</button>` : ''}
-        <button type="button" data-skip title="Пропустить текущий алерт на стриме">⏭ Пропустить</button>
-        <button type="button" class="del" data-del="${esc(ev.id)}" title="Удалить">✕</button>
+        <span class="ev-act-slot">${actionBtnHtml(ev)}</span>
+        <button type="button" class="del" data-del="${esc(ev.id)}" title="Удалить" aria-label="Удалить">${ICO_DEL}</button>
       </div>
     </div>
   </article>`;
+}
+function updateCardState(id, playState) {
+  const ev = S.events.find(x => x.id === id);
+  if (ev) ev.playState = playState;
+  const el = $('#feedList').querySelector(`.ev[data-id="${CSS.escape(id)}"] .ev-act-slot`);
+  if (el && ev) el.innerHTML = actionBtnHtml(ev);
 }
 function renderList() {
   renderStatus();
@@ -236,6 +252,7 @@ function connectSse() {
     } catch {}
   });
   es.addEventListener('feed_cfg', e => { try { S.cfg = { ...S.cfg, ...JSON.parse(e.data) }; renderStatus(); } catch {} });
+  es.addEventListener('feed_state', e => { try { const d = JSON.parse(e.data); if (d?.id) updateCardState(d.id, d.playState); } catch {} });
   es.addEventListener('feed_sync', e => { try { const d = JSON.parse(e.data); if (Array.isArray(d.events)) S.events = d.events; renderList(); } catch {} });
 }
 
@@ -307,20 +324,26 @@ document.addEventListener('click', async e => {
   }
   const rep = e.target.closest('[data-replay]');
   if (rep) {
+    const id = rep.dataset.replay;
     rep.disabled = true;
     try {
-      const ev = S.events.find(x => x.id === rep.dataset.replay);
-      await post('/auc/feed/admin', { a: 'replay', id: rep.dataset.replay });
-      toast(ev?.type === 'da' ? 'Повтор отправлен в виджет DonationAlerts' : 'Донат coin проигран на стриме');
-    } catch (err) { toast(err.message, true); }
-    finally { rep.disabled = false; }
+      const ev = S.events.find(x => x.id === id);
+      await post('/auc/feed/admin', { a: 'replay', id });
+      updateCardState(id, 'queued');
+      toast(ev?.type === 'da' ? 'Отправлено в DonationAlerts' : 'Проигрывается на стриме');
+    } catch (err) { toast(err.message, true); rep.disabled = false; }
     return;
   }
   const sk = e.target.closest('[data-skip], #skipBtn');
   if (sk) {
+    const id = sk.dataset?.skip || null;
     sk.disabled = true;
-    try { await post('/auc/feed/admin', { a: 'skip' }); toast('Алерт пропущен'); }
-    catch (err) { toast(err.message, true); }
+    try {
+      await post('/auc/feed/admin', { a: 'skip', id });
+      if (id) updateCardState(id, 'done');
+      else S.events.forEach(x => { if (x.playState === 'queued') updateCardState(x.id, 'done'); });
+      toast('Пропущено');
+    } catch (err) { toast(err.message, true); }
     finally { sk.disabled = false; }
     return;
   }

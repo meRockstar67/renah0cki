@@ -314,6 +314,8 @@
     skipCur = null;
     stopCurrentAudio();
     al.classList.remove('show');
+    const doneId = d.feedId || d.id;
+    if (doneId) fetch(API + '/auc/feed/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: doneId }) }).catch(() => {});
     setTimeout(() => { busy = false; next(); }, 450);
   }
 

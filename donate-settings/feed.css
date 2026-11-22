@@ -104,14 +104,19 @@ button { cursor: pointer; }
 
 .ev-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 3px; }
 .ev-time { font-size: 11px; color: #6f748c; user-select: none; }
-.ev-acts { display: flex; align-items: center; gap: 5px; }
-.ev-acts button { height: 27px; min-width: 28px; padding: 0 9px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, .09);
-  background: rgba(255, 255, 255, .05); color: #cfd4ea; font-size: 11.5px; font-weight: 700;
+.ev-acts { display: flex; align-items: center; gap: 4px; }
+.ev-acts button { width: 28px; height: 28px; padding: 0; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .04); color: #b8bed8; display: inline-flex; align-items: center; justify-content: center;
   touch-action: manipulation; user-select: none;
   transition: background .16s ease, color .16s ease, border-color .16s ease, transform .12s ease; }
+.ev-acts button svg { width: 15px; height: 15px; display: block; fill: currentColor; }
 .ev-acts button:hover { background: rgba(139, 92, 246, .26); border-color: rgba(167, 139, 250, .48); color: #fff; }
-.ev-acts button:active { transform: scale(.94); }
-.ev-acts button:disabled { opacity: .5; cursor: default; transform: none; }
+.ev-acts button.is-skip { color: #fde68a; border-color: rgba(251, 191, 36, .36); background: rgba(251, 191, 36, .12); }
+.ev-acts button.is-skip:hover { background: rgba(251, 191, 36, .24); border-color: rgba(251, 191, 36, .6); color: #fff; }
+.ev-acts button:active { transform: scale(.92); }
+.ev-acts button:disabled { opacity: .45; cursor: default; transform: none; }
+.ev-acts button.del { opacity: .55; }
+.ev:hover .ev-acts button.del { opacity: 1; }
 .ev-acts button.del:hover { background: rgba(248, 113, 113, .22); border-color: rgba(248, 113, 113, .45); color: #fecaca; }
 
 /* ── экран входа через браузер ── */
