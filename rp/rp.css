@@ -893,3 +893,14 @@ html.has-wall .chat-call { background: rgba(0,0,0,.45); color: #fff; border-colo
 .set-toggle input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .15s; }
 .set-toggle input:checked { background: var(--accent); border-color: var(--accent); }
 .set-toggle input:checked::after { transform: translateX(18px); }
+/* приглашение в звонок по ссылке */
+.call-invite { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 48px 24px; }
+.call-invite h2 { margin: 6px 0 0; font-size: 22px; }
+.call-invite p { margin: 0; color: var(--muted); }
+.call-invite p b { color: var(--text); }
+.call-invite .btn { margin-top: 10px; min-width: 200px; }
+.ci-ic { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: rgba(35,209,96,.14); color: #23d160; }
+.ci-ic svg { width: 34px; height: 34px; fill: none; stroke: currentColor; stroke-width: 2; }
+.ci-ic.off { background: var(--bg-2); color: var(--muted); }
+.ci-warn { color: #ffd27a !important; font-size: 14px; }
+.ci-note { font-size: 13px; margin-top: 14px !important; }

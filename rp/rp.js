@@ -2550,8 +2550,10 @@ I.hang = '<svg viewBox="0 0 24 24"><path d="M3 14.2c5-4.6 13-4.6 18 0l-1.8 2.9-3
 I.micOff = '<svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/></svg>';
 I.shield = '<svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/></svg>';
 
-const CALL_VER = 2, CALL_MAX = 10;
-const callsOk = () => !!S.uid && !!S.callsOk;            // владелец и тестеры (rp.calls_dev_allowed)
+const CALL_VER = 3, CALL_MAX = 10;
+const callsOk = () => !!S.uid && !!S.callsOk;            // все вошедшие (rp.calls_dev_allowed)
+const callGoy = () => !!S.callGoy;                       // ГОЙ+ / тестер / владелец (rp.call_goy)
+const callLink = id => `${location.origin}/rp/#/call/${id}`;
 const mainAdmin = () => !!S.uid && S.uid === OWNER_ID;
 const CALL = { id: null, info: null, stream: null, pcs: new Map(), audios: new Map(), members: [], muted: false,
   ping: null, tick: null, wait: null, ch: null, ice: null, seen: new Set(), lastSig: 0, joining: false, title: '', adminSeen: false,
@@ -2561,7 +2563,9 @@ let callConsentOk = false, callIceWarned = false;
 function callRulesHtml() {
   return `<ul class="call-rules">
     <li>Звонки <b>не записываются</b> — ни звук, ни текст.</li>
-    <li>В звонке может быть <b>до ${CALL_MAX} человек</b>. Звонок в комнате — только для игроков, занявших персонажа; звонок в ЛС — только для двух персонажей.</li>
+    <li>В звонке может быть <b>до ${CALL_MAX} человек</b>. Начать звонок в комнате может игрок с ролью <b>ГОЙ</b> и выше; позвонить в ЛС можно, если роль ГОЙ есть у вас или у собеседника.</li>
+    <li>В каждом звонке должен быть хотя бы один участник с ролью ГОЙ. Когда последний такой участник выходит, звонок заканчивается.</li>
+    <li>Войти в звонок можно по ссылке-приглашению. Отправляйте её только тем, кого зовёте: любой, у кого есть ссылка и аккаунт, сможет зайти.</li>
     <li>Главный администратор может подключиться к любому звонку, чтобы проверить жалобу или нарушение. <b>Когда он в звонке, это видят все участники.</b> Тайно подключиться нельзя.</li>
     <li>Голос идёт через сервер renah0cki: собеседники не видят ваш IP-адрес.</li>
     <li>По умолчанию голос каждого участника в звонке слегка изменяется (чаще чуть выше, иногда чуть ниже). Это можно выключить в настройках Y.</li>
@@ -2695,7 +2699,7 @@ async function callTitle(info) {
     if (info.kind === 'room') { const r = await api(`rooms?id=eq.${info.room_id}&select=title`); return 'Звонок · ' + (r[0]?.title || 'комната'); }
     const other = info.slot_id === info.slot_a ? info.slot_b : info.slot_a;
     const s = await api(`slots?id=in.(${info.slot_a},${info.slot_b})&select=id,char_name`);
-    if (info.as_admin) return 'Звонок в ЛС · ' + s.map(x => x.char_name).join(' и ');
+    if (info.as_admin || !info.slot_id) return 'Звонок в ЛС · ' + s.map(x => x.char_name).join(' и ');
     return 'Звонок · ' + (s.find(x => x.id === other)?.char_name || 'ЛС');
   } catch { return 'Звонок'; }
 }
@@ -2716,8 +2720,9 @@ const callOthers = () => CALL.members.filter(m => m.user_id !== S.uid);
 async function callRefresh() {
   const id = CALL.id; if (!id) return;
   let rows;
-  try { rows = await api(`call_members?call_id=eq.${id}&left_at=is.null&select=user_id,slot_id,is_admin,joined_at,last_seen,slot:slot_id(id,char_name,handle,avatar_url)&order=joined_at.asc`); }
-  catch { return; }
+  const base = `call_members?call_id=eq.${id}&left_at=is.null&order=joined_at.asc&select=user_id,slot_id,is_admin,joined_at,last_seen,slot:slot_id(id,char_name,handle,avatar_url)`;
+  try { rows = await api(base + ',prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username)'); }
+  catch { try { rows = await api(base); } catch { return; } }
   if (CALL.id !== id) return;
   const live = rows.filter(r => Date.now() - new Date(r.last_seen).getTime() < 65000);
   CALL.members = live;
@@ -2893,7 +2898,7 @@ function callMemberHtml(m) {
   const st = me ? 'me' : (CALL.pcs.get(m.user_id)?.connectionState || 'new');
   const ok = st === 'me' || st === 'connected';
   const muted = me && CALL.muted;
-  const s = m.is_admin ? null : (m.slot || { char_name: '?', handle: '' });
+  const s = m.is_admin ? null : (m.slot || (m.prof ? userAv(m.prof) : { char_name: 'Гость', handle: '' }));
   const pic = m.is_admin ? `<span class="av cmx-adm">${I.shield}</span>` : avatar(s);
   const name = m.is_admin ? 'Администратор' : s.char_name;
   return `<div class="cmx${ok ? '' : ' wait'}${me ? ' me' : ''}${m.is_admin ? ' adm' : ''}" data-uid="${esc(m.user_id)}" title="${esc(name)}${ok ? '' : ' — соединяемся…'}">
@@ -2923,6 +2928,7 @@ function callDraw() {
     </div>`;
   const ctrl = `<div class="cb-ctrl">
       <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
+      ${min ? '' : `<button type="button" class="cb-btn" data-cb-link aria-label="Скопировать ссылку на звонок" title="Скопировать ссылку-приглашение">${I.link}</button>`}
       ${min ? '' : `<a class="cb-btn" href="#/support" aria-label="Пожаловаться модераторам" title="Пожаловаться модераторам">${I.flag}</a>`}
       ${mainAdmin() && !min ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
       <button type="button" class="cb-btn hang" data-cb-leave aria-label="Выйти из звонка" title="Выйти из звонка">${I.hang}</button>
@@ -2942,6 +2948,11 @@ function bindCallBar(bar) {
   bar.addEventListener('click', async e => {
     if (e.target.closest('[data-cb-min]')) { try { localStorage.setItem(callMinKey, callIsMin() ? '0' : '1'); } catch {} return callDraw(); }
     if (e.target.closest('[data-cb-mute]')) return callToggleMute();
+    if (e.target.closest('[data-cb-link]')) {
+      const url = callLink(CALL.id);
+      try { await navigator.clipboard.writeText(url); toast('Ссылка на звонок скопирована — отправьте её другу'); } catch { prompt('Ссылка на звонок', url); }
+      return;
+    }
     if (e.target.closest('[data-cb-leave]')) return callHangup();
     if (e.target.closest('[data-cb-end]')) {
       if (!confirm('Завершить этот звонок для всех участников?')) return;
@@ -2961,16 +2972,18 @@ async function callRoomPill() {
   if (!$('#callPill') || S.room?.id !== r.id) return;
   if (!c) {
     box.innerHTML = mySlot() && r.status !== 'archived'
-      ? `<div class="call-pill idle">${I.phone}<span>Голосовой звонок комнаты</span><button type="button" class="btn ghost small" data-call-room>Начать звонок</button></div>` : '';
+      ? (callGoy()
+        ? `<div class="call-pill idle">${I.phone}<span>Голосовой звонок комнаты</span><button type="button" class="btn ghost small" data-call-room>Начать звонок</button></div>`
+        : `<div class="call-pill idle">${I.phone}<span>Голосовой звонок комнаты</span><span class="cp-in">Начать — с роли ГОЙ</span></div>`) : '';
     return;
   }
   const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000);
   const n = live.filter(m => !m.is_admin).length;
   const inIt = CALL.id === c.id;
   const act = inIt ? '<span class="cp-in">Вы в звонке</span>'
-    : mySlot() ? (n >= CALL_MAX ? '<span class="cp-in">Звонок заполнен</span>' : '<button type="button" class="btn blue small" data-call-room>Присоединиться</button>')
-    : mainAdmin() ? `<button type="button" class="btn ghost small" data-call-admin="${c.id}">Войти (видно всем)</button>`
-    : '<span class="cp-in">Только для игроков комнаты</span>';
+    : n >= CALL_MAX ? '<span class="cp-in">Звонок заполнен</span>'
+    : !mySlot() && mainAdmin() ? `<button type="button" class="btn ghost small" data-call-admin="${c.id}">Войти (видно всем)</button>`
+    : `<button type="button" class="btn blue small" data-call-admin="${c.id}">Присоединиться</button>`;
   box.innerHTML = `<div class="call-pill">${I.phone}<span><b>Голосовой звонок</b> · ${n}/${CALL_MAX}${live.some(m => m.is_admin) ? ' · в звонке админ' : ''}</span>${act}</div>`;
 }
 setInterval(() => { if (S.view === 'feed' && $('#callPill')) callRoomPill(); }, 15000);
@@ -2980,19 +2993,16 @@ document.addEventListener('click', async e => {
     e.preventDefault();
     if (!S.room) return;
     if (!mySlot()) {
-      if (mainAdmin()) {
-        const c = (await api(`calls?room_id=eq.${S.room.id}&kind=eq.room&ended_at=is.null&select=id`).catch(() => []))[0];
-        if (c) { await callJoin('call_enter', { p_call: c.id }); callRoomPill(); return; }
-        return toast('Сейчас в этой комнате нет звонка');
-      }
-      return toast('Чтобы звонить, займите персонажа в комнате', true);
+      const c = (await api(`calls?room_id=eq.${S.room.id}&kind=eq.room&ended_at=is.null&select=id`).catch(() => []))[0];
+      if (c) { await callJoin('call_enter', { p_call: c.id }); callRoomPill(); return; }
+      return toast('Чтобы начать звонок, займите персонажа в комнате', true);
     }
     await callJoin('call_room', { p_room: S.room.id });
     callRoomPill();
     return;
   }
   const ab = e.target.closest('[data-call-admin]');
-  if (ab) { e.preventDefault(); await callJoin('call_enter', { p_call: ab.dataset.callAdmin }); callRoomPill(); if (S.view === 'calls') viewCallsAdmin(); return; }
+  if (ab) { e.preventDefault(); await callJoin('call_enter', { p_call: ab.dataset.callAdmin }); callRoomPill(); if (S.view === 'calls') viewCallsAdmin(); if (S.view === 'callinvite' && CALL.id) viewCallInvite(CALL.id); return; }
   const eb = e.target.closest('[data-call-end]');
   if (eb) {
     e.preventDefault();
@@ -3052,6 +3062,25 @@ function callShowRing(row, from) {
   }, 3000);
 }
 
+/* приглашение по ссылке: #/call/<id> */
+async function viewCallInvite(id) {
+  S.view = 'callinvite'; updateNav(); renderRight();
+  const shell = inner => head('Приглашение в звонок', { back: true }) + `<div class="call-invite">${inner}</div>`;
+  if (!S.uid) { main.innerHTML = shell(`<div class="ci-ic">${I.phone}</div><h2>Вас зовут в звонок</h2><p>Войдите в аккаунт renah0cki, чтобы присоединиться.</p><a class="btn blue" href="/">Войти</a>`); return; }
+  main.innerHTML = shell(loader());
+  let c;
+  try { c = await rpc('call_peek', { p_call: id }); } catch (e) { main.innerHTML = shell(`<h2>Не получилось</h2><p>${esc(errText(e))}</p>`); return; }
+  if (S.view !== 'callinvite') return;
+  if (!c || c.ended) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>Звонок уже закончился</h2><p>Попросите прислать новую ссылку.</p><a class="btn ghost" href="#/">На главную Y</a>`); return; }
+  const what = c.kind === 'room' ? `Комната «${esc(c.title)}»` : `ЛС: ${esc(c.title)}`;
+  const inIt = CALL.id === c.id;
+  main.innerHTML = shell(`<div class="ci-ic">${I.phone}</div><h2>${what}</h2>
+    <p>Сейчас в звонке: <b>${c.count}</b> из ${CALL_MAX}</p>
+    ${!c.has_goy && !callGoy() ? '<p class="ci-warn">В звонке пока нет участника с ролью ГОЙ — войти можно, когда он зайдёт.</p>' : ''}
+    ${inIt ? '<p><b>Вы уже в этом звонке</b></p>' : c.count >= CALL_MAX ? '<p class="ci-warn">Звонок заполнен.</p>' : `<button type="button" class="btn blue" data-call-admin="${esc(c.id)}">Войти в звонок</button>`}
+    <p class="ci-note">Звонки не записываются. Перед первым звонком нужно принять правила.</p>`);
+}
+
 /* главный админ: все идущие звонки */
 async function viewCallsAdmin() {
   S.view = 'calls'; updateNav(); renderRight();
@@ -3101,6 +3130,7 @@ function route() {
   if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'rooms') return viewRooms();
   if (parts[0] === 'calls') return viewCallsAdmin();
+  if (parts[0] === 'call' && ok(parts[1])) return viewCallInvite(parts[1]);
   return viewHome();
 }
 document.addEventListener('click', e => {
@@ -3235,6 +3265,7 @@ async function init() {
       rpc('ensure_profile').then(me => { S.me = me; applyChatLook(); }).catch(e => console.warn('rp profile', e)),
       loadMySlots().catch(() => {}), loadUserReposts().catch(() => {}), loadUserLikes().catch(() => {}),
       rpc('calls_dev_allowed').then(v => { S.callsOk = v === true; }).catch(() => {}),
+      rpc('call_goy', { p_user: sess.user.id }).then(v => { S.callGoy = v === true; }).catch(() => {}),
     ]);
     loadUnread();
     tgLinkIfNeeded();
