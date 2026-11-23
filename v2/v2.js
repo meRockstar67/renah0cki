@@ -232,6 +232,7 @@ async function loadMyLikes(ids) {
   rows.forEach(r => S.liked.add(r.content_id));
 }
 const pname = p => p?.display_name || p?.username || 'без имени';
+const GUEST_AVA = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Cdefs%3E%3ClinearGradient id=%22b%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E%3Cstop offset=%220%22 stop-color=%22%2322365c%22/%3E%3Cstop offset=%221%22 stop-color=%22%2314213a%22/%3E%3C/linearGradient%3E%3ClinearGradient id=%22f%22 x1=%220%22 y1=%220%22 x2=%220%22 y2=%221%22%3E%3Cstop offset=%220%22 stop-color=%22%23cfe9ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%236cc4ff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%22100%22 height=%22100%22 fill=%22url(%23b)%22/%3E%3Ccircle cx=%2250%22 cy=%2240%22 r=%2217%22 fill=%22url(%23f)%22 opacity=%22.9%22/%3E%3Cpath d=%22M18,100 C18,76 32,64 50,64 C68,64 82,76 82,100 Z%22 fill=%22url(%23f)%22 opacity=%22.9%22/%3E%3C/svg%3E";
 const avatarUrl = p => p?.avatar_url || COIN;
 
 /* ── косметика и магазин (пока магазин только для владельца; эффекты видны всем) ── */
@@ -3078,7 +3079,7 @@ async function viewShop(tab) {
     page.innerHTML = `<div class="empty">Не удалось загрузить магазин (${esc(e.message)}).</div>`;
     return;
   }
-  const me = S.me || readSession()?.user || { id: S.uid || '', username: 'Гость', display_name: 'Гость' };
+  const me = S.me || readSession()?.user || { id: S.uid || '', username: 'Гость', display_name: 'Гость', avatar_url: GUEST_AVA };
   const tryOn = {};
   const myEq = () => (S.uid && EQ.get(S.uid)) || { user_id: S.uid || '', frame: null, nick_fx: null, badge: null, banner: null, owned_roles: [], hidden_roles: [] };
   const activeVal = cat => (cat in tryOn ? tryOn[cat] : myEq()[cat] || null);
