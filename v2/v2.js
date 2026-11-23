@@ -2826,7 +2826,7 @@ const TXI = {
   swap: '<svg viewBox="0 0 24 24"><path d="M5 9h13l-3-3M19 15H6l3 3"/></svg>',
   heart: I.heart,
 };
-const DA_RATES_TXT = '1 ₽ = 1 coin · 1 ₴ = 2 · 1 $ = 80 · 1 € = 90 · 1 ₸ = 0,16 · 1 Br = 25';
+const DA_RATES_TXT = '1 ₽ → 1 coin · 1 ₴ = 2 · 1 $ = 80 · 1 € = 90 · 1 ₸ = 0,16 · 1 Br = 25';
 function setBalance(v) { $('#coinVal').textContent = fmt(v); const b = $('#walBal'); if (b) b.textContent = fmt(v); const sb = $('#shopBal'); if (sb) sb.textContent = fmt(v); }
 async function viewWallet(tab) {
   setNav('');
@@ -2849,22 +2849,23 @@ async function viewWallet(tab) {
   const body = $('#walBody');
   if (T === 'topup') {
     body.innerHTML = `<section class="wal-card">
-      <h2>Пополнить через DonationAlerts</h2>
-      <p class="muted">Картой, через СБП и другими способами. Монеты приходят автоматически, обычно за минуту.</p>
+      <h2>Поддержать сайт донатом</h2>
+      <p class="muted">Донат — это добровольная поддержка проекта. В благодарность за него вы получаете <b>монеты в подарок</b> — автоматически, обычно за минуту.</p>
       <ol class="wal-steps">
-        <li><b>Скопируйте свой код</b><div class="wal-code"><span id="walCode">…</span><button class="btn" type="button" id="walCopy">Скопировать</button></div></li>
+        <li><b>Скопируйте свой ник</b><div class="wal-code"><span id="walCode">${esc(S.me?.username || '…')}</span><button class="btn" type="button" id="walCopy">Скопировать</button></div></li>
         <li><div><b>Откройте страницу доната</b> и укажите сумму.</div><div><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a></div></li>
-        <li><div><b>Вставьте код в сообщение к донату</b> — по нему мы поймём, что монеты ваши.</div></li>
+        <li><div><b>Вставьте ник в поле «Имя»</b> — по нему мы поймём, кому отправить подарок. Сообщение пишите любое, хоть смешное, или оставьте пустым.</div></li>
       </ol>
-      <div class="wal-rate"><img src="${COIN}" alt=""><span>${DA_RATES_TXT}</span></div>
-      <p class="wal-warn">Донат без кода — это просто поддержка сайта, монеты не начисляются. Донат добровольный и не возвращается. Ошиблись в коде — напишите в <a href="${routeUrl('support')}">поддержку</a>.</p>
+      <div class="wal-rate"><img src="${COIN}" alt=""><span>Подарок: ${DA_RATES_TXT}</span></div>
+      <p class="wal-warn">Если в поле «Имя» не ваш ник — подарок не придёт (или придёт тому, чей ник указан). Донат добровольный и не возвращается. Что-то пошло не так — напишите в <a href="${routeUrl('support')}">поддержку</a>.</p>
       <div class="wal-admin" id="walAdmin" hidden></div>
     </section>`;
-    $('#walCopy').onclick = async () => { const c = $('#walCode').textContent; if (!/^RN-/.test(c)) return; try { await navigator.clipboard.writeText(c); toast('Код скопирован — вставьте его в сообщение к донату'); } catch { prompt('Ваш код', c); } };
+    $('#walCopy').onclick = async () => { const c = $('#walCode').textContent.trim(); if (!c || c === '…' || c === '—') return; try { await navigator.clipboard.writeText(c); toast('Ник скопирован — вставьте его в поле «Имя» на странице доната'); } catch { prompt('Ваш ник', c); } };
     try {
-      const [info, code] = await Promise.all([fetch(CDN_URL + '/da/info').then(r => r.json()).catch(() => ({})), rpc('coin_da_code')]);
+      const [info, prof] = await Promise.all([fetch(CDN_URL + '/da/info').then(r => r.json()).catch(() => ({})),
+        S.me?.username ? Promise.resolve(S.me) : api(`profiles?id=eq.${S.uid}&select=username`).then(r => r?.[0]).catch(() => null)]);
       if (!$('#walCode')) return;
-      $('#walCode').textContent = code || '—';
+      $('#walCode').textContent = prof?.username || '—';
       if (info.url) $('#walGo').href = info.url.replace(/^https:\/\/www\.donationalerts\.com\/r\//, 'https://dalink.to/');
       else { $('#walGo').classList.add('disabled'); $('#walGo').textContent = 'Пополнение временно недоступно'; }
       if (S.uid === OWNER_ID) {
@@ -3360,9 +3361,9 @@ function viewRules() {
     <section class="rules-card"><h2>renah0cki coin</h2>
       <p>renah0cki coin — внутренняя игровая валюта сайта. Это не деньги, не электронные деньги и не криптовалюта: монеты нельзя вывести, обменять обратно на деньги или продать вне сайта.</p>
       <h3>Как получить</h3><ul>
-        <li><b>Добровольный донат</b> через DonationAlerts: 1 ₽ = 1 coin (другие валюты — по курсу). Чтобы монеты пришли, впиши свой код <b>RN-…</b> в сообщение к донату. Донат без кода — просто поддержка проекта.</li>
+        <li><b>Подарок за добровольный донат</b> через DonationAlerts: 1 ₽ = 1 coin (другие валюты — по курсу). Чтобы подарок пришёл, впиши свой ник renah0cki в поле «Имя» на странице доната. Сообщение — любое.</li>
         <li>Переводы и подарки от других пользователей, награды от администрации.</li></ul>
-      <h3>Донат — это поддержка, а не покупка</h3><p>Донат делается добровольно, чтобы поддержать сайт; монеты — благодарность за поддержку. Донаты не возвращаются. Если ошибся в коде или монеты не пришли в течение часа — напиши в поддержку.</p>
+      <h3>Донат — это поддержка, а не покупка</h3><p>Донат делается добровольно, чтобы поддержать сайт, и ни к чему не обязывает; монеты — подарок в благодарность за поддержку. Донаты не возвращаются. Если ошибся в нике или подарок не пришёл в течение часа — напиши в поддержку.</p>
       <h3>На что тратить</h3><ul><li>Подписки ГОЙ и VIP в Y (переписки).</li><li>Подарки авторам — монета под постом, её сразу получает автор.</li><li>Переводы другим пользователям.</li></ul>
       <p>Потраченные, подаренные и переведённые монеты не возвращаются.</p>
       <h3>Ограничения</h3><ul><li>Запрещено пользоваться ошибками сайта, накручивать монеты, продавать или покупать их за деньги вне сайта, выманивать монеты обманом.</li><li>За нарушения администрация может списать монеты, обнулить баланс или заблокировать аккаунт. Монеты, начисленные по ошибке, могут быть списаны.</li><li>При удалении аккаунта монеты сгорают.</li></ul>
