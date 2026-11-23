@@ -2173,7 +2173,7 @@ function bindChatLook(root) {
 /* ── подписка Y за renah0cki coin (пока только meRockstar) ── */
 const shopVisible = () => !!S.uid; // подписки ГОЙ/VIP — всем вошедшим
 const SHOP_ROLES = [
-  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'Свой фон чата в переписках', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Создавать войсы (голосовые комнаты) до 10 человек и начинать звонки', 'Читать переписки обычных игроков'] },
+  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'Свой фон чата в переписках', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Звонки 1 на 1 в личных сообщениях', 'Читать переписки обычных игроков'] },
   { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Синяя галочка VIP ✓ у имени и персонажей (как в X)', 'Свой баннер (шапка) в профиле Y и у персонажей', 'Доступ к закрытым комнатам «VIP и выше»', 'Читать переписки ГОЕВ'] },
 ];
 function shopHtml() {
@@ -2584,7 +2584,7 @@ let callConsentOk = false, callIceWarned = false;
 function callRulesHtml() {
   return `<ul class="call-rules">
     <li>Звонки <b>не записываются</b> — ни звук, ни текст.</li>
-    <li>В звонке может быть <b>до ${CALL_MAX} человек</b>. Начать звонок в комнате может игрок с ролью <b>ГОЙ</b> и выше; позвонить в ЛС можно, если роль ГОЙ есть у вас или у собеседника.</li>
+    <li>В звонке может быть <b>до ${CALL_MAX} человек</b>. Звонить 1 на 1 в личных сообщениях можно, если роль <b>ГОЙ</b> или <b>VIP</b> есть у вас или у собеседника. Звонки в комнатах и войсы создают модераторы, а зайти в них может любой.</li>
     <li>В каждом звонке должен быть хотя бы один участник с ролью ГОЙ. Когда последний такой участник выходит, звонок заканчивается.</li>
     <li>Войти в звонок можно по ссылке-приглашению. Отправляйте её только тем, кого зовёте: любой, у кого есть ссылка и аккаунт, сможет зайти.</li>
     <li>Главный администратор может подключиться к любому звонку, чтобы проверить жалобу или нарушение. <b>Когда он в звонке, это видят все участники.</b> Тайно подключиться нельзя.</li>
@@ -3055,9 +3055,8 @@ async function callRoomPill() {
   if (!$('#callPill') || S.room?.id !== r.id) return;
   if (!c) {
     box.innerHTML = mySlot() && r.status !== 'archived'
-      ? (callGoy()
-        ? `<div class="call-pill idle">${I.phone}<span>Голосовой звонок комнаты</span><button type="button" class="btn ghost small" data-call-room>Начать звонок</button></div>`
-        : `<div class="call-pill idle">${I.phone}<span>Голосовой звонок комнаты</span><span class="cp-in">Начать — с роли ГОЙ</span></div>`) : '';
+      ? (glMod()
+        ? `<div class="call-pill idle">${I.phone}<span>Голосовой звонок комнаты</span><button type="button" class="btn ghost small" data-call-room>Начать звонок</button></div>` : '') : '';
     return;
   }
   const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000);
@@ -3181,13 +3180,13 @@ async function viewVoice() {
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'voice') return;
   const opts = sel => Array.from({ length: 9 }, (_, i) => i + 2).map(n => `<option value="${n}"${n === sel ? ' selected' : ''}>${n}</option>`).join('');
-  const canCreate = glMod() || callGoy();
+  const canCreate = glMod();
   const create = canCreate ? `<form class="vc-new" id="vcNew" autocomplete="off">
       <b>Новый войс</b>
       <div class="vc-new-row"><input name="t" maxlength="40" placeholder="Название, например «Болталка»" required>
         <label class="vc-max">Мест <select name="m">${opts(10)}</select></label>
         <button class="btn blue small" type="submit">Создать</button></div>
-    </form>` : '<div class="vc-new"><span class="cp-in">Создавать свои войсы можно с роли ГОЙ (Настройки → Подписка). Заходить в чужие — всем.</span></div>';
+    </form>` : '<div class="vc-new"><span class="cp-in">Войсы создают модераторы, заходить может любой. С ролью ГОЙ или VIP можно звонить 1 на 1 в личных сообщениях.</span></div>';
   const items = rows.map(c => {
     const canManage = glMod() || c.created_by === S.uid;
     const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000 && !m.is_admin);
@@ -3203,7 +3202,7 @@ async function viewVoice() {
           <button type="button" class="btn danger small" data-call-end="${c.id}">Закрыть</button>` : ''}
       </div></div>`;
   }).join('');
-  main.innerHTML = H + create + `<div class="vc-list">${items || `<div class="empty"><h2>Пока нет войсов</h2><p>${canCreate ? 'Создайте первый — сверху.' : 'Их создают игроки с ролью ГОЙ и модераторы.'}</p></div>`}</div>`;
+  main.innerHTML = H + create + `<div class="vc-list">${items || `<div class="empty"><h2>Пока нет войсов</h2><p>${canCreate ? 'Создайте первый — сверху.' : 'Их создают модераторы.'}</p></div>`}</div>`;
   const f = $('#vcNew');
   if (f) f.onsubmit = async e => {
     e.preventDefault();
