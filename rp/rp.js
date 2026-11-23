@@ -2032,6 +2032,7 @@ function viewSettings() {
         <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Светлая</span></label>
       </div></div>
     ${chatLookHtml()}
+    ${callsOk() ? `<div class="set-sec"><h2>Звонки</h2><label class="set-toggle"><span><b>Изменять мой голос в звонках</b><small>Голос слегка выше или ниже — случайно при каждом звонке. Выключите, чтобы вас слышали обычным голосом.</small></span><input type="checkbox" data-voice-fx${voiceFxOn() ? ' checked' : ''}></label></div>` : ''}
     <div class="set-sec"><h2>Аккаунт</h2>
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
       <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
@@ -2042,6 +2043,8 @@ function viewSettings() {
   fillCoinBalance(main);
   bindShop(main);
   bindChatLook(main);
+  const vfx = $('[data-voice-fx]', main);
+  if (vfx) vfx.onchange = () => { try { localStorage.setItem('rp_voice_fx', vfx.checked ? '1' : '0'); } catch {} toast(vfx.checked ? 'Голос в звонках будет изменяться' : 'В звонках вас будет слышно обычным голосом' + (CALL.id ? ' — со следующего звонка' : '')); };
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
     setTheme(inp.value);
     $$('.theme-opt', main).forEach(l => l.classList.toggle('on', $('input', l).checked));
@@ -2251,7 +2254,7 @@ async function fillPeekAll(mySlotIds) {
     pairs = r.map(x => ({ room: x.room_id, a: x.a, b: x.b, at: x.created_at, n: +x.cnt, m: { body: x.body, voice_url: x.has_voice ? 1 : null, images: x.n_imgs ? [1] : [] } }));
   } catch {
     let rows;
-    try { rows = await api(`dms?select=room_id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.desc&limit=1000`); }
+    try { rows = await api(`dms?select=*&order=created_at.desc&limit=1000`); }
     catch (e) { const b = $('#peekAll'); if (b) b.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
     const map = new Map();
     rows.forEach(m => { const [a, b] = [m.from_slot, m.to_slot].sort(), k = m.room_id + a + b; if (!map.has(k)) map.set(k, { room: m.room_id, a, b, at: m.created_at, m, n: 0 }); map.get(k).n++; });
@@ -2275,7 +2278,7 @@ async function fillPeekAll(mySlotIds) {
 function drawPeekAll(vis) {
   const box = $('#peekAll'); if (!box || S.view !== 'dmhub') return;
   box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + (vis.length ? vis.map(({ a, b, m, n, A, B, R, at }) => {
-    const txt = m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
+    const txt = m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
     return `<a class="dm-row" href="${roomPath(R, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(at)}</time></div>
       <div class="dm-last"><span class="dm-none">${esc(R.title)} ·</span> ${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
   }).join('') : '<div class="empty"><p>Пока нет переписок, доступных вам по роли.</p></div>');
@@ -2290,7 +2293,7 @@ async function viewDmList(roomKey) {
   if (!S.uid) { main.innerHTML = h + `<div class="composer-hint"><span>Войдите, чтобы переписываться.</span><a class="btn small blue" href="/">Войти</a></div>`; return; }
   if (!me) { main.innerHTML = h + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в этой комнате, чтобы писать другим.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>` + (peekOk() ? '<div id="peekList"></div>' : ''); if (peekOk()) fillPeekList(null); return; }
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(from_slot.eq.${me.id},to_slot.eq.${me.id})&select=id,from_slot,to_slot,body,images,voice_url,created_at&order=created_at.desc&limit=1000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(from_slot.eq.${me.id},to_slot.eq.${me.id})&select=*&order=created_at.desc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dms') return;
   const last = new Map();
@@ -2301,7 +2304,7 @@ async function viewDmList(roomKey) {
   const items = [...withMsgs, ...rest];
   main.innerHTML = h + (items.length ? items.map(([pid, m]) => {
       const peer = S.slotMap.get(pid);
-      const txt = m ? (m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '')) : '';
+      const txt = m ? (m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '')) : '';
       return `<a class="dm-row" href="${roomPath(S.room, '/dm/' + pid)}">${avatar(peer)}<div class="dm-main"><div class="dm-top"><b>${esc(peer.char_name)}</b>${m ? `<span class="dot">·</span><time>${ago(m.created_at)}</time>` : ''}</div>
         <div class="dm-last">${m ? esc(txt) : '<span class="dm-none">Пусто</span>'}</div></div></a>`;
     }).join('')
@@ -2313,7 +2316,7 @@ async function viewDmList(roomKey) {
 async function fillPeekList(myId) {
   const box = $('#peekList'); if (!box) return;
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&select=from_slot,to_slot,body,images,voice_url,created_at&order=created_at.desc&limit=2000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&select=*&order=created_at.desc&limit=2000`); }
   catch { return; }
   const pairs = new Map();
   rows.forEach(m => {
@@ -2327,7 +2330,7 @@ async function fillPeekList(myId) {
   if (!items.length || !$('#peekList')) return;
   box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + items.map(({ a, b, m, n }) => {
     const A = S.slotMap.get(a), B = S.slotMap.get(b);
-    const txt = m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
+    const txt = m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
     return `<a class="dm-row" href="${roomPath(S.room, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
       <div class="dm-last">${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
   }).join('');
@@ -2349,7 +2352,7 @@ async function viewDmPeek(roomKey, aId, bId) {
     <div class="peek-note">Вы читаете чужую переписку — только просмотр. Справа сообщения ${esc(A.char_name)}.</div>
     <div class="chat" id="chat">${loader()}</div>`;
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${A.id},to_slot.eq.${B.id}),and(from_slot.eq.${B.id},to_slot.eq.${A.id}))&select=id,from_slot,to_slot,body,images,voice_url,read_at,created_at&order=created_at.asc&limit=1000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${A.id},to_slot.eq.${B.id}),and(from_slot.eq.${B.id},to_slot.eq.${A.id}))&select=*&order=created_at.asc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dmpeek') return;
   if (!rows.length) { $('#chat').innerHTML = '<div class="empty"><h2>Нет доступа или пусто</h2><p>Переписка видна только ролям выше обоих участников.</p></div>'; return; }
@@ -2393,13 +2396,27 @@ async function viewDmChat(roomKey, peerId) {
       <button class="chat-send" type="submit" disabled aria-label="Отправить">${I.send}</button>
     </form>`;
   let rows;
-  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${me.id},to_slot.eq.${peer.id}),and(from_slot.eq.${peer.id},to_slot.eq.${me.id}))&select=id,from_slot,to_slot,body,images,voice_url,read_at,created_at&order=created_at.asc&limit=1000`); }
+  try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${me.id},to_slot.eq.${peer.id}),and(from_slot.eq.${peer.id},to_slot.eq.${me.id}))&select=*&order=created_at.asc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dm') return;
   rows.forEach(m => { chat.msgs.push(m); chat.ids.add(m.id); });
   drawChat(true);
   wireChatBar();
   markDmRead();
+  callDraw();
+}
+// текст записи о звонке в ЛС (short — для списка переписок)
+function callEventText(m, short = false) {
+  const e = m.call_event || {};
+  const dur = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+  if (short) return e.type === 'end' ? `Звонок · ${dur(e.secs || 0)}` : e.type === 'declined' ? 'Отклонённый звонок' : e.type === 'missed' ? 'Пропущенный звонок' : 'Звонок';
+  const mine = S.view === 'dm' && m.from_slot === chat.me;
+  const who = S.slotMap.get(m.from_slot)?.char_name || 'Собеседник';
+  if (e.type === 'start') return mine ? 'Вы начали звонок' : `${who} начал(а) звонок`;
+  if (e.type === 'end') return `Звонок окончен · ${dur(e.secs || 0)}`;
+  if (e.type === 'declined') return S.view !== 'dm' ? 'Звонок отклонён' : mine ? 'Собеседник отклонил звонок' : 'Вы отклонили звонок';
+  if (e.type === 'missed') return S.view !== 'dm' ? 'Пропущенный звонок' : mine ? 'Звонок без ответа' : 'Пропущенный звонок';
+  return 'Звонок';
 }
 function drawChat(jump = false) {
   const box = $('#chat'); if (!box) return;
@@ -2410,16 +2427,20 @@ function drawChat(jump = false) {
   chat.msgs.forEach((m, i) => {
     const next = chat.msgs[i + 1], t = new Date(m.created_at);
     if (!prev || t - new Date(prev.created_at) > HOUR) html += `<div class="chat-time">${chatTime(m.created_at)}</div>`;
+    if (m.call_event) {
+      html += `<div class="chat-call ${esc(m.call_event.type || '')}"><span class="cc-ic">${I.phone}</span><span>${esc(callEventText(m))}</span><time>${t.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</time></div>`;
+      prev = m; return;
+    }
     const mine = m.from_slot === chat.me;
-    const tail = !next || next.from_slot !== m.from_slot || new Date(next.created_at) - t > HOUR;
-    const first = !prev || prev.from_slot !== m.from_slot || t - new Date(prev.created_at) > HOUR;
+    const tail = !next || next.call_event || next.from_slot !== m.from_slot || new Date(next.created_at) - t > HOUR;
+    const first = !prev || prev.call_event || prev.from_slot !== m.from_slot || t - new Date(prev.created_at) > HOUR;
     html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}"><div class="bub${tail ? ' tail' : ''}" title="${esc(fullDate(m.created_at))}">`
       + (m.images?.length ? `<div class="bub-imgs n${m.images.length}">${m.images.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-zoom>`).join('')}</div>` : '')
       + voiceHtml(m.voice_url)
       + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + `<span class="bub-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${mine && (S.view === 'dm' || S.view === 'dmpeek') ? `<i class="ticks${m.read_at ? ' read' : ''}" title="${m.read_at ? 'Прочитано' : 'Отправлено'}">${m.read_at ? I.check2 : I.check1}</i>` : ''}</span></div></div>`;
     prev = m;
   });
-  const lastM = chat.msgs[chat.msgs.length - 1];
+  const lastM = [...chat.msgs].reverse().find(x => !x.call_event);
   if ((S.view === 'dm' || S.view === 'dmpeek') && lastM && lastM.from_slot === chat.me) html += `<div class="bub-status${lastM.read_at ? ' read' : ''}">${lastM.read_at ? I.check2 + 'Прочитано' : I.check1 + 'Отправлено'}</div>`;
   box.innerHTML = html;
   if (jump || nearBottom) requestAnimationFrame(() => scrollTo({ top: document.body.scrollHeight, behavior: jump ? 'auto' : 'smooth' }));
@@ -2543,7 +2564,7 @@ function callRulesHtml() {
     <li>В звонке может быть <b>до ${CALL_MAX} человек</b>. Звонок в комнате — только для игроков, занявших персонажа; звонок в ЛС — только для двух персонажей.</li>
     <li>Главный администратор может подключиться к любому звонку, чтобы проверить жалобу или нарушение. <b>Когда он в звонке, это видят все участники.</b> Тайно подключиться нельзя.</li>
     <li>Голос идёт через сервер renah0cki: собеседники не видят ваш IP-адрес.</li>
-    <li>В звонке голос каждого участника автоматически изменяется — случайно становится выше или ниже.</li>
+    <li>По умолчанию голос каждого участника в звонке слегка изменяется (чаще чуть выше, иногда чуть ниже). Это можно выключить в настройках Y.</li>
     <li>Хранится только факт звонка (кто и когда) — 30 дней, для разбора жалоб.</li>
     <li>Запрещены оскорбления, угрозы, травля, разжигание ненависти, 18+, запись собеседников без их согласия и всё, что запрещено <a href="#/rules">правилами Y</a>. За нарушения звонок завершают, а доступ к звонкам или аккаунт блокируют.</li>
   </ul>`;
@@ -2595,11 +2616,13 @@ const VOICE_WORKLET = `class RnPitch extends AudioWorkletProcessor {
   }
 }
 registerProcessor('rn-pitch', RnPitch);`;
+const voiceFxOn = () => { try { return localStorage.getItem('rp_voice_fx') !== '0'; } catch { return true; } };
 function callPickVoice() {
-  const up = Math.random() < 0.5;
-  return up ? { up, ratio: 1.22 + Math.random() * 0.18 } : { up, ratio: 0.74 + Math.random() * 0.1 };
+  const up = Math.random() < 0.7;   // чаще выше; сдвиг небольшой
+  return up ? { up, ratio: 1.08 + Math.random() * 0.07 } : { up, ratio: 0.91 + Math.random() * 0.04 };
 }
 async function callVoiceChain(mic) {
+  if (!voiceFxOn()) return { up: false, ratio: 1, ctx: null, out: mic, ok: false, off: true };
   const v = callPickVoice();
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -2651,7 +2674,7 @@ async function callJoin(fn, args) {
     let info;
     try { info = await rpc(fn, args); } catch (e) { stream.getTracks().forEach(t => t.stop()); toast(errText(e), true); return; }
     const voice = await callVoiceChain(stream);
-    if (!voice.ok) toast('Изменение голоса не работает в этом браузере — вас слышно обычным голосом', true);
+    if (!voice.ok && !voice.off) toast('Изменение голоса не работает в этом браузере — вас слышно обычным голосом', true);
     Object.assign(CALL, { voice, levels: new Map(), since: Date.now(), id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
     if (!$('#callAudio')) document.body.insertAdjacentHTML('beforeend', '<div id="callAudio" hidden></div>');
     callWatchLevel(S.uid, stream);
@@ -2856,6 +2879,13 @@ function callLevelTick() {
   const t = bar && $('.cb-time', bar);
   if (t && CALL.since) { const s = Math.floor((now - CALL.since) / 1000); t.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
 }
+function callInlineHost() {
+  const i = CALL.info;
+  if (!i || i.kind !== 'dm' || S.view !== 'dm') return null;
+  if (![chat.me, chat.peer].every(x => x === i.slot_a || x === i.slot_b)) return null;
+  return $('.chat-head', main);
+}
+addEventListener('hashchange', () => setTimeout(callDraw, 0));
 const callMinKey = 'rp_call_min';
 const callIsMin = () => { try { return localStorage.getItem(callMinKey) === '1'; } catch { return false; } };
 function callMemberHtml(m) {
@@ -2873,9 +2903,14 @@ function callMemberHtml(m) {
 function callDraw() {
   let bar = $('#callBar');
   if (!CALL.id) { bar?.remove(); document.body.classList.remove('in-call'); return; }
-  if (!bar) { bar = document.createElement('div'); bar.id = 'callBar'; bar.className = 'call-bar'; document.body.append(bar); bindCallBar(bar); }
-  document.body.classList.add('in-call');
-  const min = callIsMin();
+  if (!bar) { bar = document.createElement('div'); bar.id = 'callBar'; bar.className = 'call-bar'; bindCallBar(bar); }
+  // звонок в ЛС, открыта эта переписка — панель внутри окна диалога (в липкой шапке чата)
+  const host = callInlineHost();
+  if (host) { if (bar.parentElement !== host) host.append(bar); }
+  else if (bar.parentElement !== document.body) document.body.append(bar);
+  bar.classList.toggle('inline', !!host);
+  document.body.classList.toggle('in-call', !host);
+  const min = !host && callIsMin();
   bar.classList.toggle('min', min);
   const players = CALL.members.filter(m => !m.is_admin).length;
   const adminIn = CALL.members.some(m => m.is_admin);
@@ -2884,7 +2919,7 @@ function callDraw() {
       <span class="cb-live"><span class="cb-dot"></span>${waiting ? 'Вызов' : 'В звонке'}</span>
       <b class="cb-title">${esc((CALL.title || 'Звонок').replace(/^Звонок · /, ''))}</b>
       <span class="cb-time">0:00</span>
-      <button type="button" class="cb-min" data-cb-min aria-label="${min ? 'Развернуть' : 'Свернуть'}" title="${min ? 'Развернуть' : 'Свернуть'}"><svg viewBox="0 0 24 24"><path d="${min ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg></button>
+      ${host ? '' : `<button type="button" class="cb-min" data-cb-min aria-label="${min ? 'Развернуть' : 'Свернуть'}" title="${min ? 'Развернуть' : 'Свернуть'}"><svg viewBox="0 0 24 24"><path d="${min ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg></button>`}
     </div>`;
   const ctrl = `<div class="cb-ctrl">
       <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
@@ -2898,7 +2933,7 @@ function callDraw() {
     bar.innerHTML = head
       + (adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? 'Вы в звонке как администратор — участники это видят' : 'В звонке администратор renah0cki'}</span></div>` : '')
       + `<div class="cb-grid">${CALL.members.map(callMemberHtml).join('')}</div>`
-      + `<div class="cb-meta">${waiting ? '<span>Ждём ответа…</span>' : `<span>${players} из ${CALL_MAX}</span>`}${CALL.voice?.ok ? `<span class="cb-voice">Ваш голос: <b>${CALL.voice.up ? 'выше' : 'ниже'}</b></span>` : ''}</div>`
+      + `<div class="cb-meta">${waiting ? '<span>Ждём ответа…</span>' : CALL.info?.kind === 'dm' ? '' : `<span>${players} из ${CALL_MAX}</span>`}${CALL.voice ? `<span class="cb-voice">Ваш голос: <b>${CALL.voice.ok ? (CALL.voice.up ? 'выше' : 'ниже') : 'обычный'}</b></span>` : ''}</div>`
       + ctrl;
   }
   callLevelTick();
