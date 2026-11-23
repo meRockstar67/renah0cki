@@ -1175,6 +1175,32 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 @media (max-width: 600px) { .shop-card.is-pack { grid-column: 1 / -1; } }
 @media (prefers-reduced-motion: reduce) { .cf-frame_sweet_rena, .cfx-fx_sweet_rena { animation: none !important; } }
 
+/* ── набор «Пинюс»: фон «Пин» + рамка с ушками + ник «Рыжик» ── */
+.cbg-bg_pin { border-color: #e0a07a; background: #e9cfc8 url('https://cdn.renah0cki.xyz/file/static/bg_pin.jpg') center/cover no-repeat; }
+.cbg-bg_pin::before { display: none; }
+.cbg-bg_pin .prof-ava, .cbg-bg_pin .shop-prev-bg img { filter: drop-shadow(0 4px 10px rgba(58,30,16,.45)); }
+.cbg-bg_pin .cf-wrap { filter: drop-shadow(0 5px 10px rgba(58,30,16,.35)); }
+.cbg-bg_pin .cf-wrap > .prof-ava, .cbg-bg_pin .cf-wrap > .av { filter: none; }
+.cbg-bg_pin h1, .cbg-bg_pin b, .cbg-bg_pin .prof-bio, .cbg-bg_pin small, .cbg-bg_pin span:not(.role):not(.cf-wrap) { text-shadow: 0 1px 2px rgba(58,30,16,.9), 0 0 10px rgba(58,30,16,.85), 0 0 22px rgba(58,30,16,.6); }
+.cbg-bg_pin .prof-bio, .cbg-bg_pin .shop-prev-bg span, .cbg-bg_pin .prof-stats, .cbg-bg_pin .prof-stats span { color: #fff; }
+.cbg-bg_pin .prof-handle { color: #ffe1c4; text-shadow: 0 1px 2px rgba(58,30,16,.9), 0 0 10px rgba(58,30,16,.85); }
+.cbg-bg_pin .chip, .cbg-bg_pin .btn.icon-only { background: rgba(58,30,16,.62); border-color: rgba(255,190,140,.6); color: #fff; text-shadow: none; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.cbg-bg_pin .chip:hover { background: rgba(58,30,16,.78); border-color: #ffbe8c; }
+.cbg-bg_pin .role { box-shadow: 0 0 10px rgba(58,30,16,.7); }
+.cbg-bg_pin .cfx, .cbg-bg_pin .nm-paint { text-shadow: none !important; filter: drop-shadow(0 1px 1.5px rgba(58,30,16,.95)) drop-shadow(0 0 8px rgba(58,30,16,.85)) drop-shadow(0 0 18px rgba(58,30,16,.6)); }
+.cf-frame_pin { background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22 preserveAspectRatio=%22none%22%3E%3Cg stroke-linejoin=%22round%22%3E%3Cpath d=%22M13,26 L16,1.5 L38,13 Z%22 fill=%22%23fff%22 stroke=%22%23fff%22 stroke-width=%225%22/%3E%3Cpath d=%22M62,13 L84,1.5 L87,26 Z%22 fill=%22%23fff%22 stroke=%22%23fff%22 stroke-width=%225%22/%3E%3Crect x=%224%22 y=%227%22 width=%2292%22 height=%2289%22 rx=%2222%22 fill=%22%23fff%22 stroke=%22%23fff%22 stroke-width=%225%22/%3E%3Cpath d=%22M13,26 L16,1.5 L38,13 Z%22 fill=%22%23f08a3a%22 stroke=%22%232b1a10%22 stroke-width=%221.8%22/%3E%3Cpath d=%22M62,13 L84,1.5 L87,26 Z%22 fill=%22%23f08a3a%22 stroke=%22%232b1a10%22 stroke-width=%221.8%22/%3E%3Crect x=%224%22 y=%227%22 width=%2292%22 height=%2289%22 rx=%2222%22 fill=%22%23f08a3a%22 stroke=%22%232b1a10%22 stroke-width=%221.8%22/%3E%3Cpath d=%22M18.5,17 L19.8,6.5 L29,11.6 Z%22 fill=%22%23f6b3a3%22/%3E%3Cpath d=%22M71,11.6 L80.2,6.5 L81.5,17 Z%22 fill=%22%23f6b3a3%22/%3E%3C/g%3E%3Cg fill=%22none%22 stroke=%22%23c8641f%22 stroke-width=%222.2%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M43,8 Q45,10.5 43.5,12.5%22/%3E%3Cpath d=%22M50,7.8 L50,12.5%22/%3E%3Cpath d=%22M57,8 Q55,10.5 56.5,12.5%22/%3E%3Cpath d=%22M4.8,38 Q8,39.5 11,38.5%22/%3E%3Cpath d=%22M4.8,45 Q8.5,46.5 11.5,45.5%22/%3E%3Cpath d=%22M4.8,70 Q8,71.5 11,70.5%22/%3E%3Cpath d=%22M95.2,38 Q92,39.5 89,38.5%22/%3E%3Cpath d=%22M95.2,45 Q91.5,46.5 88.5,45.5%22/%3E%3Cpath d=%22M95.2,70 Q92,71.5 89,70.5%22/%3E%3Cpath d=%22M24,95.2 Q25.5,92 24.5,89%22/%3E%3Cpath d=%22M76,95.2 Q74.5,92 75.5,89%22/%3E%3C/g%3E%3Crect x=%2212.6%22 y=%2212.6%22 width=%2274.8%22 height=%2274.8%22 rx=%2215%22 fill=%22%231a1230%22 stroke=%22%232b1a10%22 stroke-width=%221.8%22/%3E%3Crect x=%2211.4%22 y=%2211.4%22 width=%2277.2%22 height=%2277.2%22 rx=%2216%22 fill=%22none%22 stroke=%22%23fff3c4%22 stroke-width=%22.9%22 opacity=%22.9%22/%3E%3Cg fill=%22%23fff3c4%22%3E%3Cellipse cx=%2250%22 cy=%2292.6%22 rx=%222.9%22 ry=%222.2%22/%3E%3Ccircle cx=%2246.6%22 cy=%2289.9%22 r=%221.15%22/%3E%3Ccircle cx=%2248.9%22 cy=%2289%22 r=%221.15%22/%3E%3Ccircle cx=%2251.1%22 cy=%2289%22 r=%221.15%22/%3E%3Ccircle cx=%2253.4%22 cy=%2289.9%22 r=%221.15%22/%3E%3C/g%3E%3Cg fill=%22none%22 stroke=%22%23fff%22 stroke-linecap=%22round%22 opacity=%22.85%22%3E%3Cpath d=%22M7.2,30 C7,22 9,16 13,13%22 stroke-width=%221.6%22/%3E%3Cpath d=%22M92.8,72 C93,80 91,86 87,89%22 stroke-width=%221.6%22/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat; border-radius: 0; animation: none; box-shadow: none !important; filter: drop-shadow(0 2px 3px rgba(58,30,16,.45)); }
+.cf-wrap.cf-lg.cf-frame_pin { padding: 20px; }
+.shop-prev-pack .cf-wrap.cf-lg.cf-frame_pin { padding: 11px; }
+.shop-prev .cf-wrap.cf-lg.cf-frame_pin { padding: 14px; }
+@media (max-width: 900px) { .cf-wrap.cf-lg.cf-frame_pin { padding: 15px; } }
+.cf-wrap.cf-sm.cf-frame_pin { padding: 6px; }
+.me-btn.cf-btn.cf-frame_pin { padding: 6px; }
+.cf-wrap.cf-lg.cf-frame_pin > .prof-ava, .cf-wrap.cf-lg.cf-frame_pin > img { border-radius: 20% !important; }
+.cf-wrap.cf-sm.cf-frame_pin > .av, .cf-wrap.cf-sm.cf-frame_pin > img, .me-btn.cf-btn.cf-frame_pin img { border-radius: 22% !important; }
+.shop-prev .shop-prev-pack .cf-frame_pin > .prof-ava { width: 48px; height: 48px; }
+.cfx-fx_pin { background: linear-gradient(90deg, #ffb26b 0%, #f08a3a 18%, #fff0d6 30%, #f08a3a 42%, #c8641f 55%, #ffb26b 70%, #fff0d6 82%, #ffb26b 100%); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 5s linear infinite; filter: drop-shadow(0 1px 1px rgba(43,26,16,.9)) drop-shadow(0 0 5px rgba(240,138,58,.45)); }
+@media (prefers-reduced-motion: reduce) { .cfx-fx_pin { animation: none !important; } }
+
 /* ── страница магазина ── */
 .shop { max-width: 1120px; margin: 0 auto; }
 .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
