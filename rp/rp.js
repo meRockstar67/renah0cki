@@ -2619,6 +2619,23 @@ async function callVoiceChain(mic) {
   }
 }
 
+// микрофон не дали: в Telegram — предложить открыть эту же страницу в обычном браузере
+function callMicError(e) {
+  const n = e?.name || '';
+  if (TG.initData) {
+    const url = location.origin + '/rp/' + (location.hash || '#/');
+    modal('Звонок в браузере', `<div class="form-note">Telegram не даёт доступ к микрофону внутри мини-приложения (чаще всего на компьютере). Это ограничение Telegram, а не Y.</div>
+      <div class="form-note">Откройте эту комнату в обычном браузере — там звонок работает. Если в браузере вы не вошли на renah0cki, нажмите «Войти» и войдите через Twitch.</div>`, {
+      submitLabel: 'Открыть в браузере',
+      onSubmit: async () => { const w = window.Telegram?.WebApp; w?.openLink ? w.openLink(url, { try_instant_view: false }) : open(url, '_blank'); },
+    });
+    return;
+  }
+  toast(n === 'NotFoundError' ? 'Микрофон не найден — подключите его и попробуйте снова'
+    : n === 'NotReadableError' ? 'Микрофон занят другой программой — закройте её и попробуйте снова'
+    : 'Нет доступа к микрофону — разрешите его для renah0cki.xyz в настройках браузера', true);
+}
+
 async function callJoin(fn, args) {
   if (!S.uid) return needLogin();
   if (CALL.joining) return;
@@ -2629,7 +2646,7 @@ async function callJoin(fn, args) {
     if (CALL.id) await callHangup(true);
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
-    catch { toast(TG.initData ? 'Нет доступа к микрофону. В Telegram звонки могут не работать — откройте Y в браузере.' : 'Нет доступа к микрофону — разрешите его в настройках браузера', true); return; }
+    catch (e) { callMicError(e); return; }
     let info;
     try { info = await rpc(fn, args); } catch (e) { stream.getTracks().forEach(t => t.stop()); toast(errText(e), true); return; }
     const voice = await callVoiceChain(stream);
