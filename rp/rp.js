@@ -2157,7 +2157,7 @@ function bindChatLook(root) {
 /* ── подписка Y за renah0cki coin (пока только meRockstar) ── */
 const shopVisible = () => !!S.uid; // подписки ГОЙ/VIP — всем вошедшим
 const SHOP_ROLES = [
-  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'Свой фон чата в переписках', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Читать переписки обычных игроков'] },
+  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'Свой фон чата в переписках', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Создавать войсы (голосовые комнаты) до 10 человек и начинать звонки', 'Читать переписки обычных игроков'] },
   { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Синяя галочка VIP ✓ у имени и персонажей (как в X)', 'Свой баннер (шапка) в профиле Y и у персонажей', 'Доступ к закрытым комнатам «VIP и выше»', 'Читать переписки ГОЕВ'] },
 ];
 function shopHtml() {
@@ -2684,13 +2684,14 @@ async function callJoin(fn, args) {
     try { info = await rpc(fn, args); } catch (e) { stream.getTracks().forEach(t => t.stop()); toast(errText(e), true); return; }
     const voice = await callVoiceChain(stream);
     if (!voice.ok && !voice.off) toast('Изменение голоса не работает в этом браузере — вас слышно обычным голосом', true);
-    Object.assign(CALL, { voice, levels: new Map(), since: Date.now(), id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
+    Object.assign(CALL, { voice, min: false, levels: new Map(), since: Date.now(), id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
     if (!$('#callAudio')) document.body.insertAdjacentHTML('beforeend', '<div id="callAudio" hidden></div>');
     callWatchLevel(S.uid, stream);
     CALL.lvl = setInterval(callLevelTick, 120);
     CALL.ice = await callIceConfig();
     CALL.title = await callTitle(info);
-    api(`calls?id=eq.${info.id}&select=short_code`).then(r => { if (CALL.id === info.id && r?.[0]?.short_code) CALL.info.code = r[0].short_code; }).catch(() => {});
+    api(`calls?id=eq.${info.id}&select=short_code,created_by`).then(r => { if (CALL.id === info.id && r?.[0]) { CALL.info.code = r[0].short_code; CALL.info.owner = r[0].created_by; callDraw(); } })
+      .catch(() => api(`calls?id=eq.${info.id}&select=created_by`).then(r => { if (CALL.id === info.id && r?.[0]) { CALL.info.owner = r[0].created_by; callDraw(); } }).catch(() => {}));
     callDraw();
     await callSubscribe();
     await callRefresh();
@@ -2703,7 +2704,7 @@ async function callJoin(fn, args) {
 async function callTitle(info) {
   try {
     if (info.kind === 'voice') return 'Войс · ' + (info.title || 'голосовой канал');
-    if (info.kind === 'room') { const r = await api(`rooms?id=eq.${info.room_id}&select=title`); return 'Звонок · ' + (r[0]?.title || 'комната'); }
+    if (info.kind === 'room') { const r = await api(`rooms?id=eq.${info.room_id}&select=title,short_code`); info.roomCode = r[0]?.short_code; return 'Звонок · ' + (r[0]?.title || 'комната'); }
     const other = info.slot_id === info.slot_a ? info.slot_b : info.slot_a;
     const s = await api(`slots?id=in.(${info.slot_a},${info.slot_b})&select=id,char_name`);
     if (info.as_admin || !info.slot_id) return 'Звонок в ЛС · ' + s.map(x => x.char_name).join(' и ');
@@ -2827,7 +2828,7 @@ async function callPing() {
 }
 function callEnded(reason) {
   if (!CALL.id) return;
-  const msg = reason === 'admin' ? 'Звонок завершён администратором' : reason === 'declined' ? 'Звонок отклонён' : 'Звонок завершён';
+  const msg = reason === 'admin' ? (CALL.info?.kind === 'voice' ? 'Войс закрыт' : 'Звонок завершён администратором') : reason === 'declined' ? 'Звонок отклонён' : 'Звонок завершён';
   callHangup(true); toast(msg);
 }
 async function callHangup(silent = false) {
@@ -2880,6 +2881,7 @@ function callUnwatchLevel(uid) {
 function callLevelTick() {
   if (!CALL.id) return;
   const now = Date.now(), bar = $('#callBar');
+  let anyTalk = false;
   for (const [uid, l] of CALL.levels) {
     l.an.getFloatTimeDomainData(l.buf);
     let sum = 0; for (let i = 0; i < l.buf.length; i++) sum += l.buf[i] * l.buf[i];
@@ -2887,7 +2889,9 @@ function callLevelTick() {
     if (rms > 0.018 && !(uid === S.uid && CALL.muted)) l.until = now + 350;
     const talk = l.until > now;
     if (bar) $$(`[data-uid="${uid}"]`, bar).forEach(el => el.classList.toggle('talk', talk));
+    if (talk) anyTalk = true;
   }
+  bar?.classList.toggle('any-talk', anyTalk);
   const t = bar && $('.cb-time', bar);
   if (t && CALL.since) { const s = Math.floor((now - CALL.since) / 1000); t.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
 }
@@ -2897,7 +2901,16 @@ function callInlineHost() {
   if (![chat.me, chat.peer].every(x => x === i.slot_a || x === i.slot_b)) return null;
   return $('.chat-head', main);
 }
-addEventListener('hashchange', () => setTimeout(callDraw, 0));
+// «дом» звонка: страница войсов / приглашения, лента его комнаты; в остальных местах окно маленькое
+function callAtHome() {
+  const i = CALL.info, h = location.hash; if (!i) return false;
+  if (h.startsWith('#/call/' + i.id) || (i.code && h === '#/v/' + i.code)) return true;
+  if (i.kind === 'voice') return h.startsWith('#/voice');
+  if (i.kind === 'room') return h === '#/r/' + i.room_id || (!!i.roomCode && h === '#/r/' + i.roomCode);
+  return false;
+}
+addEventListener('hashchange', () => setTimeout(() => { if (CALL.id) CALL.min = !callAtHome(); callDraw(); }, 0));
+addEventListener('resize', () => { const b = $('#callBar'); if (b) callApplyPos(b); });
 const callMinKey = 'rp_call_min';
 const callIsMin = () => { try { return localStorage.getItem(callMinKey) === '1'; } catch { return false; } };
 function callMemberHtml(m) {
@@ -2922,7 +2935,7 @@ function callDraw() {
   else if (bar.parentElement !== document.body) document.body.append(bar);
   bar.classList.toggle('inline', !!host);
   document.body.classList.toggle('in-call', !host);
-  const min = !host && callIsMin();
+  const min = !host && !!CALL.min;
   bar.classList.toggle('min', min);
   const players = CALL.members.filter(m => !m.is_admin).length;
   const adminIn = CALL.members.some(m => m.is_admin);
@@ -2937,11 +2950,17 @@ function callDraw() {
       <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
       ${min ? '' : `<button type="button" class="cb-btn" data-cb-link aria-label="Скопировать ссылку на звонок" title="Скопировать ссылку-приглашение">${I.link}</button>`}
       ${min ? '' : `<a class="cb-btn" href="#/support" aria-label="Пожаловаться модераторам" title="Пожаловаться модераторам">${I.flag}</a>`}
-      ${(mainAdmin() || glMod()) && !min ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
+      ${(mainAdmin() || glMod() || (CALL.info?.kind === 'voice' && CALL.info?.owner === S.uid)) && !min ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
       <button type="button" class="cb-btn hang" data-cb-leave aria-label="Выйти из звонка" title="Выйти из звонка">${I.hang}</button>
     </div>`;
   if (min) {
-    bar.innerHTML = head + `<div class="cb-minrow"><div class="cb-stack">${CALL.members.slice(0, 6).map(callMemberHtml).join('')}</div>${ctrl}</div>`;
+    bar.innerHTML = `<div class="cb-mini" title="Перетащите, чтобы подвинуть">
+      <span class="cb-dot"></span>
+      <div class="cb-mini-t"><b>${esc((CALL.title || 'Звонок').replace(/^(Звонок|Войс) · /, ''))}</b><span class="cb-time">0:00</span></div>
+      <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
+      <button type="button" class="cb-btn" data-cb-min aria-label="Открыть звонок" title="Открыть звонок: участники и все кнопки"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>
+      <button type="button" class="cb-btn hang" data-cb-leave aria-label="Выйти из звонка" title="Выйти из звонка">${I.hang}</button>
+    </div>`;
   } else {
     bar.innerHTML = head
       + (adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? 'Вы в звонке как администратор — участники это видят' : 'В звонке администратор renah0cki'}</span></div>` : '')
@@ -2950,10 +2969,51 @@ function callDraw() {
       + ctrl;
   }
   callLevelTick();
+  callApplyPos(bar);
+}
+// перетаскивание окна звонка (мышью и пальцем); позиция запоминается на этом устройстве
+const callPosKey = 'rp_call_pos';
+function callApplyPos(bar) {
+  if (bar.classList.contains('inline')) { bar.style.left = bar.style.top = bar.style.right = bar.style.bottom = ''; return; }
+  let pos = null; try { pos = JSON.parse(localStorage.getItem(callPosKey) || 'null'); } catch {}
+  if (!pos) { bar.style.left = bar.style.top = bar.style.right = bar.style.bottom = ''; return; }
+  const w = bar.offsetWidth, h = bar.offsetHeight;
+  const x = Math.min(Math.max(8, pos.x), Math.max(8, innerWidth - w - 8));
+  const y = Math.min(Math.max(8, pos.y), Math.max(8, innerHeight - h - 8));
+  Object.assign(bar.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' });
+}
+function bindCallDrag(bar) {
+  bar.addEventListener('pointerdown', e => {
+    if (bar.classList.contains('inline') || e.button > 0) return;
+    if (!e.target.closest('.cb-head, .cb-mini') || e.target.closest('button, a, select, input')) return;
+    const r = bar.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    let moved = false, x = r.left, y = r.top;
+    try { bar.setPointerCapture(e.pointerId); } catch {}
+    const move = ev => {
+      x = Math.min(Math.max(8, ev.clientX - dx), innerWidth - bar.offsetWidth - 8);
+      y = Math.min(Math.max(8, ev.clientY - dy), innerHeight - bar.offsetHeight - 8);
+      if (!moved && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 4) return;
+      moved = true; bar.classList.add('drag');
+      Object.assign(bar.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' });
+    };
+    const up = () => {
+      bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', up);
+      bar.classList.remove('drag');
+      if (moved) try { localStorage.setItem(callPosKey, JSON.stringify({ x, y })); } catch {}
+    };
+    bar.addEventListener('pointermove', move); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
+  });
+  // двойной клик по шапке — вернуть окно на место
+  bar.addEventListener('dblclick', e => {
+    if (!e.target.closest('.cb-head, .cb-mini') || e.target.closest('button, a, select, input')) return;
+    try { localStorage.removeItem(callPosKey); } catch {}
+    callApplyPos(bar);
+  });
 }
 function bindCallBar(bar) {
+  bindCallDrag(bar);
   bar.addEventListener('click', async e => {
-    if (e.target.closest('[data-cb-min]')) { try { localStorage.setItem(callMinKey, callIsMin() ? '0' : '1'); } catch {} return callDraw(); }
+    if (e.target.closest('[data-cb-min]')) { CALL.min = !CALL.min; return callDraw(); }
     if (e.target.closest('[data-cb-mute]')) return callToggleMute();
     if (e.target.closest('[data-cb-link]')) {
       const url = callLink(CALL.id, CALL.info?.code);
@@ -3100,18 +3160,20 @@ async function viewVoice() {
   if (!S.uid) { main.innerHTML = H + '<div class="empty"><h2>Войдите</h2><p>Чтобы зайти в войс, войдите в аккаунт.</p><a class="btn blue" href="/">Войти</a></div>'; return; }
   main.innerHTML = H + loader();
   let rows = [];
-  const vsel = 'id,title,max_members,created_at,members:call_members(user_id,is_admin,left_at,last_seen,prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username))&order=created_at.asc';
+  const vsel = 'id,title,max_members,created_by,created_at,members:call_members(user_id,is_admin,left_at,last_seen,prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username))&order=created_at.asc';
   try { rows = await api('calls?kind=eq.voice&ended_at=is.null&select=short_code,' + vsel).catch(() => api('calls?kind=eq.voice&ended_at=is.null&select=' + vsel)); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'voice') return;
   const opts = sel => Array.from({ length: 9 }, (_, i) => i + 2).map(n => `<option value="${n}"${n === sel ? ' selected' : ''}>${n}</option>`).join('');
-  const create = glMod() ? `<form class="vc-new" id="vcNew" autocomplete="off">
+  const canCreate = glMod() || callGoy();
+  const create = canCreate ? `<form class="vc-new" id="vcNew" autocomplete="off">
       <b>Новый войс</b>
       <div class="vc-new-row"><input name="t" maxlength="40" placeholder="Название, например «Болталка»" required>
         <label class="vc-max">Мест <select name="m">${opts(10)}</select></label>
         <button class="btn blue small" type="submit">Создать</button></div>
-    </form>` : '';
+    </form>` : '<div class="vc-new"><span class="cp-in">Создавать свои войсы можно с роли ГОЙ (Настройки → Подписка). Заходить в чужие — всем.</span></div>';
   const items = rows.map(c => {
+    const canManage = glMod() || c.created_by === S.uid;
     const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000 && !m.is_admin);
     const inIt = CALL.id === c.id, full = live.length >= c.max_members;
     const faces = live.slice(0, 6).map(m => avatar(m.prof ? userAv(m.prof) : { char_name: '?' }, 'sm')).join('');
@@ -3121,11 +3183,11 @@ async function viewVoice() {
       <div class="vc-acts">
         ${inIt ? '<span class="cp-in">Вы здесь</span>' : full ? '<span class="cp-in">Мест нет</span>' : `<button type="button" class="btn blue small" data-call-admin="${c.id}">Зайти</button>`}
         <button type="button" class="icon-btn" data-vc-link="${c.id}" data-vc-code="${esc(c.short_code || '')}" title="Скопировать ссылку" aria-label="Скопировать ссылку">${I.link}</button>
-        ${glMod() ? `<select class="vc-sel" data-vc-max="${c.id}" title="Мест" aria-label="Мест">${opts(c.max_members)}</select>
+        ${canManage ? `<select class="vc-sel" data-vc-max="${c.id}" title="Мест" aria-label="Мест">${opts(c.max_members)}</select>
           <button type="button" class="btn danger small" data-call-end="${c.id}">Закрыть</button>` : ''}
       </div></div>`;
   }).join('');
-  main.innerHTML = H + create + `<div class="vc-list">${items || `<div class="empty"><h2>Пока нет войсов</h2><p>${glMod() ? 'Создайте первый — сверху.' : 'Их создают главные модераторы.'}</p></div>`}</div>`;
+  main.innerHTML = H + create + `<div class="vc-list">${items || `<div class="empty"><h2>Пока нет войсов</h2><p>${canCreate ? 'Создайте первый — сверху.' : 'Их создают игроки с ролью ГОЙ и модераторы.'}</p></div>`}</div>`;
   const f = $('#vcNew');
   if (f) f.onsubmit = async e => {
     e.preventDefault();
