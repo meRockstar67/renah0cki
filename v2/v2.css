@@ -1136,12 +1136,16 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .cbg-bg_slay::after { background: radial-gradient(2px 2px at 24% 72%, rgba(255,186,82,.8), transparent), radial-gradient(1.5px 1.5px at 62% 34%, rgba(255,120,36,.85), transparent), radial-gradient(2px 2px at 82% 62%, rgba(255,213,128,.75), transparent), radial-gradient(1.5px 1.5px at 44% 80%, rgba(255,100,24,.8), transparent); }
 
 .cbg-bg_sweet_rena { border-color: #d14fa0; background: #3a0f33 url('https://cdn.renah0cki.xyz/file/static/bg_sweet_rena.jpg') center/cover no-repeat; }
-.cbg-bg_sweet_rena::before { background: linear-gradient(90deg, rgba(28,6,26,.82) 0%, rgba(28,6,26,.6) 45%, rgba(28,6,26,.2) 100%); }
+.cbg-bg_sweet_rena::before { display: none; }
+.cbg-bg_sweet_rena .prof-ava, .cbg-bg_sweet_rena .cf-wrap, .cbg-bg_sweet_rena .shop-prev-bg img { filter: drop-shadow(0 3px 7px rgba(70,8,55,.55)); }
+.cbg-bg_sweet_rena h1, .cbg-bg_sweet_rena b, .cbg-bg_sweet_rena .prof-bio, .cbg-bg_sweet_rena small, .cbg-bg_sweet_rena span:not(.role):not(.cf-wrap) { text-shadow: 0 1px 2px rgba(70,8,55,.75), 0 2px 8px rgba(70,8,55,.45); }
+.cbg-bg_sweet_rena .prof-bio, .cbg-bg_sweet_rena .shop-prev-bg span { color: #fff; }
+.cbg-bg_sweet_rena .cfx:not(.cfx-fx_sweet_rena), .cbg-bg_sweet_rena .nm-paint { text-shadow: none; filter: drop-shadow(0 1px 2px rgba(70,8,55,.75)) drop-shadow(0 2px 6px rgba(70,8,55,.4)); }
 
 /* ── набор «Нежные папочки»: рамка + ник под фон «Сладкий renah0cki» ── */
-.cf-frame_sweet_rena { background: conic-gradient(from var(--cf-ang), #ff8fd6, #ffe3f4, #e2389b, #b96cff, #ff8fd6, #fff0f9, #ff4fae, #ff8fd6); animation: cfSpin 4s linear infinite; box-shadow: 0 0 0 2px #6e1356, 0 0 16px rgba(255,95,190,.6); }
-.cf-frame_sweet_rena::after { content: ''; position: absolute; inset: -3px; border-radius: inherit; pointer-events: none; z-index: 2; background: radial-gradient(2.5px 2.5px at 12% 22%, #ffe14d 98%, transparent), radial-gradient(2.5px 2.5px at 88% 18%, #4fc3ff 98%, transparent), radial-gradient(2.5px 2.5px at 92% 80%, #ff4fae 98%, transparent), radial-gradient(2.5px 2.5px at 10% 84%, #fff 98%, transparent), radial-gradient(2px 2px at 50% 4%, #b96cff 98%, transparent), radial-gradient(2px 2px at 52% 97%, #ffe14d 98%, transparent); }
-.cfx-fx_sweet_rena { background: linear-gradient(90deg, #ff6ec7, #ffd1ee, #d55bff, #ff9bd8, #ff6ec7); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 4s linear infinite; filter: drop-shadow(0 0 1px #6e1356) drop-shadow(0 0 6px rgba(255,95,190,.55)); }
+.cf-frame_sweet_rena { background: conic-gradient(from var(--cf-ang), #ffffff, #ffd6ec, #ff9fd2, #ffffff, #ffc2e3, #ff7fc4, #ffffff); animation: cfSpin 4s linear infinite; box-shadow: 0 0 0 1px rgba(255,160,210,.9), 0 0 14px rgba(255,170,215,.6); }
+.cf-frame_sweet_rena::after { content: ''; position: absolute; inset: -3px; border-radius: inherit; pointer-events: none; z-index: 2; background: radial-gradient(2.5px 2.5px at 12% 22%, #fff 98%, transparent), radial-gradient(2.5px 2.5px at 88% 18%, #ff8fcb 98%, transparent), radial-gradient(2.5px 2.5px at 92% 80%, #fff 98%, transparent), radial-gradient(2.5px 2.5px at 10% 84%, #ffb3dc 98%, transparent), radial-gradient(2px 2px at 50% 4%, #ff8fcb 98%, transparent), radial-gradient(2px 2px at 52% 97%, #fff 98%, transparent); }
+.cfx-fx_sweet_rena { background: linear-gradient(90deg, #ffffff, #ffc2e3, #ff8fcb, #ffe6f3, #ffffff); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; text-shadow: none !important; animation: cfxFlow 4s linear infinite; filter: drop-shadow(0 1px 1.5px rgba(70,8,55,.85)) drop-shadow(0 2px 6px rgba(70,8,55,.45)); }
 .shop-prev-pack { width: 100%; height: 100%; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
 .shop-prev-pack > div { min-width: 0; }
 .shop-prev-pack .prof-ava { width: 54px; height: 54px; border-radius: 14px; }
