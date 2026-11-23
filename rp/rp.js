@@ -2529,7 +2529,7 @@ I.hang = '<svg viewBox="0 0 24 24"><path d="M3 14.2c5-4.6 13-4.6 18 0l-1.8 2.9-3
 I.micOff = '<svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/></svg>';
 I.shield = '<svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/></svg>';
 
-const CALL_VER = 1, CALL_MAX = 10;
+const CALL_VER = 2, CALL_MAX = 10;
 const callsOk = () => !!S.uid && !!S.callsOk;            // владелец и тестеры (rp.calls_dev_allowed)
 const mainAdmin = () => !!S.uid && S.uid === OWNER_ID;
 const CALL = { id: null, info: null, stream: null, pcs: new Map(), audios: new Map(), members: [], muted: false,
@@ -2542,6 +2542,7 @@ function callRulesHtml() {
     <li>В звонке может быть <b>до ${CALL_MAX} человек</b>. Звонок в комнате — только для игроков, занявших персонажа; звонок в ЛС — только для двух персонажей.</li>
     <li>Главный администратор может подключиться к любому звонку, чтобы проверить жалобу или нарушение. <b>Когда он в звонке, это видят все участники.</b> Тайно подключиться нельзя.</li>
     <li>Голос идёт через сервер renah0cki: собеседники не видят ваш IP-адрес.</li>
+    <li>В звонке голос каждого участника автоматически изменяется — случайно становится выше или ниже.</li>
     <li>Хранится только факт звонка (кто и когда) — 30 дней, для разбора жалоб.</li>
     <li>Запрещены оскорбления, угрозы, травля, разжигание ненависти, 18+, запись собеседников без их согласия и всё, что запрещено <a href="#/rules">правилами Y</a>. За нарушения звонок завершают, а доступ к звонкам или аккаунт блокируют.</li>
   </ul>`;
@@ -2574,6 +2575,50 @@ async function callIceConfig() {
   return { iceServers: [] };
 }
 
+/* изменение голоса: у каждого участника голос случайно выше или ниже (делается у себя в браузере до отправки) */
+const VOICE_WORKLET = `class RnPitch extends AudioWorkletProcessor {
+  constructor(o) { super(); this.r = o.processorOptions.ratio; this.W = Math.floor(sampleRate * 0.05); this.N = this.W * 2 + 8;
+    this.buf = new Float32Array(this.N); this.w = 0; this.ph = 0; }
+  read(d) { let p = this.w - d; while (p < 0) p += this.N; const i = Math.floor(p), f = p - i, a = this.buf[i], b = this.buf[(i + 1) % this.N]; return a + (b - a) * f; }
+  process(inputs, outputs) {
+    const inp = inputs[0] && inputs[0][0], out = outputs[0][0]; if (!out) return true;
+    const step = (1 - this.r) / this.W;
+    for (let k = 0; k < out.length; k++) {
+      this.buf[this.w] = inp ? inp[k] : 0;
+      this.ph += step; this.ph -= Math.floor(this.ph);
+      const p2 = (this.ph + 0.5) % 1;
+      out[k] = this.read(this.ph * this.W + 2) * Math.sin(Math.PI * this.ph) + this.read(p2 * this.W + 2) * Math.sin(Math.PI * p2);
+      this.w = (this.w + 1) % this.N;
+    }
+    return true;
+  }
+}
+registerProcessor('rn-pitch', RnPitch);`;
+function callPickVoice() {
+  const up = Math.random() < 0.5;
+  return up ? { up, ratio: 1.22 + Math.random() * 0.18 } : { up, ratio: 0.74 + Math.random() * 0.1 };
+}
+async function callVoiceChain(mic) {
+  const v = callPickVoice();
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || !window.AudioWorkletNode) throw new Error('no worklet');
+    const ctx = new AC();
+    const url = URL.createObjectURL(new Blob([VOICE_WORKLET], { type: 'application/javascript' }));
+    await ctx.audioWorklet.addModule(url); URL.revokeObjectURL(url);
+    const src = ctx.createMediaStreamSource(mic);
+    const node = new AudioWorkletNode(ctx, 'rn-pitch', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { ratio: v.ratio } });
+    const dst = ctx.createMediaStreamDestination();
+    const gain = ctx.createGain(); gain.gain.value = 1.3;   // обработка чуть приглушает — возвращаем громкость
+    src.connect(node).connect(gain).connect(dst);
+    if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+    return { ...v, ctx, out: dst.stream, ok: true };
+  } catch (e) {
+    console.warn('voice changer', e);
+    return { ...v, ctx: null, out: mic, ok: false };
+  }
+}
+
 async function callJoin(fn, args) {
   if (!S.uid) return needLogin();
   if (CALL.joining) return;
@@ -2587,7 +2632,9 @@ async function callJoin(fn, args) {
     catch { toast(TG.initData ? 'Нет доступа к микрофону. В Telegram звонки могут не работать — откройте Y в браузере.' : 'Нет доступа к микрофону — разрешите его в настройках браузера', true); return; }
     let info;
     try { info = await rpc(fn, args); } catch (e) { stream.getTracks().forEach(t => t.stop()); toast(errText(e), true); return; }
-    Object.assign(CALL, { id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
+    const voice = await callVoiceChain(stream);
+    if (!voice.ok) toast('Изменение голоса не работает в этом браузере — вас слышно обычным голосом', true);
+    Object.assign(CALL, { voice, id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
     if (!$('#callAudio')) document.body.insertAdjacentHTML('beforeend', '<div id="callAudio" hidden></div>');
     CALL.ice = await callIceConfig();
     CALL.title = await callTitle(info);
@@ -2647,7 +2694,8 @@ async function callRefresh() {
 function callPeer(uid) {
   let pc = CALL.pcs.get(uid); if (pc) return pc;
   pc = new RTCPeerConnection(CALL.ice || { iceServers: [] });
-  CALL.stream.getTracks().forEach(t => pc.addTrack(t, CALL.stream));
+  const send = CALL.voice?.out || CALL.stream;
+  send.getAudioTracks().forEach(t => pc.addTrack(t, send));
   pc.ontrack = e => {
     let a = CALL.audios.get(uid);
     if (!a) { a = document.createElement('audio'); a.autoplay = true; a.setAttribute('playsinline', ''); CALL.audios.set(uid, a); $('#callAudio')?.append(a); }
@@ -2730,6 +2778,9 @@ async function callHangup(silent = false) {
   clearInterval(CALL.ping); clearInterval(CALL.tick); clearTimeout(CALL.wait);
   for (const uid of [...CALL.pcs.keys()]) callDropPeer(uid);
   CALL.stream?.getTracks().forEach(t => t.stop());
+  CALL.voice?.out?.getTracks().forEach(t => t.stop());
+  try { CALL.voice?.ctx?.close(); } catch {}
+  CALL.voice = null;
   if (CALL.ch) { try { rtClient()?.removeChannel(CALL.ch); } catch {} }
   Object.assign(CALL, { id: null, info: null, stream: null, members: [], ch: null, ping: null, tick: null, wait: null });
   $('#callAudio')?.remove();
@@ -2765,6 +2816,7 @@ function callDraw() {
   const adminIn = CALL.members.some(m => m.is_admin);
   const waiting = CALL.wait && !callOthers().some(m => !m.is_admin);
   bar.innerHTML = `<div class="cb-top"><span class="cb-dot"></span><b>${esc(CALL.title || 'Звонок')}</b><span class="cb-count">${waiting ? 'Вызываем…' : `${players}/${CALL_MAX}`}</span></div>
+    ${CALL.voice?.ok ? `<div class="cb-voice">Ваш голос в звонке: <b>${CALL.voice.up ? 'выше ⬆' : 'ниже ⬇'}</b> — так слышат вас другие</div>` : ''}
     ${adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? 'Вы в звонке как администратор — участники это видят' : 'В звонке администратор renah0cki'}</span></div>` : ''}
     <div class="cb-people">${CALL.members.map(callMemberHtml).join('')}</div>
     <div class="cb-acts">
