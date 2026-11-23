@@ -2937,6 +2937,7 @@ function coinSendDialog(p) {
 /* ── магазин косметики ── */
 const SHOP_CATS = [
   ['all', 'Все'],
+  ['bundle', 'Наборы'],
   ['role', 'Роли'],
   ['gift_role', 'Роли в подарок'],
   ['frame', 'Рамки'],
@@ -2945,6 +2946,7 @@ const SHOP_CATS = [
   ['banner', 'Фоны профиля'],
   ['mine', 'Мои'],
 ];
+const shopPackItems = it => (Array.isArray(it?.meta?.items) ? it.meta.items : []).map(id => SHOP_ITEMS.get(id)).filter(Boolean);
 const SHOP_SLOT_LBL = { role: 'Роль', gift_role: 'Роль', frame: 'Рамка', nick_fx: 'Ник', badge: 'Значок', banner: 'Фон' };
 const SHOP_RAR_LBL = { common: 'Обычный', rare: 'Редкий', epic: 'Эпический', legendary: 'Легендарный' };
 function giftRoleDialog(it, defaultDays = 14, onSaved) {
@@ -3124,6 +3126,11 @@ async function viewShop(tab) {
                 : it.meta?.keep_posts ? '<span class="shop-perk">🛡️ Посты не удаляются через 7 дн.</span>' : '';
       return `<div class="shop-prev-role">${roleChipHtml(it.id, myEq())}${perk}</div>`;
     }
+    if (it.category === 'bundle') {
+      const parts = shopPackItems(it), pick = c => parts.find(x => x.category === c)?.id || null;
+      const bn = pick('banner');
+      return `<div class="shop-prev-pack${bn ? ` cbg cbg-${esc(bn)}` : ''}">${cosAva(me, 'prof-ava', '', pick('frame'))}<div><b>${cosName(me, pick('nick_fx'), null)}</b><small>Набор · ${parts.length} предмета</small></div></div>`;
+    }
     if (it.category === 'frame') return cosAva(me, 'prof-ava', '', it.id);
     if (it.category === 'nick_fx') return `<div class="shop-prev-nick"><span${nameAttr(null, it.id)}>${esc(pname(me))}</span></div>`;
     if (it.category === 'badge') return `<div class="shop-prev-badge"><span>${esc(pname(me))}</span>${badgeHtml(it.id)}</div>`;
@@ -3135,7 +3142,8 @@ async function viewShop(tab) {
     const hidRoles = new Set(eq.hidden_roles || []);
     const activeTemp = activeTempRoles(eq);
     const activeTempItemIds = new Set(activeTemp.map(t => t.item_id));
-    const list = T === 'all' ? items : T === 'mine' ? items.filter(it => owned.has(it.id) || activeTempItemIds.has(it.id)) : items.filter(it => it.category === T);
+    const shown = items.filter(it => !it.meta?.bundle_only || owned.has(it.id));
+    const list = T === 'all' ? shown : T === 'mine' ? items.filter(it => owned.has(it.id) || activeTempItemIds.has(it.id)) : shown.filter(it => it.category === T);
     page.innerHTML = `<div class="shop">
       <div class="shop-head">
         <h1>Магазин косметики</h1>
@@ -3152,8 +3160,19 @@ async function viewShop(tab) {
         const isTry = (isRole || isGiftCat) ? tryOn.role === it.id : tryOn[it.category] === it.id;
         const oldP = Number(it.meta?.old_price || 0);
         const salePct = oldP > it.price ? Math.round((1 - it.price / oldP) * 100) : 0;
-        let acts = '';
-        if (it.id === 'gift_role_custom') {
+        let acts = '', packInfo = '';
+        const isPack = it.category === 'bundle';
+        if (isPack) {
+          const parts = shopPackItems(it);
+          const ownedSum = parts.filter(x => owned.has(x.id) && !x.meta?.bundle_only).reduce((a, x) => a + Number(x.price || 0), 0);
+          const pay = Math.max(0, it.price - ownedSum);
+          const allTry = parts.length && parts.every(x => tryOn[x.category] === x.id);
+          packInfo = `<div class="shop-pack-list">${parts.map(x => `<span class="${owned.has(x.id) && !isOwn ? 'own' : ''}">${SHOP_SLOT_LBL[x.category] || ''}: ${esc(x.title)}</span>`).join('')}</div>`;
+          const allEq = parts.length && parts.every(x => eq[x.category] === x.id);
+          acts = isOwn
+            ? (allEq ? `<button type="button" class="btn eq-on" disabled>Надето ✓</button>` : `<button type="button" class="btn accent" style="flex:1" data-shpackeq="${esc(it.id)}">Надеть набор</button>`)
+            : `<button type="button" class="btn" data-shpacktry="${esc(it.id)}">${allTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuy="${esc(it.id)}" data-shpay="${pay}"><img src="${COIN}" alt="">${pay < it.price ? `<s class="shop-old-p">${fmt(it.price)}</s>` : ''}${fmt(pay)}</button>`;
+        } else if (it.id === 'gift_role_custom') {
           acts = `<button type="button" class="btn accent shop-buy" data-shgift="${esc(it.id)}" data-shdays="14">2 нед · <img src="${COIN}" alt="">500</button><button type="button" class="btn accent shop-buy" data-shgift="${esc(it.id)}" data-shdays="30">1 мес · <img src="${COIN}" alt="">700</button>`;
         } else if (isGiftCat) {
           acts = `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuyself="${esc(it.id)}" title="Купить себе на 2 недели"><img src="${COIN}" alt="">${fmt(it.price)}</button><button type="button" class="btn gift-btn" data-shgift="${esc(it.id)}" title="Подарить другому пользователю">🎁</button>`;
@@ -3172,7 +3191,7 @@ async function viewShop(tab) {
           const giftBtn = isRole && it.id !== 'role_custom' ? `<button type="button" class="btn gift-btn" data-shgift="${esc(it.id)}" title="Подарить другому пользователю">🎁</button>` : '';
           acts = `<button type="button" class="btn" data-shtry="${esc(it.id)}">${isTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuy="${esc(it.id)}"><img src="${COIN}" alt="">${oldP > it.price ? `<s class="shop-old-p">${fmt(oldP)}</s>` : ''}${fmt(it.price)}</button>${giftBtn}`;
         }
-        return `<article class="shop-card${isEq ? ' is-eq' : ''}${isTry ? ' is-try' : ''}">
+        return `<article class="shop-card${isPack ? ' is-pack' : ''}${isEq ? ' is-eq' : ''}${isTry ? ' is-try' : ''}">
           <div class="shop-prev">
             <span class="shop-rar ${esc(it.rarity)}">${SHOP_RAR_LBL[it.rarity] || it.rarity}</span>
             ${isOwn ? `<span class="shop-own-tag">${isGiftCat ? 'Активно' : 'Куплено'}</span>` : salePct ? `<span class="shop-sale">-${salePct}%</span>` : ''}
@@ -3180,7 +3199,7 @@ async function viewShop(tab) {
           </div>
           <div class="shop-info">
             <h3>${esc(it.title)}</h3>
-            <p>${esc(it.description)}</p>
+            <p>${esc(it.description)}</p>${packInfo}
             <div class="shop-acts">${acts}</div>
           </div>
         </article>`;
@@ -3232,6 +3251,27 @@ async function viewShop(tab) {
         } catch (er) { toast(er.message, true); rt.disabled = false; }
         return;
       }
+      const pt = e.target.closest('[data-shpacktry]');
+      if (pt) {
+        const parts = shopPackItems(SHOP_ITEMS.get(pt.dataset.shpacktry));
+        const allTry = parts.length && parts.every(x => tryOn[x.category] === x.id);
+        parts.forEach(x => { if (allTry) delete tryOn[x.category]; else tryOn[x.category] = x.id; });
+        draw();
+        return;
+      }
+      const pe = e.target.closest('[data-shpackeq]');
+      if (pe) {
+        const parts = shopPackItems(SHOP_ITEMS.get(pe.dataset.shpackeq)).filter(x => owned.has(x.id));
+        pe.disabled = true;
+        try {
+          let row = null;
+          for (const x of parts) { row = await rpc('shop_equip', { p_category: x.category, p_item_id: x.id }); delete tryOn[x.category]; }
+          if (row) saveEqLocal(row);
+          toast('Набор надет');
+          draw();
+        } catch (er) { toast(er.message, true); pe.disabled = false; }
+        return;
+      }
       const tr = e.target.closest('[data-shtry]');
       if (tr) {
         const it = SHOP_ITEMS.get(tr.dataset.shtry); if (!it) return;
@@ -3267,13 +3307,21 @@ async function viewShop(tab) {
       if (buyBtn) {
         if (!S.uid) return login();
         const it = SHOP_ITEMS.get(buyBtn.dataset.shbuy); if (!it) return;
-        if (!confirm(`Купить «${it.title}» за ${fmt(it.price)} coin? Предмет останется у вас навсегда.`)) return;
+        const isPackBuy = it.category === 'bundle';
+        const payNow = isPackBuy ? Number(buyBtn.dataset.shpay ?? it.price) : it.price;
+        if (!confirm(isPackBuy ? `Купить набор «${it.title}» за ${fmt(payNow)} coin? Всё из набора останется у вас навсегда и сразу наденется.` : `Купить «${it.title}» за ${fmt(it.price)} coin? Предмет останется у вас навсегда.`)) return;
         buyBtn.disabled = true;
         try {
           const bal = await rpc('shop_buy', { p_item_id: it.id });
           setBalance(bal); owned.add(it.id); delete tryOn[it.category];
           const cur = myEq();
-          if (it.category === 'role') {
+          if (isPackBuy) {
+            const parts = shopPackItems(it), next = { ...cur };
+            parts.forEach(x => { owned.add(x.id); delete tryOn[x.category]; if (['frame', 'nick_fx', 'badge', 'banner'].includes(x.category)) next[x.category] = x.id; });
+            saveEqLocal(next);
+            toast(`Куплен набор «${it.title}» — всё уже надето!`);
+            draw();
+          } else if (it.category === 'role') {
             const nextRoles = [...new Set([...(cur.owned_roles || []), it.id])];
             const nextHid = (cur.hidden_roles || []).filter(x => x !== it.id);
             saveEqLocal({

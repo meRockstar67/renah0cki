@@ -1135,6 +1135,27 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .cbg-bg_slay::before { inset: -10%; background: radial-gradient(ellipse 60% 50% at 80% 15%, rgba(255,112,24,.34), transparent 68%), radial-gradient(ellipse 48% 42% at 18% 90%, rgba(220,38,38,.24), transparent 68%), linear-gradient(120deg, transparent 36%, rgba(255,180,76,.12) 50%, transparent 62%); animation: cbgSlay 8s ease-in-out infinite; }
 .cbg-bg_slay::after { background: radial-gradient(2px 2px at 24% 72%, rgba(255,186,82,.8), transparent), radial-gradient(1.5px 1.5px at 62% 34%, rgba(255,120,36,.85), transparent), radial-gradient(2px 2px at 82% 62%, rgba(255,213,128,.75), transparent), radial-gradient(1.5px 1.5px at 44% 80%, rgba(255,100,24,.8), transparent); }
 
+.cbg-bg_sweet_rena { border-color: #d14fa0; background: #3a0f33 url('https://cdn.renah0cki.xyz/file/static/bg_sweet_rena.jpg') center/cover no-repeat; }
+.cbg-bg_sweet_rena::before { background: linear-gradient(90deg, rgba(28,6,26,.82) 0%, rgba(28,6,26,.6) 45%, rgba(28,6,26,.2) 100%); }
+
+/* ── набор «Нежные папочки»: рамка + ник под фон «Сладкий renah0cki» ── */
+.cf-frame_sweet_rena { background: conic-gradient(from var(--cf-ang), #ff8fd6, #ffe3f4, #e2389b, #b96cff, #ff8fd6, #fff0f9, #ff4fae, #ff8fd6); animation: cfSpin 4s linear infinite; box-shadow: 0 0 0 2px #6e1356, 0 0 16px rgba(255,95,190,.6); }
+.cf-frame_sweet_rena::after { content: ''; position: absolute; inset: -3px; border-radius: inherit; pointer-events: none; z-index: 2; background: radial-gradient(2.5px 2.5px at 12% 22%, #ffe14d 98%, transparent), radial-gradient(2.5px 2.5px at 88% 18%, #4fc3ff 98%, transparent), radial-gradient(2.5px 2.5px at 92% 80%, #ff4fae 98%, transparent), radial-gradient(2.5px 2.5px at 10% 84%, #fff 98%, transparent), radial-gradient(2px 2px at 50% 4%, #b96cff 98%, transparent), radial-gradient(2px 2px at 52% 97%, #ffe14d 98%, transparent); }
+.cfx-fx_sweet_rena { background: linear-gradient(90deg, #ff6ec7, #ffd1ee, #d55bff, #ff9bd8, #ff6ec7); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: cfxFlow 4s linear infinite; filter: drop-shadow(0 0 1px #6e1356) drop-shadow(0 0 6px rgba(255,95,190,.55)); }
+.shop-prev-pack { width: 100%; height: 100%; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.shop-prev-pack > div { min-width: 0; }
+.shop-prev-pack .prof-ava { width: 54px; height: 54px; border-radius: 14px; }
+.shop-prev-pack .cf-wrap.cf-lg { border-radius: 17px; padding: 3px; }
+.shop-prev-pack b { font-size: 15px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shop-prev-pack small { display: block; font-size: 11.5px; color: #ffd1ee; margin-top: 2px; }
+.shop-card.is-pack { grid-column: span 2; border-color: rgba(255,95,190,.45); box-shadow: 0 0 0 1px rgba(255,95,190,.15), 0 8px 28px -12px rgba(255,95,190,.45); }
+.shop-card.is-pack .shop-rar.legendary { color: #ff9bd8; border-color: rgba(255,155,216,.6); }
+.shop-pack-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.shop-pack-list span { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: rgba(255,95,190,.12); border: 1px solid rgba(255,95,190,.3); color: #ffc4e6; }
+.shop-pack-list span.own { opacity: .55; text-decoration: line-through; }
+@media (max-width: 600px) { .shop-card.is-pack { grid-column: 1 / -1; } }
+@media (prefers-reduced-motion: reduce) { .cf-frame_sweet_rena, .cfx-fx_sweet_rena { animation: none !important; } }
+
 /* ── страница магазина ── */
 .shop { max-width: 1120px; margin: 0 auto; }
 .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
