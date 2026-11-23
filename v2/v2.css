@@ -1137,7 +1137,9 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 
 .cbg-bg_sweet_rena { border-color: #d14fa0; background: #3a0f33 url('https://cdn.renah0cki.xyz/file/static/bg_sweet_rena.jpg') center/cover no-repeat; }
 .cbg-bg_sweet_rena::before { display: none; }
-.cbg-bg_sweet_rena .prof-ava, .cbg-bg_sweet_rena .cf-wrap, .cbg-bg_sweet_rena .shop-prev-bg img { filter: drop-shadow(0 0 4px rgba(45,4,36,.7)) drop-shadow(0 0 16px rgba(45,4,36,.85)); }
+.cbg-bg_sweet_rena .prof-ava, .cbg-bg_sweet_rena .shop-prev-bg img { filter: drop-shadow(0 4px 10px rgba(45,4,36,.45)); }
+.cbg-bg_sweet_rena .cf-wrap { filter: drop-shadow(0 5px 10px rgba(45,4,36,.35)); }
+.cbg-bg_sweet_rena .cf-wrap > .prof-ava, .cbg-bg_sweet_rena .cf-wrap > .av { filter: none; }
 .cbg-bg_sweet_rena h1, .cbg-bg_sweet_rena b, .cbg-bg_sweet_rena .prof-bio, .cbg-bg_sweet_rena small, .cbg-bg_sweet_rena span:not(.role):not(.cf-wrap) { text-shadow: 0 1px 2px rgba(45,4,36,.9), 0 0 10px rgba(45,4,36,.85), 0 0 22px rgba(45,4,36,.6); }
 .cbg-bg_sweet_rena .prof-bio, .cbg-bg_sweet_rena .shop-prev-bg span, .cbg-bg_sweet_rena .prof-stats, .cbg-bg_sweet_rena .prof-stats span { color: #fff; }
 .cbg-bg_sweet_rena .prof-handle { color: #ffd6ec; text-shadow: 0 1px 2px rgba(45,4,36,.9), 0 0 10px rgba(45,4,36,.85); }
