@@ -983,6 +983,7 @@ function updateNav() {
   $('#fab').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
   $('#sidePost').classList.toggle('hidden', S.view !== 'feed' && S.view !== 'thread');
   $('#navNew').classList.toggle('hidden', !S.uid);
+  $('#navVoice')?.classList.toggle('hidden', !callsOk());
   renderMe();
 }
 function navKey() {
@@ -993,6 +994,7 @@ function navKey() {
   if (v === 'dms' || v === 'dm' || v === 'dmhub' || v === 'dmpeek') return 'dm';
   if (v === 'user') return S.viewArg === S.uid ? 'me' : '';
   if (v === 'settings') return 'settings';
+  if (v === 'voice') return 'voice';
   if (v === 'notifs') return 'notifs';
   return 'home';
 }
@@ -2037,7 +2039,8 @@ function viewSettings() {
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
       <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
       <a class="set-row" href="#/rules">${I.flag}<span>Правила и соглашение</span></a>
-      ${callsOk() && mainAdmin() ? `<a class="set-row" href="#/calls">${I.phone}<span>Идущие звонки (админ)</span></a>` : ''}
+      ${callsOk() ? `<a class="set-row" href="#/voice">${I.phone}<span>Голосовые каналы (войсы)</span></a>` : ''}
+      ${callsOk() && (mainAdmin() || glMod()) ? `<a class="set-row" href="#/calls">${I.shield}<span>Все идущие звонки (модерация)</span></a>` : ''}
       <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`
     + (shopVisible() ? shopHtml() : '');
   fillCoinBalance(main);
@@ -2523,7 +2526,7 @@ function onDmInsert(row) {
 /* правая колонка */
 function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
-  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs', 'rules', 'support'].includes(S.view)) {
+  if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs', 'rules', 'support', 'voice', 'calls', 'callinvite'].includes(S.view)) {
     const mine = S.mySlots.filter(x => x.room);
     right.innerHTML = `<div class="panel"><h2>Y (переписки)</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
       ${mine.length ? `<div class="panel"><h2>Ваши роли</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
@@ -2554,6 +2557,8 @@ const CALL_VER = 3, CALL_MAX = 10;
 const callsOk = () => !!S.uid && !!S.callsOk;            // все вошедшие (rp.calls_dev_allowed)
 const callGoy = () => !!S.callGoy;                       // ГОЙ+ / тестер / владелец (rp.call_goy)
 const callLink = id => `${location.origin}/rp/#/call/${id}`;
+const glMod = () => !!S.isGlMod;                         // главный модер / админ сайта / владелец (rp.is_gl_mod)
+const callMaxOf = () => CALL.info?.max || CALL_MAX;
 const mainAdmin = () => !!S.uid && S.uid === OWNER_ID;
 const CALL = { id: null, info: null, stream: null, pcs: new Map(), audios: new Map(), members: [], muted: false,
   ping: null, tick: null, wait: null, ch: null, ice: null, seen: new Set(), lastSig: 0, joining: false, title: '', adminSeen: false,
@@ -2696,6 +2701,7 @@ async function callJoin(fn, args) {
 }
 async function callTitle(info) {
   try {
+    if (info.kind === 'voice') return 'Войс · ' + (info.title || 'голосовой канал');
     if (info.kind === 'room') { const r = await api(`rooms?id=eq.${info.room_id}&select=title`); return 'Звонок · ' + (r[0]?.title || 'комната'); }
     const other = info.slot_id === info.slot_a ? info.slot_b : info.slot_a;
     const s = await api(`slots?id=in.(${info.slot_a},${info.slot_b})&select=id,char_name`);
@@ -2922,7 +2928,7 @@ function callDraw() {
   const waiting = CALL.wait && !callOthers().some(m => !m.is_admin);
   const head = `<div class="cb-head">
       <span class="cb-live"><span class="cb-dot"></span>${waiting ? 'Вызов' : 'В звонке'}</span>
-      <b class="cb-title">${esc((CALL.title || 'Звонок').replace(/^Звонок · /, ''))}</b>
+      <b class="cb-title">${esc((CALL.title || 'Звонок').replace(/^(Звонок|Войс) · /, ''))}</b>
       <span class="cb-time">0:00</span>
       ${host ? '' : `<button type="button" class="cb-min" data-cb-min aria-label="${min ? 'Развернуть' : 'Свернуть'}" title="${min ? 'Развернуть' : 'Свернуть'}"><svg viewBox="0 0 24 24"><path d="${min ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg></button>`}
     </div>`;
@@ -2930,7 +2936,7 @@ function callDraw() {
       <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
       ${min ? '' : `<button type="button" class="cb-btn" data-cb-link aria-label="Скопировать ссылку на звонок" title="Скопировать ссылку-приглашение">${I.link}</button>`}
       ${min ? '' : `<a class="cb-btn" href="#/support" aria-label="Пожаловаться модераторам" title="Пожаловаться модераторам">${I.flag}</a>`}
-      ${mainAdmin() && !min ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
+      ${(mainAdmin() || glMod()) && !min ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
       <button type="button" class="cb-btn hang" data-cb-leave aria-label="Выйти из звонка" title="Выйти из звонка">${I.hang}</button>
     </div>`;
   if (min) {
@@ -2939,7 +2945,7 @@ function callDraw() {
     bar.innerHTML = head
       + (adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? 'Вы в звонке как администратор — участники это видят' : 'В звонке администратор renah0cki'}</span></div>` : '')
       + `<div class="cb-grid">${CALL.members.map(callMemberHtml).join('')}</div>`
-      + `<div class="cb-meta">${waiting ? '<span>Ждём ответа…</span>' : CALL.info?.kind === 'dm' ? '' : `<span>${players} из ${CALL_MAX}</span>`}${CALL.voice ? `<span class="cb-voice">Ваш голос: <b>${CALL.voice.ok ? (CALL.voice.up ? 'выше' : 'ниже') : 'обычный'}</b></span>` : ''}</div>`
+      + `<div class="cb-meta">${waiting ? '<span>Ждём ответа…</span>' : CALL.info?.kind === 'dm' ? '' : `<span>${players} из ${callMaxOf()}</span>`}${CALL.voice ? `<span class="cb-voice">Ваш голос: <b>${CALL.voice.ok ? (CALL.voice.up ? 'выше' : 'ниже') : 'обычный'}</b></span>` : ''}</div>`
       + ctrl;
   }
   callLevelTick();
@@ -3002,13 +3008,14 @@ document.addEventListener('click', async e => {
     return;
   }
   const ab = e.target.closest('[data-call-admin]');
-  if (ab) { e.preventDefault(); await callJoin('call_enter', { p_call: ab.dataset.callAdmin }); callRoomPill(); if (S.view === 'calls') viewCallsAdmin(); if (S.view === 'callinvite' && CALL.id) viewCallInvite(CALL.id); return; }
+  if (ab) { e.preventDefault(); await callJoin('call_enter', { p_call: ab.dataset.callAdmin }); callRoomPill(); if (S.view === 'calls') viewCallsAdmin(); if (S.view === 'voice') viewVoice(); if (S.view === 'callinvite' && CALL.id) viewCallInvite(CALL.id); return; }
   const eb = e.target.closest('[data-call-end]');
   if (eb) {
     e.preventDefault();
     if (!confirm('Завершить этот звонок для всех участников?')) return;
     try { await rpc('call_end', { p_call: eb.dataset.callEnd }); toast('Звонок завершён'); } catch (er) { toast(errText(er), true); }
     if (S.view === 'calls') viewCallsAdmin();
+    if (S.view === 'voice') viewVoice();
     return;
   }
   const db = e.target.closest('[data-call-dm]');
@@ -3072,30 +3079,80 @@ async function viewCallInvite(id) {
   try { c = await rpc('call_peek', { p_call: id }); } catch (e) { main.innerHTML = shell(`<h2>Не получилось</h2><p>${esc(errText(e))}</p>`); return; }
   if (S.view !== 'callinvite') return;
   if (!c || c.ended) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>Звонок уже закончился</h2><p>Попросите прислать новую ссылку.</p><a class="btn ghost" href="#/">На главную Y</a>`); return; }
-  const what = c.kind === 'room' ? `Комната «${esc(c.title)}»` : `ЛС: ${esc(c.title)}`;
+  const what = c.kind === 'voice' ? `Войс «${esc(c.title)}»` : c.kind === 'room' ? `Комната «${esc(c.title)}»` : `ЛС: ${esc(c.title)}`;
+  const cap = c.max || CALL_MAX;
   const inIt = CALL.id === c.id;
   main.innerHTML = shell(`<div class="ci-ic">${I.phone}</div><h2>${what}</h2>
-    <p>Сейчас в звонке: <b>${c.count}</b> из ${CALL_MAX}</p>
+    <p>Сейчас в звонке: <b>${c.count}</b> из ${cap}</p>
     ${!c.has_goy && !callGoy() ? '<p class="ci-warn">В звонке пока нет участника с ролью ГОЙ — войти можно, когда он зайдёт.</p>' : ''}
-    ${inIt ? '<p><b>Вы уже в этом звонке</b></p>' : c.count >= CALL_MAX ? '<p class="ci-warn">Звонок заполнен.</p>' : `<button type="button" class="btn blue" data-call-admin="${esc(c.id)}">Войти в звонок</button>`}
+    ${inIt ? '<p><b>Вы уже в этом звонке</b></p>' : c.count >= cap ? '<p class="ci-warn">Звонок заполнен.</p>' : `<button type="button" class="btn blue" data-call-admin="${esc(c.id)}">Войти в звонок</button>`}
     <p class="ci-note">Звонки не записываются. Перед первым звонком нужно принять правила.</p>`);
+}
+
+/* голосовые каналы (войсы): видят все вошедшие, создают главные модеры */
+async function viewVoice() {
+  S.view = 'voice'; updateNav(); renderRight();
+  const H = head('Голосовые каналы', { back: true, sub: 'Заходите своим аккаунтом, без персонажа' });
+  if (!S.uid) { main.innerHTML = H + '<div class="empty"><h2>Войдите</h2><p>Чтобы зайти в войс, войдите в аккаунт.</p><a class="btn blue" href="/">Войти</a></div>'; return; }
+  main.innerHTML = H + loader();
+  let rows = [];
+  try { rows = await api('calls?kind=eq.voice&ended_at=is.null&select=id,title,max_members,created_at,members:call_members(user_id,is_admin,left_at,last_seen,prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username))&order=created_at.asc'); }
+  catch (e) { return errorView(errText(e)); }
+  if (S.view !== 'voice') return;
+  const opts = sel => Array.from({ length: 9 }, (_, i) => i + 2).map(n => `<option value="${n}"${n === sel ? ' selected' : ''}>${n}</option>`).join('');
+  const create = glMod() ? `<form class="vc-new" id="vcNew" autocomplete="off">
+      <b>Новый войс</b>
+      <div class="vc-new-row"><input name="t" maxlength="40" placeholder="Название, например «Болталка»" required>
+        <label class="vc-max">Мест <select name="m">${opts(10)}</select></label>
+        <button class="btn blue small" type="submit">Создать</button></div>
+    </form>` : '';
+  const items = rows.map(c => {
+    const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000 && !m.is_admin);
+    const inIt = CALL.id === c.id, full = live.length >= c.max_members;
+    const faces = live.slice(0, 6).map(m => avatar(m.prof ? userAv(m.prof) : { char_name: '?' }, 'sm')).join('');
+    return `<div class="vc-row">
+      <div class="vc-ic">${I.phone}</div>
+      <div class="vc-main"><b>${esc(c.title)}</b><span>${live.length} из ${c.max_members}${live.length ? '' : ' · пусто'}</span>${faces ? `<div class="vc-faces">${faces}</div>` : ''}</div>
+      <div class="vc-acts">
+        ${inIt ? '<span class="cp-in">Вы здесь</span>' : full ? '<span class="cp-in">Мест нет</span>' : `<button type="button" class="btn blue small" data-call-admin="${c.id}">Зайти</button>`}
+        <button type="button" class="icon-btn" data-vc-link="${c.id}" title="Скопировать ссылку" aria-label="Скопировать ссылку">${I.link}</button>
+        ${glMod() ? `<select class="vc-sel" data-vc-max="${c.id}" title="Мест" aria-label="Мест">${opts(c.max_members)}</select>
+          <button type="button" class="btn danger small" data-call-end="${c.id}">Закрыть</button>` : ''}
+      </div></div>`;
+  }).join('');
+  main.innerHTML = H + create + `<div class="vc-list">${items || `<div class="empty"><h2>Пока нет войсов</h2><p>${glMod() ? 'Создайте первый — сверху.' : 'Их создают главные модераторы.'}</p></div>`}</div>`;
+  const f = $('#vcNew');
+  if (f) f.onsubmit = async e => {
+    e.preventDefault();
+    const t = f.t.value.trim(); if (!t) return;
+    await callJoin('call_voice_create', { p_title: t, p_max: +f.m.value });
+    if (S.view === 'voice') viewVoice();
+  };
+  $$('[data-vc-link]', main).forEach(b => b.onclick = async () => {
+    const url = callLink(b.dataset.vcLink);
+    try { await navigator.clipboard.writeText(url); toast('Ссылка на войс скопирована'); } catch { prompt('Ссылка на войс', url); }
+  });
+  $$('[data-vc-max]', main).forEach(sel => sel.onchange = async () => {
+    try { await rpc('call_voice_set_max', { p_call: sel.dataset.vcMax, p_max: +sel.value }); toast('Мест: ' + sel.value); if (CALL.id === sel.dataset.vcMax && CALL.info) { CALL.info.max = +sel.value; callDraw(); } }
+    catch (er) { toast(errText(er), true); }
+  });
 }
 
 /* главный админ: все идущие звонки */
 async function viewCallsAdmin() {
   S.view = 'calls'; updateNav(); renderRight();
-  if (!mainAdmin()) { main.innerHTML = head('Звонки', { back: true }) + '<div class="empty"><h2>Нет доступа</h2></div>'; return; }
+  if (!mainAdmin() && !glMod()) { main.innerHTML = head('Звонки', { back: true }) + '<div class="empty"><h2>Нет доступа</h2></div>'; return; }
   main.innerHTML = head('Идущие звонки', { back: true, sub: 'Ваш вход всегда виден участникам' }) + loader();
   let rows = [];
-  try { rows = await api('calls?ended_at=is.null&select=id,kind,created_at,room:room_id(title,short_code,id),a:slot_a(char_name),b:slot_b(char_name),members:call_members(user_id,is_admin,left_at,last_seen)&order=created_at.desc'); }
+  try { rows = await api('calls?ended_at=is.null&select=id,kind,title,max_members,created_at,room:room_id(title,short_code,id),a:slot_a(char_name),b:slot_b(char_name),members:call_members(user_id,is_admin,left_at,last_seen)&order=created_at.desc'); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'calls') return;
   const items = rows.map(c => {
     const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000);
     const n = live.filter(m => !m.is_admin).length, inIt = CALL.id === c.id;
-    const what = c.kind === 'room' ? `Комната «${esc(c.room?.title || '')}»` : `ЛС: ${esc(c.a?.char_name || '?')} и ${esc(c.b?.char_name || '?')}`;
-    return `<div class="call-adm-row"><div class="ca-main"><b>${what}</b><span>${n}/${CALL_MAX} · с ${new Date(c.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${live.some(m => m.is_admin) ? ' · админ в звонке' : ''}</span></div>
-      ${inIt ? '<span class="cp-in">Вы здесь</span>' : `<button type="button" class="btn ghost small" data-call-admin="${c.id}">Войти</button>`}
+    const what = c.kind === 'voice' ? `Войс «${esc(c.title || '')}»` : c.kind === 'room' ? `Комната «${esc(c.room?.title || '')}»` : `ЛС: ${esc(c.a?.char_name || '?')} и ${esc(c.b?.char_name || '?')}`;
+    return `<div class="call-adm-row"><div class="ca-main"><b>${what}</b><span>${n}/${c.max_members || CALL_MAX} · с ${new Date(c.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${live.some(m => m.is_admin) ? ' · админ в звонке' : ''}</span></div>
+      ${inIt ? '<span class="cp-in">Вы здесь</span>' : (mainAdmin() || c.kind === 'voice') ? `<button type="button" class="btn ghost small" data-call-admin="${c.id}">Войти</button>` : ''}
       <button type="button" class="btn danger small" data-call-end="${c.id}">Завершить</button></div>`;
   }).join('');
   main.innerHTML = head('Идущие звонки', { back: true, sub: 'Ваш вход всегда виден участникам' })
@@ -3130,6 +3187,7 @@ function route() {
   if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'rooms') return viewRooms();
   if (parts[0] === 'calls') return viewCallsAdmin();
+  if (parts[0] === 'voice') return viewVoice();
   if (parts[0] === 'call' && ok(parts[1])) return viewCallInvite(parts[1]);
   return viewHome();
 }
@@ -3266,6 +3324,7 @@ async function init() {
       loadMySlots().catch(() => {}), loadUserReposts().catch(() => {}), loadUserLikes().catch(() => {}),
       rpc('calls_dev_allowed').then(v => { S.callsOk = v === true; }).catch(() => {}),
       rpc('call_goy', { p_user: sess.user.id }).then(v => { S.callGoy = v === true; }).catch(() => {}),
+      rpc('is_gl_mod').then(v => { S.isGlMod = v === true; }).catch(() => {}),
     ]);
     loadUnread();
     tgLinkIfNeeded();

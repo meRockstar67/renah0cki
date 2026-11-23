@@ -904,3 +904,19 @@ html.has-wall .chat-call { background: rgba(0,0,0,.45); color: #fff; border-colo
 .ci-ic.off { background: var(--bg-2); color: var(--muted); }
 .ci-warn { color: #ffd27a !important; font-size: 14px; }
 .ci-note { font-size: 13px; margin-top: 14px !important; }
+/* голосовые каналы */
+.vc-new { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.vc-new-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.vc-new input { flex: 1; min-width: 160px; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font: inherit; }
+.vc-max { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+.vc-max select, .vc-sel { height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); padding: 0 6px; font: inherit; }
+.vc-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.vc-ic { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; flex: none; background: rgba(35,209,96,.14); color: #23d160; }
+.vc-ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
+.vc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vc-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+.vc-main span { color: var(--muted); font-size: 13px; }
+.vc-faces { display: flex; margin-top: 4px; padding-left: 6px; }
+.vc-faces .av { width: 24px; height: 24px; margin-left: -6px; box-shadow: 0 0 0 2px var(--bg); font-size: 11px; }
+.vc-acts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 520px) { .vc-row { flex-wrap: wrap; } .vc-acts { width: 100%; justify-content: flex-start; padding-left: 56px; } }
