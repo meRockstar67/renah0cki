@@ -1137,10 +1137,10 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 
 .cbg-bg_sweet_rena { border-color: #d14fa0; background: #3a0f33 url('https://cdn.renah0cki.xyz/file/static/bg_sweet_rena.jpg') center/cover no-repeat; }
 .cbg-bg_sweet_rena::before { display: none; }
-.cbg-bg_sweet_rena .prof-ava, .cbg-bg_sweet_rena .cf-wrap, .cbg-bg_sweet_rena .shop-prev-bg img { filter: drop-shadow(0 3px 7px rgba(70,8,55,.55)); }
-.cbg-bg_sweet_rena h1, .cbg-bg_sweet_rena b, .cbg-bg_sweet_rena .prof-bio, .cbg-bg_sweet_rena small, .cbg-bg_sweet_rena span:not(.role):not(.cf-wrap) { text-shadow: 0 1px 2px rgba(70,8,55,.75), 0 2px 8px rgba(70,8,55,.45); }
+.cbg-bg_sweet_rena .prof-ava, .cbg-bg_sweet_rena .cf-wrap, .cbg-bg_sweet_rena .shop-prev-bg img { filter: drop-shadow(0 0 4px rgba(45,4,36,.7)) drop-shadow(0 0 16px rgba(45,4,36,.85)); }
+.cbg-bg_sweet_rena h1, .cbg-bg_sweet_rena b, .cbg-bg_sweet_rena .prof-bio, .cbg-bg_sweet_rena small, .cbg-bg_sweet_rena span:not(.role):not(.cf-wrap) { text-shadow: 0 1px 2px rgba(45,4,36,.9), 0 0 10px rgba(45,4,36,.85), 0 0 22px rgba(45,4,36,.6); }
 .cbg-bg_sweet_rena .prof-bio, .cbg-bg_sweet_rena .shop-prev-bg span { color: #fff; }
-.cbg-bg_sweet_rena .cfx:not(.cfx-fx_sweet_rena), .cbg-bg_sweet_rena .nm-paint { text-shadow: none; filter: drop-shadow(0 1px 2px rgba(70,8,55,.75)) drop-shadow(0 2px 6px rgba(70,8,55,.4)); }
+.cbg-bg_sweet_rena .cfx, .cbg-bg_sweet_rena .nm-paint { text-shadow: none !important; filter: drop-shadow(0 1px 1.5px rgba(45,4,36,.95)) drop-shadow(0 0 8px rgba(45,4,36,.85)) drop-shadow(0 0 18px rgba(45,4,36,.6)); }
 
 /* ── набор «Нежные папочки»: рамка + ник под фон «Сладкий renah0cki» ── */
 .cf-frame_sweet_rena { background: conic-gradient(from var(--cf-ang), #ffffff, #ffd6ec, #ff9fd2, #ffffff, #ffc2e3, #ff7fc4, #ffffff); animation: cfSpin 4s linear infinite; box-shadow: 0 0 0 1px rgba(255,160,210,.9), 0 0 14px rgba(255,170,215,.6); }
