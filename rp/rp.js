@@ -2556,7 +2556,7 @@ I.shield = '<svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 
 const CALL_VER = 3, CALL_MAX = 10;
 const callsOk = () => !!S.uid && !!S.callsOk;            // все вошедшие (rp.calls_dev_allowed)
 const callGoy = () => !!S.callGoy;                       // ГОЙ+ / тестер / владелец (rp.call_goy)
-const callLink = id => `${location.origin}/rp/#/call/${id}`;
+const callLink = (id, code) => code ? `${location.origin}/y/v/${code}` : `${location.origin}/rp/#/call/${id}`;
 const glMod = () => !!S.isGlMod;                         // главный модер / админ сайта / владелец (rp.is_gl_mod)
 const callMaxOf = () => CALL.info?.max || CALL_MAX;
 const mainAdmin = () => !!S.uid && S.uid === OWNER_ID;
@@ -2690,6 +2690,7 @@ async function callJoin(fn, args) {
     CALL.lvl = setInterval(callLevelTick, 120);
     CALL.ice = await callIceConfig();
     CALL.title = await callTitle(info);
+    api(`calls?id=eq.${info.id}&select=short_code`).then(r => { if (CALL.id === info.id && r?.[0]?.short_code) CALL.info.code = r[0].short_code; }).catch(() => {});
     callDraw();
     await callSubscribe();
     await callRefresh();
@@ -2955,7 +2956,7 @@ function bindCallBar(bar) {
     if (e.target.closest('[data-cb-min]')) { try { localStorage.setItem(callMinKey, callIsMin() ? '0' : '1'); } catch {} return callDraw(); }
     if (e.target.closest('[data-cb-mute]')) return callToggleMute();
     if (e.target.closest('[data-cb-link]')) {
-      const url = callLink(CALL.id);
+      const url = callLink(CALL.id, CALL.info?.code);
       try { await navigator.clipboard.writeText(url); toast('Ссылка на звонок скопирована — отправьте её другу'); } catch { prompt('Ссылка на звонок', url); }
       return;
     }
@@ -3076,6 +3077,9 @@ async function viewCallInvite(id) {
   if (!S.uid) { main.innerHTML = shell(`<div class="ci-ic">${I.phone}</div><h2>Вас зовут в звонок</h2><p>Войдите в аккаунт renah0cki, чтобы присоединиться.</p><a class="btn blue" href="/">Войти</a>`); return; }
   main.innerHTML = shell(loader());
   let c;
+  // короткий код → id звонка
+  if (!/^[0-9a-f-]{36}$/i.test(id)) { try { id = await rpc('call_by_code', { p_code: id }); } catch { id = null; } }
+  if (!id) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>Звонок не найден</h2><p>Ссылка неверная или звонок давно закончился.</p><a class="btn ghost" href="#/">На главную Y</a>`); return; }
   try { c = await rpc('call_peek', { p_call: id }); } catch (e) { main.innerHTML = shell(`<h2>Не получилось</h2><p>${esc(errText(e))}</p>`); return; }
   if (S.view !== 'callinvite') return;
   if (!c || c.ended) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>Звонок уже закончился</h2><p>Попросите прислать новую ссылку.</p><a class="btn ghost" href="#/">На главную Y</a>`); return; }
@@ -3096,7 +3100,8 @@ async function viewVoice() {
   if (!S.uid) { main.innerHTML = H + '<div class="empty"><h2>Войдите</h2><p>Чтобы зайти в войс, войдите в аккаунт.</p><a class="btn blue" href="/">Войти</a></div>'; return; }
   main.innerHTML = H + loader();
   let rows = [];
-  try { rows = await api('calls?kind=eq.voice&ended_at=is.null&select=id,title,max_members,created_at,members:call_members(user_id,is_admin,left_at,last_seen,prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username))&order=created_at.asc'); }
+  const vsel = 'id,title,max_members,created_at,members:call_members(user_id,is_admin,left_at,last_seen,prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username))&order=created_at.asc';
+  try { rows = await api('calls?kind=eq.voice&ended_at=is.null&select=short_code,' + vsel).catch(() => api('calls?kind=eq.voice&ended_at=is.null&select=' + vsel)); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'voice') return;
   const opts = sel => Array.from({ length: 9 }, (_, i) => i + 2).map(n => `<option value="${n}"${n === sel ? ' selected' : ''}>${n}</option>`).join('');
@@ -3115,7 +3120,7 @@ async function viewVoice() {
       <div class="vc-main"><b>${esc(c.title)}</b><span>${live.length} из ${c.max_members}${live.length ? '' : ' · пусто'}</span>${faces ? `<div class="vc-faces">${faces}</div>` : ''}</div>
       <div class="vc-acts">
         ${inIt ? '<span class="cp-in">Вы здесь</span>' : full ? '<span class="cp-in">Мест нет</span>' : `<button type="button" class="btn blue small" data-call-admin="${c.id}">Зайти</button>`}
-        <button type="button" class="icon-btn" data-vc-link="${c.id}" title="Скопировать ссылку" aria-label="Скопировать ссылку">${I.link}</button>
+        <button type="button" class="icon-btn" data-vc-link="${c.id}" data-vc-code="${esc(c.short_code || '')}" title="Скопировать ссылку" aria-label="Скопировать ссылку">${I.link}</button>
         ${glMod() ? `<select class="vc-sel" data-vc-max="${c.id}" title="Мест" aria-label="Мест">${opts(c.max_members)}</select>
           <button type="button" class="btn danger small" data-call-end="${c.id}">Закрыть</button>` : ''}
       </div></div>`;
@@ -3129,7 +3134,7 @@ async function viewVoice() {
     if (S.view === 'voice') viewVoice();
   };
   $$('[data-vc-link]', main).forEach(b => b.onclick = async () => {
-    const url = callLink(b.dataset.vcLink);
+    const url = callLink(b.dataset.vcLink, b.dataset.vcCode);
     try { await navigator.clipboard.writeText(url); toast('Ссылка на войс скопирована'); } catch { prompt('Ссылка на войс', url); }
   });
   $$('[data-vc-max]', main).forEach(sel => sel.onchange = async () => {
@@ -3189,6 +3194,7 @@ function route() {
   if (parts[0] === 'calls') return viewCallsAdmin();
   if (parts[0] === 'voice') return viewVoice();
   if (parts[0] === 'call' && ok(parts[1])) return viewCallInvite(parts[1]);
+  if (parts[0] === 'v' && ok(parts[1])) return viewCallInvite(parts[1]);
   return viewHome();
 }
 document.addEventListener('click', e => {
