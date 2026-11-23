@@ -1271,3 +1271,4 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
   .cbg-bg_aurora::before, .cbg-bg_cosmos::before, .cbg-bg_slay::before { animation: none !important; }
 }
 .rules-upd { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
+.rules-lead { color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
