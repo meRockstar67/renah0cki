@@ -575,7 +575,7 @@ async function viewPost(key, root = page) {
     ${inLb ? '' : `<button class="back" data-back>${I.back} Назад</button>`}
     ${media ? `<div class="post-media${it.is_blurred ? ' blur' : ''}" id="postMedia">${media}</div>` : ''}
     <div class="post-head">${cosAva(a, 'av', ` data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer"`)}<div><div class="post-author-row"><b data-user="${esc(a?.username || it.submitted_by)}" style="cursor:pointer">${cosName(a)}</b>${inlineRolesHtml(a, it.submitted_by)}</div><div class="sub">${when(it.published_at || it.created_at)}${it.content_type === 'fanfic' ? '' : ` · ${fmt(it.views)} просмотров`}</div></div>
-      <div class="post-actions"><div class="react-wrap" id="reactWrap"></div><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button>${postMenuHtml(it)}</div></div>
+      <div class="post-actions"><div class="react-wrap" id="reactWrap"></div><button class="btn like-btn${liked ? ' liked' : ''}" id="likeBtn">${I.heart}<span>${fmt(it.likes)}</span></button><button class="btn" id="copyBtn" title="Скопировать ссылку">${I.link}</button>${S.uid !== it.submitted_by ? `<button class="btn" data-report="content" data-rid="${esc(it.id)}" title="Пожаловаться" aria-label="Пожаловаться"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button>` : ''}${postMenuHtml(it)}</div></div>
     <h1>${esc(it.title || 'Без названия')}</h1>
     ${it.description && it.content_type !== 'fanfic' ? `<p class="post-desc">${esc(it.description)}</p>` : ''}
     ${it.content_type === 'fanfic' ? `<div class="post-text">${esc(it.description || '')}</div>` : ''}
@@ -864,7 +864,7 @@ function drawComments(box, rows, cid) {
   const draft = $('.cmt-form textarea', box)?.value || '';
   box.innerHTML = `<h3>Комментарии · ${rows.length}</h3>` + (rows.length ? ordered.map(([c, d]) => {
     const p = S.profiles.get(c.author_id), mine = S.uid && c.author_id === S.uid;
-    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}">${cosAva(p)}<div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}">${cosName(p)}</b><span>${when(c.created_at)}</span></div>${c.voice_url && isOwnFile(c.voice_url) ? `<audio class="cmt-voice" src="${esc(c.voice_url)}" controls preload="none"></audio>` : `<div class="cmt-body">${esc(c.body || '')}</div>`}
+    return `<div class="cmt${d ? ' reply' : ''}" data-cmt="${c.id}" data-auid="${esc(c.author_id || '')}">${cosAva(p)}<div class="cmt-main"><div class="cmt-head"><b data-user="${esc(p?.username || c.author_id)}">${cosName(p)}</b><span>${when(c.created_at)}</span></div>${c.voice_url && isOwnFile(c.voice_url) ? `<audio class="cmt-voice" src="${esc(c.voice_url)}" controls preload="none"></audio>` : `<div class="cmt-body">${esc(c.body || '')}</div>`}
       ${S.uid ? `<div class="cmt-acts"><button type="button" data-creply="${c.id}" data-cname="${esc(pname(p))}">Ответить</button>${mine || mod ? `<button type="button" data-cdel="${c.id}">Удалить</button>` : ''}${!mine ? `<button type="button" data-crep="${c.id}">Пожаловаться</button>` : ''}</div>` : ''}</div></div>`;
   }).join('') : '<div class="empty" style="padding:20px">Комментариев пока нет</div>')
     + (S.uid ? `<form class="cmt-form" data-cform><div class="cmt-to" hidden></div><div class="cmt-row"><textarea rows="2" maxlength="2000" placeholder="Написать комментарий…" required></textarea>${canVoice() ? `<button class="btn icon-only" type="button" data-voice title="Голосовое сообщение" aria-label="Записать голосовое">${I.mic}</button>` : ''}<button class="btn accent" type="submit">Отправить</button></div></form>`
@@ -1392,7 +1392,7 @@ async function viewProfile(key) {
       </div>
       <div class="prof-acts">
         ${own ? `<button class="btn" type="button" id="profEdit">Редактировать</button>`
-          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? '✓ Вы подписаны' : 'Подписаться'}</button><button class="btn icon-only" id="profSend" title="Перевести coin"><img src="${COIN}" alt="" style="width:20px;height:20px"></button>` : ''}
+          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? '✓ Вы подписаны' : 'Подписаться'}</button><button class="btn icon-only" id="profSend" title="Перевести coin"><img src="${COIN}" alt="" style="width:20px;height:20px"></button><button class="btn icon-only" data-report="user" data-rid="${esc(p.id)}" title="Пожаловаться на пользователя" aria-label="Пожаловаться"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button><button class="btn${S.blocked.has(p.id) ? ' accent' : ''}" id="profBlock" title="${S.blocked.has(p.id) ? 'Разблокировать' : 'Заблокировать для себя'}">${S.blocked.has(p.id) ? 'Разблокировать' : 'Заблокировать'}</button>` : ''}
         <button class="btn icon-only" id="profCopy" title="Скопировать ссылку">${I.link}</button>
       </div>
     </section>
@@ -1403,6 +1403,7 @@ async function viewProfile(key) {
   $('#profCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/@${encodeURIComponent(p.username || p.id)}`); toast('Ссылка скопирована'); } catch { toast('Не удалось скопировать', true); } };
   const pe = $('#profEdit'); if (pe) pe.onclick = () => { if (!S.me) S.me = p; editProfile(); };
   const ps = $('#profSend'); if (ps) ps.onclick = () => coinSendDialog(p);
+  const pbl = $('#profBlock'); if (pbl) pbl.onclick = () => toggleBlock(p);
   const sb = $('#subBtn');
   if (sb) sb.onclick = async () => {
     sb.disabled = true;
@@ -1773,11 +1774,100 @@ async function loadTopDonors() {
 loadTopDonors();
 setInterval(() => { if (!document.hidden) { loadTopDonors(); loadSponsors(); } }, 60e3);
 $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
+/* ── согласие с правилами и пользовательским соглашением (один раз) ── */
+const TERMS_KEY = 'rn_terms_v1';
+const termsLocal = () => { try { return !!localStorage.getItem(TERMS_KEY); } catch { return false; } };
+function termsGate() {
+  if ($('#termsGate')) return;
+  const ov = document.createElement('div');
+  ov.id = 'termsGate'; ov.className = 'terms-ov';
+  ov.innerHTML = `<form class="terms-box" role="dialog" aria-modal="true" aria-label="Правила сайта">
+    <h2>Добро пожаловать на renah0cki</h2>
+    <p>Прежде чем пользоваться сайтом, ознакомьтесь с <a href="/rules" target="_blank" rel="noopener">правилами и пользовательским соглашением</a>. Коротко:</p>
+    <ul>
+      <li>Запрещены 18+, травля, угрозы, чужие личные данные и всё незаконное — за это удаляют контент и блокируют.</li>
+      <li>Работы проверяют модераторы, на всё остальное можно пожаловаться. Любого пользователя можно заблокировать для себя.</li>
+      <li>Донаты добровольные, монеты — подарок за поддержку; их нельзя вывести или обменять на деньги.</li>
+      <li>Сайт работает «как есть». За свои публикации отвечаете вы.</li>
+    </ul>
+    <label class="terms-check"><input type="checkbox" name="ok"> <span>Я ознакомлен(а) с правилами и пользовательским соглашением и согласен(на) с ними</span></label>
+    <p class="terms-err" role="alert"></p>
+    <button class="btn accent" type="submit">Продолжить</button>
+  </form>`;
+  const f = $('form', ov);
+  f.onsubmit = async e => {
+    e.preventDefault();
+    if (!f.ok.checked) { $('.terms-err', ov).textContent = 'Поставьте галочку, чтобы продолжить'; return; }
+    try { localStorage.setItem(TERMS_KEY, new Date().toISOString()); } catch {}
+    if (S.uid) { try { const t = await rpc('accept_terms'); if (S.me) S.me.terms_accepted_at = t; } catch {} }
+    ov.remove(); document.documentElement.classList.remove('terms-lock');
+  };
+  document.body.append(ov); document.documentElement.classList.add('terms-lock');
+}
+if (!S.uid && !termsLocal()) setTimeout(termsGate, 400);
+
+/* ── блокировка пользователей для себя (public.user_blocks): их работы, комментарии и отзывы скрываются ── */
+S.blocked = new Set();
+async function loadBlocks() {
+  if (!S.uid) return;
+  try { S.blocked = new Set((await api('user_blocks?select=blocked')).map(r => r.blocked)); } catch {}
+  applyBlockCss();
+}
+function applyBlockCss() {
+  let st = $('#blkCss'); if (!st) { st = document.createElement('style'); st.id = 'blkCss'; document.head.append(st); }
+  st.textContent = [...S.blocked].map(id => `[data-auid="${CSS.escape(id)}"]`).join(',') + (S.blocked.size ? '{display:none!important}' : '');
+}
+async function toggleBlock(p) {
+  if (!S.uid) return login();
+  const on = S.blocked.has(p.id);
+  if (!on && !confirm(`Заблокировать ${pname(p)}? Вы перестанете видеть его работы, комментарии и отзывы, он не сможет писать вам в ЛС и звонить в Y.`)) return;
+  try {
+    if (on) await api(`user_blocks?blocked=eq.${p.id}`, { method: 'DELETE' });
+    else await api('user_blocks', { method: 'POST', prefer: 'return=minimal', body: { blocked: p.id } });
+    on ? S.blocked.delete(p.id) : S.blocked.add(p.id);
+    applyBlockCss(); toast(on ? 'Пользователь разблокирован' : 'Пользователь заблокирован');
+    route();
+  } catch (er) { toast(er.message, true); }
+}
+
+/* ── жалоба на работу, отзыв, пользователя (public.content_reports) ── */
+const TARGET_LBL = { content: 'работу', review: 'отзыв', user: 'пользователя', collection: 'сборник', news: 'новость', suggestion: 'видео в предложке' };
+function reportTarget(type, id) {
+  if (!S.uid) return login();
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal"><h2>Пожаловаться на ${TARGET_LBL[type] || 'контент'}</h2>
+    <div class="radios">${REPORT_REASONS.map(([v, t], i) => `<label class="radio"><input type="radio" name="r" value="${v}"${i ? '' : ' checked'}><span>${t}</span></label>`).join('')}</div>
+    <label>Подробности (необязательно)<textarea name="d" rows="2" maxlength="500"></textarea></label>
+    <p class="hint"></p><div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Отправить</button></div></form>`;
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) close(); });
+  $('form', ov).onsubmit = async e => {
+    e.preventDefault();
+    const f = e.target, hint = $('.hint', ov);
+    try {
+      await api('content_reports', { method: 'POST', prefer: 'return=minimal', body: { target_type: type, target_id: String(id), reason: f.r.value, details: f.d.value.trim() || null } });
+      close(); toast('Жалоба отправлена модераторам');
+    } catch (er) { hint.textContent = /duplicate|unique|409/i.test(er.message) ? 'Вы уже жаловались на это.' : 'Ошибка: ' + er.message; }
+  };
+  document.body.append(ov);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-report]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  reportTarget(b.dataset.report, b.dataset.rid);
+});
+
 async function loadMe() {
   if (!S.uid) return;
   try {
-    const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,short_code,role,extra_roles,name_color,bio,stream_twitch_url,stream_social_url,stream_donate_url,notify_likes,notify_comments,notify_new_followers,notify_new_submission`);
+    const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,short_code,role,extra_roles,name_color,bio,stream_twitch_url,stream_social_url,stream_donate_url,notify_likes,notify_comments,notify_new_followers,notify_new_submission,terms_accepted_at`);
     S.me = me; if (me) S.profiles.set(me.id, me);
+    loadBlocks();
+    if (me && 'terms_accepted_at' in me && !me.terms_accepted_at) {
+      if (termsLocal()) rpc('accept_terms').then(t => { me.terms_accepted_at = t; }).catch(() => {});
+      else termsGate();
+    }
     $('#meAva').src = avatarUrl(me);
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
@@ -1886,7 +1976,8 @@ const MOD = { tab: 'queue' };
 async function modCount() {
   const cnt = async q => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/${q}`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; };
   try {
-    const [a, b, c] = await Promise.all([cnt('content?select=id&status=eq.draft'), cnt('comment_reports?select=id&status=eq.pending'), cnt('reviews?select=id&status=eq.draft')]);
+    const [a, b0, c, b2] = await Promise.all([cnt('content?select=id&status=eq.draft'), cnt('comment_reports?select=id&status=eq.pending'), cnt('reviews?select=id&status=eq.draft'), cnt('content_reports?select=id&status=eq.pending').catch(() => 0)]);
+    const b = b0 + (b2 || 0);
     MOD.n = { queue: a + c, reports: b };
     const n = a + b + c, el = $('#modBadge');
     if (el) { el.textContent = n > 99 ? '99+' : String(n); el.hidden = !n; }
@@ -2038,7 +2129,60 @@ async function modQueue() {
     </article>`;
   }).join('') + revHtml : revHtml || '<div class="empty">Очередь пуста — всё проверено.</div>';
 }
+async function modReports2() {
+  let rows = [];
+  try { rows = await api('content_reports?status=eq.pending&order=created_at.asc&select=*'); } catch { return ''; }
+  if (!rows.length) return '';
+  const ids = t => [...new Set(rows.filter(r => r.target_type === t).map(r => r.target_id))];
+  const [works, revs] = await Promise.all([
+    ids('content').length ? api(`content?id=in.(${ids('content').join(',')})&select=id,title,short_code,status,submitted_by`).catch(() => []) : [],
+    ids('review').length ? api(`reviews?id=in.(${ids('review').join(',')})&select=id,text,status,user_id`).catch(() => []) : [],
+  ]);
+  const wm = new Map(works.map(x => [String(x.id), x])), rm = new Map(revs.map(x => [String(x.id), x]));
+  await loadProfiles([...rows.map(r => r.reporter_id), ...ids('user'), ...works.map(w => w.submitted_by), ...revs.map(v => v.user_id)]);
+  const RN = Object.fromEntries(REPORT_REASONS);
+  return rows.map(r => {
+    const rep = S.profiles.get(r.reporter_id);
+    let what = '', act = '';
+    if (r.target_type === 'content') {
+      const w = wm.get(r.target_id);
+      what = w ? `Работа <a class="mod-post" href="${routeUrl('p/' + (w.short_code || w.id))}">«${esc(w.title || 'без названия')}»</a> от <b>${esc(pname(S.profiles.get(w.submitted_by)))}</b>${w.status !== 'published' ? ` · ${esc(w.status)}` : ''}` : 'Работа уже удалена';
+      if (w && w.status === 'published') act = `<button class="btn accent" data-r2hide="${r.id}" data-t="content" data-tid="${esc(w.id)}">Скрыть работу</button>`;
+    } else if (r.target_type === 'review') {
+      const v = rm.get(r.target_id);
+      what = v ? `Отзыв от <b>${esc(pname(S.profiles.get(v.user_id)))}</b>: «${esc((v.text || '').slice(0, 200))}»` : 'Отзыв уже удалён';
+      if (v && v.status === 'published') act = `<button class="btn accent" data-r2hide="${r.id}" data-t="review" data-tid="${esc(v.id)}">Скрыть отзыв</button>`;
+    } else if (r.target_type === 'user') {
+      const u = S.profiles.get(r.target_id);
+      what = `Пользователь <a class="mod-post" href="${userPath(u || { id: r.target_id })}">${esc(pname(u))}</a>`;
+    } else what = `${esc(TARGET_LBL[r.target_type] || r.target_type)} #${esc(r.target_id)}`;
+    return `<article class="mod-card" data-r2="${r.id}">
+      <div class="mod-top"><span class="role role-moderator">${esc(RN[r.reason] || r.reason)}</span><span>от <b>${esc(pname(rep))}</b> · ${when(r.created_at)}</span></div>
+      <div class="mod-desc">${what}</div>
+      ${r.details ? `<p class="mod-desc">«${esc(r.details)}»</p>` : ''}
+      <div class="mod-acts">${act}<button class="btn" data-r2no="${r.id}">${act ? 'Оставить' : 'Закрыть жалобу'}</button></div>
+    </article>`;
+  }).join('');
+}
+page.addEventListener('click', async e => {
+  const h = e.target.closest('[data-r2hide]'), n = e.target.closest('[data-r2no]');
+  if (!h && !n) return;
+  const card = (h || n).closest('.mod-card'), rid = (h || n).dataset[h ? 'r2hide' : 'r2no'];
+  if (h && !confirm('Скрыть с сайта?')) return;
+  $$('button', card).forEach(b => { b.disabled = true; });
+  try {
+    if (h) {
+      const tbl = h.dataset.t === 'review' ? 'reviews' : 'content';
+      const upd = await api(`${tbl}?id=eq.${h.dataset.tid}`, { method: 'PATCH', prefer: 'return=representation', body: { status: 'rejected', rejection_reason: 'Удалено модератором по жалобе' } });
+      if (!upd?.length) throw new Error('Не удалось скрыть (нет прав?)');
+      if (tbl === 'content') { await api('moderation_log', { method: 'POST', prefer: 'return=minimal', body: { content_id: h.dataset.tid, moderator_id: S.uid, action: 'rejected', comment: 'по жалобе' } }).catch(() => {}); dropFeedCache(); }
+      await api(`content_reports?target_type=eq.${h.dataset.t}&target_id=eq.${h.dataset.tid}&status=eq.pending`, { method: 'PATCH', prefer: 'return=minimal', body: { status: 'resolved' } });
+    } else await api(`content_reports?id=eq.${rid}`, { method: 'PATCH', prefer: 'return=minimal', body: { status: 'dismissed' } });
+    toast(h ? 'Скрыто' : 'Жалоба закрыта'); modDone(card);
+  } catch (er) { toast(er.message, true); $$('button', card).forEach(b => { b.disabled = false; }); }
+});
 async function modReports() {
+  const more = await modReports2();
   let rows;
   try { rows = await api('comment_reports?status=eq.pending&order=created_at.desc&select=id,reason,details,created_at,comment_id,reporter_id,comment:comments(id,body,author_id,content_id,created_at)'); }
   catch (e) { const b = $('#modList'); if (b) b.innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`; return; }
@@ -2057,7 +2201,7 @@ async function modReports() {
         ${post ? `<a class="mod-post" href="${routeUrl('p/' + (post.short_code || post.id))}">к посту «${esc(post.title || 'без названия')}»</a>` : ''}` : '<div class="mod-desc">Комментарий уже удалён.</div>'}
       <div class="mod-acts">${c ? `<button class="btn accent" data-rdel="${r.id}" data-cid="${c.id}">Удалить комментарий</button>` : ''}<button class="btn" data-rno="${r.id}">${c ? 'Оставить' : 'Закрыть жалобу'}</button></div>
     </article>`;
-  }).join('') : '<div class="empty">Жалоб нет.</div>';
+  }).join('') + more : more || '<div class="empty">Жалоб нет.</div>';
 }
 function modDone(card) { card.classList.add('gone'); setTimeout(() => { card.remove(); if (!$('.mod-card')) (MOD.tab === 'queue' ? modQueue : modReports)(); }, 250); modCount(); }
 function rejectDialog() {
@@ -2764,11 +2908,11 @@ async function loadReviews() {
   l.innerHTML = rows.length ? rows.map(r => {
     const p = S.profiles.get(r.user_id), mine = r.user_id === S.uid, liked = REV.liked.has(r.id);
     const uObj = p || { id: r.user_id, avatar_url: r.avatar_url, username: r.username };
-    return `<article class="rev" data-rev="${r.id}">
+    return `<article class="rev" data-rev="${r.id}" data-auid="${esc(r.user_id || '')}">
       ${cosAva(uObj)}
       <div class="rev-main"><div class="cmt-head"><b data-user="${esc(p?.username || r.user_id)}">${cosName(uObj)}</b><span>${when(r.published_at || r.created_at)}</span>${r.status !== 'published' ? `<span class="rev-st">${r.status === 'rejected' ? 'отклонён' : 'на проверке'}</span>` : ''}</div>
         <div class="rev-text">${esc(r.text)}</div>
-        <div class="rev-acts">${r.status === 'published' ? `<button type="button" class="rev-like${liked ? ' liked' : ''}" data-rlike="${r.id}">${I.heart}<span>${fmt(r.likes)}</span></button>` : ''}${mine || mod ? `<button type="button" class="rev-del" data-rdel2="${r.id}">Удалить</button>` : ''}</div></div>
+        <div class="rev-acts">${S.uid && !mine && r.status === 'published' ? `<button type="button" class="rev-rep" data-report="review" data-rid="${r.id}">Пожаловаться</button>` : ''}${r.status === 'published' ? `<button type="button" class="rev-like${liked ? ' liked' : ''}" data-rlike="${r.id}">${I.heart}<span>${fmt(r.likes)}</span></button>` : ''}${mine || mod ? `<button type="button" class="rev-del" data-rdel2="${r.id}">Удалить</button>` : ''}</div></div>
     </article>`;
   }).join('') : '<div class="empty">Отзывов пока нет — оставьте первый!</div>';
   animateCards(l);
@@ -3353,11 +3497,11 @@ function viewRules() {
   setNav('rules');
   page.innerHTML = `<article class="rules">
     <div class="page-head"><h1>Правила</h1></div>
-    <p class="rules-lead">renah0cki — фан-сайт сообщества стримера: арты, видео, фанфики, новости, ролевая игра Y, звонки и войсы, награды OvosheAwards. Пользуясь сайтом, вы соглашаетесь с этими правилами.</p>
+    <p class="rules-lead">renah0cki — фан-сайт сообщества стримера: арты, видео, фанфики, новости, ролевая игра Y, звонки и войсы, награды OvosheAwards. Эти правила — пользовательское соглашение сайта: при первом входе вы подтверждаете, что ознакомились с ними, и, пользуясь сайтом, соглашаетесь с ними.</p>
 
     <section class="rules-card"><h2>1. Что запрещено</h2><ul>
       <li>Всё, что нарушает правила Twitch и закон: запрещённые слова (банворды), разжигание ненависти, призывы к насилию, экстремизм, наркотики.</li>
-      <li><b>18+ и сексуальный контент</b> — в работах, фанфиках (в том числе в метках и описаниях), постах, комментариях, аватарках, звонках. Особенно — всё сексуальное, связанное с реальными людьми или несовершеннолетними.</li>
+      <li><b>18+ и сексуальный контент</b> — в работах, фанфиках (в том числе в метках и описаниях), комментариях, аватарках, звонках. Порнография и всё сексуальное, связанное с реальными людьми или несовершеннолетними, запрещено везде. В ролевой игре Y взрослые темы допускаются только в постах с меткой 18+, которые не видны несовершеннолетним.</li>
       <li>Травля, угрозы, оскорбления, доксинг — публикация чужих адресов, телефонов, фото и переписок без согласия.</li>
       <li>Выдавать себя за другого человека, чтобы обмануть других.</li>
       <li>Чужие работы без разрешения автора и без указания авторства.</li>
@@ -3369,7 +3513,8 @@ function viewRules() {
     <section class="rules-card"><h2>2. Модерация</h2><ul>
       <li><b>Работы</b> (арты, видео, фанфики), отзывы и сборники <b>проверяются модераторами до публикации</b>. То, что нарушает правила, не публикуется.</li>
       <li>Комментарии, посты в Y, сообщения и звонки модераторы проверяют <b>по жалобам</b> и выборочно. Запрещённые слова скрываются автоматически.</li>
-      <li>Пожаловаться можно на комментарий (кнопка «Пожаловаться») и на пост в Y (⋯ → Пожаловаться). На работу, пользователя, звонок или что угодно ещё — напишите в <a href="${routeUrl('support')}">поддержку</a>. Жалобы и обращения приходят модераторам сразу, в том числе в Telegram.</li>
+      <li>Пожаловаться можно на работу, комментарий, отзыв, пользователя и пост в Y — кнопкой с флажком или «Пожаловаться». На звонок или что угодно ещё — в <a href="${routeUrl('support')}">поддержку</a>. Жалобы сразу приходят модераторам, в том числе в Telegram, и нарушения убираются как можно быстрее.</li>
+      <li>Любого пользователя можно <b>заблокировать для себя</b> в его профиле: вы перестанете видеть его работы, комментарии и отзывы, а он не сможет писать вам в ЛС и звонить в Y.</li>
       <li>За нарушения модераторы удаляют контент, предупреждают, снимают с персонажа, закрывают комнаты и звонки, блокируют в чате, в Y или на всём сайте. При серьёзных нарушениях — сразу и без предупреждения.</li>
       <li>Модераторы видят, кто на самом деле автор поста, комментария или сообщения, в том числе от лица персонажа.</li>
       <li>Не согласны с решением — напишите в поддержку, его пересмотрит другой модератор или администратор.</li>
@@ -3407,7 +3552,7 @@ function viewRules() {
     </ul></section>
 
     <section class="rules-card"><h2>7. Гарантии и ответственность сайта</h2><ul>
-      <li>Пользоваться сайтом можно бесплатно. Регистрация, участие, донаты, подписки, ставки, подарки и переводы — только по вашему желанию; никто ни к чему не принуждает.</li>
+      <li>Пользоваться сайтом можно бесплатно. Регистрация, участие, донаты, подписки, подарки и переводы — только по вашему желанию; никто ни к чему не принуждает.</li>
       <li>Сайт работает «как есть». Мы стараемся, чтобы всё работало, и исправляем ошибки, но не гарантируем, что не будет сбоев, перерывов или потери данных, монет и подписок.</li>
       <li>В той мере, в какой это допускает закон, администрация не отвечает за косвенные убытки и упущенную выгоду. Если ответственность возникает по закону, она ограничена суммой, которую пользователь сам перечислил на проект за последние 12 месяцев. Права, которые закон не позволяет ограничить, сохраняются.</li>
       <li>Сторонние сервисы (Twitch, YouTube, DonationAlerts, 7TV, GIPHY, Telegram) работают по своим правилам.</li>

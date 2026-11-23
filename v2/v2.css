@@ -1272,3 +1272,17 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 }
 .rules-upd { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
 .rules-lead { color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+/* согласие с правилами при первом входе */
+html.terms-lock, html.terms-lock body { overflow: hidden; }
+.terms-ov { position: fixed; inset: 0; z-index: 1000; background: rgba(4,8,16,.82); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px 12px; }
+.terms-box { width: min(560px, 100%); background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 22px; }
+.terms-box h2 { margin: 0 0 8px; }
+.terms-box p { color: var(--muted); line-height: 1.45; margin: 0 0 10px; }
+.terms-box a { color: var(--accent); }
+.terms-box ul { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; line-height: 1.45; }
+.terms-check { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 6px; cursor: pointer; }
+.terms-check input { width: 18px; height: 18px; margin-top: 1px; flex: none; accent-color: var(--accent); }
+.terms-err { color: #ff8a8a !important; min-height: 1em; }
+.terms-box .btn { width: 100%; }
+.rev-rep { background: none; border: 0; color: var(--muted); font-size: 12.5px; cursor: pointer; padding: 0 6px; }
+.rev-rep:hover { color: var(--text); }

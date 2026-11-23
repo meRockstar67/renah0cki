@@ -167,6 +167,40 @@ async function copyLink(hash, msg = 'Ссылка скопирована') {
   try { await navigator.clipboard.writeText(url); toast(msg); } catch { prompt('Ссылка', url); }
 }
 
+/* ── блокировка пользователей (общая с сайтом) ── */
+const isBlockedUser = id => !!id && !!S.blocked?.has(id);
+async function loadBlocks() {
+  if (!S.uid) return;
+  try { S.blocked = new Set((await api('user_blocks?select=blocked', { schema: 'public' })).map(r => r.blocked)); } catch { S.blocked = new Set(); }
+}
+async function toggleBlock(uid, name) {
+  if (!S.uid || !uid || uid === S.uid) return;
+  const on = isBlockedUser(uid);
+  if (!on && !confirm(`Заблокировать ${name}? Вы перестанете видеть его посты, он не сможет писать вам в ЛС и звонить.`)) return;
+  try {
+    if (on) await api(`user_blocks?blocked=eq.${uid}`, { method: 'DELETE', schema: 'public' });
+    else await api('user_blocks', { method: 'POST', body: { blocked: uid }, prefer: 'return=minimal', schema: 'public' });
+    if (!S.blocked) S.blocked = new Set();
+    on ? S.blocked.delete(uid) : S.blocked.add(uid);
+    toast(on ? 'Пользователь разблокирован' : 'Пользователь заблокирован');
+    route();
+  } catch (e) { toast(errText(e), true); }
+}
+function reportUserDialog(uid, name) {
+  const form = modal('Пожаловаться на пользователя', `
+    <div class="form-note">Жалобу на ${esc(name)} увидят модераторы. Выберите причину:</div>
+    <div class="rep-reasons" role="radiogroup">${REPORT_REASONS.map((r, i) => `<label class="rep-opt"><input type="radio" name="reason" value="${esc(r)}"${i ? '' : ' checked'}><span>${esc(r)}</span></label>`).join('')}</div>
+    <div class="field"><label for="repu-d">Подробнее (необязательно)</label><textarea id="repu-d" name="details" rows="3" maxlength="500"></textarea></div>`, {
+    submitLabel: 'Отправить',
+    onSubmit: async f => {
+      const reason = (f.querySelector('input[name="reason"]:checked') || {}).value || 'Другое';
+      try { await api('content_reports', { method: 'POST', schema: 'public', prefer: 'return=minimal', body: { target_type: 'user', target_id: uid, reason, details: f.details.value.trim() || null } }); }
+      catch (e) { if (/duplicate|unique|409/i.test(e.message)) throw new Error('Вы уже жаловались на этого пользователя'); throw e; }
+      toast('Жалоба отправлена модераторам');
+    },
+  });
+}
+
 /* ── состояние ──────────────────────────────────────────── */
 const S = {
   uid: null, me: null,            // rp.profiles
@@ -218,7 +252,7 @@ function actingSlot() {
 }
 
 const SLOT_SEL = 'id,char_name,handle,avatar_url,character_id,player:profiles!player_id(rp_role,paid_role,paid_until)';
-const P_FIELDS = 'id,short_code,room_id,slot_id,body,images,voice_url,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,created_at';
+const P_FIELDS = 'id,short_code,room_id,slot_id,body,images,voice_url,reply_to,quote_of,repost_of,like_count,reply_count,repost_count,is_deleted,is_nsfw,created_at';
 const AU_SEL = 'author:author_user(user_id,nick,y_name,avatar_url,y_avatar_url,username,rp_role,paid_role,paid_until)';
 const P_SEL = `${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),${AU_SEL},parent:reply_to(id,slot:slots!slot_id(handle),author:author_user(username)),`
   + `quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL}),${AU_SEL}),`
@@ -428,8 +462,15 @@ function actionsHtml(p, big = false) {
 }
 function bodyHtml(p) {
   if (p.is_deleted) return '<div class="deleted">Этот пост удалён.</div>';
-  return `${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${voiceHtml(p.voice_url)}${mediaHtml(p.images)}${quoteHtml(p.quoted)}`;
+  if (isBlockedUser(p.author?.user_id)) return '<div class="deleted">Пост пользователя, которого вы заблокировали.</div>';
+  const media = mediaHtml(p.images);
+  return `${p.is_nsfw ? '<span class="nsfw-badge" title="Пост для 18+">18+</span>' : ''}${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${voiceHtml(p.voice_url)}${p.is_nsfw && media ? `<div class="nsfw-wrap" data-nsfw>${media}<button type="button" class="nsfw-cover" data-nsfw-show>18+ · нажмите, чтобы показать</button></div>` : media}${quoteHtml(p.quoted)}`;
 }
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-nsfw-show]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  b.closest('[data-nsfw]')?.classList.add('shown'); b.remove();
+}, true);
 function canManage(p) {
   if (!S.uid) return false;
   if (isStaff() || S.mySlots.some(x => x.id === p.slot_id)) return true;
@@ -641,6 +682,10 @@ const isMine = p => !!S.uid && (S.mySlots.some(x => x.id === p.slot_id) || (!p.s
 function postMenu(p, btn) {
   const items = [];
   if (!isMine(p)) items.push({ icon: I.flag, label: 'Пожаловаться', run: () => reportDialog(p) });
+  if ((isMine(p) && S.me?.is_adult) || isStaff()) items.push({ icon: I.flag, label: p.is_nsfw ? 'Снять метку 18+' : 'Пометить 18+', run: async () => {
+    try { await rpc('post_set_nsfw', { p_post: p.id, p_nsfw: !p.is_nsfw }); p.is_nsfw = !p.is_nsfw; onPostUpdate({ ...p }); toast(p.is_nsfw ? 'Пост помечен 18+' : 'Метка 18+ снята'); }
+    catch (e) { toast(errText(e), true); }
+  } });
   if (canManage(p)) items.push({ icon: I.trash, label: 'Удалить', danger: true, run: async () => {
     if (!confirm('Удалить пост? Отменить нельзя.')) return;
     try { await rpc('delete_post', { p_post: p.id }); p.is_deleted = true; onPostUpdate({ ...p, is_deleted: true }); toast('Пост удалён'); }
@@ -712,7 +757,7 @@ async function recordVoice(host, onSend) {
   bar.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('[data-vx]')) stop(false); if (e.target.closest('[data-vok]')) stop(true); });
   rec.start();
 }
-const peekOk = () => featDev() && rank() >= 1;
+const peekOk = () => featDev() && rank() >= 3;   // чужие ЛС читают только модераторы и админы Y
 const isGiphy = u => /^https:\/\/media\.giphy\.com\/media\/[A-Za-z0-9]{4,40}\/giphy\.gif$/.test(u || '');
 const isGifUrl = u => isGiphy(u) || /^https:\/\/cdn\.renah0cki\.xyz\/file\/rp\/[0-9a-f-]{36}\/[A-Za-z0-9_.-]+\.gif$/i.test(u || '');
 async function saveGif(url, btn) {
@@ -847,6 +892,7 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
         <label class="tool" title="Картинки" aria-label="Добавить картинки">${I.image}<input type="file" accept="image/*" multiple hidden></label>
         ${gifOk() ? '<button type="button" class="tool gif-tool" data-gif-open title="GIF" aria-label="Добавить GIF">GIF</button>' : ''}
         ${voiceOk() ? `<button type="button" class="tool" data-voice title="Голосовое" aria-label="Записать голосовое">${I.mic}</button>` : ''}
+        ${S.me?.is_adult ? '<label class="tool nsfw-tool" title="Пост для 18+: увидят только те, кому есть 18, картинки будут размыты"><input type="checkbox" data-nsfw-mark> 18+</label>' : ''}
         <span class="count"></span>
         <button class="btn blue small send" type="button" disabled>${replyTo ? 'Ответить' : 'Опубликовать'}</button>
       </div>
@@ -891,6 +937,7 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
     if (!asUser && !slot) return needSlot();
     recordVoice($('.composer-body', box), async url => {
       const body = { room_id: (replyTo || quoteOf)?.room_id || S.room.id, body: ta.value.trim(), images: imgs.filter(i => i.url).map(i => i.url), voice_url: url };
+      if ($('[data-nsfw-mark]', box)?.checked) body.is_nsfw = true;
       if (slot) body.slot_id = slot.id;
       if (replyTo) body.reply_to = replyTo.id;
       if (quoteOf) body.quote_of = quoteOf.id;
@@ -907,6 +954,7 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
     send.disabled = true;
     try {
       const body = { room_id: (replyTo || quoteOf)?.room_id || S.room.id, body: ta.value.trim(), images: imgs.filter(i => i.url).map(i => i.url) };
+      if ($('[data-nsfw-mark]', box)?.checked) body.is_nsfw = true;
       if (slot) body.slot_id = slot.id;
       if (replyTo) body.reply_to = replyTo.id;
       if (quoteOf) body.quote_of = quoteOf.id;
@@ -1762,7 +1810,7 @@ async function viewUser(key) {
   main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="Настройки" style="margin:0">${I.gear}</a>` : '' })
     + (hasBanner ? `<div class="cp-banner" style="${bannerStyle(u)}"></div>` : '')
     + `<div class="cp-top${hasBanner ? '' : ' no-banner'}">${avatar(userAv(u), 'xl')}${isMe ? '<button class="btn ghost small cp-edit-top only-d" data-edit-profile>Изменить</button>'
-      : S.uid ? `<button class="btn small cp-follow${iFollow ? ' ghost' : ''}" data-follow>${iFollow ? 'Вы подписаны' : 'Подписаться'}</button>` : ''}</div>
+      : S.uid ? `<button class="btn small cp-follow${iFollow ? ' ghost' : ''}" data-follow>${iFollow ? 'Вы подписаны' : 'Подписаться'}</button><button class="icon-btn cp-more" data-user-more aria-label="Ещё" title="Пожаловаться или заблокировать">${I.more}</button>` : ''}</div>
     <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span>${isVip(u) ? vipBadge() : ''}</div>
       ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="Скопировать ссылку на профиль">@${esc(u.username)}</button>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
@@ -1793,6 +1841,11 @@ async function viewUser(key) {
   $$('[data-edit-profile]', main).forEach(b => { b.onclick = () => profileEditor(u, () => viewUser(key)); });
   if (isMe) fillCoinBalance(main);
   else if (S.uid === OWNER_ID) fillUserCoinBalance(main, u.user_id);
+  const um = $('[data-user-more]', main);
+  if (um) um.onclick = () => menu(um, [
+    { icon: I.flag, label: 'Пожаловаться', run: () => reportUserDialog(u.user_id, yName(u) || u.username || 'пользователя') },
+    { icon: I.close, label: isBlockedUser(u.user_id) ? 'Разблокировать' : 'Заблокировать', danger: !isBlockedUser(u.user_id), run: () => toggleBlock(u.user_id, yName(u) || u.username || 'пользователя') },
+  ]);
   const fb = $('[data-follow]', main);
   if (fb) fb.onclick = async () => {
     fb.disabled = true;
@@ -1980,7 +2033,7 @@ async function loadSupport(jump = false) {
 function viewRules() {
   S.view = 'rules'; updateNav(); renderRight();
   main.innerHTML = head('Правила и соглашение', { back: true }) + `<article class="rules">
-    <p class="rules-lead">Y (переписки) — ролевая игра на renah0cki: пользователи пишут посты, ответы и сообщения от лица персонажей. Здесь действуют эти правила и <a href="/rules" target="_blank" rel="noopener">общие правила renah0cki</a>. Пользуясь Y, вы соглашаетесь с ними.</p>
+    <p class="rules-lead">Y (переписки) — ролевая игра на renah0cki: пользователи пишут посты, ответы и сообщения от лица персонажей. В Y бывают нецензурная лексика, грубый юмор и ролевые конфликты. Здесь действуют эти правила и <a href="/rules" target="_blank" rel="noopener">общие правила renah0cki</a>. Пользуясь Y, вы соглашаетесь с ними.</p>
 
     <h2>1. Персонажи вымышлены</h2>
     <p>Все персонажи в Y — вымышленные образы, созданные пользователями для ролевой игры, и <b>не связаны с реальными людьми</b>, даже если имя, ник, внешность или характер кого-то напоминают. Совпадения случайны или носят дружеский, шуточный характер и не несут злого умысла.</p>
@@ -1991,7 +2044,8 @@ function viewRules() {
 
     <h2>3. Что запрещено</h2>
     <ul>
-      <li><b>18+ и сексуальный контент</b> — в постах, сообщениях, метках, описаниях, картинках и звонках. Строже всего — всё сексуальное с образами реальных людей и несовершеннолетних.</li>
+      <li><b>Порнография</b> и откровенно сексуальные изображения — полностью. Всё сексуальное с образами реальных людей и несовершеннолетних — полностью и сразу бан.</li>
+      <li>Взрослые темы, грубые сцены и шок-контент <b>без метки 18+</b>. Такие посты публикуйте только с меткой 18+ (её могут ставить те, кто подтвердил 18 лет) — их не увидят несовершеннолетние, а картинки будут размыты.</li>
       <li>Травля, угрозы и оскорбления реальных людей, в том числе через персонажей.</li>
       <li>Выдавать себя за реального человека, чтобы обмануть других (будто это правда пишет он).</li>
       <li>Публикация чужих личных данных: адресов, телефонов, настоящих переписок, фото без согласия.</li>
@@ -2003,12 +2057,13 @@ function viewRules() {
     <ul>
       <li>Запрещённые слова скрываются автоматически.</li>
       <li>На любой пост можно пожаловаться через «⋯ → Пожаловаться». На сообщение, персонажа, комнату, звонок или пользователя — через <a href="#/support">связь с модераторами</a>. Жалобы сразу приходят модераторам, в том числе в Telegram.</li>
-      <li>Модераторы удаляют посты и ответы, снимают с персонажа, закрывают комнаты, завершают звонки и войсы, блокируют в Y и на сайте. При серьёзных нарушениях — сразу и без предупреждения.</li>
+      <li>Модераторы удаляют посты и ответы, ставят метку 18+, снимают с персонажа, закрывают комнаты, завершают звонки и войсы, блокируют в Y и на сайте. При серьёзных нарушениях — сразу и без предупреждения.</li>
+      <li>Любого пользователя можно <b>заблокировать для себя</b> (⋯ в его профиле): вы не увидите его посты, он не сможет писать вам в ЛС и звонить.</li>
       <li>Не согласны с решением — напишите модераторам, его пересмотрит другой модератор или администратор.</li>
     </ul>
 
     <h2>5. Личные сообщения не полностью приватные</h2>
-    <p>Личные сообщения между персонажами могут читать модераторы, а также игроки, чья роль <b>выше роли обоих участников</b>: переписки обычных игроков видят ГОИ и выше, переписки ГОЕВ — VIP и выше, переписки VIP — модераторы и админы.</p>
+    <p>Личные сообщения между персонажами <b>могут читать модераторы и админы Y</b> — чтобы разбирать жалобы и следить за правилами. Другие игроки чужие ЛС не видят.</p>
     <p><b>Не пишите в ЛС ничего личного и настоящего</b>: это часть ролевой игры, а не приватный мессенджер.</p>
 
     <h2>6. Подписки, синяя галочка и монеты</h2>
@@ -2044,6 +2099,7 @@ function viewSettings() {
         <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Светлая</span></label>
       </div></div>
     ${chatLookHtml()}
+    ${S.me && 'is_adult' in S.me ? `<div class="set-sec"><h2>Возраст</h2><label class="set-toggle"><span><b>Мне есть 18 лет</b><small>Показывать посты с меткой 18+ и разрешить ставить её на свои посты. Указывая это, вы подтверждаете свой возраст.</small></span><input type="checkbox" data-adult${S.me.is_adult ? ' checked' : ''}></label></div>` : ''}
     ${callsOk() ? `<div class="set-sec"><h2>Звонки</h2><label class="set-toggle"><span><b>Изменять мой голос в звонках</b><small>Голос слегка выше или ниже — случайно при каждом звонке. Выключите, чтобы вас слышали обычным голосом.</small></span><input type="checkbox" data-voice-fx${voiceFxOn() ? ' checked' : ''}></label></div>` : ''}
     <div class="set-sec"><h2>Аккаунт</h2>
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
@@ -2056,6 +2112,11 @@ function viewSettings() {
   fillCoinBalance(main);
   bindShop(main);
   bindChatLook(main);
+  const adl = $('[data-adult]', main);
+  if (adl) adl.onchange = async () => {
+    try { S.me = await rpc('set_adult', { p_adult: adl.checked }); toast(adl.checked ? 'Посты 18+ теперь видны' : 'Посты 18+ скрыты'); }
+    catch (er) { toast(errText(er), true); adl.checked = !adl.checked; }
+  };
   const vfx = $('[data-voice-fx]', main);
   if (vfx) vfx.onchange = () => { try { localStorage.setItem('rp_voice_fx', vfx.checked ? '1' : '0'); } catch {} toast(vfx.checked ? 'Голос в звонках будет изменяться' : 'В звонках вас будет слышно обычным голосом' + (CALL.id ? ' — со следующего звонка' : '')); };
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
@@ -2167,8 +2228,8 @@ function bindChatLook(root) {
 /* ── подписка Y за renah0cki coin (пока только meRockstar) ── */
 const shopVisible = () => !!S.uid; // подписки ГОЙ/VIP — всем вошедшим
 const SHOP_ROLES = [
-  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'Свой фон чата в переписках', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Звонки 1 на 1 в личных сообщениях', 'Читать переписки обычных игроков'] },
-  { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Синяя галочка VIP ✓ у имени и персонажей (как в X)', 'Свой баннер (шапка) в профиле Y и у персонажей', 'Доступ к закрытым комнатам «VIP и выше»', 'Читать переписки ГОЕВ'] },
+  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'Свой фон чата в переписках', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Звонки 1 на 1 в личных сообщениях'] },
+  { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Синяя галочка VIP ✓ у имени и персонажей (как в X)', 'Свой баннер (шапка) в профиле Y и у персонажей', 'Доступ к закрытым комнатам «VIP и выше»'] },
 ];
 function shopHtml() {
   const me = S.me || {};
@@ -3326,7 +3387,7 @@ const TG = { initData: null, status: '' };
     if (u.origin === location.origin && (u.pathname.startsWith('/rp/') || u.pathname === location.pathname)) return;
     if (u.origin === location.origin && u.pathname.startsWith('/y/')) return;
     e.preventDefault(); e.stopPropagation();
-    if (u.origin !== location.origin) { window.Telegram?.WebApp?.openLink ? window.Telegram.WebApp.openLink(u.href) : open(u.href, '_blank'); return; }
+    if (u.origin !== location.origin || u.pathname === '/rules' || u.pathname.startsWith('/y/')) { window.Telegram?.WebApp?.openLink ? window.Telegram.WebApp.openLink(u.href) : open(u.href, '_blank'); return; }
     if (!S.uid) startTwitchLogin();
   }, true);
   // SDK грузим только внутри Telegram (на сайте telegram.org не нужен)
@@ -3389,6 +3450,47 @@ async function tgLinkIfNeeded() {
 }
 
 /* ── старт ──────────────────────────────────────────────── */
+// первый вход в Y: согласие с правилами и (по желанию) подтверждение 18+
+function yRulesGate() {
+  const ov = document.createElement('div');
+  ov.className = 'gate-ov';
+  ov.innerHTML = `<form class="gate" role="dialog" aria-modal="true" aria-label="Правила Y">
+    <h2>Добро пожаловать в Y</h2>
+    <p>Y — ролевая игра: посты, ответы и сообщения пишутся от лица вымышленных персонажей. Перед входом прочитайте главное:</p>
+    <ul>
+      <li>Все персонажи вымышлены и не связаны с реальными людьми.</li>
+      <li>В Y бывает <b>нецензурная лексика</b>, грубый юмор и ролевые конфликты персонажей.</li>
+      <li>Посты с меткой <b>18+</b> видят только те, кто подтвердил, что им есть 18 лет. Порнография запрещена полностью.</li>
+      <li>Личные сообщения могут читать модераторы — не пишите в них ничего личного и настоящего.</li>
+      <li>Травля, угрозы, чужие личные данные и всё незаконное — бан. Пожаловаться можно через «⋯» у поста или профиля.</li>
+    </ul>
+    <p><a href="#/rules" data-gate-rules>Полные правила Y</a> · <a href="/rules" target="_blank" rel="noopener">общие правила renah0cki</a></p>
+    <label class="gate-check"><input type="checkbox" name="ok"> <span>Я прочитал(а) правила Y и согласен(на) с ними</span></label>
+    <label class="gate-check"><input type="checkbox" name="adult"> <span>Мне есть 18 лет (необязательно — без этого посты 18+ скрыты)</span></label>
+    <p class="gate-err" role="alert"></p>
+    <button class="btn blue" type="submit">Войти в Y</button>
+  </form>`;
+  const f = $('form', ov);
+  $('[data-gate-rules]', ov).onclick = e => { e.preventDefault(); showRulesInGate(ov); };
+  f.onsubmit = async e => {
+    e.preventDefault();
+    if (!f.ok.checked) { $('.gate-err', ov).textContent = 'Поставьте галочку, что прочитали правила'; return; }
+    $('button', f).disabled = true;
+    try { S.me = await rpc('accept_y_rules', { p_adult: f.adult.checked }); ov.remove(); document.body.style.overflow = ''; route(); }
+    catch (er) { $('.gate-err', ov).textContent = errText(er); $('button', f).disabled = false; }
+  };
+  document.body.append(ov); document.body.style.overflow = 'hidden';
+}
+// показать полные правила прямо в окне входа (окно не закрывается, пока не согласишься)
+function showRulesInGate(ov) {
+  const box = document.createElement('div');
+  box.className = 'gate-rules';
+  const prev = main.innerHTML; viewRules(); const html = main.querySelector('.rules')?.outerHTML || ''; main.innerHTML = prev;
+  box.innerHTML = '<button type="button" class="btn small ghost" data-gate-back>← Назад</button>' + html;
+  $('.gate', ov).hidden = true; ov.append(box);
+  $('[data-gate-back]', box).onclick = () => { box.remove(); $('.gate', ov).hidden = false; };
+}
+
 async function init() {
   await handleOAuthReturn();
   let token = await getToken();
@@ -3400,6 +3502,7 @@ async function init() {
       rpc('ensure_profile').then(me => { S.me = me; applyChatLook(); }).catch(e => console.warn('rp profile', e)),
       loadMySlots().catch(() => {}), loadUserReposts().catch(() => {}), loadUserLikes().catch(() => {}),
       rpc('calls_dev_allowed').then(v => { S.callsOk = v === true; }).catch(() => {}),
+      loadBlocks(),
       rpc('call_goy', { p_user: sess.user.id }).then(v => { S.callGoy = v === true; }).catch(() => {}),
       rpc('is_gl_mod').then(v => { S.isGlMod = v === true; }).catch(() => {}),
     ]);
@@ -3415,6 +3518,7 @@ async function init() {
     const tl = $('[data-tg-login]'); if (tl) tl.onclick = startTwitchLogin;
   }
   renderMe();
+  if (S.uid && S.me && 'y_rules_at' in S.me && !S.me.y_rules_at) yRulesGate();
   addEventListener('hashchange', route);
   route();
   subscribeGlobal();
