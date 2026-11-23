@@ -283,6 +283,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .n-comment .notif-ic { color: var(--accent); }
 .n-follow .notif-ic { color: #7be0a1; }
 .n-reject .notif-ic { color: var(--danger); }
+.n-coin .notif-ic, .n-grant .notif-ic { color: #f5b942; }
+.n-gift .notif-ic { color: #ff85b3; }
 .notif .av, .notif .av-ph { width: 36px; height: 36px; }
 .notif-main { min-width: 0; font-size: 14.5px; }
 .notif-target { color: var(--muted); }

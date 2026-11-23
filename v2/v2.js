@@ -1452,6 +1452,11 @@ async function loadNotifs() {
     const or = [cIds.length && `content_id.in.(${cIds.join(',')})`, kIds.length && `collection_id.in.(${kIds.join(',')})`].filter(Boolean).join(',');
     jobs.push(api(`moderation_log?action=eq.rejected&or=(${or})&select=content_id,collection_id,comment,created_at,moderator:profiles(id,username,display_name,avatar_url)&order=created_at.desc&limit=20`).then(r => r.map(x => ({ type: 'reject', target: x.content_id ? t[x.content_id] : tc[x.collection_id], body: x.comment, actor: x.moderator, at: x.created_at }))).catch(() => []));
   }
+  // переводы coin и подарки ролей (SQL 070)
+  jobs.push(api(`user_notifications?user_id=eq.${S.uid}&select=kind,actor_id,amount,title,days,note,created_at&order=created_at.desc&limit=30`).then(async r => {
+    await loadProfiles(r.map(x => x.actor_id).filter(Boolean));
+    return r.map(x => ({ type: { coin_transfer: 'coin', coin_grant: 'grant', role_gift: 'gift' }[x.kind] || 'coin', actor: x.actor_id ? S.profiles.get(x.actor_id) : null, amount: x.amount, title: x.title, days: x.days, body: x.note, at: x.created_at }));
+  }).catch(() => []));
   const off = { like: S.me?.notify_likes === false, comment: S.me?.notify_comments === false, follow: S.me?.notify_new_followers === false };
   NOTIF.list = (await Promise.all(jobs)).flat().filter(n => !off[n.type]).sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 60);
   NOTIF.loaded = true;
@@ -1463,15 +1468,20 @@ function updateBell() {
   const b = $('#bellBadge'); if (!b) return;
   b.textContent = n > 99 ? '99+' : String(n); b.hidden = !n;
 }
-const NOTIF_TEXT = { like: 'лайкнул(а) вашу работу', comment: 'прокомментировал(а)', follow: 'подписался(ась) на вас', reject: 'отклонил(а) вашу работу' };
-const NOTIF_ICON = { like: I.heart, comment: I.comment, follow: '<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 19.5c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M18 8v6M15 11h6"/></svg>', reject: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>' };
+const NOTIF_TEXT = { like: 'лайкнул(а) вашу работу', comment: 'прокомментировал(а)', follow: 'подписался(ась) на вас', reject: 'отклонил(а) вашу работу',
+  coin: n => `перевёл(а) вам <b>${fmtNum(n.amount)}</b> coin`,
+  grant: n => `начислил(а) вам <b>${fmtNum(n.amount)}</b> coin`,
+  gift: n => `подарил(а) вам роль <span class="notif-target">«${esc(n.title || 'роль')}»</span>${n.days ? ` на ${n.days} дн.` : ''}` };
+const fmtNum = n => Number(n || 0).toLocaleString('ru-RU');
+const COIN_SVG = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.5 9.5h3.8a1.7 1.7 0 010 3.4h-2.6a1.7 1.7 0 000 3.4H14.5"/></svg>';
+const NOTIF_ICON = { like: I.heart, comment: I.comment, follow: '<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 19.5c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M18 8v6M15 11h6"/></svg>', reject: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></svg>', coin: COIN_SVG, grant: COIN_SVG, gift: '<svg viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9c-2-4-6-4-6-1.5S10 9 12 9zM12 9c2-4 6-4 6-1.5S14 9 12 9z"/></svg>' };
 function notifHtml(n, seen) {
   const unread = new Date(n.at).getTime() > seen;
-  const href = n.type === 'follow' ? userPath(n.actor) : n.target ? routeUrl(n.coll ? `c/${n.target.short_code || n.target.id}` : `p/${n.target.short_code || n.target.id}`) : routeUrl('');
+  const href = n.type === 'coin' || n.type === 'grant' ? routeUrl('wallet') : n.type === 'gift' ? routeUrl('settings') : n.type === 'follow' ? userPath(n.actor) : n.target ? routeUrl(n.coll ? `c/${n.target.short_code || n.target.id}` : `p/${n.target.short_code || n.target.id}`) : routeUrl('');
   return `<a class="notif${unread ? ' unread' : ''} n-${n.type}" href="${esc(href)}">
     <span class="notif-ic">${NOTIF_ICON[n.type]}</span>
     ${avaHtml(n.actor?.avatar_url, pname(n.actor))}
-    <div class="notif-main"><div><b>${esc(pname(n.actor))}</b> ${NOTIF_TEXT[n.type]}${n.target ? ` <span class="notif-target">«${esc(n.target.title || 'без названия')}»</span>` : ''}</div>
+    <div class="notif-main"><div><b>${esc(n.actor ? pname(n.actor) : n.type === 'grant' ? 'renah0cki' : 'Кто-то')}</b> ${typeof NOTIF_TEXT[n.type] === 'function' ? NOTIF_TEXT[n.type](n) : NOTIF_TEXT[n.type]}${n.target ? ` <span class="notif-target">«${esc(n.target.title || 'без названия')}»</span>` : ''}</div>
       ${n.body ? `<div class="notif-body">${esc(n.body)}</div>` : ''}<time>${when(n.at)}</time></div></a>`;
 }
 // выпадающий список у колокольчика (страница «Все уведомления» осталась)
