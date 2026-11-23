@@ -1270,3 +1270,4 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
   .cfx-fx_amethyst, .cfx-fx_sakura, .cfx-fx_toxic, .cfx-fx_aurora, .cfx-fx_fire, .cfx-fx_blood, .cfx-fx_gold, .cfx-fx_holo, .cfx-fx_glitch, .cfx-fx_electric, .cfx-fx_rainbow,
   .cbg-bg_aurora::before, .cbg-bg_cosmos::before, .cbg-bg_slay::before { animation: none !important; }
 }
+.rules-upd { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
