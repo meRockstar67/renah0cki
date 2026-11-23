@@ -939,8 +939,8 @@ html.has-wall .chat-call { background: rgba(0,0,0,.45); color: #fff; border-colo
 /* 18+ */
 .nsfw-badge { display: inline-block; margin: 2px 0 4px; padding: 1px 7px; border-radius: 6px; background: var(--danger); color: #fff; font-size: 12px; font-weight: 800; }
 .nsfw-wrap { position: relative; border-radius: 16px; overflow: hidden; }
-.nsfw-wrap:not(.shown) .media { filter: blur(28px) brightness(.7); pointer-events: none; }
-.nsfw-cover { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px; background: rgba(0,0,0,.25); z-index: 2; cursor: pointer; }
+.nsfw-wrap:not(.shown) .media { filter: blur(14px) brightness(.85); pointer-events: none; }
+.nsfw-cover { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px; background: rgba(0,0,0,.12); text-shadow: 0 1px 4px rgba(0,0,0,.6); z-index: 2; cursor: pointer; }
 .nsfw-tool { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--danger); cursor: pointer; padding: 0 6px; width: auto; }
 .nsfw-tool input { accent-color: var(--danger); }
 /* окно правил при первом входе */

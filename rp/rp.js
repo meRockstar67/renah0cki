@@ -464,7 +464,7 @@ function bodyHtml(p) {
   if (p.is_deleted) return '<div class="deleted">Этот пост удалён.</div>';
   if (isBlockedUser(p.author?.user_id)) return '<div class="deleted">Пост пользователя, которого вы заблокировали.</div>';
   const media = mediaHtml(p.images);
-  return `${p.is_nsfw ? '<span class="nsfw-badge" title="Пост для 18+">18+</span>' : ''}${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${voiceHtml(p.voice_url)}${p.is_nsfw && media ? `<div class="nsfw-wrap" data-nsfw>${media}<button type="button" class="nsfw-cover" data-nsfw-show>18+ · нажмите, чтобы показать</button></div>` : media}${quoteHtml(p.quoted)}`;
+  return `${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${voiceHtml(p.voice_url)}${p.is_nsfw && media ? `<div class="nsfw-wrap" data-nsfw>${media}<button type="button" class="nsfw-cover" data-nsfw-show>18+ · нажмите, чтобы показать</button></div>` : media}${quoteHtml(p.quoted)}`;
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-nsfw-show]'); if (!b) return;
