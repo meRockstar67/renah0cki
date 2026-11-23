@@ -328,6 +328,7 @@ async function subscribeGlobal() {
     .on('postgres_changes', { event: 'UPDATE', schema: 'rp', table: 'posts' }, p => onPostUpdate(p.new))
     .on('postgres_changes', { event: 'DELETE', schema: 'rp', table: 'posts' }, p => onPostDelete(p.old));
   if (S.uid) gchan.on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'notifications', filter: 'user_id=eq.' + S.uid }, p => onNotifInsert(p.new));
+  if (S.uid && callsOk()) gchan.on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'calls', filter: 'kind=eq.dm' }, p => onCallInsert(p.new));
   gchan.subscribe();
 }
 setInterval(async () => { if (rt) rt.realtime.setAuth((await getToken()) || SB_KEY); }, 4 * 60e3);
@@ -1013,11 +1014,12 @@ async function viewFeed(roomKey) {
   const r = S.room;
   main.innerHTML = head(r.title, { sub: r.status === 'archived' ? 'Архив · только чтение' : `${S.slots.filter(s => s.player_id).length}/${S.slots.length} персонажей в игре`,
     back: true, extra: `<a class="icon-btn" href="${roomPath(r, '/dm')}" aria-label="Сообщения" style="margin:0">${I.mail}</a><a class="icon-btn" href="${roomPath(r, '/chars')}" aria-label="Персонажи" style="margin:0">${I.users}</a><button class="icon-btn" data-copy="${roomPath(r)}" aria-label="Скопировать ссылку на комнату" style="margin:0">${I.link}</button>${isOwner() ? `<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : ''}${mySlot() ? `<button class="icon-btn" data-leave-room title="Выйти из роли" aria-label="Выйти из роли" style="margin:0">${I.leave}</button>` : ''}` })
-    + `<div id="composerSlot"></div><div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="feedList">${loader()}</div><div id="feedMore"></div>`;
+    + `<div id="callPill"></div><div id="composerSlot"></div><div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="feedList">${loader()}</div><div id="feedMore"></div>`;
   $('#newPill button').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); $('#newPill').classList.add('hidden'); };
   if (matchMedia('(min-width: 640px)').matches) refreshComposer();
   else if (!canWrite() || !actingSlot()) refreshComposer();
   renderRight();
+  callRoomPill();
   await loadFeedPage();
 }
 async function loadFeedPage(before) {
@@ -2010,6 +2012,8 @@ function viewRules() {
     <h2>7. Если вас или ваш образ используют</h2>
     <p>Если вы реальный человек и не хотите, чтобы в Y был персонаж, похожий на вас, — <a href="#/support">напишите модераторам</a> или пожалуйтесь на посты. Такого персонажа уберут.</p>
 
+    ${callsOk() ? `<h2>8. Голосовые звонки</h2>${callRulesHtml()}` : ''}
+
     <h2>Связь с модераторами</h2>
     <p>Вопросы, жалобы, просьбы — <a href="#/support">в техподдержку</a>. Сообщение увидят модераторы renah0cki.</p>
 
@@ -2032,6 +2036,7 @@ function viewSettings() {
       ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
       <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
       <a class="set-row" href="#/rules">${I.flag}<span>Правила и соглашение</span></a>
+      ${callsOk() && mainAdmin() ? `<a class="set-row" href="#/calls">${I.phone}<span>Идущие звонки (админ)</span></a>` : ''}
       <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`
     + (shopVisible() ? shopHtml() : '');
   fillCoinBalance(main);
@@ -2377,7 +2382,7 @@ async function viewDmChat(roomKey, peerId) {
   main.innerHTML = `<div class="head chat-head"><div class="head-row">
       <button class="icon-btn" data-back aria-label="Назад">${I.back}</button>
       <a class="chat-peer" href="${peer.character_id ? `#/c/${peer.character_id}` : roomPath(S.room, '/chars')}">${avatar(peer, 'sm')}<span class="chat-peer-name">${esc(peer.char_name)}</span></a>
-      <span class="chat-spacer"></span></div>
+      ${callsOk() ? `<button class="icon-btn" data-call-dm title="Позвонить" aria-label="Позвонить">${I.phone}</button>` : '<span class="chat-spacer"></span>'}</div>
       ${dmAsSelect() ? `<div class="chat-as"><span>Вы пишете как</span>${dmAsSelect()}</div>` : ''}</div>
     <div class="chat" id="chat">${loader()}</div>
     <form class="chat-bar" id="chatBar" autocomplete="off">
@@ -2515,6 +2520,394 @@ function renderRight() {
 }
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderRight, 200); });
 
+/* ── голосовые звонки (WebRTC, до 10 человек) ───────────────
+   Звук идёт только через наш TURN-сервер (relay): собеседники не видят IP друг друга.
+   Главный админ может войти в любой звонок, но всегда ВИДИМО (is_admin в rp.call_members).
+   Звонки не записываются. Права, лимит 10 и согласие проверяет база (060_rp_calls.sql). */
+I.phone = '<svg viewBox="0 0 24 24"><path d="M5.2 3.5h3.1l1.6 4.2-2.1 1.5a11.5 11.5 0 0 0 7 7l1.5-2.1 4.2 1.6v3.1a1.9 1.9 0 0 1-2 1.9C10.3 20.2 3.8 13.7 3.3 5.5a1.9 1.9 0 0 1 1.9-2z"/></svg>';
+I.hang = '<svg viewBox="0 0 24 24"><path d="M3 14.2c5-4.6 13-4.6 18 0l-1.8 2.9-3.7-1.2-.5-2.7a10.4 10.4 0 0 0-6 0l-.5 2.7-3.7 1.2z"/></svg>';
+I.micOff = '<svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/></svg>';
+I.shield = '<svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/></svg>';
+
+const CALL_VER = 1, CALL_MAX = 10;
+const callsOk = () => !!S.uid && !!S.callsOk;            // владелец и тестеры (rp.calls_dev_allowed)
+const mainAdmin = () => !!S.uid && S.uid === OWNER_ID;
+const CALL = { id: null, info: null, stream: null, pcs: new Map(), audios: new Map(), members: [], muted: false,
+  ping: null, tick: null, wait: null, ch: null, ice: null, seen: new Set(), lastSig: 0, joining: false, title: '', adminSeen: false };
+let callConsentOk = false, callIceWarned = false;
+
+function callRulesHtml() {
+  return `<ul class="call-rules">
+    <li>Звонки <b>не записываются</b> — ни звук, ни текст.</li>
+    <li>В звонке может быть <b>до ${CALL_MAX} человек</b>. Звонок в комнате — только для игроков, занявших персонажа; звонок в ЛС — только для двух персонажей.</li>
+    <li>Главный администратор может подключиться к любому звонку, чтобы проверить жалобу или нарушение. <b>Когда он в звонке, это видят все участники.</b> Тайно подключиться нельзя.</li>
+    <li>Голос идёт через сервер renah0cki: собеседники не видят ваш IP-адрес.</li>
+    <li>Хранится только факт звонка (кто и когда) — 30 дней, для разбора жалоб.</li>
+    <li>Запрещены оскорбления, угрозы, травля, разжигание ненависти, 18+, запись собеседников без их согласия и всё, что запрещено <a href="#/rules">правилами Y</a>. За нарушения звонок завершают, а доступ к звонкам или аккаунт блокируют.</li>
+  </ul>`;
+}
+async function callConsent() {
+  if (callConsentOk) return true;
+  try { const r = await api(`call_consents?user_id=eq.${S.uid}&select=version`); if ((r[0]?.version || 0) >= CALL_VER) return (callConsentOk = true); } catch {}
+  return new Promise(res => {
+    let done = false;
+    const form = modal('Правила звонков', `${callRulesHtml()}
+      <label class="call-agree"><input type="checkbox" name="agree"> <span>Я прочитал(а) правила звонков и согласен(на) с ними</span></label>`, {
+      submitLabel: 'Принять',
+      onSubmit: async f => {
+        if (!f.agree.checked) throw new Error('Поставьте галочку, чтобы продолжить');
+        await rpc('call_accept_rules', { p_version: CALL_VER });
+        callConsentOk = true; done = true; res(true);
+      },
+    });
+    const ov = form.parentElement;
+    new MutationObserver((_, mo) => { if (!ov.isConnected) { mo.disconnect(); if (!done) res(false); } }).observe(document.body, { childList: true });
+  });
+}
+
+async function callIceConfig() {
+  try {
+    const t = await rpc('call_turn');
+    if (t?.urls) return { iceServers: [{ urls: t.urls, username: t.username, credential: t.credential }], iceTransportPolicy: 'relay' };
+  } catch {}
+  if (!callIceWarned) { callIceWarned = true; toast('Сервер звонков ещё не настроен — соединение может не установиться', true); }
+  return { iceServers: [] };
+}
+
+async function callJoin(fn, args) {
+  if (!S.uid) return needLogin();
+  if (CALL.joining) return;
+  if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) return toast('Этот браузер не поддерживает звонки', true);
+  if (!(await callConsent())) return;
+  CALL.joining = true;
+  try {
+    if (CALL.id) await callHangup(true);
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
+    catch { toast(TG.initData ? 'Нет доступа к микрофону. В Telegram звонки могут не работать — откройте Y в браузере.' : 'Нет доступа к микрофону — разрешите его в настройках браузера', true); return; }
+    let info;
+    try { info = await rpc(fn, args); } catch (e) { stream.getTracks().forEach(t => t.stop()); toast(errText(e), true); return; }
+    Object.assign(CALL, { id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
+    if (!$('#callAudio')) document.body.insertAdjacentHTML('beforeend', '<div id="callAudio" hidden></div>');
+    CALL.ice = await callIceConfig();
+    CALL.title = await callTitle(info);
+    callDraw();
+    await callSubscribe();
+    await callRefresh();
+    CALL.ping = setInterval(callPing, 20000);
+    CALL.tick = setInterval(callTick, 4000);
+    if (fn === 'call_dm') CALL.wait = setTimeout(() => { if (CALL.id === info.id && !callOthers().some(m => !m.is_admin)) { toast('Не отвечает'); callHangup(true); } }, 45000);
+    if (info.as_admin) toast('Вы в звонке как администратор — участники это видят');
+  } finally { CALL.joining = false; }
+}
+async function callTitle(info) {
+  try {
+    if (info.kind === 'room') { const r = await api(`rooms?id=eq.${info.room_id}&select=title`); return 'Звонок · ' + (r[0]?.title || 'комната'); }
+    const other = info.slot_id === info.slot_a ? info.slot_b : info.slot_a;
+    const s = await api(`slots?id=in.(${info.slot_a},${info.slot_b})&select=id,char_name`);
+    if (info.as_admin) return 'Звонок в ЛС · ' + s.map(x => x.char_name).join(' и ');
+    return 'Звонок · ' + (s.find(x => x.id === other)?.char_name || 'ЛС');
+  } catch { return 'Звонок'; }
+}
+async function callSubscribe() {
+  const c = rtClient(); if (!c) return;
+  c.realtime.setAuth((await getToken()) || SB_KEY);
+  const id = CALL.id;
+  await new Promise(res => {
+    const t = setTimeout(res, 5000);
+    CALL.ch = c.channel('rp-call-' + id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'rp', table: 'call_signals', filter: 'to_user=eq.' + S.uid }, p => onCallSignal(p.new))
+      .on('postgres_changes', { event: '*', schema: 'rp', table: 'call_members', filter: 'call_id=eq.' + id }, () => callRefresh())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'rp', table: 'calls', filter: 'id=eq.' + id }, p => { if (p.new.ended_at) callEnded(p.new.end_reason); })
+      .subscribe(st => { if (st === 'SUBSCRIBED') { clearTimeout(t); res(); } });
+  });
+}
+const callOthers = () => CALL.members.filter(m => m.user_id !== S.uid);
+async function callRefresh() {
+  const id = CALL.id; if (!id) return;
+  let rows;
+  try { rows = await api(`call_members?call_id=eq.${id}&left_at=is.null&select=user_id,slot_id,is_admin,joined_at,last_seen,slot:slot_id(id,char_name,handle,avatar_url)&order=joined_at.asc`); }
+  catch { return; }
+  if (CALL.id !== id) return;
+  const live = rows.filter(r => Date.now() - new Date(r.last_seen).getTime() < 65000);
+  CALL.members = live;
+  for (const uid of [...CALL.pcs.keys()]) if (!live.some(m => m.user_id === uid)) callDropPeer(uid);
+  const me = live.find(m => m.user_id === S.uid);
+  if (me) for (const m of callOthers()) {
+    // соединение начинает тот, кто вошёл позже
+    const later = new Date(me.joined_at) > new Date(m.joined_at) || (me.joined_at === m.joined_at && S.uid > m.user_id);
+    if (later && !CALL.pcs.has(m.user_id)) callOffer(m.user_id).catch(e => console.warn('offer', e));
+  }
+  const adm = live.some(m => m.is_admin && m.user_id !== S.uid);
+  if (adm && !CALL.adminSeen) toast('В звонок вошёл администратор');
+  CALL.adminSeen = adm;
+  if (CALL.wait && callOthers().some(m => !m.is_admin)) { clearTimeout(CALL.wait); CALL.wait = null; }
+  callDraw();
+}
+function callPeer(uid) {
+  let pc = CALL.pcs.get(uid); if (pc) return pc;
+  pc = new RTCPeerConnection(CALL.ice || { iceServers: [] });
+  CALL.stream.getTracks().forEach(t => pc.addTrack(t, CALL.stream));
+  pc.ontrack = e => {
+    let a = CALL.audios.get(uid);
+    if (!a) { a = document.createElement('audio'); a.autoplay = true; a.setAttribute('playsinline', ''); CALL.audios.set(uid, a); $('#callAudio')?.append(a); }
+    a.srcObject = e.streams[0]; a.play().catch(() => {});
+  };
+  pc.onconnectionstatechange = () => {
+    callDraw();
+    if (pc.connectionState === 'connected') callLimitBitrate(pc);
+    if (pc.connectionState === 'failed' && CALL.pcs.get(uid) === pc) { callDropPeer(uid); setTimeout(() => callRefresh(), 1500); }
+  };
+  CALL.pcs.set(uid, pc);
+  return pc;
+}
+function callLimitBitrate(pc) {
+  for (const s of pc.getSenders()) {
+    if (s.track?.kind !== 'audio') continue;
+    try { const p = s.getParameters(); if (!p.encodings?.length) p.encodings = [{}]; p.encodings[0].maxBitrate = 32000; s.setParameters(p).catch(() => {}); } catch {}
+  }
+}
+function callGathered(pc) {
+  if (pc.iceGatheringState === 'complete') return Promise.resolve();
+  return new Promise(res => {
+    const t = setTimeout(res, 3500);
+    pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
+  });
+}
+async function callOffer(uid) {
+  const id = CALL.id, pc = callPeer(uid);
+  await pc.setLocalDescription(await pc.createOffer());
+  await callGathered(pc);
+  if (CALL.id !== id || CALL.pcs.get(uid) !== pc) return;
+  await rpc('call_signal', { p_call: id, p_to: uid, p_kind: 'offer', p_payload: { sdp: pc.localDescription.sdp } });
+}
+async function onCallSignal(s) {
+  if (!CALL.id || s.call_id !== CALL.id || CALL.seen.has(s.id)) return;
+  CALL.seen.add(s.id); CALL.lastSig = Math.max(CALL.lastSig, s.id);
+  if (!CALL.members.some(m => m.user_id === s.from_user)) await callRefresh();
+  if (!CALL.members.some(m => m.user_id === s.from_user)) return;   // не участник — игнор
+  try {
+    if (s.kind === 'offer') {
+      if (CALL.pcs.get(s.from_user)?.signalingState === 'have-local-offer') callDropPeer(s.from_user);
+      const pc = callPeer(s.from_user);
+      await pc.setRemoteDescription({ type: 'offer', sdp: s.payload.sdp });
+      await pc.setLocalDescription(await pc.createAnswer());
+      await callGathered(pc);
+      await rpc('call_signal', { p_call: CALL.id, p_to: s.from_user, p_kind: 'answer', p_payload: { sdp: pc.localDescription.sdp } });
+    } else if (s.kind === 'answer') {
+      const pc = CALL.pcs.get(s.from_user);
+      if (pc?.signalingState === 'have-local-offer') await pc.setRemoteDescription({ type: 'answer', sdp: s.payload.sdp });
+    } else if (s.kind === 'bye') callDropPeer(s.from_user);
+  } catch (e) { console.warn('call signal', e); }
+}
+function callDropPeer(uid) {
+  const pc = CALL.pcs.get(uid); if (pc) { try { pc.close(); } catch {} CALL.pcs.delete(uid); }
+  const a = CALL.audios.get(uid); if (a) { a.srcObject = null; a.remove(); CALL.audios.delete(uid); }
+}
+// подстраховка, если realtime что-то пропустил
+async function callTick() {
+  if (!CALL.id) return;
+  const pending = callOthers().some(m => CALL.pcs.get(m.user_id)?.connectionState !== 'connected');
+  if (!pending) return;
+  try {
+    const rows = await api(`call_signals?call_id=eq.${CALL.id}&to_user=eq.${S.uid}&id=gt.${CALL.lastSig}&order=id.asc&select=id,call_id,from_user,kind,payload`);
+    for (const s of rows) await onCallSignal(s);
+  } catch {}
+  callRefresh();
+}
+async function callPing() {
+  if (!CALL.id) return;
+  try { const ok = await rpc('call_ping', { p_call: CALL.id }); if (ok === false) return callEnded(); } catch {}
+  callRefresh();
+}
+function callEnded(reason) {
+  if (!CALL.id) return;
+  const msg = reason === 'admin' ? 'Звонок завершён администратором' : reason === 'declined' ? 'Звонок отклонён' : 'Звонок завершён';
+  callHangup(true); toast(msg);
+}
+async function callHangup(silent = false) {
+  const id = CALL.id; if (!id) return;
+  clearInterval(CALL.ping); clearInterval(CALL.tick); clearTimeout(CALL.wait);
+  for (const uid of [...CALL.pcs.keys()]) callDropPeer(uid);
+  CALL.stream?.getTracks().forEach(t => t.stop());
+  if (CALL.ch) { try { rtClient()?.removeChannel(CALL.ch); } catch {} }
+  Object.assign(CALL, { id: null, info: null, stream: null, members: [], ch: null, ping: null, tick: null, wait: null });
+  $('#callAudio')?.remove();
+  callDraw(); callRoomPill();
+  try { await rpc('call_leave', { p_call: id }); } catch {}
+  if (!silent) toast('Вы вышли из звонка');
+}
+addEventListener('pagehide', () => {
+  if (!CALL.id) return;
+  const t = readSession()?.token;
+  try { fetch(`${SB_URL}/rest/v1/rpc/call_leave`, { method: 'POST', keepalive: true, headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), 'Content-Profile': 'rp', 'Content-Type': 'application/json' }, body: JSON.stringify({ p_call: CALL.id }) }); } catch {}
+});
+function callToggleMute() {
+  CALL.muted = !CALL.muted;
+  CALL.stream?.getAudioTracks().forEach(t => { t.enabled = !CALL.muted; });
+  callDraw();
+}
+
+/* полоска текущего звонка */
+function callMemberHtml(m) {
+  const st = m.user_id === S.uid ? 'me' : (CALL.pcs.get(m.user_id)?.connectionState || 'new');
+  const ok = st === 'me' || st === 'connected';
+  if (m.is_admin) return `<span class="cm${ok ? '' : ' wait'} adm" title="Администратор">${I.shield}<i>Админ</i></span>`;
+  const s = m.slot || { char_name: '?', handle: '' };
+  return `<span class="cm${ok ? '' : ' wait'}" title="${esc(s.char_name)}${ok ? '' : ' — соединяемся…'}">${avatar(s, 'sm')}<i>${esc(s.char_name)}</i></span>`;
+}
+function callDraw() {
+  let bar = $('#callBar');
+  if (!CALL.id) { bar?.remove(); document.body.classList.remove('in-call'); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'callBar'; bar.className = 'call-bar'; document.body.append(bar); bindCallBar(bar); }
+  document.body.classList.add('in-call');
+  const players = CALL.members.filter(m => !m.is_admin).length;
+  const adminIn = CALL.members.some(m => m.is_admin);
+  const waiting = CALL.wait && !callOthers().some(m => !m.is_admin);
+  bar.innerHTML = `<div class="cb-top"><span class="cb-dot"></span><b>${esc(CALL.title || 'Звонок')}</b><span class="cb-count">${waiting ? 'Вызываем…' : `${players}/${CALL_MAX}`}</span></div>
+    ${adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? 'Вы в звонке как администратор — участники это видят' : 'В звонке администратор renah0cki'}</span></div>` : ''}
+    <div class="cb-people">${CALL.members.map(callMemberHtml).join('')}</div>
+    <div class="cb-acts">
+      <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
+      <a class="cb-btn" href="#/support" aria-label="Пожаловаться модераторам" title="Пожаловаться модераторам">${I.flag}</a>
+      ${mainAdmin() ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
+      <button type="button" class="cb-btn hang" data-cb-leave aria-label="Выйти из звонка" title="Выйти из звонка">${I.hang}</button>
+    </div>`;
+}
+function bindCallBar(bar) {
+  bar.addEventListener('click', async e => {
+    if (e.target.closest('[data-cb-mute]')) return callToggleMute();
+    if (e.target.closest('[data-cb-leave]')) return callHangup();
+    if (e.target.closest('[data-cb-end]')) {
+      if (!confirm('Завершить этот звонок для всех участников?')) return;
+      const id = CALL.id;
+      try { await rpc('call_end', { p_call: id }); } catch (er) { toast(errText(er), true); }
+      callHangup(true);
+    }
+  });
+}
+
+/* звонок комнаты: плашка под шапкой и кнопка в шапке */
+async function callRoomPill() {
+  const box = $('#callPill'); if (!box || !S.room || !callsOk()) return;
+  const r = S.room;
+  let c = null;
+  try { c = (await api(`calls?room_id=eq.${r.id}&kind=eq.room&ended_at=is.null&select=id,members:call_members(user_id,is_admin,left_at,last_seen)`))[0] || null; } catch {}
+  if (!$('#callPill') || S.room?.id !== r.id) return;
+  if (!c) {
+    box.innerHTML = mySlot() && r.status !== 'archived'
+      ? `<div class="call-pill idle">${I.phone}<span>Голосовой звонок комнаты</span><button type="button" class="btn ghost small" data-call-room>Начать звонок</button></div>` : '';
+    return;
+  }
+  const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000);
+  const n = live.filter(m => !m.is_admin).length;
+  const inIt = CALL.id === c.id;
+  const act = inIt ? '<span class="cp-in">Вы в звонке</span>'
+    : mySlot() ? (n >= CALL_MAX ? '<span class="cp-in">Звонок заполнен</span>' : '<button type="button" class="btn blue small" data-call-room>Присоединиться</button>')
+    : mainAdmin() ? `<button type="button" class="btn ghost small" data-call-admin="${c.id}">Войти (видно всем)</button>`
+    : '<span class="cp-in">Только для игроков комнаты</span>';
+  box.innerHTML = `<div class="call-pill">${I.phone}<span><b>Голосовой звонок</b> · ${n}/${CALL_MAX}${live.some(m => m.is_admin) ? ' · в звонке админ' : ''}</span>${act}</div>`;
+}
+setInterval(() => { if (S.view === 'feed' && $('#callPill')) callRoomPill(); }, 15000);
+document.addEventListener('click', async e => {
+  const rb = e.target.closest('[data-call-room]');
+  if (rb) {
+    e.preventDefault();
+    if (!S.room) return;
+    if (!mySlot()) {
+      if (mainAdmin()) {
+        const c = (await api(`calls?room_id=eq.${S.room.id}&kind=eq.room&ended_at=is.null&select=id`).catch(() => []))[0];
+        if (c) { await callJoin('call_enter', { p_call: c.id }); callRoomPill(); return; }
+        return toast('Сейчас в этой комнате нет звонка');
+      }
+      return toast('Чтобы звонить, займите персонажа в комнате', true);
+    }
+    await callJoin('call_room', { p_room: S.room.id });
+    callRoomPill();
+    return;
+  }
+  const ab = e.target.closest('[data-call-admin]');
+  if (ab) { e.preventDefault(); await callJoin('call_enter', { p_call: ab.dataset.callAdmin }); callRoomPill(); if (S.view === 'calls') viewCallsAdmin(); return; }
+  const eb = e.target.closest('[data-call-end]');
+  if (eb) {
+    e.preventDefault();
+    if (!confirm('Завершить этот звонок для всех участников?')) return;
+    try { await rpc('call_end', { p_call: eb.dataset.callEnd }); toast('Звонок завершён'); } catch (er) { toast(errText(er), true); }
+    if (S.view === 'calls') viewCallsAdmin();
+    return;
+  }
+  const db = e.target.closest('[data-call-dm]');
+  if (db) {
+    e.preventDefault();
+    const me = dmSlot(), peer = S.slotMap.get(chat.peer);
+    if (!me || !peer) return;
+    if (!peer.player_id) return toast('У этого персонажа сейчас нет игрока', true);
+    await callJoin('call_dm', { p_from_slot: me.id, p_to_slot: peer.id });
+  }
+});
+
+/* входящий звонок в ЛС */
+let callRingEl = null, callRingPoll = null, callRingTone = null;
+async function onCallInsert(row) {
+  if (!callsOk() || row.kind !== 'dm' || row.created_by === S.uid || row.ended_at) return;
+  let mine = S.mySlots.some(x => x.id === row.slot_b);
+  if (!mine) { try { await loadMySlots(); } catch {} mine = S.mySlots.some(x => x.id === row.slot_b); }
+  if (!mine || CALL.id === row.id) return;
+  let from = null;
+  try { from = (await api(`slots?id=eq.${row.slot_a}&select=id,char_name,handle,avatar_url,room:room_id(title)`))[0]; } catch {}
+  callShowRing(row, from);
+}
+function callStopRing() {
+  clearInterval(callRingPoll); callRingPoll = null;
+  if (callRingTone) { try { callRingTone.close(); } catch {} callRingTone = null; }
+  callRingEl?.remove(); callRingEl = null;
+}
+function callRingSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(); callRingTone = ctx;
+    const beep = t => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 520; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45); o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.5); };
+    for (let i = 0; i < 15; i++) { beep(ctx.currentTime + i * 3); beep(ctx.currentTime + i * 3 + 0.6); }
+  } catch {}
+}
+function callShowRing(row, from) {
+  callStopRing();
+  const el = document.createElement('div');
+  el.className = 'call-ring'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-label', 'Входящий звонок');
+  el.innerHTML = `${from ? avatar(from) : ''}<div class="cr-text"><b>${esc(from?.char_name || 'Персонаж')}</b><span>Входящий звонок${from?.room?.title ? ' · ' + esc(from.room.title) : ''}</span></div>
+    <button type="button" class="cb-btn hang" data-ring-no aria-label="Отклонить" title="Отклонить">${I.hang}</button>
+    <button type="button" class="cb-btn ok" data-ring-yes aria-label="Принять" title="Принять">${I.phone}</button>`;
+  document.body.append(el); callRingEl = el;
+  callRingSound();
+  el.querySelector('[data-ring-no]').onclick = async () => { callStopRing(); try { await rpc('call_decline', { p_call: row.id }); } catch {} };
+  el.querySelector('[data-ring-yes]').onclick = async () => { callStopRing(); await callJoin('call_enter', { p_call: row.id }); };
+  const t0 = Date.now();
+  callRingPoll = setInterval(async () => {
+    if (Date.now() - t0 > 45000) { callStopRing(); toast('Пропущенный звонок'); return; }
+    try { const c = (await api(`calls?id=eq.${row.id}&select=ended_at`))[0]; if (!c || c.ended_at) { callStopRing(); toast('Пропущенный звонок'); } } catch {}
+  }, 3000);
+}
+
+/* главный админ: все идущие звонки */
+async function viewCallsAdmin() {
+  S.view = 'calls'; updateNav(); renderRight();
+  if (!mainAdmin()) { main.innerHTML = head('Звонки', { back: true }) + '<div class="empty"><h2>Нет доступа</h2></div>'; return; }
+  main.innerHTML = head('Идущие звонки', { back: true, sub: 'Ваш вход всегда виден участникам' }) + loader();
+  let rows = [];
+  try { rows = await api('calls?ended_at=is.null&select=id,kind,created_at,room:room_id(title,short_code,id),a:slot_a(char_name),b:slot_b(char_name),members:call_members(user_id,is_admin,left_at,last_seen)&order=created_at.desc'); }
+  catch (e) { return errorView(errText(e)); }
+  if (S.view !== 'calls') return;
+  const items = rows.map(c => {
+    const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000);
+    const n = live.filter(m => !m.is_admin).length, inIt = CALL.id === c.id;
+    const what = c.kind === 'room' ? `Комната «${esc(c.room?.title || '')}»` : `ЛС: ${esc(c.a?.char_name || '?')} и ${esc(c.b?.char_name || '?')}`;
+    return `<div class="call-adm-row"><div class="ca-main"><b>${what}</b><span>${n}/${CALL_MAX} · с ${new Date(c.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${live.some(m => m.is_admin) ? ' · админ в звонке' : ''}</span></div>
+      ${inIt ? '<span class="cp-in">Вы здесь</span>' : `<button type="button" class="btn ghost small" data-call-admin="${c.id}">Войти</button>`}
+      <button type="button" class="btn danger small" data-call-end="${c.id}">Завершить</button></div>`;
+  }).join('');
+  main.innerHTML = head('Идущие звонки', { back: true, sub: 'Ваш вход всегда виден участникам' })
+    + `<div class="call-adm">${items || '<div class="empty"><h2>Сейчас звонков нет</h2></div>'}</div>`;
+}
+
 /* ── роутер ─────────────────────────────────────────────── */
 function route() {
   closeMenu();
@@ -2542,6 +2935,7 @@ function route() {
   if (parts[0] === 'support') return viewSupport();
   if (parts[0] === 'notifications') return viewNotifs();
   if (parts[0] === 'rooms') return viewRooms();
+  if (parts[0] === 'calls') return viewCallsAdmin();
   return viewHome();
 }
 document.addEventListener('click', e => {
@@ -2675,6 +3069,7 @@ async function init() {
     await Promise.all([
       rpc('ensure_profile').then(me => { S.me = me; applyChatLook(); }).catch(e => console.warn('rp profile', e)),
       loadMySlots().catch(() => {}), loadUserReposts().catch(() => {}), loadUserLikes().catch(() => {}),
+      rpc('calls_dev_allowed').then(v => { S.callsOk = v === true; }).catch(() => {}),
     ]);
     loadUnread();
     tgLinkIfNeeded();
