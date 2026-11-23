@@ -2533,7 +2533,8 @@ const CALL_VER = 2, CALL_MAX = 10;
 const callsOk = () => !!S.uid && !!S.callsOk;            // владелец и тестеры (rp.calls_dev_allowed)
 const mainAdmin = () => !!S.uid && S.uid === OWNER_ID;
 const CALL = { id: null, info: null, stream: null, pcs: new Map(), audios: new Map(), members: [], muted: false,
-  ping: null, tick: null, wait: null, ch: null, ice: null, seen: new Set(), lastSig: 0, joining: false, title: '', adminSeen: false };
+  ping: null, tick: null, wait: null, ch: null, ice: null, seen: new Set(), lastSig: 0, joining: false, title: '', adminSeen: false,
+  levels: new Map(), actx: null, lvl: null, since: 0 };
 let callConsentOk = false, callIceWarned = false;
 
 function callRulesHtml() {
@@ -2651,8 +2652,10 @@ async function callJoin(fn, args) {
     try { info = await rpc(fn, args); } catch (e) { stream.getTracks().forEach(t => t.stop()); toast(errText(e), true); return; }
     const voice = await callVoiceChain(stream);
     if (!voice.ok) toast('Изменение голоса не работает в этом браузере — вас слышно обычным голосом', true);
-    Object.assign(CALL, { voice, id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
+    Object.assign(CALL, { voice, levels: new Map(), since: Date.now(), id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
     if (!$('#callAudio')) document.body.insertAdjacentHTML('beforeend', '<div id="callAudio" hidden></div>');
+    callWatchLevel(S.uid, stream);
+    CALL.lvl = setInterval(callLevelTick, 120);
     CALL.ice = await callIceConfig();
     CALL.title = await callTitle(info);
     callDraw();
@@ -2717,6 +2720,7 @@ function callPeer(uid) {
     let a = CALL.audios.get(uid);
     if (!a) { a = document.createElement('audio'); a.autoplay = true; a.setAttribute('playsinline', ''); CALL.audios.set(uid, a); $('#callAudio')?.append(a); }
     a.srcObject = e.streams[0]; a.play().catch(() => {});
+    callWatchLevel(uid, e.streams[0]);
   };
   pc.onconnectionstatechange = () => {
     callDraw();
@@ -2768,6 +2772,7 @@ async function onCallSignal(s) {
 function callDropPeer(uid) {
   const pc = CALL.pcs.get(uid); if (pc) { try { pc.close(); } catch {} CALL.pcs.delete(uid); }
   const a = CALL.audios.get(uid); if (a) { a.srcObject = null; a.remove(); CALL.audios.delete(uid); }
+  callUnwatchLevel(uid);
 }
 // подстраховка, если realtime что-то пропустил
 async function callTick() {
@@ -2792,7 +2797,10 @@ function callEnded(reason) {
 }
 async function callHangup(silent = false) {
   const id = CALL.id; if (!id) return;
-  clearInterval(CALL.ping); clearInterval(CALL.tick); clearTimeout(CALL.wait);
+  clearInterval(CALL.ping); clearInterval(CALL.tick); clearInterval(CALL.lvl); clearTimeout(CALL.wait);
+  for (const uid of [...CALL.levels.keys()]) callUnwatchLevel(uid);
+  try { CALL.actx?.close(); } catch {}
+  CALL.actx = null; CALL.lvl = null; CALL.since = 0;
   for (const uid of [...CALL.pcs.keys()]) callDropPeer(uid);
   CALL.stream?.getTracks().forEach(t => t.stop());
   CALL.voice?.out?.getTracks().forEach(t => t.stop());
@@ -2816,35 +2824,88 @@ function callToggleMute() {
   callDraw();
 }
 
-/* полоска текущего звонка */
+/* панель текущего звонка */
+// кто говорит: громкость каждого голоса (свой — с микрофона, чужие — из пришедшего звука)
+function callWatchLevel(uid, stream) {
+  if (!stream || CALL.levels.has(uid)) return;
+  try {
+    if (!CALL.actx) CALL.actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (CALL.actx.state === 'suspended') CALL.actx.resume().catch(() => {});
+    const src = CALL.actx.createMediaStreamSource(stream);
+    const an = CALL.actx.createAnalyser(); an.fftSize = 512; an.smoothingTimeConstant = 0.2;
+    src.connect(an);
+    CALL.levels.set(uid, { src, an, buf: new Float32Array(an.fftSize), until: 0 });
+  } catch (e) { console.warn('level', e); }
+}
+function callUnwatchLevel(uid) {
+  const l = CALL.levels.get(uid); if (!l) return;
+  try { l.src.disconnect(); } catch {}
+  CALL.levels.delete(uid);
+}
+function callLevelTick() {
+  if (!CALL.id) return;
+  const now = Date.now(), bar = $('#callBar');
+  for (const [uid, l] of CALL.levels) {
+    l.an.getFloatTimeDomainData(l.buf);
+    let sum = 0; for (let i = 0; i < l.buf.length; i++) sum += l.buf[i] * l.buf[i];
+    const rms = Math.sqrt(sum / l.buf.length);
+    if (rms > 0.018 && !(uid === S.uid && CALL.muted)) l.until = now + 350;
+    const talk = l.until > now;
+    if (bar) $$(`[data-uid="${uid}"]`, bar).forEach(el => el.classList.toggle('talk', talk));
+  }
+  const t = bar && $('.cb-time', bar);
+  if (t && CALL.since) { const s = Math.floor((now - CALL.since) / 1000); t.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+}
+const callMinKey = 'rp_call_min';
+const callIsMin = () => { try { return localStorage.getItem(callMinKey) === '1'; } catch { return false; } };
 function callMemberHtml(m) {
-  const st = m.user_id === S.uid ? 'me' : (CALL.pcs.get(m.user_id)?.connectionState || 'new');
+  const me = m.user_id === S.uid;
+  const st = me ? 'me' : (CALL.pcs.get(m.user_id)?.connectionState || 'new');
   const ok = st === 'me' || st === 'connected';
-  if (m.is_admin) return `<span class="cm${ok ? '' : ' wait'} adm" title="Администратор">${I.shield}<i>Админ</i></span>`;
-  const s = m.slot || { char_name: '?', handle: '' };
-  return `<span class="cm${ok ? '' : ' wait'}" title="${esc(s.char_name)}${ok ? '' : ' — соединяемся…'}">${avatar(s, 'sm')}<i>${esc(s.char_name)}</i></span>`;
+  const muted = me && CALL.muted;
+  const s = m.is_admin ? null : (m.slot || { char_name: '?', handle: '' });
+  const pic = m.is_admin ? `<span class="av cmx-adm">${I.shield}</span>` : avatar(s);
+  const name = m.is_admin ? 'Администратор' : s.char_name;
+  return `<div class="cmx${ok ? '' : ' wait'}${me ? ' me' : ''}${m.is_admin ? ' adm' : ''}" data-uid="${esc(m.user_id)}" title="${esc(name)}${ok ? '' : ' — соединяемся…'}">
+    <div class="cmx-av">${pic}${muted ? `<span class="cmx-muted">${I.micOff}</span>` : ''}</div>
+    <i>${me ? 'Вы' : esc(name)}</i></div>`;
 }
 function callDraw() {
   let bar = $('#callBar');
   if (!CALL.id) { bar?.remove(); document.body.classList.remove('in-call'); return; }
   if (!bar) { bar = document.createElement('div'); bar.id = 'callBar'; bar.className = 'call-bar'; document.body.append(bar); bindCallBar(bar); }
   document.body.classList.add('in-call');
+  const min = callIsMin();
+  bar.classList.toggle('min', min);
   const players = CALL.members.filter(m => !m.is_admin).length;
   const adminIn = CALL.members.some(m => m.is_admin);
   const waiting = CALL.wait && !callOthers().some(m => !m.is_admin);
-  bar.innerHTML = `<div class="cb-top"><span class="cb-dot"></span><b>${esc(CALL.title || 'Звонок')}</b><span class="cb-count">${waiting ? 'Вызываем…' : `${players}/${CALL_MAX}`}</span></div>
-    ${CALL.voice?.ok ? `<div class="cb-voice">Ваш голос в звонке: <b>${CALL.voice.up ? 'выше ⬆' : 'ниже ⬇'}</b> — так слышат вас другие</div>` : ''}
-    ${adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? 'Вы в звонке как администратор — участники это видят' : 'В звонке администратор renah0cki'}</span></div>` : ''}
-    <div class="cb-people">${CALL.members.map(callMemberHtml).join('')}</div>
-    <div class="cb-acts">
+  const head = `<div class="cb-head">
+      <span class="cb-live"><span class="cb-dot"></span>${waiting ? 'Вызов' : 'В звонке'}</span>
+      <b class="cb-title">${esc((CALL.title || 'Звонок').replace(/^Звонок · /, ''))}</b>
+      <span class="cb-time">0:00</span>
+      <button type="button" class="cb-min" data-cb-min aria-label="${min ? 'Развернуть' : 'Свернуть'}" title="${min ? 'Развернуть' : 'Свернуть'}"><svg viewBox="0 0 24 24"><path d="${min ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg></button>
+    </div>`;
+  const ctrl = `<div class="cb-ctrl">
       <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
-      <a class="cb-btn" href="#/support" aria-label="Пожаловаться модераторам" title="Пожаловаться модераторам">${I.flag}</a>
-      ${mainAdmin() ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
+      ${min ? '' : `<a class="cb-btn" href="#/support" aria-label="Пожаловаться модераторам" title="Пожаловаться модераторам">${I.flag}</a>`}
+      ${mainAdmin() && !min ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
       <button type="button" class="cb-btn hang" data-cb-leave aria-label="Выйти из звонка" title="Выйти из звонка">${I.hang}</button>
     </div>`;
+  if (min) {
+    bar.innerHTML = head + `<div class="cb-minrow"><div class="cb-stack">${CALL.members.slice(0, 6).map(callMemberHtml).join('')}</div>${ctrl}</div>`;
+  } else {
+    bar.innerHTML = head
+      + (adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? 'Вы в звонке как администратор — участники это видят' : 'В звонке администратор renah0cki'}</span></div>` : '')
+      + `<div class="cb-grid">${CALL.members.map(callMemberHtml).join('')}</div>`
+      + `<div class="cb-meta">${waiting ? '<span>Ждём ответа…</span>' : `<span>${players} из ${CALL_MAX}</span>`}${CALL.voice?.ok ? `<span class="cb-voice">Ваш голос: <b>${CALL.voice.up ? 'выше' : 'ниже'}</b></span>` : ''}</div>`
+      + ctrl;
+  }
+  callLevelTick();
 }
 function bindCallBar(bar) {
   bar.addEventListener('click', async e => {
+    if (e.target.closest('[data-cb-min]')) { try { localStorage.setItem(callMinKey, callIsMin() ? '0' : '1'); } catch {} return callDraw(); }
     if (e.target.closest('[data-cb-mute]')) return callToggleMute();
     if (e.target.closest('[data-cb-leave]')) return callHangup();
     if (e.target.closest('[data-cb-end]')) {
