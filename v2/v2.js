@@ -3171,7 +3171,7 @@ async function viewShop(tab) {
           const allEq = parts.length && parts.every(x => eq[x.category] === x.id);
           acts = isOwn
             ? (allEq ? `<button type="button" class="btn eq-on" disabled>Надето ✓</button>` : `<button type="button" class="btn accent" style="flex:1" data-shpackeq="${esc(it.id)}">Надеть набор</button>`)
-            : `<button type="button" class="btn" data-shpacktry="${esc(it.id)}">${allTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuy="${esc(it.id)}" data-shpay="${pay}"><img src="${COIN}" alt="">${pay < it.price ? `<s class="shop-old-p">${fmt(it.price)}</s>` : ''}${fmt(pay)}</button>`;
+            : `<button type="button" class="btn" data-shpacktry="${esc(it.id)}">${allTry ? 'Убрать' : 'Примерить'}</button><button type="button" class="btn accent shop-buy" data-shbuy="${esc(it.id)}" data-shpay="${pay}"><img src="${COIN}" alt="">${pay < Math.max(it.price, oldP) ? `<s class="shop-old-p">${fmt(Math.max(it.price, oldP))}</s>` : ''}${fmt(pay)}</button>`;
         } else if (it.id === 'gift_role_custom') {
           acts = `<button type="button" class="btn accent shop-buy" data-shgift="${esc(it.id)}" data-shdays="14">2 нед · <img src="${COIN}" alt="">500</button><button type="button" class="btn accent shop-buy" data-shgift="${esc(it.id)}" data-shdays="30">1 мес · <img src="${COIN}" alt="">700</button>`;
         } else if (isGiftCat) {
