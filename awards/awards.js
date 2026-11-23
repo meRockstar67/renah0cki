@@ -370,7 +370,7 @@ function mediaHtml(x, canOpenParts = false) {
     ? ` role="button" tabindex="0" data-open-parts="${x.id}" title="${partsOf(x).length ? `Участники (${partsOf(x).length})` : 'Добавить участников'}"`
     : '';
   const clickCls = canOpenParts ? ' is-clickable' : '';
-  if (x.media_type === 'image') return `<div class="aw-media is-img${clickCls}"${openAttr}><img src="${esc(thumb(u, 720))}" alt="" loading="lazy" draggable="false"></div>`;
+  if (x.media_type === 'image') return `<div class="aw-media is-img${x.no_shade ? ' no-shade' : ''}${clickCls}"${openAttr}><img src="${esc(thumb(u, 720))}" alt="" loading="lazy" draggable="false"></div>`;
   if (x.media_type === 'video') return `<div class="aw-media is-vid"><video src="${esc(u)}" controls playsinline preload="metadata"></video></div>`;
   if (x.media_type === 'youtube' && ytId(u)) return `<div class="aw-media yt"><iframe src="https://www.youtube-nocookie.com/embed/${ytId(u)}" allowfullscreen loading="lazy"></iframe></div>`;
   if (x.media_type === 'link') return `<a class="aw-media aw-link" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>🔗</span>${esc(u.replace(/^https?:\/\//, '').slice(0, 60))}</a>`;
@@ -445,7 +445,7 @@ function viewNom(id) {
       const on = mine === x.id, v = S.results?.get(x.id) || 0;
       const parts = partsOf(x), canOpenParts = parts.length > 0 || S.admin;
       return `<article class="aw-nee${on ? ' on' : ''}${just === x.id ? ' just-voted' : ''}${S.admin ? ' can-drag' : ''}" data-nee-id="${x.id}"${S.admin ? ' draggable="true"' : ''} style="--i:${i}">
-        ${S.admin ? `<div class="aw-nee-adm"><span class="aw-btn icon aw-drag-grip" title="Перетащить номинанта">⠿</span><button type="button" class="aw-btn icon" data-open-parts="${x.id}" title="Участники">👥</button><button type="button" class="aw-btn icon" data-edit-nee="${x.id}" title="Изменить">✎</button><button type="button" class="aw-btn icon danger" data-del-nee="${x.id}" title="Удалить">✕</button></div>` : ''}
+        ${S.admin ? `<div class="aw-nee-adm"><span class="aw-btn icon aw-drag-grip" title="Перетащить номинанта">⠿</span><button type="button" class="aw-btn icon" data-open-parts="${x.id}" title="Участники">👥</button>${x.media_type === 'image' && 'no_shade' in x ? `<button type="button" class="aw-btn icon${x.no_shade ? ' on' : ''}" data-shade-nee="${x.id}" title="${x.no_shade ? 'Вернуть затемнение краёв' : 'Убрать затемнение краёв'}">◐</button>` : ''}<button type="button" class="aw-btn icon" data-edit-nee="${x.id}" title="Изменить">✎</button><button type="button" class="aw-btn icon danger" data-del-nee="${x.id}" title="Удалить">✕</button></div>` : ''}
         ${mediaHtml(x, canOpenParts)}
         <div class="aw-nee-body">
           <h3>${esc(x.title)}</h3>
@@ -794,6 +794,7 @@ function nomDialog(n) {
 }
 function neeDialog(nomId, x) {
   let file = null;
+  const nsOk = 'no_shade' in (x || S.nees[0] || {});   // колонка есть только после SQL 065
   const oldUrl = x?.media_url || '';
   const parsed = splitDescLink(x?.description);
   const f = modal(`<h2>${x ? 'Изменить номинанта' : 'Новый номинант'}</h2>
@@ -807,7 +808,8 @@ function neeDialog(nomId, x) {
       <label class="aw-drop"><input type="file" accept="image/*,.avif,.webp,video/mp4,video/webm,video/quicktime" hidden><b>${oldUrl ? 'Заменить фото, гиф или видео' : 'Загрузить фото, гиф или видео'}</b><small>до 30 МБ · PNG, JPG, GIF, WebP, AVIF (7TV), MP4 · Ctrl+V</small></label>
       <div class="aw-or">или ссылка</div>
       <div class="aw-row"><input name="u" placeholder="YouTube, ссылка на картинку (7TV и т.п.) или любая ссылка" value="${esc(oldUrl)}"><button type="button" class="aw-btn danger" data-clear-media${oldUrl ? '' : ' hidden'}>Удалить фото</button></div>
-      <div class="aw-prev"></div></div>`, async (f, say) => {
+      <div class="aw-prev"></div>
+      ${nsOk ? `<label class="aw-check"><input type="checkbox" name="ns"${x?.no_shade ? ' checked' : ''}> Без затемнения краёв фото</label>` : ''}</div>`, async (f, say) => {
     let url = f.u.value.trim(), type = 'none';
     if (file) { url = await upload(file, p => say(`Загрузка: ${p}%`)); type = /^video\//.test(file.type) ? 'video' : 'image'; }
     else if (url) {
@@ -819,6 +821,7 @@ function neeDialog(nomId, x) {
     const linkPart = lu ? (lt ? `[${lt}](${lu})` : lu) : '';
     const descFull = [f.d.value.trim(), linkPart].filter(Boolean).join('\n').slice(0, 600) || null;
     const body = { title: f.t.value.trim(), description: descFull, media_url: url || null, media_type: url ? type : 'none' };
+    if (nsOk) body.no_shade = !!f.ns?.checked;
     if (x) {
       await api(`aw_nominees?id=eq.${x.id}`, { method: 'PATCH', prefer: 'return=minimal', body });
       if (oldUrl && oldUrl !== url) await delServerMedia({ awardUrl: oldUrl });
@@ -919,6 +922,18 @@ page.addEventListener('click', async e => {
     await loadAll(); location.hash = '#/'; return;
   }
   const an = t.closest('[data-add-nee]'); if (an) return neeDialog(an.dataset.addNee, null);
+  const sh = t.closest('[data-shade-nee]');
+  if (sh) {
+    const x = S.nees.find(y => y.id === sh.dataset.shadeNee); if (!x) return;
+    sh.disabled = true;
+    try {
+      await api(`aw_nominees?id=eq.${x.id}`, { method: 'PATCH', prefer: 'return=minimal', body: { no_shade: !x.no_shade } });
+      x.no_shade = !x.no_shade;
+      toast(x.no_shade ? 'Затемнение убрано' : 'Затемнение возвращено');
+      route();
+    } catch (er) { toast(er.message, true); sh.disabled = false; }
+    return;
+  }
   const ee = t.closest('[data-edit-nee]'); if (ee) { const x = S.nees.find(y => y.id === ee.dataset.editNee); return neeDialog(x.nomination_id, x); }
   const de = t.closest('[data-del-nee]');
   if (de) {

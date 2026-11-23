@@ -492,3 +492,9 @@ a.aw-nee-sub:hover, .aw-nee-sub-a:hover { color: #ffba6b; text-decoration: under
 }
 a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-car-arr, .slay-faq-q, .aw-btn, .aw-sw, .aw-drop, .aw-link, .aw-add, .aw-media.is-clickable, .aw-ico-opt, .aw-nee-sub-a, .aw-parts-btn, .aw-part-link, .aw-part-add { cursor: var(--cur-ptr); }
 .slay-btn.static, .aw-nom-head .slay-emblem, .aw-media:not(.is-clickable), .aw-media video, .aw-media.yt { cursor: var(--cur-def); }
+
+/* номинант без затемнения краёв фото */
+.aw-media.is-img.no-shade::after { display: none; }
+.aw-nee-adm .aw-btn.icon.on { color: var(--amber); border-color: rgba(255, 140, 40, .6); }
+.aw-check { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; cursor: pointer; }
+.aw-check input { width: 17px; height: 17px; accent-color: var(--amber); }
