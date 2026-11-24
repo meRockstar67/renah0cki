@@ -6,7 +6,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI
 const CDN = 'https://cdn.renah0cki.xyz';
 const OWNER = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const STAFF_ROLES = ['moderator', 'gl_moder', 'admin'];
-const JURY_ROLES = ['streamer', 'moderator', 'gl_moder', 'admin'];
+const JURY_ROLES = ['moderator', 'gl_moder', 'admin']; // стримеров в премии нет (SQL 074)
 const EVENT_AT = Date.parse('2026-12-31T17:00:00Z'); // 31.12.2026 20:00 МСК
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
