@@ -498,3 +498,35 @@ a, button, label, [role=button], .slay-btn, .slay-emblem, .slay-car-side, .slay-
 .aw-nee-adm .aw-btn.icon.on { color: var(--amber); border-color: rgba(255, 140, 40, .6); }
 .aw-check { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; cursor: pointer; }
 .aw-check input { width: 17px; height: 17px; accent-color: var(--amber); }
+
+/* ── «Свой вариант» (SQL 079) ── */
+.aw-custom { max-width: 720px; margin: 28px auto 0; padding: 20px 22px; border-radius: 18px; border: 1px dashed var(--border-hi); background: linear-gradient(180deg, rgba(255,123,28,.07), rgba(255,123,28,.02)); display: grid; gap: 12px; }
+.aw-custom.on { border-style: solid; box-shadow: 0 0 0 1px rgba(255,174,66,.25), 0 10px 40px -18px rgba(255,123,28,.6); }
+.aw-custom-h { display: grid; gap: 4px; text-align: center; }
+.aw-custom-h b { font-family: var(--serif); font-size: 22px; letter-spacing: .02em; color: var(--amber-2); }
+.aw-custom-h span { color: #a89f97; font-size: 14px; }
+.aw-custom-mine { text-align: center; color: #c7bbb1; overflow-wrap: anywhere; }
+.aw-custom-mine b { color: var(--text); }
+.aw-custom-f { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.aw-custom-f input { flex: 1 1 260px; min-width: 0; height: 42px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(0,0,0,.5); color: var(--text); font: inherit; }
+.aw-custom-f input:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px rgba(255,123,28,.2); }
+
+/* ── статистика голосов (модераторы) ── */
+.aw-stats .aw-nom-head p b { color: var(--amber-2); }
+.aw-st-nom { max-width: 820px; margin: 22px auto 0; padding: 18px 20px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); }
+.aw-st-nom h2 { margin: 0 0 12px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-family: var(--serif); font-size: 22px; }
+.aw-st-nom h2 > span { color: var(--amber); font-family: var(--sans); font-size: 13px; font-weight: 800; }
+.aw-st-nom h2 em { font-style: normal; font-size: 12px; color: var(--danger); font-family: var(--sans); }
+.aw-st-nom h2 small { margin-left: auto; font-family: var(--sans); font-size: 13px; color: var(--muted); }
+.aw-st-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(60px, 1fr) 40px 44px; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,.05); font-size: 14px; }
+.aw-st-t { overflow-wrap: anywhere; }
+.aw-st-t a { color: var(--amber-2); text-decoration: underline; text-underline-offset: 2px; }
+.aw-st-t i { color: var(--muted); font-style: normal; font-size: 12px; }
+.aw-st-row.is-custom .aw-st-t { color: #e6d6c8; }
+.aw-st-bar { height: 6px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.aw-st-bar i { display: block; height: 100%; background: linear-gradient(90deg, #e53a08, #ffb347); border-radius: 99px; }
+.aw-st-row.is-custom .aw-st-bar i { background: linear-gradient(90deg, #8a6cff, #c9b8ff); }
+.aw-st-row b { text-align: right; }
+.aw-st-row small { text-align: right; color: var(--muted); }
+.aw-st-empty { color: var(--muted); font-size: 14px; }
+@media (max-width: 560px) { .aw-st-row { grid-template-columns: minmax(0, 1fr) 34px 40px; } .aw-st-bar { grid-column: 1 / -1; order: 5; } }

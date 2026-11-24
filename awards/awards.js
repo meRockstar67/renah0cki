@@ -7,7 +7,7 @@ const CDN = 'https://cdn.renah0cki.xyz';
 const OWNER = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const STAFF_ROLES = ['moderator', 'gl_moder', 'admin'];
 const JURY_ROLES = ['moderator', 'gl_moder', 'admin']; // стримеров в премии нет (SQL 074)
-const EVENT_AT = Date.parse('2026-12-31T17:00:00Z'); // 31.12.2026 20:00 МСК
+let EVENT_AT = Date.parse('2026-12-10T17:00:00Z'); // дата итогов: public.aw_settings (SQL 079), по умолчанию 10.12.2026 20:00 МСК
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const page = $('#page');
@@ -71,7 +71,7 @@ async function delServerMedia(payload) {
   await fetch(CDN + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) }).catch(() => {});
 }
 /* ── состояние ── */
-const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0, homeScroll: 0, view: '', lastVoted: null, justDragged: false };
+const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), custom: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0, homeScroll: 0, view: '', lastVoted: null, justDragged: false };
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
 const thumb = (u, w = 720) => { const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+\.(?:jpe?g|png|webp))$/i); return m ? `${CDN}/thumb/${w}/${m[1]}` : u; };
 const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return n > 10 && n < 20 ? c : k > 1 && k < 5 ? b : k === 1 ? a : c; };
@@ -141,7 +141,7 @@ const STAR_SVG = () => {
 const FAQ = [
   ['Через какой сервис проходит авторизация?', 'Авторизация проходит через ваш Twitch-аккаунт на основном сайте renah0cki.xyz. Отдельная регистрация не нужна.'],
   ['Сколько раз можно проголосовать в одной номинации?', 'В каждой номинации можно отдать один голос. Если вы передумали, просто нажмите на другого номинанта — голос перенесётся.'],
-  ['Когда будут подведены итоги премии?', 'Итоги OvosheAwards 2026 будут объявлены в прямом эфире на новогоднем стриме.'],
+  ['Когда будут подведены итоги премии?', 'Итоги OvosheAwards 2026 будут подведены а*уенно.'],
   ['Как формируется список номинантов?', 'Номинации и список номинантов формируются стримером и модераторами сообщества по ярким моментам года.'],
 ];
 
@@ -149,11 +149,13 @@ async function loadAll() {
   const [noms, nees, votes, res] = await Promise.all([
     api('aw_nominations?select=*&order=position.asc,created_at.asc'),
     api('aw_nominees?select=*&order=position.asc,created_at.asc'),
-    S.uid ? api(`aw_votes?user_id=eq.${S.uid}&select=nomination_id,nominee_id`).catch(() => []) : [],
+    S.uid ? api(`aw_votes?user_id=eq.${S.uid}&select=nomination_id,nominee_id,custom_text`).catch(() => api(`aw_votes?user_id=eq.${S.uid}&select=nomination_id,nominee_id`).catch(() => [])) : [],
     S.admin ? rpc('aw_results').catch(() => null) : null,
+    api('aw_settings?id=eq.1&select=results_at').then(r => { const t = Date.parse(r?.[0]?.results_at || ''); if (t) EVENT_AT = t; }).catch(() => {}),
   ]);
   S.noms = noms; S.nees = nees;
-  S.votes = new Map(votes.map(v => [v.nomination_id, v.nominee_id]));
+  S.votes = new Map(votes.filter(v => v.nominee_id).map(v => [v.nomination_id, v.nominee_id]));
+  S.custom = new Map(votes.filter(v => v.custom_text).map(v => [v.nomination_id, v.custom_text]));
   S.results = res ? new Map(res.map(r => [r.nominee_id, +r.votes])) : null;
 }
 async function loadMe() {
@@ -291,7 +293,7 @@ function initReveal(instantAbove = false) {
 /* ── главная: все секции SLAY ── */
 function viewHome(restoreScroll = false) {
   S.view = 'home';
-  const total = S.noms.length, voted = S.noms.filter(n => S.votes.has(n.id)).length;
+  const total = S.noms.length, voted = S.noms.filter(n => S.votes.has(n.id) || S.custom.has(n.id)).length;
   const top2 = S.noms.slice(0, 2);
   const top3 = S.noms.slice(2, 5);
   const more = S.noms.slice(5);
@@ -303,13 +305,15 @@ function viewHome(restoreScroll = false) {
         <div class="slay-hero-pill"><b>OvosheAwards 2026</b><i></i></div>
         <h1>OVOSHE<br>AWARDS</h1>
         <p class="slay-hero-sub">Главная премия<br>сообщества</p>
-        <div class="slay-hero-date">31.12.26</div>
+        <div class="slay-hero-date">${fmtDay(EVENT_AT)}</div>
         ${S.uid ? `<div class="slay-hero-prog"><div class="aw-prog-bar"><i style="width:${total ? voted / total * 100 : 0}%"></i></div><span>Голосов: <b>${voted}</b> из ${total}</span></div>` : ''}
       </div>
     </section>
 
     ${S.admin ? `<div class="aw-admin-wrap sr"><div class="aw-admin-bar"><span>Модерация</span>
       <button class="aw-btn gold" data-add-nom>＋ Номинация</button>
+      <a class="aw-btn" href="#/stats">📊 Статистика</a>
+      <button class="aw-btn" data-set-date>🗓 Дата итогов: ${fmtDay(EVENT_AT)}</button>
       <label class="aw-sw"><input type="checkbox" data-show-res${S.showRes ? ' checked' : ''}><i></i>Показывать голоса</label>
       <label class="aw-sw"><input type="checkbox" data-flat-grid${S.flatGrid ? ' checked' : ''}><i></i>Все номинации сеткой</label>
     </div></div>` : ''}
@@ -423,7 +427,7 @@ function viewNom(id) {
   revealObs?.disconnect();
   const n = S.noms.find(x => x.id === id);
   if (!n) { page.innerHTML = '<div class="aw-empty">Номинация не найдена. <a href="#/">Ко всем номинациям</a></div>'; return; }
-  const list = neesOf(id), mine = S.votes.get(id), idx = S.noms.indexOf(n);
+  const list = neesOf(id), myCustom = S.custom.get(id) || '', mine = S.votes.get(id) || (myCustom ? 'custom' : undefined), idx = S.noms.indexOf(n);
   const prev = S.noms[idx - 1], next = S.noms[idx + 1];
   const max = S.results ? Math.max(1, ...list.map(x => S.results.get(x.id) || 0)) : 1;
   const just = S.lastVoted; S.lastVoted = null;
@@ -458,6 +462,15 @@ function viewNom(id) {
       </article>`;
     }).join('')}
     ${S.admin ? `<button class="aw-nee aw-add" data-add-nee="${id}"><span>＋</span>Добавить номинанта<small>фото, гиф, видео или ссылка</small></button>` : ''}</div>
+    ${n.is_open || myCustom ? `<section class="aw-custom${myCustom ? ' on' : ''}">
+      <div class="aw-custom-h"><b>Свой вариант</b><span>Нет нужного номинанта? Впиши ник или ссылку — это тоже голос, его увидят модераторы.</span></div>
+      ${myCustom ? `<div class="aw-custom-mine"><span>Твой вариант:</span> <b>${esc(myCustom)}</b></div>` : ''}
+      ${n.is_open ? `<form class="aw-custom-f" data-custom-form="${id}">
+        <input name="t" maxlength="200" autocomplete="off" placeholder="Ник или https://ссылка" value="${esc(myCustom)}" aria-label="Свой вариант">
+        <button class="slay-btn sm" type="submit">${myCustom ? 'ИЗМЕНИТЬ' : 'ПРЕДЛОЖИТЬ'}</button>
+        ${myCustom ? `<button class="slay-btn sm cancel" type="button" data-custom-cancel="${id}">ОТМЕНИТЬ</button>` : ''}
+      </form>` : ''}
+    </section>` : ''}
     ${!list.length && !S.admin ? '<div class="aw-empty">Номинанты скоро появятся.</div>' : ''}
     <nav class="aw-pager">${prev ? `<a href="#/n/${prev.id}">← ${esc(prev.title)}</a>` : '<span></span>'}${next ? `<a href="#/n/${next.id}">${esc(next.title)} →</a>` : ''}</nav>
   </div>`;
@@ -754,10 +767,68 @@ async function vote(id) {
   const x = S.nees.find(y => y.id === id); if (!x) return;
   try {
     const r = await rpc('aw_vote', { p_nominee: id });
-    if (r) { S.votes.set(x.nomination_id, r); S.lastVoted = r; toast('Голос учтён'); } else { S.votes.delete(x.nomination_id); toast('Голос снят'); }
+    if (r) { S.votes.set(x.nomination_id, r); S.custom.delete(x.nomination_id); S.lastVoted = r; toast('Голос учтён'); } else { S.votes.delete(x.nomination_id); toast('Голос снят'); }
     if (S.admin) { const res = await rpc('aw_results').catch(() => null); S.results = res ? new Map(res.map(z => [z.nominee_id, +z.votes])) : null; }
     route();
   } catch (e) { toast(e.message, true); }
+}
+
+async function voteCustom(nomId, text) {
+  if (!S.uid) return toast('Войдите на renah0cki, чтобы голосовать', true);
+  try {
+    const r = await rpc('aw_vote_custom', { p_nomination: nomId, p_text: text });
+    if (r) { S.custom.set(nomId, r); S.votes.delete(nomId); toast('Свой вариант учтён'); } else { S.custom.delete(nomId); toast('Голос снят'); }
+    route();
+  } catch (e) { toast(e.message, true); }
+}
+const fmtDay = t => { const d = new Date(t); return [d.getDate(), d.getMonth() + 1].map(x => String(x).padStart(2, '0')).join('.') + '.' + String(d.getFullYear()).slice(2); };
+
+/* ── статистика голосов (модераторы) ── */
+async function viewStats() {
+  S.view = 'stats';
+  clearInterval(cdT); revealObs?.disconnect();
+  if (!S.admin) { page.innerHTML = '<div class="aw-empty">Только для модераторов. <a href="#/">На главную</a></div>'; return; }
+  page.innerHTML = '<div class="aw-empty">Считаю голоса…</div>';
+  let st;
+  try { st = await rpc('aw_stats'); } catch (e) { page.innerHTML = `<div class="aw-empty">Не удалось загрузить: ${esc(e.message)}</div>`; return; }
+  if (S.view !== 'stats') return;
+  S.stats = st;
+  const row = (title, v, max, total, cls = '') => `<div class="aw-st-row${cls}"><span class="aw-st-t">${title}</span><div class="aw-st-bar"><i style="width:${max ? v / max * 100 : 0}%"></i></div><b>${v}</b><small>${total ? Math.round(v / total * 100) : 0}%</small></div>`;
+  const link = t => /^https?:\/\//i.test(t) ? `<a href="${esc(t)}" target="_blank" rel="noopener">${esc(t)}</a>` : esc(t);
+  page.innerHTML = `<div class="aw-nom-wrap aw-stats">
+    <a class="aw-crumb" href="#/">← Все номинации</a>
+    <section class="aw-nom-head"><div class="aw-kicker">Только для модераторов</div><h1>Статистика голосов</h1>
+      <p>Проголосовали: <b>${st.voters}</b> ${plural(st.voters, 'человек', 'человека', 'человек')} · всего голосов: <b>${st.votes}</b></p>
+      <div class="aw-head-acts"><button class="aw-btn gold" data-stats-copy>Скопировать итоги текстом</button><button class="aw-btn" data-stats-reload>Обновить</button></div></section>
+    ${(st.nominations || []).map((n, i) => {
+      const all = [...n.nominees.map(x => ({ t: esc(x.title), v: x.votes, c: '' })), ...n.custom.map(x => ({ t: '✍ ' + link(x.text) + (x.variants > 1 ? ` <i>(${x.variants} написания)</i>` : ''), v: x.votes, c: ' is-custom' }))]
+        .sort((a, b) => b.v - a.v);
+      const max = Math.max(0, ...all.map(x => x.v));
+      return `<section class="aw-st-nom"><h2><span>${String(i + 1).padStart(2, '0')}</span>${esc(n.title)}${n.is_open ? '' : ' <em>закрыта</em>'}<small>${n.total} ${plural(n.total, 'голос', 'голоса', 'голосов')}</small></h2>
+        ${all.length ? all.map((x, k) => row((k === 0 && x.v > 0 ? '🏆 ' : '') + x.t, x.v, max, n.total, x.c)).join('') : '<div class="aw-st-empty">Номинантов пока нет</div>'}
+      </section>`;
+    }).join('')}
+  </div>`;
+}
+function statsText(st) {
+  const lines = [`OvosheAwards 2026 — голоса (проголосовали: ${st.voters})`, ''];
+  (st.nominations || []).forEach((n, i) => {
+    lines.push(`${i + 1}. ${n.title} — ${n.total} ${plural(n.total, 'голос', 'голоса', 'голосов')}`);
+    [...n.nominees.map(x => [x.title, x.votes]), ...n.custom.map(x => ['свой вариант: ' + x.text, x.votes])]
+      .sort((a, b) => b[1] - a[1]).forEach(([t, v]) => lines.push(`   ${v} — ${t}`));
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+function dateDialog() {
+  const d = new Date(EVENT_AT), pad = x => String(x).padStart(2, '0');
+  const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  modal(`<h2>Дата итогов премии</h2><label>Когда подводим итоги (по времени вашего устройства)<input type="datetime-local" name="d" required value="${local}"></label>`, async f => {
+    const t = new Date(f.d.value);
+    if (isNaN(t)) throw new Error('Неверная дата');
+    await api('aw_settings?id=eq.1', { method: 'PATCH', body: { results_at: t.toISOString(), updated_at: new Date().toISOString() }, prefer: 'return=minimal' });
+    EVENT_AT = t.getTime(); toast('Дата итогов сохранена'); route();
+  });
 }
 
 /* ── админка ── */
@@ -900,6 +971,10 @@ page.addEventListener('click', async e => {
   const fq = t.closest('[data-faq]');
   if (fq) { fq.closest('.slay-faq-item')?.classList.toggle('open'); return; }
   const v = t.closest('[data-vote]'); if (v) return vote(v.dataset.vote);
+  const cc = t.closest('[data-custom-cancel]'); if (cc) return voteCustom(cc.dataset.customCancel, '');
+  if (t.closest('[data-set-date]')) return dateDialog();
+  if (t.closest('[data-stats-reload]')) return viewStats();
+  if (t.closest('[data-stats-copy]')) { if (S.stats) navigator.clipboard.writeText(statsText(S.stats)).then(() => toast('Итоги скопированы'), () => toast('Не удалось скопировать', true)); return; }
   const op = t.closest('[data-open-parts]');
   if (op) {
     if (S.justDragged) return;
@@ -945,6 +1020,13 @@ page.addEventListener('click', async e => {
     await loadAll(); return route();
   }
 });
+page.addEventListener('submit', e => {
+  const f = e.target.closest('[data-custom-form]'); if (!f) return;
+  e.preventDefault();
+  const v = f.t.value.trim();
+  if (!v) return toast('Впиши ник или ссылку', true);
+  voteCustom(f.dataset.customForm, v);
+});
 page.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   const op = e.target.closest('[role="button"][data-open-parts]');
@@ -987,6 +1069,7 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
 /* ── роутер ── */
 function route(fromNav = false) {
   const p = location.hash.replace(/^#\/?/, '').split('/');
+  if (p[0] === 'stats') { viewStats(); if (fromNav) window.scrollTo({ top: 0, behavior: 'instant' }); return; }
   if (p[0] === 'n' && p[1]) {
     viewNom(p[1]);
     if (fromNav) window.scrollTo({ top: 0, behavior: 'instant' });
