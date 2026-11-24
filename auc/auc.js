@@ -15,7 +15,7 @@ const W_ = window.AucWheel;
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('ru-RU');
-const SRC = { da: 'DonationAlerts', donatepay: 'DonatePay', donatex: 'DonateX', twitch: 'Twitch', site: 'coin', wallet: 'кошелёк', manual: 'вручную' };
+const SRC = { da: 'DonationAlerts', donatello: 'Donatello', donatepay: 'DonatePay', donatex: 'DonateX', twitch: 'Twitch', site: 'coin', wallet: 'кошелёк', manual: 'вручную' };
 const ST = { active: 'на лоте', queue: 'ожидает', won: 'победа', refunded: 'возвращено', kept: 'оставлено', failed: 'ошибка возврата' };
 const AST = { idle: 'не начат', running: 'идёт', paused: 'пауза', ended: 'ставки закрыты', closed: 'завершён' };
 const PTS = new Set(['twitch']);   // «Баллы»; остальное — «Донаты»
@@ -67,7 +67,7 @@ const S = {
   pub: null, adm: null, isAdmin: false, tab: 'lots', off: 0, prevStatus: null,
   uid: readSession()?.user?.id || null,
   q: 'wait', qSort: ls.get('auc_qsort') || 'new', flt: { don: true, pts: true },
-  fltSvc: { da: true, twitch: true, site: true, donatepay: true, donatex: true },
+  fltSvc: { da: true, donatello: true, twitch: true, site: true, donatepay: true, donatex: true },
   startMin: Math.floor(_initSec / 60), startSec: _initSec,
   search: '', hist: { items: [], end: false }, busy: 0, ver: 0, tmp: 0, shown: null,
   view: { pct: ls.get('auc_pct') !== '0', bars: ls.get('auc_bars') !== '0', hide: ls.get('auc_hide') === '1', rules: ls.get('auc_rules') !== '0', compact: ls.get('auc_compact') === '1' },
@@ -339,6 +339,8 @@ function donHtml(b, opts, lots, idx = -1) {
 const PA_SVCS = [
   { id: 'da', title: 'DonationAlerts', sym: '₽', connected: d => !!d.integrations?.da?.name,
     logo: '<svg class="pa-plogo" viewBox="0 0 69 80" title="DonationAlerts"><path fill="#f57507" stroke="none" d="M34.86 46.59h-5.42a1.1 1.1 0 0 1-1.11-1.1l.48-4.89a1.1 1.1 0 0 1 1.11-.91h5.42a1.1 1.1 0 0 1 1.11 1.1l-.48 4.88a1.1 1.1 0 0 1-1.11.92zm.87-9.57h-5.52a1.1 1.1 0 0 1-1.11-1.06l1.5-16.51a1.1 1.1 0 0 1 1.11-.94h5.52a1.1 1.1 0 0 1 1.1 1.06l-1.54 16.52a1.1 1.1 0 0 1-1.06.93zm32.46-19.25c.59.68.88 1.57.8 2.46l-2.16 24.53c-.07.8-.43 1.55-1.01 2.11L48.17 63.91a3.3 3.3 0 0 1-2.35.94H27.04L10.5 80l1.28-15.16H3.37A3.37 3.37 0 0 1 .01 61.2L5.15 3.01A3.38 3.38 0 0 1 8.5 0h42.83c.99 0 1.92.43 2.56 1.17l14.3 16.6zM55.11 40.08l1.37-15.14a3.3 3.3 0 0 0-.86-2.45l-8.07-9.25a3.3 3.3 0 0 0-2.54-1.16H19.6a3.38 3.38 0 0 0-3.36 3.01l-3.03 34.07a3.37 3.37 0 0 0 3.36 3.64h24.99c.87 0 1.7-.33 2.33-.92l10.21-9.67c.59-.56.94-1.32 1.01-2.13z"/></svg>' },
+  { id: 'donatello', title: 'Donatello', sym: '₴', connected: d => !!d.integrations?.donatello?.connected,
+    logo: '<svg class="pa-plogo" viewBox="0 0 64 64" title="Donatello"><circle fill="#ffc21a" stroke="none" cx="32" cy="32" r="30"/><path fill="#1d4fd7" stroke="none" d="M32 49s-15-9.2-15-20.1C17 23.4 21.2 19 26.3 19c2.6 0 4.6 1.3 5.7 3.2 1.1-1.9 3.1-3.2 5.7-3.2C42.8 19 47 23.4 47 28.9 47 39.8 32 49 32 49z"/></svg>' },
   { id: 'twitch', title: 'Twitch — баллы канала', sym: '✦', connected: d => !!d.integrations?.twitch?.login,
     logo: '<svg class="pa-plogo" viewBox="0 0 2400 2800" title="Twitch"><path fill="#9146ff" stroke="none" d="M500 0 0 500v1800h600v500l500-500h400l900-900V0H500zm1700 1300-400 400h-400l-350 350v-350H600V200h1600v1100z"/><rect fill="#9146ff" stroke="none" x="1700" y="550" width="200" height="600"/><rect fill="#9146ff" stroke="none" x="1150" y="550" width="200" height="600"/></svg>' },
   { id: 'site', title: 'renah0cki coin', sym: '₽', connected: d => d.config?.site_enabled !== false,
@@ -962,6 +964,8 @@ function settingsHtml() {
         <button class="btn sm ${I.twitch?.login ? 'ghost' : 'pri'}" data-act="conn" data-id="twitch" ${I.twitch?.configured ? '' : 'disabled'}>${I.twitch?.login ? 'Переподключить' : 'Подключить Twitch'}</button></div></div>
     <div class="int"><div class="int-h">${st(I.da)}<b>DonationAlerts</b><span class="muted">${esc(I.da?.name || '')}</span></div><p>${esc(I.da?.text || '')}</p>
       <div class="row"><button class="btn sm ${I.da?.name ? 'ghost' : 'pri'}" data-act="conn" data-id="da" ${I.da?.configured ? '' : 'disabled'}>${I.da?.name ? 'Переподключить' : 'Подключить DonationAlerts'}</button>${I.da?.name ? '<button class="btn sm ghost" data-act="disc" data-id="da">Отключить</button>' : ''}</div></div>
+    <div class="int"><div class="int-h">${st(I.donatello)}<b>Donatello</b></div><p>${esc(I.donatello?.text || '')} · ссылка виджета: donatello.to → Віджети → Алерти (отдельный виджет, не тот, что для монет сайта)</p>
+      <div class="row"><button class="btn sm ${I.donatello?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatello">${I.donatello?.connected ? 'Сменить ссылку' : 'Вставить ссылку'}</button>${I.donatello?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatello">Отключить</button>' : ''}</div></div>
     <div class="int"><div class="int-h">${st(I.donatepay)}<b>DonatePay</b></div><p>${esc(I.donatepay?.text || '')} · API-ключ: donatepay.ru → Настройки → API</p>
       <div class="row"><button class="btn sm ${I.donatepay?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatepay">${I.donatepay?.connected ? 'Сменить ключ' : 'Ввести ключ'}</button>${I.donatepay?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatepay">Отключить</button>' : ''}</div></div>
     <div class="int"><div class="int-h">${st(I.donatex)}<b>DonateX</b></div><p>${esc(I.donatex?.text || '')} · токен: donatex.gg → Настройки → API и доступ</p>
@@ -1139,7 +1143,7 @@ function finishSheet(winnerId) {
     <div class="summary">
       <div><span>coin → обратно зрителю</span><b>${by('site')}</b></div>
       <div><span>Twitch → баллы канала обратно</span><b>${by('twitch')}</b></div>
-      <div><span>Донаты, вручную → кошелёк аукциона</span><b>${by('da') + by('donatepay') + by('donatex') + by('manual') + by('wallet')}</b></div>
+      <div><span>Донаты, вручную → кошелёк аукциона</span><b>${by('da') + by('donatello') + by('donatepay') + by('donatex') + by('manual') + by('wallet')}</b></div>
     </div>${acts('Завершить', 'ok')}`,
     async f => {
       const r = await admDo({ a: 'finish', winner: f.get('winner') ? Number(f.get('winner')) : null, refund: f.get('refund') === 'on' });
@@ -1427,8 +1431,8 @@ document.addEventListener('click', async e => {
       case 'conn': { const r = await admDo({ a: 'connect', service: id }); location.href = r.url; return; }
       case 'disc': return admDo({ a: 'disconnect', service: id }, 'Отключено');
       case 'siteToggle': { const on = id === '1'; return admDo({ a: 'config', config: { site_enabled: on } }, on ? 'Донаты renah0cki coin подключены' : 'Донаты renah0cki coin отключены'); }
-      case 'tok': return sheet(id === 'donatepay' ? 'Ключ DonatePay' : 'Токен DonateX', `<p class="hint">Хранится только на сервере и больше нигде не показывается.</p>
-        <label class="field"><span>${id === 'donatepay' ? 'API-ключ' : 'Внешний токен'}</span><input class="in" name="t" type="password" autocomplete="off" required></label>${acts('Сохранить')}`,
+      case 'tok': return sheet(({ donatepay: 'Ключ DonatePay', donatex: 'Токен DonateX', donatello: 'Ссылка виджета Donatello' })[id], `<p class="hint">${id === 'donatello' ? 'В кабинете Donatello создай ОТДЕЛЬНЫЙ виджет «Алерти» (не тот, что подключён к сайту для монет) и вставь его ссылку. ' : ''}Хранится только на сервере и больше нигде не показывается.</p>
+        <label class="field"><span>${({ donatepay: 'API-ключ', donatex: 'Внешний токен', donatello: 'https://donatello.to/widget/…/token/…' })[id]}</span><input class="in" name="t" type="password" autocomplete="off" required></label>${acts('Сохранить')}`,
         f => admDo({ a: 'token', service: id, token: f.get('t') }, 'Подключено'));
       case 'twRewards': { const r = await admDo({ a: 'twitch_rewards' }); return toast('Награды: ' + r.rewards.map(x => x.cost).join(', ')); }
       case 'copy': await navigator.clipboard.writeText(id).catch(() => {}); return toast('Скопировано');

@@ -71,15 +71,21 @@ const S = { events: [], cfg: null, ints: null, filter: 'all', sse: null };
 const LOGO_DA = '<svg viewBox="0 0 69 80" aria-hidden="true"><path fill="#f57507" d="M34.86 46.59h-5.42a1.1 1.1 0 0 1-1.11-1.1l.48-4.89a1.1 1.1 0 0 1 1.11-.91h5.42a1.1 1.1 0 0 1 1.11 1.1l-.48 4.88a1.1 1.1 0 0 1-1.11.92zm.87-9.57h-5.52a1.1 1.1 0 0 1-1.11-1.06l1.5-16.51a1.1 1.1 0 0 1 1.11-.94h5.52a1.1 1.1 0 0 1 1.11 1.06l-1.54 16.52a1.1 1.1 0 0 1-1.06.93zm32.46-19.25c.59.68.88 1.57.8 2.46l-2.16 24.53c-.07.8-.43 1.55-1.01 2.11L48.17 63.91a3.3 3.3 0 0 1-2.35.94H27.04L10.5 80l1.28-15.16H3.37A3.37 3.37 0 0 1 .01 61.2L5.15 3.01A3.38 3.38 0 0 1 8.5 0h42.83c.99 0 1.92.43 2.56 1.17l14.3 16.6zM55.11 40.08l1.37-15.14a3.3 3.3 0 0 0-.86-2.45l-8.07-9.25a3.3 3.3 0 0 0-2.54-1.16H19.6a3.38 3.38 0 0 0-3.36 3.01l-3.03 34.07a3.37 3.37 0 0 0 3.36 3.64h24.99c.87 0 1.7-.33 2.33-.92l10.21-9.67c.59-.56.94-1.32 1.01-2.13z"/></svg>';
 const LOGO_TW = '<svg viewBox="0 0 2400 2800" aria-hidden="true"><path fill="#9146ff" d="M500 0 0 500v1800h600v500l500-500h400l900-900V0H500zm1700 1300-400 400h-400l-350 350v-350H600V200h1600v1100z"/><rect fill="#9146ff" x="1700" y="550" width="200" height="600"/><rect fill="#9146ff" x="1150" y="550" width="200" height="600"/></svg>';
 
+const LOGO_DN = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#ffc21a"/><path fill="#1d4fd7" d="M32 49s-15-9.2-15-20.1C17 23.4 21.2 19 26.3 19c2.6 0 4.6 1.3 5.7 3.2 1.1-1.9 3.1-3.2 5.7-3.2C42.8 19 47 23.4 47 28.9 47 39.8 32 49 32 49z"/></svg>';
+const FEED_TYPES = ['coin', 'da', 'dn', 'tw_follow', 'tw_sub', 'tw_gift', 'tw_points'];
+const ALERT_TYPES = ['coin', 'da', 'dn'];
+
 function iconHtml(ev) {
   if (ev.type === 'coin') return `<img src="${COIN_IMG}" alt="">`;
   if (ev.type === 'da') return LOGO_DA;
+  if (ev.type === 'dn') return LOGO_DN;
   if (ev.source === 'twitch' || /^tw_/.test(ev.type || '')) return LOGO_TW;
   return '✨';
 }
 function amountLabel(ev) {
   if (ev.type === 'coin') return `${fmt(ev.amount)} coin`;
   if (ev.type === 'da') return `${fmt(ev.amount)} ${ev.unit || 'RUB'}`;
+  if (ev.type === 'dn') return `${fmt(ev.amount)} ${ev.unit || 'UAH'}`;
   if (ev.type === 'tw_follow') return 'Фолловер';
   if (ev.type === 'tw_sub') return ev.amount > 1 ? `Саб ${ev.amount}м` : 'Подписка';
   if (ev.type === 'tw_gift') return `+${fmt(ev.amount)} саб`;
@@ -107,7 +113,8 @@ function renderStatus() {
 
 function renderConnList() {
   const box = $('#connList'); if (!box || !S.ints) return;
-  const tw = S.ints.twitch || {}, da = S.ints.da || {};
+  const tw = S.ints.twitch || {}, da = S.ints.da || {}, dn = S.ints.donatello || {};
+  const dnOk = dn.state === 'ok', dnBad = dn.state === 'error';
   const twOk = tw.state === 'ok';
   const twNeedScope = twOk && tw.subs && (!tw.subs.follow || !tw.subs.sub);
   const daOk = da.state === 'ok';
@@ -120,6 +127,10 @@ function renderConnList() {
     <div class="conn-row ${daOk ? 'ok' : ''}">
       <b><i></i>DonationAlerts${da.name ? ' · ' + esc(da.name) : ''}</b>
       <button type="button" class="btn xs ${daOk ? 'ghost' : 'pri'}" data-connect="da">${daOk ? 'Переподкл.' : 'Подключить'}</button>
+    </div>
+    <div class="conn-row ${dnOk ? 'ok' : dnBad ? 'warn' : ''}" title="${esc(dn.text || '')}">
+      <b><i></i>Donatello${dnBad ? ' · ошибка' : ''}</b>
+      <button type="button" class="btn xs ${dnOk ? 'ghost' : 'pri'}" data-dn-connect>${dn.connected ? 'Сменить' : 'Подключить'}</button>
     </div>`;
 }
 
@@ -133,11 +144,11 @@ const ICO_SKIP   = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l10
 const ICO_DEL    = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.89 18.3 9.17 12 2.89 5.71 4.3 4.29l6.29 6.3 6.29-6.3z"/></svg>';
 
 function actionBtnHtml(ev) {
-  if (ev.type !== 'coin' && ev.type !== 'da') return '';
+  if (!ALERT_TYPES.includes(ev.type)) return '';
   if (ev.playState === 'queued') {
     return `<button type="button" class="is-skip" data-skip="${esc(ev.id)}" title="Пропустить алерт" aria-label="Пропустить">${ICO_SKIP}</button>`;
   }
-  return `<button type="button" data-replay="${esc(ev.id)}" title="${ev.type === 'da' ? 'Повторить в DonationAlerts' : 'Повторить донат'}" aria-label="Повторить">${ICO_REPLAY}</button>`;
+  return `<button type="button" data-replay="${esc(ev.id)}" title="Повторить донат" aria-label="Повторить">${ICO_REPLAY}</button>`;
 }
 function cardHtml(ev, isNew = false) {
   return `<article class="ev${isNew ? ' is-new' : ''}" data-t="${esc(ev.type)}" data-id="${esc(ev.id)}">
@@ -189,11 +200,12 @@ function fillCfgForm() {
   const f = $('#cfgForm');
   $('#obsWidgetUrl').textContent = `${location.origin}/donate-settings/feed-widget.html`;
   $('#obsAlertUrl').textContent = `${location.origin}/auc/alert.html`;
-  ['coin', 'da', 'tw_follow', 'tw_sub', 'tw_gift', 'tw_points'].forEach(k => {
+  FEED_TYPES.forEach(k => {
     f['en_' + k].checked = c.enabled?.[k] !== false;
   });
   f.min_coin.value = c.min_coin ?? 1;
   f.min_da.value = c.min_da ?? 1;
+  f.min_dn.value = c.min_dn ?? 1;
   f.min_points.value = c.min_points ?? 0;
   f.mode.value = c.mode || 'list';
   f.theme.value = c.theme || 'glass';
@@ -316,6 +328,17 @@ document.addEventListener('click', async e => {
     } catch (err) { toast(err.message, true); }
     return;
   }
+  const dnc = e.target.closest('[data-dn-connect]');
+  if (dnc) {
+    const link = prompt('Ссылка виджета Donatello для стрима (donatello.to → Віджети → Алерти → скопировать ссылку).\nНужен ОТДЕЛЬНЫЙ виджет, не тот, что для монет на сайте.');
+    if (!link) return;
+    try {
+      const r = await post('/auc/feed/admin', { a: 'token', service: 'donatello', token: link.trim() });
+      if (r.integrations) { S.ints = r.integrations; renderConnList(); }
+      toast('Donatello подключён');
+    } catch (err) { toast(err.message, true); }
+    return;
+  }
   const conn = e.target.closest('[data-connect]');
   if (conn) {
     try {
@@ -383,7 +406,7 @@ $('#cfgForm').addEventListener('submit', async e => {
   e.preventDefault();
   const f = e.target;
   const enabled = {};
-  ['coin', 'da', 'tw_follow', 'tw_sub', 'tw_gift', 'tw_points'].forEach(k => {
+  FEED_TYPES.forEach(k => {
     enabled[k] = f['en_' + k].checked;
   });
   const btn = $('#saveCfgBtn'); btn.disabled = true; btn.textContent = 'Сохраняю…';
@@ -394,6 +417,7 @@ $('#cfgForm').addEventListener('submit', async e => {
         enabled,
         min_coin: Number(f.min_coin.value) || 0,
         min_da: Number(f.min_da.value) || 0,
+        min_dn: Number(f.min_dn.value) || 0,
         min_points: Number(f.min_points.value) || 0,
         mode: f.mode.value, theme: f.theme.value, limit: Number(f.limit.value) || 6,
         font: f.font.value, accent: f.accent.value, text_color: f.text_color.value, bg_color: f.bg_color.value,

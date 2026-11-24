@@ -58,7 +58,7 @@
   if (QS.get('bg') === '1') document.body.classList.add('bg');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('ru-RU');
-  const SRC = { da: 'DA', donatepay: 'DonatePay', donatex: 'DonateX', twitch: 'Twitch', site: 'coin', wallet: 'кошелёк', manual: '' };
+  const SRC = { da: 'DA', donatello: 'Donatello', donatepay: 'DonatePay', donatex: 'DonateX', twitch: 'Twitch', site: 'coin', wallet: 'кошелёк', manual: '' };
   let D = null, off = 0;
   function draw() {
     if (!D) return;

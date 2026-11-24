@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/donate-settings/feed.css?v=20261122l">
-<script src="/donate-settings/feed.js?v=20261122l" defer></script>
+<link rel="stylesheet" href="/donate-settings/feed.css?v=20261124a">
+<script src="/donate-settings/feed.js?v=20261124a" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -31,6 +31,7 @@
           <div class="menu-h">Тест на стрим</div>
           <button type="button" data-test="coin">🪙 Донат coin (250)</button>
           <button type="button" data-test="da">🧡 DonationAlerts (500 RUB)</button>
+          <button type="button" data-test="dn">💛 Donatello (100 UAH)</button>
           <button type="button" data-test="tw_follow">💜 Twitch фолловер</button>
           <button type="button" data-test="tw_sub">⭐ Twitch подписка</button>
           <button type="button" data-test="tw_gift">🎁 Подарочные сабки (×5)</button>
@@ -45,6 +46,7 @@
     <button type="button" class="on" data-f="all">Все</button>
     <button type="button" data-f="coin">Coin</button>
     <button type="button" data-f="da">DA</button>
+    <button type="button" data-f="donatello">Donatello</button>
     <button type="button" data-f="twitch">Twitch</button>
   </div>
 </header>
@@ -107,6 +109,7 @@
         <div class="chk-grid">
           <label class="chk"><input type="checkbox" name="en_coin"><span>🪙 Coin</span></label>
           <label class="chk"><input type="checkbox" name="en_da"><span>🧡 DonationAlerts</span></label>
+          <label class="chk"><input type="checkbox" name="en_dn"><span>💛 Donatello</span></label>
           <label class="chk"><input type="checkbox" name="en_tw_follow"><span>💜 Фолловеры</span></label>
           <label class="chk"><input type="checkbox" name="en_tw_sub"><span>⭐ Подписки</span></label>
           <label class="chk"><input type="checkbox" name="en_tw_gift"><span>🎁 Подарки саб</span></label>
@@ -116,9 +119,10 @@
 
       <div class="grp">
         <h3>Минимальные суммы</h3>
-        <div class="g3">
+        <div class="g3 g4">
           <label class="fld"><span>Coin</span><input class="in" type="number" name="min_coin" min="0" inputmode="numeric"></label>
           <label class="fld"><span>DA</span><input class="in" type="number" name="min_da" min="0" inputmode="numeric"></label>
+          <label class="fld"><span>Donatello</span><input class="in" type="number" name="min_dn" min="0" inputmode="numeric"></label>
           <label class="fld"><span>Баллы</span><input class="in" type="number" name="min_points" min="0" inputmode="numeric"></label>
         </div>
       </div>

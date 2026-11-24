@@ -18,7 +18,7 @@ const DEFAULTS = {
   tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_volume: 85, tts_rate: 1,
   theme: 'glass', anim: 'pop', layout: 'top',
   accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
-  font: 'Inter', head_size: 34, msg_size: 20, img_size: 92, image_url: '', da_image_url: '',
+  font: 'Inter', head_size: 34, msg_size: 20, img_size: 92, image_url: '', da_image_url: '', dn_image_url: '',
 };
 
 const $ = s => document.querySelector(s);
@@ -195,6 +195,7 @@ function fillForm() {
   f.layout.value = a.layout;
   f.image_url.value = a.image_url || '';
   f.da_image_url.value = a.da_image_url || '';
+  f.dn_image_url.value = a.dn_image_url || '';
   f.img_size.value = a.img_size ?? 92;
   f.accent.value = a.accent;
   f.text_color.value = a.text_color;
@@ -225,6 +226,7 @@ function readForm() {
     layout: f.layout.value,
     image_url: f.image_url.value.trim(),
     da_image_url: f.da_image_url.value.trim(),
+    dn_image_url: f.dn_image_url.value.trim(),
     img_size: Number(f.img_size.value) || 92,
     accent: f.accent.value,
     text_color: f.text_color.value,
@@ -367,6 +369,7 @@ $('#playTtsBtn').addEventListener('click', playPreviewTts);
 $('#replayBtn').addEventListener('click', replayAnim);
 $('#clearImg').addEventListener('click', () => { $('#alertForm').image_url.value = ''; readForm(); });
 $('#clearDaImg').addEventListener('click', () => { $('#alertForm').da_image_url.value = ''; readForm(); });
+$('#clearDnImg').addEventListener('click', () => { $('#alertForm').dn_image_url.value = ''; readForm(); });
 $('#clearSound').addEventListener('click', () => { $('#alertForm').sound_url.value = ''; readForm(); });
 
 async function handleUploadTo(inputEl, targetName, kindLabel = 'файл') {
@@ -384,6 +387,7 @@ async function handleUploadTo(inputEl, targetName, kindLabel = 'файл') {
 }
 $('#imgFile').addEventListener('change', e => handleUploadTo(e.target, 'image_url', 'картинку'));
 $('#daImgFile').addEventListener('change', e => handleUploadTo(e.target, 'da_image_url', 'картинку'));
+$('#dnImgFile').addEventListener('change', e => handleUploadTo(e.target, 'dn_image_url', 'картинку'));
 $('#soundFile').addEventListener('change', e => handleUploadTo(e.target, 'sound_url', 'звук'));
 
 $('#resetBtn').addEventListener('click', () => {
@@ -397,6 +401,7 @@ $('#alertForm').addEventListener('submit', async e => {
   readForm();
   if (S.alert.image_url && !/^https:\/\//i.test(S.alert.image_url)) return toast('Ссылка на картинку должна начинаться с https://', true);
   if (S.alert.da_image_url && !/^https:\/\//i.test(S.alert.da_image_url)) return toast('Ссылка на картинку DA должна начинаться с https://', true);
+  if (S.alert.dn_image_url && !/^https:\/\//i.test(S.alert.dn_image_url)) return toast('Ссылка на картинку Donatello должна начинаться с https://', true);
   if (S.alert.sound_url && !/^https:\/\//i.test(S.alert.sound_url)) return toast('Ссылка на звук должна начинаться с https://', true);
   const btn = $('#saveBtn'); btn.disabled = true; btn.textContent = 'Сохраняю…';
   try {

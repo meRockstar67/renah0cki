@@ -88,6 +88,7 @@ button { cursor: pointer; }
 
 .ev[data-t="coin"]      { --c: #5cc8ff; }
 .ev[data-t="da"]        { --c: #ff8a24; }
+.ev[data-t="dn"]        { --c: #ffc21a; }
 .ev[data-t="tw_follow"],
 .ev[data-t="tw_sub"],
 .ev[data-t="tw_gift"],
@@ -159,6 +160,7 @@ button { cursor: pointer; }
 .chk input { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
 .g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.g3.g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .fld { display: grid; gap: 4px; font-size: 11.5px; font-weight: 600; color: #b7bcd2; }
 .in { width: 100%; height: 32px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .1); background: var(--input); color: #fff; padding: 0 8px; outline: none; }
 .in:focus { border-color: var(--accent); }

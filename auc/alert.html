@@ -114,12 +114,13 @@
 
   const DA_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 69 80"><path fill="#f57507" d="M34.86 46.59h-5.42a1.1 1.1 0 0 1-1.11-1.1l.48-4.89a1.1 1.1 0 0 1 1.11-.91h5.42a1.1 1.1 0 0 1 1.11 1.1l-.48 4.88a1.1 1.1 0 0 1-1.11.92zm.87-9.57h-5.52a1.1 1.1 0 0 1-1.11-1.06l1.5-16.51a1.1 1.1 0 0 1 1.11-.94h5.52a1.1 1.1 0 0 1 1.11 1.06l-1.54 16.52a1.1 1.1 0 0 1-1.06.93zm32.46-19.25c.59.68.88 1.57.8 2.46l-2.16 24.53c-.07.8-.43 1.55-1.01 2.11L48.17 63.91a3.3 3.3 0 0 1-2.35.94H27.04L10.5 80l1.28-15.16H3.37A3.37 3.37 0 0 1 .01 61.2L5.15 3.01A3.38 3.38 0 0 1 8.5 0h42.83c.99 0 1.92.43 2.56 1.17l14.3 16.6zM55.11 40.08l1.37-15.14a3.3 3.3 0 0 0-.86-2.45l-8.07-9.25a3.3 3.3 0 0 0-2.54-1.16H19.6a3.38 3.38 0 0 0-3.36 3.01l-3.03 34.07a3.37 3.37 0 0 0 3.36 3.64h24.99c.87 0 1.7-.33 2.33-.92l10.21-9.67c.59-.56.94-1.32 1.01-2.13z"/></svg>');
   const TW_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 2800"><path fill="#9146ff" d="M500 0 0 500v1800h600v500l500-500h400l900-900V0H500zm1700 1300-400 400h-400l-350 350v-350H600V200h1600v1100z"/><rect fill="#9146ff" x="1700" y="550" width="200" height="600"/><rect fill="#9146ff" x="1150" y="550" width="200" height="600"/></svg>');
+  const DN_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#ffc21a"/><path fill="#1d4fd7" d="M32 49s-15-9.2-15-20.1C17 23.4 21.2 19 26.3 19c2.6 0 4.6 1.3 5.7 3.2 1.1-1.9 3.1-3.2 5.7-3.2C42.8 19 47 23.4 47 28.9 47 39.8 32 49 32 49z"/></svg>');
   let cfg = {
     duration: 8, min: 1, show_message: true, sound: true, sound_preset: 'chime', sound_url: '', volume: 75,
     tts: true, tts_voice: 'female', tts_viewer_pick: true, tts_volume: 85, tts_rate: 1,
     theme: 'glass', anim: 'pop', layout: 'top',
     accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0e0e18', bg_alpha: 82,
-    font: 'Inter', head_size: 34, msg_size: 20, img_size: 92, image_url: '', da_image_url: ''
+    font: 'Inter', head_size: 34, msg_size: 20, img_size: 92, image_url: '', da_image_url: '', dn_image_url: ''
   };
 
   function hexToRgba(hex, a) {
@@ -131,7 +132,7 @@
   function applyStyle(kind = 'coin') {
     const r = document.documentElement.style;
     const al = document.getElementById('al');
-    const acc = kind === 'da' ? '#ff8a24' : kind === 'tw' ? '#9146ff' : (/^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6');
+    const acc = kind === 'da' ? '#ff8a24' : kind === 'dn' ? '#ffc21a' : kind === 'tw' ? '#9146ff' : (/^#[0-9a-f]{6}$/i.test(cfg.accent || '') ? cfg.accent : '#8b5cf6');
     al.dataset.theme = ['glass', 'neon', 'minimal', 'slay', 'clean'].includes(cfg.theme) ? cfg.theme : 'glass';
     al.dataset.anim = ['pop', 'slide', 'zoom', 'bounce'].includes(cfg.anim) ? cfg.anim : 'pop';
     al.dataset.layout = ['top', 'left', 'none'].includes(cfg.layout) ? cfg.layout : 'top';
@@ -149,6 +150,8 @@
     const img = document.getElementById('img');
     const src = kind === 'da'
       ? (/^https:\/\//i.test(cfg.da_image_url || '') ? cfg.da_image_url : DA_SVG)
+      : kind === 'dn'
+        ? (/^https:\/\//i.test(cfg.dn_image_url || '') ? cfg.dn_image_url : DN_SVG)
       : kind === 'tw'
         ? TW_SVG
         : (/^https:\/\//i.test(cfg.image_url || '') ? cfg.image_url : DEFAULT_IMG);
@@ -314,9 +317,9 @@
       h.append(document.createTextNode(name + ' · '));
       b.textContent = (d.title || 'Награда') + (d.amount ? ` (${fmt(d.amount)})` : '');
       h.append(b);
-    } else if (d.type === 'da') {
+    } else if (d.type === 'da' || d.type === 'dn') {
       h.append(document.createTextNode(name + ' — '));
-      b.textContent = `${fmt(d.amount)} ${d.unit || 'RUB'}`;
+      b.textContent = `${fmt(d.amount)} ${d.unit || (d.type === 'dn' ? 'UAH' : 'RUB')}`;
       h.append(b);
     } else {
       h.append(document.createTextNode(name + ' — '));
@@ -338,7 +341,7 @@
     skipSilent = false;
     const d = queue.shift();
     curItem = d;
-    applyStyle(d.type === 'da' ? 'da' : /^tw_/.test(d.type || '') ? 'tw' : 'coin');
+    applyStyle(d.type === 'da' || d.type === 'dn' ? d.type : /^tw_/.test(d.type || '') ? 'tw' : 'coin');
     formatHead(d);
     const m = document.getElementById('m');
     m.hidden = !(cfg.show_message !== false && d.message);
@@ -407,10 +410,10 @@
   es.addEventListener('donation', e => {
     try {
       const d = JSON.parse(e.data);
-      const t = d.type === 'da' ? 'da' : 'coin';
-      if (d.type && d.type !== 'coin' && d.type !== 'da') return;
+      const t = d.type === 'da' || d.type === 'dn' ? d.type : 'coin';
+      if (d.type && d.type !== 'coin' && d.type !== 'da' && d.type !== 'dn') return;
       if (!d.test && !d.force && t === 'coin' && +d.amount < (+cfg.min || 1)) return;
-      enqueue({ ...d, type: t, unit: d.unit || (t === 'da' ? 'RUB' : 'coin') });
+      enqueue({ ...d, type: t, unit: d.unit || (t === 'da' ? 'RUB' : t === 'dn' ? 'UAH' : 'coin') });
     } catch {}
   });
 })();

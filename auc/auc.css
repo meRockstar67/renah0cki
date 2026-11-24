@@ -210,7 +210,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .don .acts select option, .addbar select.in option { background: var(--panel); color: var(--text); }
 @keyframes in { from { opacity: 0; transform: translateY(-6px); } }
 .src { display: inline-block; padding: 1px 6px; border-radius: 5px; font-size: 11px; font-weight: 800; background: var(--panel-3); color: var(--muted); }
-.src.da { color: #ff9b52; } .src.twitch { color: #b79bff; } .src.donatepay { color: #ff7aa8; } .src.donatex { color: #ffd166; }
+.src.da { color: #ff9b52; } .src.donatello { color: #ffc21a; } .src.twitch { color: #b79bff; } .src.donatepay { color: #ff7aa8; } .src.donatex { color: #ffd166; }
 .src.site { color: #6cc4ff; } .src.wallet { color: var(--ok); } .src.manual { color: var(--muted); }
 .st { font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 5px; background: var(--panel-3); color: var(--muted); }
 .st.active { color: var(--accent); } .st.queue { color: var(--warn); } .st.won { color: var(--ok); }

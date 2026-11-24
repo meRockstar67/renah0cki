@@ -59,6 +59,7 @@
   /* цвета по типам (без color-mix — работает во всех версиях OBS) */
   .ev[data-t="coin"]      { --c: #5cc8ff; --ib: rgba(92, 200, 255, .18); --bd: rgba(92, 200, 255, .44); }
   .ev[data-t="da"]        { --c: #ff8a24; --ib: rgba(255, 138, 36, .18); --bd: rgba(255, 138, 36, .42); }
+  .ev[data-t="dn"]        { --c: #ffc21a; --ib: rgba(255, 194, 26, .18); --bd: rgba(255, 194, 26, .42); }
   .ev[data-t="tw_follow"],
   .ev[data-t="tw_sub"],
   .ev[data-t="tw_gift"],
@@ -105,8 +106,8 @@
   const fmt = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('ru-RU');
   let events = [];
   let cfg = {
-    paused: false, enabled: { coin: true, da: true, tw_follow: true, tw_sub: true, tw_gift: true, tw_points: true },
-    min_coin: 1, min_da: 1, min_points: 0, limit: 6, mode: 'list', theme: 'glass',
+    paused: false, enabled: { coin: true, da: true, dn: true, tw_follow: true, tw_sub: true, tw_gift: true, tw_points: true },
+    min_coin: 1, min_da: 1, min_dn: 1, min_points: 0, limit: 6, mode: 'list', theme: 'glass',
     accent: '#8b5cf6', text_color: '#f3f4fa', bg_color: '#0d0d17', bg_alpha: 82,
     font: 'Inter', font_size: 14, show_message: true, show_time: true, show_icon: true,
   };
@@ -121,20 +122,24 @@
     if (cfg.enabled && cfg.enabled[ev.type] === false) return false;
     if (ev.type === 'coin' && Number(ev.amount || 0) < (Number(cfg.min_coin) || 0)) return false;
     if (ev.type === 'da' && Number(ev.amount || 0) < (Number(cfg.min_da) || 0)) return false;
+    if (ev.type === 'dn' && Number(ev.amount || 0) < (Number(cfg.min_dn) || 0)) return false;
     if (ev.type === 'tw_points' && Number(ev.amount || 0) < (Number(cfg.min_points) || 0)) return false;
     return true;
   }
   const LOGO_DA = '<svg viewBox="0 0 69 80" aria-hidden="true"><path fill="#f57507" d="M34.86 46.59h-5.42a1.1 1.1 0 0 1-1.11-1.1l.48-4.89a1.1 1.1 0 0 1 1.11-.91h5.42a1.1 1.1 0 0 1 1.11 1.1l-.48 4.88a1.1 1.1 0 0 1-1.11.92zm.87-9.57h-5.52a1.1 1.1 0 0 1-1.11-1.06l1.5-16.51a1.1 1.1 0 0 1 1.11-.94h5.52a1.1 1.1 0 0 1 1.11 1.06l-1.54 16.52a1.1 1.1 0 0 1-1.06.93zm32.46-19.25c.59.68.88 1.57.8 2.46l-2.16 24.53c-.07.8-.43 1.55-1.01 2.11L48.17 63.91a3.3 3.3 0 0 1-2.35.94H27.04L10.5 80l1.28-15.16H3.37A3.37 3.37 0 0 1 .01 61.2L5.15 3.01A3.38 3.38 0 0 1 8.5 0h42.83c.99 0 1.92.43 2.56 1.17l14.3 16.6zM55.11 40.08l1.37-15.14a3.3 3.3 0 0 0-.86-2.45l-8.07-9.25a3.3 3.3 0 0 0-2.54-1.16H19.6a3.38 3.38 0 0 0-3.36 3.01l-3.03 34.07a3.37 3.37 0 0 0 3.36 3.64h24.99c.87 0 1.7-.33 2.33-.92l10.21-9.67c.59-.56.94-1.32 1.01-2.13z"/></svg>';
   const LOGO_TW = '<svg viewBox="0 0 2400 2800" aria-hidden="true"><path fill="#9146ff" d="M500 0 0 500v1800h600v500l500-500h400l900-900V0H500zm1700 1300-400 400h-400l-350 350v-350H600V200h1600v1100z"/><rect fill="#9146ff" x="1700" y="550" width="200" height="600"/><rect fill="#9146ff" x="1150" y="550" width="200" height="600"/></svg>';
+  const LOGO_DN = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#ffc21a"/><path fill="#1d4fd7" d="M32 49s-15-9.2-15-20.1C17 23.4 21.2 19 26.3 19c2.6 0 4.6 1.3 5.7 3.2 1.1-1.9 3.1-3.2 5.7-3.2C42.8 19 47 23.4 47 28.9 47 39.8 32 49 32 49z"/></svg>';
   function iconHtml(ev) {
     if (ev.type === 'coin') return `<img src="${COIN_IMG}" alt="">`;
     if (ev.type === 'da') return LOGO_DA;
+    if (ev.type === 'dn') return LOGO_DN;
     if (ev.source === 'twitch' || /^tw_/.test(ev.type || '')) return LOGO_TW;
     return '✨';
   }
   function rightLabel(ev) {
     if (ev.type === 'coin') return `${fmt(ev.amount)} coin`;
     if (ev.type === 'da') return `${fmt(ev.amount)} ${ev.unit || 'RUB'}`;
+    if (ev.type === 'dn') return `${fmt(ev.amount)} ${ev.unit || 'UAH'}`;
     if (ev.type === 'tw_follow') return 'Фолловер';
     if (ev.type === 'tw_sub') return ev.amount > 1 ? `Саб · ${ev.amount} мес.` : 'Подписка';
     if (ev.type === 'tw_gift') return `+${fmt(ev.amount)} саб.`;
@@ -144,6 +149,7 @@
   function subLabel(ev) {
     if (ev.type === 'coin') return 'renah0cki coin';
     if (ev.type === 'da') return 'DonationAlerts';
+    if (ev.type === 'dn') return 'Donatello';
     if (ev.type === 'tw_points') return ev.title || 'Баллы Twitch';
     if (ev.type === 'tw_sub' || ev.type === 'tw_gift') return ev.title || 'Twitch';
     return 'Twitch';

@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Russo+One&family=Spectral:wght@600;700;800&family=Unbounded:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="/donate-settings/settings.css?v=20261122g">
-<script src="/donate-settings/settings.js?v=20261122g" defer></script>
+<link rel="stylesheet" href="/donate-settings/settings.css?v=20261124a">
+<script src="/donate-settings/settings.js?v=20261124a" defer></script>
 </head>
 <body>
 <div class="bg-glow" aria-hidden="true"></div>
@@ -217,6 +217,17 @@
                 Загрузить
               </label>
               <button type="button" class="btn sm ghost" id="clearDaImg" title="Сбросить">✕</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="lbl">Для донатов Donatello (GIF, PNG, JPG, WebP или любое фото)</span>
+            <div class="row">
+              <input class="in grow" name="dn_image_url" placeholder="https://... (пусто — значок Donatello)">
+              <label class="btn sm" title="Загрузить фото или GIF для Donatello">
+                <input type="file" id="dnImgFile" accept="image/*,.avif,.webp" hidden>
+                Загрузить
+              </label>
+              <button type="button" class="btn sm ghost" id="clearDnImg" title="Сбросить">✕</button>
             </div>
           </div>
           <div class="field">
