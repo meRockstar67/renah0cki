@@ -272,12 +272,34 @@ function renderLots(v) {
     (el, l) => {
       el.classList.toggle('win', win === l.id);
       $('.bar', el).style.width = (+l.total / max * 100).toFixed(1) + '%';
-      $('.n', el).textContent = all.indexOf(l) + 1; $('.hash', el).textContent = l.num; $('.nm', el).textContent = l.name;
+      $('.n', el).textContent = all.indexOf(l) + 1; $('.hash', el).textContent = l.num; if (!el._editing) $('.nm', el).textContent = l.name;
+      $('.nm', el).classList.toggle('nm-can', S.isAdmin); $('.nm', el).title = S.isAdmin ? 'Нажми, чтобы переименовать' : '';
       if (el._adm !== S.isAdmin) { $('.acts', el).innerHTML = S.isAdmin ? LOT_ACTS(l.id) : ''; el._adm = S.isAdmin; }
       tween($('.sum b', el), +l.total);
       $('.sum small', el).textContent = (+l.total / sum * 100).toFixed(1) + '%';
     },
     `<div class="empty">${q ? 'Ничего не нашлось' : 'Лотов пока нет — добавьте первый'}</div>`);
+}
+
+// клик по названию лота → поле для переименования прямо в строке (Enter/уход — сохранить, Esc — отмена)
+function startLotEdit(nm) {
+  const row = nm.closest('.lrow'), id = Number(row?.dataset.lot), l = lotsMap().get(id);
+  if (!l || row._editing) return;
+  row._editing = true;
+  nm.innerHTML = `<input class="nm-edit" maxlength="80" aria-label="Название лота" autocomplete="off">`;
+  const inp = nm.firstChild; inp.value = l.name; inp.focus(); inp.select();
+  let done = false;
+  const finish = async save => {
+    if (done) return; done = true;
+    const v = inp.value.trim();
+    row._editing = false;
+    nm.textContent = save && v ? v : l.name;
+    if (save && v && v !== l.name) {
+      try { await admDo({ a: 'lot', op: 'rename', id, name: v }); } catch (err) { nm.textContent = l.name; toast(err.message, true); }
+    }
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); } });
+  inp.addEventListener('blur', () => finish(true));
 }
 
 /* ── правая колонка: донаты ── */
@@ -1200,6 +1222,7 @@ document.addEventListener('click', async e => {
   }
   const fl = e.target.closest('.flt'); if (fl) { S.flt[fl.dataset.flt] = !S.flt[fl.dataset.flt]; return renderRight(); }
   if (!e.target.closest('.pa-rnd-w')) document.querySelectorAll('.pa-rnd-menu').forEach(m => m.remove());
+  const nmc = e.target.closest('.lrow .nm.nm-can'); if (nmc && S.isAdmin && !e.target.closest('.nm-edit')) return startLotEdit(nmc);
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act, id = el.dataset.id, nid = Number(id);
   const a = A()?.auction;

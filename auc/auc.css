@@ -164,6 +164,12 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .lrow:first-child .n { color: var(--accent); }
 .lrow .hash { color: var(--dim); font-family: var(--mono); font-size: 13px; }
 .lrow .nm { font-weight: 700; overflow-wrap: anywhere; }
+.lrow .nm.nm-can { cursor: text; }
+.lrow .nm.nm-can:hover { text-decoration: underline dotted rgba(255, 255, 255, .35); text-underline-offset: 4px; }
+.lrow .nm-edit { width: 100%; min-width: 0; height: 34px; padding: 0 10px; box-sizing: border-box; font: inherit; color: #fff;
+  background: #3a3a3a; border: 1px solid #3d8bd9; border-radius: 4px; outline: 0; box-shadow: 0 0 0 2px rgba(61, 139, 217, .25); }
+.lrow .nm:has(.nm-edit) { justify-self: stretch; width: 100%; }
+[data-theme="pointauc"] .lrow .nm:has(.nm-edit) { overflow: visible; }
 .lrow .sum { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 16px; }
 .lrow .sum small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
 .lrow .acts { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
