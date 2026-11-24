@@ -3766,7 +3766,7 @@ const RULES_TXT = {
 
     <section class="rules-card"><h2>4. Donations and Puzocoins</h2>
       <p>A <b>donation</b> via DonationAlerts is a voluntary gift to the project. It creates no obligations for you or us and is non-refundable, except where the law expressly requires otherwise.</p>
-      <p><b>Puzocoins</b> are the site’s internal bonus currency. You can get them as a gift for a donation (enter your nickname in the “Name” field; currently 1 ₽ → 1 Puzocoins, other currencies at the exchange rate), for activity, from the administration and from other users.</p>
+      <p><b>Puzocoins</b> are the site’s internal bonus currency. You can get them as a gift for a donation (enter your nickname in the “Name” field; currently 1 ₽ → 1 Puzocoin, other currencies at the exchange rate), for activity, from the administration and from other users.</p>
       <ul>
         <li>Puzocoins can’t be withdrawn, exchanged for money or sold; they give no right to demand money back.</li>
         <li>Puzocoins can pay for the ГОЙ and VIP subscriptions in Y, roles and cosmetics in the shop, be gifted to the author of a work or transferred to a friend. Spent, gifted and transferred Puzocoins are non-refundable.</li>
