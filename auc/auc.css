@@ -720,6 +720,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   background: rgba(255, 255, 255, .14); color: #ffffff; font-size: 14px; cursor: pointer; outline: 0; }
 [data-theme="pointauc"] .don.don-q .pa-drop option { background: #282828; color: #eeeeee; }
 [data-theme="pointauc"] .don.don-q .pa-drop:hover { background: rgba(255, 255, 255, .24); }
+.pa-rnd-w { position: relative; display: flex; }
+[data-theme="pointauc"] .don.don-q .pa-rnd-w .pa-drop { height: 100%; min-height: 32px; }
+.pa-rnd-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 170px; padding: 4px;
+  background: #282828; border: 1px solid rgba(255, 255, 255, .25); border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+.pa-rnd-menu button { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 4px; background: transparent;
+  color: #fff; font-family: inherit; font-size: 13.5px; font-weight: 600; text-align: left; cursor: pointer; white-space: nowrap; }
+.pa-rnd-menu button:hover, .pa-rnd-menu button:focus-visible { background: rgba(255, 255, 255, .16); outline: 0; }
 [data-theme="pointauc"] .don.don-q .q-sim { order: 2; width: 100%; justify-content: center; min-height: 32px; height: 32px;
   border-radius: 4px; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .5); color: #ffffff; font-size: 13.5px; font-weight: 600; }
 [data-theme="pointauc"] .don.don-q .q-sim:hover { background: rgba(255, 255, 255, .24); }

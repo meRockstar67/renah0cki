@@ -92,17 +92,17 @@ function connect() {
     let d; try { d = JSON.parse(ev.data); } catch { return; }
     if (!d) return;
     S.pub = d; S.off = Date.parse(d.now) - Date.now();
-    if (S.isAdmin) { clearTimeout(admT); admT = setTimeout(loadAdmin, 200); }
+    if (S.isAdmin) { clearTimeout(admT); admT = setTimeout(loadAdmin, 50); }
     render();
   };
   es.addEventListener('spin', ev => { try { onSpin(JSON.parse(ev.data)); } catch {} });
 }
 async function loadAdmin() {
-  if (S.busy) return;                          // ответ на действие сам принесёт свежее состояние
+  if (S.busy) { clearTimeout(admT); admT = setTimeout(loadAdmin, 400); return; }   // идёт действие — проверим чуть позже, чтобы не потерять новую ставку
   const v = S.ver;
   try {
     const d = await aucApi('/auc/admin/state');
-    if (S.busy || v !== S.ver) return;          // пока шёл запрос, на экране уже что-то поменяли
+    if (S.busy || v !== S.ver) { clearTimeout(admT); admT = setTimeout(loadAdmin, 400); return; }   // пока шёл запрос, на экране что-то поменяли — перечитаем
     S.adm = d; S.isAdmin = true; S.off = Date.parse(d.now) - Date.now();
     render();
   } catch (e) {
@@ -333,7 +333,7 @@ function donHtml(b, opts, lots, idx = -1) {
     <span class="who${isQ ? ' pa-hide' : ''}">${esc(b.user_name)}</span><span class="amt${isQ ? ' pa-hide' : ''}">+${fmt(b.points)}${unit ? `<small>${unit}</small>` : ''}</span>
     ${msg ? `<span class="msg">${esc(msg)}</span>` : ''}
     <span class="meta${isQ ? ' pa-hide' : ''}"><span class="src ${b.source}">${SRC[b.source]}</span>${b.status !== 'queue' ? `<span class="st ${b.status}">${ST[b.status]}</span>${b.lot_id ? ' ' + esc(lotLabel(b.lot_id)) : ''}` : ''}<span>${time(b.created_at)}</span>${b.refund_to ? `<span>→ ${esc(b.refund_to)}</span>` : ''}</span>
-    ${isQ ? `<span class="q-btns">${sim ? `<button class="btn sm ok q-sim" data-act="assignSim" data-id="${b.id}" data-lot="${sim.id}" title="Вкинуть в похожий лот #${sim.num} «${esc(sim.name)}»"><span class="pa-hide">→ #${sim.num} ${esc(sim.name)}</span><span class="pa-only">К ${esc(sim.name)}</span></button>` : ''}<span class="pa-split"><button class="btn sm outline q-new" data-act="assignNew" data-id="${b.id}" title="${msg ? `Создать новый лот «${esc(msg.slice(0, 60))}»` : 'Создать новый лот'}">${idx === 0 ? '<kbd class="pa-only pa-hk">1</kbd>' : ''}<span class="pa-hide">+ Новый лот</span><span class="pa-only">Новый</span></button><select class="pa-only pa-drop" data-assign="${b.id}" aria-label="Выбрать лот"><option value="">▾</option>${opts}</select></span><button class="ib bad pa-hide" data-act="dismiss" data-id="${b.id}" title="Удалить из ожидающих (без возврата)" aria-label="Удалить">✕</button></span><span class="acts pa-hide"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
+    ${isQ ? `<span class="q-btns">${sim ? `<button class="btn sm ok q-sim" data-act="assignSim" data-id="${b.id}" data-lot="${sim.id}" title="Вкинуть в похожий лот #${sim.num} «${esc(sim.name)}»"><span class="pa-hide">→ #${sim.num} ${esc(sim.name)}</span><span class="pa-only">К ${esc(sim.name)}</span></button>` : ''}<span class="pa-split"><button class="btn sm outline q-new" data-act="assignNew" data-id="${b.id}" title="${msg ? `Создать новый лот «${esc(msg.slice(0, 60))}»` : 'Создать новый лот'}">${idx === 0 ? '<kbd class="pa-only pa-hk">1</kbd>' : ''}<span class="pa-hide">+ Новый лот</span><span class="pa-only">Новый</span></button><span class="pa-only pa-rnd-w"><button type="button" class="pa-drop" data-act="rndMenu" data-id="${b.id}" title="Ещё" aria-label="Ещё" aria-haspopup="true">▾</button></span></span><button class="ib bad pa-hide" data-act="dismiss" data-id="${b.id}" title="Удалить из ожидающих (без возврата)" aria-label="Удалить">✕</button></span><span class="acts pa-hide"><select data-assign="${b.id}" aria-label="Поставить на лот"><option value="">На лот…</option>${opts}</select><button class="ib" data-act="refund" data-id="${b.id}" title="Вернуть" aria-label="Вернуть">↩</button></span>` : ''}
     ${S.isAdmin && b.status === 'failed' ? `<span class="acts"><button class="btn sm" data-act="retry">Повторить</button><button class="btn sm ghost" data-act="markDone" data-id="${b.id}">Уже вернул</button></span>` : ''}`;
 }
 const PA_SVCS = [
@@ -992,8 +992,8 @@ function settingsHtml() {
       <div class="conv-row muted"><span class="conv-cur">1 coin</span><span class="conv-eq">=</span><b class="conv-coin" id="convCoin">${esc(r.RUB ?? 1)}</b><span class="conv-u">баллов (как 1 ₽)</span></div>
     </div>
     <p class="hint conv-ex" id="convEx">${convExample(r.RUB ?? 1, r.UAH ?? 2)}</p>
-    <details class="conv-more"><summary>Другие валюты и Twitch</summary>
-      <div class="rates">${rate('USD', '1 $')}${rate('EUR', '1 €')}${rate('KZT', '1 ₸')}${rate('BYN', '1 BYN')}${rate('twitch', '1 балл канала')}</div>
+    <details class="conv-more"><summary>Другие валюты</summary>
+      <div class="rates">${rate('USD', '1 $')}${rate('EUR', '1 €')}${rate('KZT', '1 ₸')}${rate('BYN', '1 BYN')}</div><p class="hint">Баллы канала Twitch идут как есть: 777 баллов = 777 баллов аукциона.</p>
     </details>
     <h2 class="h2" style="margin-top:16px">Таймер и прочее</h2>
     <div class="rates" style="margin-top:10px">
@@ -1199,6 +1199,7 @@ document.addEventListener('click', async e => {
     S.view[k] = !S.view[k]; ls.set('auc_' + k, S.view[k] ? '1' : '0'); return render();
   }
   const fl = e.target.closest('.flt'); if (fl) { S.flt[fl.dataset.flt] = !S.flt[fl.dataset.flt]; return renderRight(); }
+  if (!e.target.closest('.pa-rnd-w')) document.querySelectorAll('.pa-rnd-menu').forEach(m => m.remove());
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act, id = el.dataset.id, nid = Number(id);
   const a = A()?.auction;
@@ -1419,6 +1420,19 @@ document.addEventListener('click', async e => {
       case 'assignSim': {
         const lotId = Number(el.dataset.lot);
         return admDo({ a: 'assign', bid: nid, lot: lotId }, `Вкинуто в ${lotLabel(lotId)}`);
+      }
+      case 'rndMenu': {
+        const w = el.closest('.pa-rnd-w'), was = w.querySelector('.pa-rnd-menu');
+        document.querySelectorAll('.pa-rnd-menu').forEach(m => m.remove());
+        if (!was) w.insertAdjacentHTML('beforeend', `<div class="pa-rnd-menu" role="menu"><button type="button" role="menuitem" data-act="assignRnd" data-id="${nid}">🎲 Случайный лот</button></div>`);
+        return;
+      }
+      case 'assignRnd': {
+        document.querySelectorAll('.pa-rnd-menu').forEach(m => m.remove());
+        const lots = (A()?.lots || []).filter(l => !l.deleted);
+        if (!lots.length) return toast('Лотов пока нет', true);
+        const l = lots[Math.floor(Math.random() * lots.length)];
+        return admDo({ a: 'assign', bid: nid, lot: l.id }, `🎲 Упало в #${l.num} ${l.name}`);
       }
       case 'assignNew': {
         const b = S.adm.bids.find(x => x.id === nid);
