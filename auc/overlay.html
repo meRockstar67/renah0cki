@@ -75,8 +75,8 @@
     const a = D.auction, el = document.getElementById('tm');
     let ms = a.status === 'running' && a.ends_at ? Date.parse(a.ends_at) - (Date.now() + off) : a.status === 'paused' ? a.left_ms : null;
     if (ms == null) { el.textContent = { idle: 'скоро', ended: 'ставки закрыты', closed: 'итоги' }[a.status] || ''; el.className = 'timer off'; return; }
-    const s = Math.ceil(Math.max(0, ms) / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
-    el.textContent = (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(s % 60).padStart(2, '0');
+    const s = Math.ceil(Math.max(0, ms) / 1000), m = Math.floor(s / 60);
+    el.textContent = String(m).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
     el.className = 'timer' + (a.status === 'running' && s <= 30 ? ' low' : '');
   }
   const es = new EventSource(API + '/auc/events');
