@@ -10,6 +10,7 @@ const COIN = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const tl = (s, v) => (window.I18N ? window.I18N.t(s, v) : s); // перевод, см. v2/i18n.js
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = n => {
   n = Number(n) || 0;
@@ -2459,6 +2460,9 @@ function viewSettings() {
   const opts = [...NOTIF_OPTS, ...(isMod() ? [['notify_new_submission', 'Новые работы на проверку (модераторам)']] : [])];
   page.innerHTML = `<div class="sets">
     <div class="page-head"><h1>Настройки</h1></div>
+    ${window.I18N?.canChoose ? `<section class="rules-card sets-card" id="setLang"><h2>${tl('Язык сайта')}</h2>
+      <p class="muted">${tl('Перевод пока частичный: что ещё не переведено, показывается по-русски.')}</p>
+      <div class="chips">${Object.entries(I18N.langs).map(([k, n]) => `<button type="button" class="chip${I18N.lang() === k ? ' on' : ''}" data-lang="${k}">${esc(n)}</button>`).join('')}</div></section>` : ''}
     <section class="rules-card sets-card"><h2>Просмотр</h2>
       ${sw('puzzle', 'Пазлы на спойлерах', 'Размытый арт собирается из кусочков. Выключено — открывается сразу по клику.', puzzleOn())}</section>
     ${me.username ? `<section class="rules-card sets-card" id="setDonate"><h2>Донаты coin</h2>
@@ -2476,6 +2480,7 @@ function viewSettings() {
       <a class="btn accent" href="https://t.me/renah0ckibot" target="_blank" rel="noopener">Открыть бота</a></section>
     <section class="rules-card sets-card"><h2>Аккаунт</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>Редактировать профиль</button><a class="btn" href="${routeUrl('rules')}">Правила</a><button class="btn danger" type="button" data-logout>Выйти</button></div></section>
   </div>`;
+  page.querySelectorAll('[data-lang]').forEach(b => { b.onclick = () => I18N.setLang(b.dataset.lang); });
   page.querySelector('[name=puzzle]').onchange = e => { try { localStorage.setItem('v2_puzzle', e.target.checked ? '1' : '0'); } catch {} toast(e.target.checked ? 'Пазлы включены' : 'Пазлы выключены'); };
   if (me.username) {
     const dnIn = page.querySelector('[name=coin_donate]'), dnRow = $('#setDnRow'), dnCopy = $('#setDnCopy');
@@ -3009,7 +3014,7 @@ async function viewWallet(tab) {
       <p class="muted">Донат — это добровольная поддержка проекта. В благодарность за него вы получаете <b>монеты в подарок</b> — автоматически, обычно за минуту.</p>
       <ol class="wal-steps">
         <li><b>Скопируйте свой ник</b><div class="wal-code"><span id="walCode">${esc(S.me?.username || '…')}</span><button class="btn" type="button" id="walCopy">Скопировать</button></div></li>
-        <li><div><b>Откройте страницу доната</b> и укажите сумму.</div><div class="wal-go"><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a><a class="btn accent" id="walDn" href="#" target="_blank" rel="noopener" hidden>Украинская или другая карта (Donatello)</a></div></li>
+        <li><div><b>Откройте страницу доната</b> и укажите сумму: российской картой — «${tl('Ру карта')}», украинской — «${tl('Укр карта')}».</div><div class="wal-go"><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a><a class="btn accent" id="walDn" href="#" target="_blank" rel="noopener" hidden>${tl('Укр карта')}</a></div></li>
         <li><div><b>Вставьте ник в поле «Имя»</b> (на Donatello — «Ім'я») — по нему мы поймём, кому отправить подарок. Сообщение пишите любое, хоть смешное, или оставьте пустым.</div></li>
       </ol>
       <div class="wal-rate"><img src="${COIN}" alt=""><span>Подарок: ${DA_RATES_TXT}</span></div>
@@ -3024,10 +3029,10 @@ async function viewWallet(tab) {
       $('#walCode').textContent = prof?.username || '—';
       if (info.url) $('#walGo').href = info.url.replace(/^https:\/\/www\.donationalerts\.com\/r\//, 'https://dalink.to/');
       else { $('#walGo').classList.add('disabled'); $('#walGo').textContent = 'Пополнение временно недоступно'; }
-      // Donatello (карты Украины и мира) — пока только владельцу
-      if (info.dn_url && S.uid === OWNER_ID) {
+      // две кнопки: DonationAlerts — российские карты, Donatello — украинские
+      if (info.dn_url) {
         const dn = $('#walDn'); dn.href = info.dn_url; dn.hidden = false;
-        if (info.url) $('#walGo').textContent = 'Российская карта (DonationAlerts)';
+        if (info.url) $('#walGo').textContent = tl('Ру карта');
       }
       if (S.uid === OWNER_ID) {
         const a = $('#walAdmin'); a.hidden = false;
