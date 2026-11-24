@@ -619,7 +619,7 @@ async function viewPost(key, root = page) {
   renderReact(it);
 }
 
-/* ── платная реакция: монета renah0cki (как звёзды в Telegram), монеты уходят автору ── */
+/* ── платная реакция: пузокоин renah0cki (как звёзды в Telegram), пузокоины уходят автору ── */
 const REACT_AMOUNTS = [1, 5, 10, 25, 50, 100];
 async function renderReact(it) {
   const box = $('#reactWrap'); if (!box) return;
@@ -631,13 +631,13 @@ async function renderReact(it) {
   const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
   await loadProfiles(top.map(t => t[0]));
   const own = S.uid && S.uid === it.submitted_by;
-  box.innerHTML = `<button class="btn react-btn${mine ? ' mine' : ''}" data-react-toggle title="${own ? tl('Монеты, подаренные этой работе') : tl('Подарить автору renah0cki coin')}"><img src="${COIN}" alt=""><span>${total ? fmt(total) : (own ? '0' : tl('Подарить'))}</span></button>
+  box.innerHTML = `<button class="btn react-btn${mine ? ' mine' : ''}" data-react-toggle title="${own ? tl('Пузокоины, подаренные этой работе') : tl('Подарить автору Puzocoins')}"><img src="${COIN}" alt=""><span>${total ? fmt(total) : (own ? '0' : tl('Подарить'))}</span></button>
     <div class="react-pop" hidden>
       <div class="react-title">${own ? tl('Вашей работе подарили') : tl('Подарить автору')} <img src="${COIN}" alt=""> <b>${fmt(total)}</b></div>
       ${top.length ? `<div class="react-top">${top.map(([uid, a], i) => `<span>${['🥇', '🥈', '🥉'][i]} ${esc(pname(S.profiles.get(uid)))} — <b>${fmt(a)}</b></span>`).join('')}</div>` : ''}
       ${own || !S.uid ? '' : `<div class="react-amts">${REACT_AMOUNTS.map((a, i) => `<button class="chip${i === 1 ? ' on' : ''}" data-ramt="${a}">${a}</button>`).join('')}<input type="number" min="1" max="100000" step="1" class="react-custom" placeholder="${tl('своя')}"></div>
       <button class="btn accent react-send" data-react-send>${tl('Подарить')} <img src="${COIN}" alt=""> <span>5</span></button>
-      <div class="react-hint">${tl('Монеты сразу получит автор.')}${mine ? tl(' Вы уже подарили {0}.', {0: fmt(mine)}) : ''}</div>`}
+      <div class="react-hint">${tl('Пузокоины сразу получит автор.')}${mine ? tl(' Вы уже подарили {0}.', {0: fmt(mine)}) : ''}</div>`}
       <div class="react-status"></div>
     </div>`;
   const pop = $('.react-pop', box), amt = () => { const c = parseInt($('.react-custom', box)?.value, 10); return c > 0 ? c : +($('[data-ramt].on', box)?.dataset.ramt || 5); };
@@ -655,7 +655,7 @@ async function renderReact(it) {
       try {
         const bal = await rpc('coin_react', { p_kind: 'content', p_id: it.id, p_emoji: 'coin', p_amount: a });
         $('#coinVal').textContent = fmt(bal);
-        toast(tl('Подарено {0} coin автору', {0: fmt(a)}));
+        toast(tl('Подарено {0} Puzocoins автору', {0: fmt(a)}));
         await renderReact(it);
         $('.react-btn', $('#reactWrap'))?.classList.add('pop');
       } catch (er) { st.textContent = tl('Ошибка: ') + er.message; send.disabled = false; }
@@ -1383,7 +1383,7 @@ async function viewProfile(key) {
   const roles = visibleUserRoles(p, eq);
   const socialLabel = u => { try { return /^(?:.+\.)?(?:t\.me|telegram\.(?:me|dog|org))$/i.test(new URL(u).hostname) ? tl('Телеграм') : tl('Соцсеть'); } catch { return tl('Соцсеть'); } };
   const coinDonateLink = p.username && coinTarget?.coin_donate_enabled === true ? `${location.origin}/donate/${encodeURIComponent(p.username)}` : null;
-  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && [tl('Донат'), p.stream_donate_url], coinDonateLink && [tl('Донат coin'), coinDonateLink]].filter(x => x && /^https?:\/\//.test(x[1]));
+  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && [tl('Донат'), p.stream_donate_url], coinDonateLink && [tl('Донат Puzocoins'), coinDonateLink]].filter(x => x && /^https?:\/\//.test(x[1]));
   page.innerHTML = `<div class="prof">
     <section class="prof-card${bgCls}">
       <div class="prof-left">${cosAva(p, 'prof-ava')}
@@ -1393,11 +1393,11 @@ async function viewProfile(key) {
         <h1>${cosName(p)}</h1>
         ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
         ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
-        <div class="prof-stats"><span><b>${fmt(works.length)}</b> ${tl('публикаций')}</span><span><b id="subsN">${fmt(subs)}</b> ${tl('подписчиков')}</span>${adminBal != null ? `<span class="prof-coin" title="${tl('Баланс пользователя (видно только вам)')}"><img src="${COIN}" alt=""><b id="profCoinVal" data-uid="${esc(p.id)}">${fmt(adminBal)}</b> coin</span>` : ''}</div>
+        <div class="prof-stats"><span><b>${fmt(works.length)}</b> ${tl('публикаций')}</span><span><b id="subsN">${fmt(subs)}</b> ${tl('подписчиков')}</span>${adminBal != null ? `<span class="prof-coin" title="${tl('Баланс пользователя (видно только вам)')}"><img src="${COIN}" alt=""><b id="profCoinVal" data-uid="${esc(p.id)}">${fmt(adminBal)}</b> Puzocoins</span>` : ''}</div>
       </div>
       <div class="prof-acts">
         ${own ? `<button class="btn" type="button" id="profEdit">${tl('Редактировать')}</button>`
-          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? tl('✓ Вы подписаны') : tl('Подписаться')}</button><button class="btn icon-only" id="profSend" title="${tl('Перевести coin')}"><img src="${COIN}" alt="" style="width:20px;height:20px"></button><button class="btn icon-only" data-report="user" data-rid="${esc(p.id)}" title="${tl('Пожаловаться на пользователя')}" aria-label="${tl('Пожаловаться')}"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button><button class="btn${S.blocked.has(p.id) ? ' accent' : ''}" id="profBlock" title="${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать для себя')}">${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать')}</button>` : ''}
+          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? tl('✓ Вы подписаны') : tl('Подписаться')}</button><button class="btn icon-only" id="profSend" title="${tl('Перевести Puzocoins')}"><img src="${COIN}" alt="" style="width:20px;height:20px"></button><button class="btn icon-only" data-report="user" data-rid="${esc(p.id)}" title="${tl('Пожаловаться на пользователя')}" aria-label="${tl('Пожаловаться')}"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button><button class="btn${S.blocked.has(p.id) ? ' accent' : ''}" id="profBlock" title="${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать для себя')}">${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать')}</button>` : ''}
         <button class="btn icon-only" id="profCopy" title="${tl('Скопировать ссылку')}">${I.link}</button>
       </div>
     </section>
@@ -1457,7 +1457,7 @@ async function loadNotifs() {
     const or = [cIds.length && `content_id.in.(${cIds.join(',')})`, kIds.length && `collection_id.in.(${kIds.join(',')})`].filter(Boolean).join(',');
     jobs.push(api(`moderation_log?action=eq.rejected&or=(${or})&select=content_id,collection_id,comment,created_at,moderator:profiles(id,username,display_name,avatar_url)&order=created_at.desc&limit=20`).then(r => r.map(x => ({ type: 'reject', target: x.content_id ? t[x.content_id] : tc[x.collection_id], body: x.comment, actor: x.moderator, at: x.created_at }))).catch(() => []));
   }
-  // переводы coin и подарки ролей (SQL 070)
+  // переводы Puzocoins и подарки ролей (SQL 070)
   jobs.push(api(`user_notifications?user_id=eq.${S.uid}&select=kind,actor_id,amount,title,days,note,created_at&order=created_at.desc&limit=30`).then(async r => {
     await loadProfiles(r.map(x => x.actor_id).filter(Boolean));
     return r.map(x => ({ type: { coin_transfer: 'coin', coin_grant: 'grant', role_gift: 'gift' }[x.kind] || 'coin', actor: x.actor_id ? S.profiles.get(x.actor_id) : null, amount: x.amount, title: x.title, days: x.days, body: x.note, at: x.created_at }));
@@ -1474,8 +1474,8 @@ function updateBell() {
   b.textContent = n > 99 ? '99+' : String(n); b.hidden = !n;
 }
 const NOTIF_TEXT = { like: tl('лайкнул(а) вашу работу'), comment: tl('прокомментировал(а)'), follow: tl('подписался(ась) на вас'), reject: tl('отклонил(а) вашу работу'),
-  coin: n => `${tl('перевёл(а) вам')} <b>${fmtNum(n.amount)}</b> coin`,
-  grant: n => `${tl('начислил(а) вам')} <b>${fmtNum(n.amount)}</b> coin`,
+  coin: n => `${tl('перевёл(а) вам')} <b>${fmtNum(n.amount)}</b> Puzocoins`,
+  grant: n => `${tl('начислил(а) вам')} <b>${fmtNum(n.amount)}</b> Puzocoins`,
   gift: n => `${tl('подарил(а) вам роль')} <span class="notif-target">«${esc(n.title || tl('роль'))}»</span>${n.days ? tl(' на {0} дн.', {0: n.days}) : ''}` };
 const fmtNum = n => Number(n || 0).toLocaleString('ru-RU');
 const COIN_SVG = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.5 9.5h3.8a1.7 1.7 0 010 3.4h-2.6a1.7 1.7 0 000 3.4H14.5"/></svg>';
@@ -1705,7 +1705,7 @@ page.addEventListener('click', e => {
   const im = e.target.closest('[data-supimg]'); if (im) { e.preventDefault(); openViewer([im.getAttribute('href')], 0); }
 });
 
-/* ── меню, профиль, монеты ── */
+/* ── меню, профиль, пузокоины ── */
 function setNav(k) { $$('[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
 $('#menuBtn').onclick = () => document.querySelector('.app').classList.toggle('menu-open');
 const shade = document.createElement('div'); shade.className = 'side-shade';
@@ -1803,7 +1803,7 @@ function termsGate() {
     <ul>
       <li>${tl('Запрещены 18+, политика, травля, угрозы, чужие личные данные и всё незаконное — за это удаляют контент и блокируют.')}</li>
       <li>${tl('Работы проверяют модераторы, на всё остальное можно пожаловаться. Любого пользователя можно заблокировать для себя.')}</li>
-      <li>${tl('Донаты добровольные, монеты — подарок за поддержку; их нельзя вывести или обменять на деньги.')}</li>
+      <li>${tl('Донаты добровольные, пузокоины — подарок за поддержку; их нельзя вывести или обменять на деньги.')}</li>
       <li>${tl('Сайт работает «как есть». За свои публикации отвечаете вы.')}</li>
     </ul>
     <label class="terms-check"><input type="checkbox" name="ok"> <span>${tl('Я ознакомлен(а) с правилами и пользовательским соглашением, согласен(на) с ними и с обработкой моих персональных данных (раздел 5 правил)')}</span></label>
@@ -1931,9 +1931,9 @@ function editProfile() {
       <span>${tl('Краски (7TV)')}</span><div class="sw-row">${NAME_PAINTS.map(p => `<button type="button" class="nc-sw${me.name_color === p.css ? ' on' : ''}" data-nc="${esc(p.css)}" title="${esc(p.label)}" style="background:${p.css}"></button>`).join('')}</div>
       <div class="pe-prev">${tl('Предпросмотр:')} <b id="ncPrev"${nameAttr(me.name_color)}>${esc(pname(me))}</b></div></div>` : ''}
     ${hasRole(me, 'streamer') ? `<label>${tl('Ссылка на Twitch')}<input name="tw" value="${esc(me.stream_twitch_url || '')}" placeholder="https://twitch.tv/..."></label><label>${tl('Соцсеть (Telegram, VK…)')}<input name="so" value="${esc(me.stream_social_url || '')}" placeholder="https://t.me/..."></label><label>${tl('Ссылка на донат')}<input name="dn" value="${esc(me.stream_donate_url || '')}" placeholder="https://..."></label>` : ''}
-    ${me.username ? `<div class="pe-color" style="gap:8px"><span>${tl('Личная ссылка для доната renah0cki coin')}</span>
+    ${me.username ? `<div class="pe-color" style="gap:8px"><span>${tl('Личная ссылка для доната Puzocoins')}</span>
       <div style="display:flex;gap:6px;align-items:center"><input type="text" readonly value="${esc(location.origin + '/donate/' + encodeURIComponent(me.username))}" style="flex:1;min-width:0;opacity:.85"><button type="button" class="btn" id="peCopyDn" style="flex:none">${tl('Копировать')}</button></div>
-      <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:500"><input type="checkbox" name="cdon" style="width:16px;height:16px;flex:none"><span>${tl('Принимать донаты renah0cki coin и показывать кнопку в профиле')}</span></label></div>` : ''}
+      <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:500"><input type="checkbox" name="cdon" style="width:16px;height:16px;flex:none"><span>${tl('Принимать донаты Puzocoins и показывать кнопку в профиле')}</span></label></div>` : ''}
     <p class="hint">${tl('Логин Twitch (@')}${esc(me.username || '')}${tl(') не меняется.')}</p>
     <div class="v2-modal-acts"><button type="button" class="btn" data-x>${tl('Отмена')}</button><button class="btn accent" type="submit">${tl('Сохранить')}</button></div></form>`;
   const close = () => ov.remove();
@@ -2472,8 +2472,8 @@ function viewSettings() {
     ${window.PWA ? PWA.card(tl, 'renah0cki') : ''}
     <section class="rules-card sets-card"><h2>${tl('Просмотр')}</h2>
       ${sw('puzzle', tl('Пазлы на спойлерах'), tl('Размытый арт собирается из кусочков. Выключено — открывается сразу по клику.'), puzzleOn())}</section>
-    ${me.username ? `<section class="rules-card sets-card" id="setDonate"><h2>${tl('Донаты coin')}</h2>
-      ${sw('coin_donate', tl('Кнопка «Донат coin» в профиле'), tl('Показывать кнопку доната в профиле и принимать переводы по личной ссылке.'), false)}
+    ${me.username ? `<section class="rules-card sets-card" id="setDonate"><h2>${tl('Донаты Puzocoins')}</h2>
+      ${sw('coin_donate', tl('Кнопка «Донат Puzocoins» в профиле'), tl('Показывать кнопку доната в профиле и принимать переводы по личной ссылке.'), false)}
       <div class="wal-code" id="setDnRow" hidden style="margin-top:10px"><span>${esc(location.origin + '/donate/' + encodeURIComponent(me.username))}</span><button class="btn" type="button" id="setDnCopy">${tl('Скопировать')}</button></div></section>` : ''}
     <section class="rules-card sets-card" id="setRoles"><h2>${tl('Отображение ролей')}</h2>
       <p class="muted">${tl('Выбери, какие роли показывать в профиле. Должна быть включена минимум 1 роль.')}</p>
@@ -2487,7 +2487,7 @@ function viewSettings() {
       <a class="btn accent" href="https://t.me/renah0ckibot" target="_blank" rel="noopener">${tl('Открыть бота')}</a></section>
     <section class="rules-card sets-card"><h2>${tl('Аккаунт')}</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>${tl('Редактировать профиль')}</button><a class="btn" href="${routeUrl('rules')}">${tl('Правила')}</a><button class="btn danger" type="button" data-logout>${tl('Выйти')}</button></div></section>
     ${S.uid !== OWNER_ID ? `<section class="rules-card sets-card sets-danger"><h2>${tl('Удаление аккаунта')}</h2>
-      <p class="muted">${tl('Аккаунт и все ваши данные будут удалены навсегда: работы, сборники, комментарии, отзывы, персонажи и посты в Y, монеты и покупки. Отменить это нельзя.')}</p>
+      <p class="muted">${tl('Аккаунт и все ваши данные будут удалены навсегда: работы, сборники, комментарии, отзывы, персонажи и посты в Y, пузокоины и покупки. Отменить это нельзя.')}</p>
       <button class="btn danger" type="button" data-accdel>${tl('Удалить аккаунт')}</button></section>` : ''}
   </div>`;
   page.querySelector('[name=puzzle]').onchange = e => { try { localStorage.setItem('v2_puzzle', e.target.checked ? '1' : '0'); } catch {} toast(e.target.checked ? tl('Пазлы включены') : tl('Пазлы выключены')); };
@@ -2583,7 +2583,7 @@ function accountDeleteDialog() {
   ov.className = 'v2-overlay';
   ov.innerHTML = `<form class="v2-modal accdel-mod"><h2>${tl('Удалить аккаунт навсегда?')}</h2>
     <p>${tl('Будут удалены без возможности восстановления:')}</p>
-    <ul class="accdel-list"><li>${tl('профиль, аватарка и роли')}</li><li>${tl('ваши работы, сборники, комментарии и отзывы')}</li><li>${tl('персонажи, посты и сообщения в Y')}</li><li>${tl('монеты на балансе и все покупки в магазине')}</li></ul>
+    <ul class="accdel-list"><li>${tl('профиль, аватарка и роли')}</li><li>${tl('ваши работы, сборники, комментарии и отзывы')}</li><li>${tl('персонажи, посты и сообщения в Y')}</li><li>${tl('пузокоины на балансе и все покупки в магазине')}</li></ul>
     <label>${tl('Чтобы подтвердить, введите свой ник:')} <b>@${esc(nick)}</b><input name="n" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(nick)}"></label>
     <label class="accdel-chk"><input type="checkbox" name="ok"><span>${tl('Я понимаю, что аккаунт нельзя будет вернуть')}</span></label>
     <p class="hint accdel-err" hidden></p>
@@ -3028,7 +3028,7 @@ async function viewStreak() {
   box.innerHTML = rows.length ? rows.map((p, i) => `<a class="st-row${p.id === S.uid ? ' me' : ''}" href="${userPath(p)}"><i>${['🥇', '🥈', '🥉'][i] || i + 1}</i>${cosAva(p)}<span>${cosName(p)}</span><b>🔥 ${fmt(p.streak_count)}</b></a>`).join('') : `<div class="empty">${tl('Пока пусто.')}</div>`;
 }
 
-/* ── кошелёк renah0cki coin ── */
+/* ── кошелёк Puzocoins ── */
 const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const TX = {
   purchase: [tl('Пополнение'), 'plus'], reward: [tl('Награда'), 'gift'], spend: [tl('Покупка'), 'bag'], admin: [tl('От администрации'), 'gift'],
@@ -3041,7 +3041,7 @@ const TXI = {
   swap: '<svg viewBox="0 0 24 24"><path d="M5 9h13l-3-3M19 15H6l3 3"/></svg>',
   heart: I.heart,
 };
-const DA_RATES_TXT = '1 ₽ → 1 coin · 1 ₴ = 2 · 1 $ = 80 · 1 € = 90 · 1 ₸ = 0,16 · 1 Br = 25';
+const DA_RATES_TXT = '1 ₽ → 1 Puzocoins · 1 ₴ = 2 · 1 $ = 80 · 1 € = 90 · 1 ₸ = 0,16 · 1 Br = 25';
 function setBalance(v) { $('#coinVal').textContent = fmt(v); const b = $('#walBal'); if (b) b.textContent = fmt(v); const sb = $('#shopBal'); if (sb) sb.textContent = fmt(v); }
 async function viewWallet(tab) {
   setNav('');
@@ -3050,12 +3050,12 @@ async function viewWallet(tab) {
   page.innerHTML = `<div class="wal">
     <section class="wal-hero">
       <div class="wal-coin"><img src="${COIN}" alt=""></div>
-      <div class="wal-sum"><span>${tl('Ваш баланс')}</span><b><i id="walBal">${esc($('#coinVal').textContent)}</i> coin</b></div>
+      <div class="wal-sum"><span>${tl('Ваш баланс')}</span><b><i id="walBal">${esc($('#coinVal').textContent)}</i> Puzocoins</b></div>
       <div class="wal-acts">
         <a class="btn accent" href="${routeUrl('wallet/topup')}">${TXI.plus}${tl('Пополнить')}</a>
         <a class="btn" href="${routeUrl('wallet/send')}">${TXI.swap}${tl('Перевести')}</a>
       </div>
-      <p class="wal-what">${tl('renah0cki coin — монеты сайта. Ими можно оплатить подписку в Y, подарить автору монеты за работу или перевести другу.')} <a href="${routeUrl('rules')}">${tl('Правила coin')}</a></p>
+      <p class="wal-what">${tl('Puzocoins (пузокоины) — бонусная валюта сайта. Ими можно оплатить подписку в Y, подарить автору пузокоины за работу или перевести другу.')} <a href="${routeUrl('rules')}">${tl('Правила Puzocoins')}</a></p>
     </section>
     <div class="tabs wal-tabs"><a class="tab${T === 'topup' ? ' on' : ''}" href="${routeUrl('wallet/topup')}">${tl('Пополнить')}</a><a class="tab${T === 'history' ? ' on' : ''}" href="${routeUrl('wallet/history')}">${tl('История')}</a><a class="tab${T === 'send' ? ' on' : ''}" href="${routeUrl('wallet/send')}">${tl('Перевести')}</a></div>
     <div id="walBody"></div>
@@ -3065,7 +3065,7 @@ async function viewWallet(tab) {
   if (T === 'topup') {
     body.innerHTML = `<section class="wal-card">
       <h2>${tl('Поддержать сайт донатом')}</h2>
-      <p class="muted">${tl('Донат — это добровольная поддержка проекта. В благодарность за него вы получаете')} <b>${tl('монеты в подарок')}</b> ${tl('— автоматически, обычно за минуту.')}</p>
+      <p class="muted">${tl('Донат — это добровольная поддержка проекта. В благодарность за него вы получаете')} <b>${tl('пузокоины в подарок')}</b> ${tl('— автоматически, обычно за минуту.')}</p>
       <ol class="wal-steps">
         <li><b>${tl('Скопируйте свой ник')}</b><div class="wal-code"><span id="walCode">${esc(S.me?.username || '…')}</span><button class="btn" type="button" id="walCopy">${tl('Скопировать')}</button></div></li>
         <li><div><b>${tl('Откройте страницу доната')}</b> ${tl('и укажите сумму.')}</div><div class="wal-go"><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">${tl('Открыть страницу доната')}</a><a class="btn accent" id="walDn" href="#" target="_blank" rel="noopener" hidden>${tl('Укр карта')}</a></div></li>
@@ -3112,7 +3112,7 @@ async function viewWallet(tab) {
     const box = $('#walTx'); if (!box) return;
     box.innerHTML = rows.length ? rows.map(t => { const k = TX[t.kind] || [t.kind, 'swap']; return `<div class="tx"><span class="tx-ic ${t.amount > 0 ? 'in' : 'out'}">${TXI[k[1]]}</span><div class="tx-main"><b>${esc(k[0])}</b>${t.note ? `<span>${esc(t.note)}</span>` : ''}<time>${when(t.created_at)}</time></div><div class="tx-amt ${t.amount > 0 ? 'in' : 'out'}">${t.amount > 0 ? '+' : '−'}${fmt(Math.abs(t.amount))}</div></div>`; }).join('') : `<div class="empty" style="padding:30px">${tl('Операций пока нет.')}</div>`;
   } else {
-    body.innerHTML = `<section class="wal-card"><h2>${tl('Перевести монеты')}</h2><p class="muted">${tl('Найдите человека по нику. Перевод сразу и без комиссии, отменить его нельзя.')}</p>
+    body.innerHTML = `<section class="wal-card"><h2>${tl('Перевести пузокоины')}</h2><p class="muted">${tl('Найдите человека по нику. Перевод сразу и без комиссии, отменить его нельзя.')}</p>
       <label class="search wal-find"><input id="walFind" type="search" placeholder="${tl('Ник пользователя')}" autocomplete="off"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></label>
       <div id="walFound" class="wal-found"></div></section>`;
     let t;
@@ -3137,8 +3137,8 @@ function coinSendDialog(p) {
   const ov = document.createElement('div');
   ov.className = 'v2-overlay';
   ov.innerHTML = `<form class="v2-modal send">
-    <h2>${tl('Перевести coin')}</h2>
-    <div class="send-to">${avaHtml(p.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b><span>${tl('Ваш баланс:')} ${esc($('#coinVal').textContent)} coin</span></div></div>
+    <h2>${tl('Перевести Puzocoins')}</h2>
+    <div class="send-to">${avaHtml(p.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b><span>${tl('Ваш баланс:')} ${esc($('#coinVal').textContent)} Puzocoins</span></div></div>
     <div class="send-amts">${SEND_AMTS.map((a, i) => `<button type="button" class="chip${i === 1 ? ' on' : ''}" data-samt="${a}">${a}</button>`).join('')}<input type="number" name="c" min="1" max="100000" step="1" placeholder="${tl('своя')}"></div>
     <label>${tl('Сообщение (необязательно)')}<textarea name="n" rows="2" maxlength="200"></textarea></label>
     <p class="hint">${tl('Перевод нельзя отменить.')}</p>
@@ -3157,7 +3157,7 @@ function coinSendDialog(p) {
     btn.disabled = true; hint.textContent = '…';
     try {
       const bal = await rpc('coin_transfer', { p_to: p.id, p_amount: a, p_note: f.n.value.trim() || null });
-      setBalance(bal); ov.remove(); toast(tl('Переведено {0} coin → {1}', {0: fmt(a), 1: pname(p)}));
+      setBalance(bal); ov.remove(); toast(tl('Переведено {0} Puzocoins → {1}', {0: fmt(a), 1: pname(p)}));
       const pc = $('#profCoinVal'); if (pc && pc.dataset.uid === p.id) rpc('coin_admin_balance', { p_user: p.id }).then(v => { if (v != null) pc.textContent = fmt(v); }).catch(() => {});
     } catch (er) { hint.textContent = tl('Ошибка: ') + er.message; btn.disabled = false; }
   };
@@ -3195,8 +3195,8 @@ function giftRoleDialog(it, defaultDays = 14, onSaved) {
     <div class="cs-prev">${isCustom ? `<span class="role role-custom" id="csPrev" style="--rc:${clr}">${tl('Роль в подарок')}</span>` : roleChipHtml(it.id, EQ.get(S.uid))}</div>
     ${isCustom ? `<div class="pe-color"><span>${tl('Срок действия')}</span>
       <div class="chips" data-grdur>
-        <button type="button" class="chip${days === 14 ? ' on' : ''}" data-grdays="14">${tl('2 недели — 500 coin')}</button>
-        <button type="button" class="chip${days === 30 ? ' on' : ''}" data-grdays="30">${tl('1 месяц — 700 coin')}</button>
+        <button type="button" class="chip${days === 14 ? ' on' : ''}" data-grdays="14">${tl('2 недели — 500 Puzocoins')}</button>
+        <button type="button" class="chip${days === 30 ? ' on' : ''}" data-grdays="30">${tl('1 месяц — 700 Puzocoins')}</button>
       </div>
     </div>
     <label>${tl('Название роли (до 18 символов)')}<input name="t" maxlength="18" required placeholder="${tl('Например: Любимчик чата')}"></label>
@@ -3377,7 +3377,7 @@ async function viewShop(tab) {
     page.innerHTML = `<div class="shop">
       <div class="shop-head">
         <h1>${tl('Магазин косметики')}</h1>
-        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> coin<a href="${routeUrl('wallet/topup')}">${tl('Пополнить')}</a></div>` : `<button type="button" class="btn accent" data-login>${tl('Войти, чтобы покупать')}</button>`}
+        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> Puzocoins<a href="${routeUrl('wallet/topup')}">${tl('Пополнить')}</a></div>` : `<button type="button" class="btn accent" data-login>${tl('Войти, чтобы покупать')}</button>`}
       </div>
       ${renderPreview()}
       <div class="tabs shop-tabs">${SHOP_CATS.map(([k, l]) => `<a class="tab${T === k ? ' on' : ''}" href="${routeUrl(k === 'all' ? 'shop' : 'shop/' + k)}">${l}${k === 'mine' ? ` (${owned.size + activeTemp.length})` : ''}</a>`).join('')}</div>
@@ -3449,7 +3449,7 @@ async function viewShop(tab) {
       if (bs) {
         if (!S.uid) return login();
         const it = SHOP_ITEMS.get(bs.dataset.shbuyself); if (!it) return;
-        if (!confirm(tl('Купить роль «{0}» себе на 2 недели за {1} coin?', {0: it.title, 1: fmt(it.price)}))) return;
+        if (!confirm(tl('Купить роль «{0}» себе на 2 недели за {1} Puzocoins?', {0: it.title, 1: fmt(it.price)}))) return;
         bs.disabled = true;
         try {
           const res = await rpc('shop_gift_role', { p_item_id: it.id, p_target_user: S.uid, p_days: 14 });
@@ -3539,7 +3539,7 @@ async function viewShop(tab) {
         const it = SHOP_ITEMS.get(buyBtn.dataset.shbuy); if (!it) return;
         const isPackBuy = it.category === 'bundle';
         const payNow = isPackBuy ? Number(buyBtn.dataset.shpay ?? it.price) : it.price;
-        if (!confirm(isPackBuy ? tl('Купить набор «{0}» за {1} coin? Всё из набора останется у вас навсегда и сразу наденется.', {0: it.title, 1: fmt(payNow)}) : tl('Купить «{0}» за {1} coin? Предмет останется у вас навсегда.', {0: it.title, 1: fmt(it.price)}))) return;
+        if (!confirm(isPackBuy ? tl('Купить набор «{0}» за {1} Puzocoins? Всё из набора останется у вас навсегда и сразу наденется.', {0: it.title, 1: fmt(payNow)}) : tl('Купить «{0}» за {1} Puzocoins? Предмет останется у вас навсегда.', {0: it.title, 1: fmt(it.price)}))) return;
         buyBtn.disabled = true;
         try {
           const bal = await rpc('shop_buy', { p_item_id: it.id });
@@ -3591,7 +3591,7 @@ const RULES_TXT = {
       <li>Чужие работы без разрешения автора и без указания авторства.</li>
       <li><b>Политика и война</b> — в любом виде: обсуждения, шутки, символика, флаги, лозунги, пропаганда любой стороны. renah0cki — фан-сайт, политики здесь нет.</li>
       <li>Спам, реклама (в том числе казино, ставок, VPN и любых платных услуг), накрутки, мультиаккаунты для обхода блокировок, использование ошибок сайта.</li>
-      <li>Продажа, покупка или обмен монет, ролей и аккаунтов за деньги вне сайта; выманивание монет обманом.</li>
+      <li>Продажа, покупка или обмен пузокоинов, ролей и аккаунтов за деньги вне сайта; выманивание пузокоинов обманом.</li>
       <li>Запись чужих голосов в звонках и войсах без согласия собеседников.</li>
     </ul></section>
 
@@ -3608,25 +3608,25 @@ const RULES_TXT = {
     </ul></section>
 
     <section class="rules-card"><h2>3. Ответственность пользователей</h2><ul>
-      <li>За свои работы, комментарии, посты, сообщения, слова в звонках и войсах, переводы монет отвечает пользователь, который их сделал.</li>
+      <li>За свои работы, комментарии, посты, сообщения, слова в звонках и войсах, переводы пузокоинов отвечает пользователь, который их сделал.</li>
       <li>Незнание правил не освобождает от ответственности. Обход блокировки — повод для бессрочного бана.</li>
     </ul></section>
 
-    <section class="rules-card"><h2>4. Донаты и renah0cki coin</h2>
+    <section class="rules-card"><h2>4. Донаты и Puzocoins</h2>
       <p><b>Донат</b> через DonationAlerts — добровольный подарок проекту. Он ни к чему не обязывает ни вас, ни нас и не возвращается, кроме случаев, прямо предусмотренных законом.</p>
-      <p><b>renah0cki coin</b> — внутренние бонусные монеты сайта. Их можно получить в подарок за донат (впишите свой ник в поле «Имя»; сейчас 1 ₽ → 1 coin, другие валюты — по курсу), за активность, от администрации и от других пользователей.</p>
+      <p><b>Puzocoins</b> — внутренняя бонусная валюта сайта (пузокоины). Их можно получить в подарок за донат (впишите свой ник в поле «Имя»; сейчас 1 ₽ → 1 Puzocoins, другие валюты — по курсу), за активность, от администрации и от других пользователей.</p>
       <ul>
-        <li>Монеты нельзя вывести, обменять на деньги или продать; они не дают права требовать деньги назад.</li>
-        <li>Монетами можно оплатить подписки ГОЙ и VIP в Y, роли и косметику в магазине, подарить автору работы или перевести другу. Потраченные, подаренные и переведённые монеты не возвращаются.</li>
-        <li>Курс подарка, цены и то, на что тратятся монеты, могут меняться. Если систему монет когда-нибудь закроют, мы заранее предупредим.</li>
+        <li>Пузокоины нельзя вывести, обменять на деньги или продать; они не дают права требовать деньги назад.</li>
+        <li>Пузокоинами можно оплатить подписки ГОЙ и VIP в Y, роли и косметику в магазине, подарить автору работы или перевести другу. Потраченные, подаренные и переведённые пузокоины не возвращаются.</li>
+        <li>Курс подарка, цены и то, на что тратятся пузокоины, могут меняться. Если систему пузокоинов когда-нибудь закроют, мы заранее предупредим.</li>
         <li>Если подарок за донат не пришёл в течение часа или вы ошиблись в нике — напишите в <a href="${sup}">поддержку</a>, разберёмся вручную.</li>
-        <li>За нарушения правил монеты, роли и косметику могут отобрать.</li>
+        <li>За нарушения правил пузокоины, роли и косметику могут отобрать.</li>
       </ul></section>
 
     <section class="rules-card"><h2>5. Персональные данные</h2><ul>
-      <li>Данные обрабатывает администрация renah0cki — только для работы сайта: вход, публикации, переписка, модерация, монеты, уведомления. Основание — ваше согласие, которое вы даёте при первом входе.</li>
+      <li>Данные обрабатывает администрация renah0cki — только для работы сайта: вход, публикации, переписка, модерация, пузокоины, уведомления. Основание — ваше согласие, которое вы даёте при первом входе.</li>
       <li>Данные Twitch-аккаунта, через который вы входите: ник, аватарку, почту (не показывается другим), id.</li>
-      <li>То, что вы сами публикуете и отправляете: работы, комментарии, посты, сообщения, жалобы, обращения в поддержку, историю монет.</li>
+      <li>То, что вы сами публикуете и отправляете: работы, комментарии, посты, сообщения, жалобы, обращения в поддержку, историю пузокоинов.</li>
       <li>Для звонков — только факт звонка (кто и когда), 30 дней. Звонки не записываются.</li>
       <li>Если вы привязали Telegram-бота — id вашего Telegram-аккаунта (чтобы присылать уведомления); отвязать — командой /logout в боте. Если включили push-уведомления — адрес подписки браузера.</li>
       <li><b>Личные сообщения в Y и обращения в поддержку</b> видят только участники переписки и модераторы (чтобы разбирать жалобы). Другим пользователям и гостям они недоступны. Сквозного шифрования нет — это не приватный мессенджер.</li>
@@ -3644,7 +3644,7 @@ const RULES_TXT = {
 
     <section class="rules-card"><h2>7. Гарантии и ответственность сайта</h2><ul>
       <li>Пользоваться сайтом можно бесплатно. Регистрация, участие, донаты, подписки, подарки и переводы — только по вашему желанию; никто ни к чему не принуждает.</li>
-      <li>Сайт работает «как есть». Мы стараемся, чтобы всё работало, и исправляем ошибки, но не гарантируем, что не будет сбоев, перерывов или потери данных, монет и подписок.</li>
+      <li>Сайт работает «как есть». Мы стараемся, чтобы всё работало, и исправляем ошибки, но не гарантируем, что не будет сбоев, перерывов или потери данных, пузокоинов и подписок.</li>
       <li>В той мере, в какой это допускает закон, администрация не отвечает за косвенные убытки и упущенную выгоду. Если ответственность возникает по закону, она ограничена суммой, которую пользователь сам перечислил на проект за последние 12 месяцев. Права, которые закон не позволяет ограничить, сохраняются.</li>
       <li>Сторонние сервисы (Twitch, YouTube, DonationAlerts, 7TV, GIPHY, Telegram) работают по своим правилам.</li>
     </ul></section>
@@ -3667,7 +3667,7 @@ const RULES_TXT = {
       <li>Чужі роботи без дозволу автора та без зазначення авторства.</li>
       <li><b>Політика й війна</b> — у будь-якому вигляді: обговорення, жарти, символіка, прапори, гасла, пропаганда будь-якої сторони. renah0cki — фан-сайт, політики тут немає.</li>
       <li>Спам, реклама (зокрема казино, ставок, VPN і будь-яких платних послуг), накрутки, мультиакаунти для обходу блокувань, використання помилок сайту.</li>
-      <li>Продаж, купівля або обмін монет, ролей і акаунтів за гроші поза сайтом; виманювання монет обманом.</li>
+      <li>Продаж, купівля або обмін пузокоїнів, ролей і акаунтів за гроші поза сайтом; виманювання пузокоїнів обманом.</li>
       <li>Запис чужих голосів у дзвінках і войсах без згоди співрозмовників.</li>
     </ul></section>
 
@@ -3684,25 +3684,25 @@ const RULES_TXT = {
     </ul></section>
 
     <section class="rules-card"><h2>3. Відповідальність користувачів</h2><ul>
-      <li>За свої роботи, коментарі, пости, повідомлення, слова в дзвінках і войсах, перекази монет відповідає користувач, який їх зробив.</li>
+      <li>За свої роботи, коментарі, пости, повідомлення, слова в дзвінках і войсах, перекази пузокоїнів відповідає користувач, який їх зробив.</li>
       <li>Незнання правил не звільняє від відповідальності. Обхід блокування — привід для безстрокового бану.</li>
     </ul></section>
 
-    <section class="rules-card"><h2>4. Донати та renah0cki coin</h2>
+    <section class="rules-card"><h2>4. Донати та Puzocoins</h2>
       <p><b>Донат</b> через DonationAlerts — добровільний подарунок проєкту. Він ні до чого не зобов’язує ні вас, ні нас і не повертається, крім випадків, прямо передбачених законом.</p>
-      <p><b>renah0cki coin</b> — внутрішні бонусні монети сайту. Їх можна отримати в подарунок за донат (впишіть свій нік у поле «Ім’я»; зараз 1 ₽ → 1 coin, інші валюти — за курсом), за активність, від адміністрації та від інших користувачів.</p>
+      <p><b>Puzocoins</b> — внутрішня бонусна валюта сайту (пузокоїни). Їх можна отримати в подарунок за донат (впишіть свій нік у поле «Ім’я»; зараз 1 ₽ → 1 Puzocoins, інші валюти — за курсом), за активність, від адміністрації та від інших користувачів.</p>
       <ul>
-        <li>Монети не можна вивести, обміняти на гроші чи продати; вони не дають права вимагати гроші назад.</li>
-        <li>Монетами можна оплатити підписки ГОЙ і VIP в Y, ролі та косметику в магазині, подарувати автору роботи або переказати другу. Витрачені, подаровані й переказані монети не повертаються.</li>
-        <li>Курс подарунка, ціни та те, на що витрачаються монети, можуть змінюватися. Якщо систему монет колись закриють, ми попередимо заздалегідь.</li>
+        <li>Пузокоїни не можна вивести, обміняти на гроші чи продати; вони не дають права вимагати гроші назад.</li>
+        <li>Пузокоїнами можна оплатити підписки ГОЙ і VIP в Y, ролі та косметику в магазині, подарувати автору роботи або переказати другу. Витрачені, подаровані й переказані пузокоїни не повертаються.</li>
+        <li>Курс подарунка, ціни та те, на що витрачаються пузокоїни, можуть змінюватися. Якщо систему пузокоїнів колись закриють, ми попередимо заздалегідь.</li>
         <li>Якщо подарунок за донат не прийшов протягом години або ви помилилися в ніку — напишіть у <a href="${sup}">підтримку</a>, розберемося вручну.</li>
-        <li>За порушення правил монети, ролі та косметику можуть забрати.</li>
+        <li>За порушення правил пузокоїни, ролі та косметику можуть забрати.</li>
       </ul></section>
 
     <section class="rules-card"><h2>5. Персональні дані</h2><ul>
-      <li>Дані обробляє адміністрація renah0cki — лише для роботи сайту: вхід, публікації, листування, модерація, монети, сповіщення. Підстава — ваша згода, яку ви даєте під час першого входу.</li>
+      <li>Дані обробляє адміністрація renah0cki — лише для роботи сайту: вхід, публікації, листування, модерація, пузокоїни, сповіщення. Підстава — ваша згода, яку ви даєте під час першого входу.</li>
       <li>Дані Twitch-акаунта, через який ви входите: нік, аватарку, пошту (не показується іншим), id.</li>
-      <li>Те, що ви самі публікуєте й надсилаєте: роботи, коментарі, пости, повідомлення, скарги, звернення в підтримку, історію монет.</li>
+      <li>Те, що ви самі публікуєте й надсилаєте: роботи, коментарі, пости, повідомлення, скарги, звернення в підтримку, історію пузокоїнів.</li>
       <li>Для дзвінків — лише факт дзвінка (хто й коли), 30 днів. Дзвінки не записуються.</li>
       <li>Якщо ви прив’язали Telegram-бота — id вашого Telegram-акаунта (щоб надсилати сповіщення); відв’язати — командою /logout у боті. Якщо ввімкнули push-сповіщення — адреса підписки браузера.</li>
       <li><b>Особисті повідомлення в Y і звернення в підтримку</b> бачать лише учасники листування та модератори (щоб розбирати скарги). Іншим користувачам і гостям вони недоступні. Наскрізного шифрування немає — це не приватний месенджер.</li>
@@ -3720,7 +3720,7 @@ const RULES_TXT = {
 
     <section class="rules-card"><h2>7. Гарантії та відповідальність сайту</h2><ul>
       <li>Користуватися сайтом можна безкоштовно. Реєстрація, участь, донати, підписки, подарунки й перекази — лише за вашим бажанням; ніхто ні до чого не змушує.</li>
-      <li>Сайт працює «як є». Ми намагаємося, щоб усе працювало, і виправляємо помилки, але не гарантуємо, що не буде збоїв, перерв чи втрати даних, монет і підписок.</li>
+      <li>Сайт працює «як є». Ми намагаємося, щоб усе працювало, і виправляємо помилки, але не гарантуємо, що не буде збоїв, перерв чи втрати даних, пузокоїнів і підписок.</li>
       <li>Тією мірою, якою це допускає закон, адміністрація не відповідає за непрямі збитки та втрачену вигоду. Якщо відповідальність виникає за законом, вона обмежена сумою, яку користувач сам переказав на проєкт за останні 12 місяців. Права, які закон не дозволяє обмежити, зберігаються.</li>
       <li>Сторонні сервіси (Twitch, YouTube, DonationAlerts, 7TV, GIPHY, Telegram) працюють за своїми правилами.</li>
     </ul></section>
@@ -3743,7 +3743,7 @@ const RULES_TXT = {
       <li>Other people’s works without the author’s permission and without credit.</li>
       <li><b>Politics and war</b> — in any form: discussions, jokes, symbols, flags, slogans, propaganda of any side. renah0cki is a fan site; there are no politics here.</li>
       <li>Spam, advertising (including casinos, betting, VPNs and any paid services), fake engagement, alt accounts to evade bans, exploiting site bugs.</li>
-      <li>Selling, buying or trading coins, roles and accounts for money outside the site; tricking people out of coins.</li>
+      <li>Selling, buying or trading Puzocoins, roles and accounts for money outside the site; tricking people out of Puzocoins.</li>
       <li>Recording other people’s voices in calls and voice messages without their consent.</li>
     </ul></section>
 
@@ -3760,25 +3760,25 @@ const RULES_TXT = {
     </ul></section>
 
     <section class="rules-card"><h2>3. User responsibility</h2><ul>
-      <li>The user who made them is responsible for their works, comments, posts, messages, words in calls and voice messages, and coin transfers.</li>
+      <li>The user who made them is responsible for their works, comments, posts, messages, words in calls and voice messages, and Puzocoin transfers.</li>
       <li>Not knowing the rules does not excuse you. Evading a ban is grounds for a permanent ban.</li>
     </ul></section>
 
-    <section class="rules-card"><h2>4. Donations and renah0cki coin</h2>
+    <section class="rules-card"><h2>4. Donations and Puzocoins</h2>
       <p>A <b>donation</b> via DonationAlerts is a voluntary gift to the project. It creates no obligations for you or us and is non-refundable, except where the law expressly requires otherwise.</p>
-      <p><b>renah0cki coin</b> are the site’s internal bonus coins. You can get them as a gift for a donation (enter your nickname in the “Name” field; currently 1 ₽ → 1 coin, other currencies at the exchange rate), for activity, from the administration and from other users.</p>
+      <p><b>Puzocoins</b> are the site’s internal bonus currency. You can get them as a gift for a donation (enter your nickname in the “Name” field; currently 1 ₽ → 1 Puzocoins, other currencies at the exchange rate), for activity, from the administration and from other users.</p>
       <ul>
-        <li>Coins can’t be withdrawn, exchanged for money or sold; they give no right to demand money back.</li>
-        <li>Coins can pay for the ГОЙ and VIP subscriptions in Y, roles and cosmetics in the shop, be gifted to the author of a work or transferred to a friend. Spent, gifted and transferred coins are non-refundable.</li>
-        <li>The gift rate, prices and what coins can be spent on may change. If the coin system is ever shut down, we will warn you in advance.</li>
+        <li>Puzocoins can’t be withdrawn, exchanged for money or sold; they give no right to demand money back.</li>
+        <li>Puzocoins can pay for the ГОЙ and VIP subscriptions in Y, roles and cosmetics in the shop, be gifted to the author of a work or transferred to a friend. Spent, gifted and transferred Puzocoins are non-refundable.</li>
+        <li>The gift rate, prices and what Puzocoins can be spent on may change. If the Puzocoin system is ever shut down, we will warn you in advance.</li>
         <li>If the gift for a donation hasn’t arrived within an hour or you mistyped your nickname, write to <a href="${sup}">support</a> and we’ll sort it out manually.</li>
-        <li>Coins, roles and cosmetics may be taken away for breaking the rules.</li>
+        <li>Puzocoins, roles and cosmetics may be taken away for breaking the rules.</li>
       </ul></section>
 
     <section class="rules-card"><h2>5. Personal data</h2><ul>
-      <li>Data is processed by the renah0cki administration only to run the site: login, posts, messaging, moderation, coins, notifications. The basis is your consent, which you give on your first login.</li>
+      <li>Data is processed by the renah0cki administration only to run the site: login, posts, messaging, moderation, Puzocoins, notifications. The basis is your consent, which you give on your first login.</li>
       <li>Data of the Twitch account you log in with: nickname, avatar, email (not shown to others), id.</li>
-      <li>What you publish and send yourself: works, comments, posts, messages, reports, support requests, coin history.</li>
+      <li>What you publish and send yourself: works, comments, posts, messages, reports, support requests, Puzocoin history.</li>
       <li>For calls — only the fact of a call (who and when), for 30 days. Calls are not recorded.</li>
       <li>If you linked the Telegram bot — your Telegram account id (to send notifications); unlink with the /logout command in the bot. If you enabled push notifications — your browser’s subscription address.</li>
       <li><b>Direct messages in Y and support requests</b> are visible only to the participants and moderators (to handle reports). Other users and guests can’t access them. There is no end-to-end encryption — this is not a private messenger.</li>
@@ -3796,7 +3796,7 @@ const RULES_TXT = {
 
     <section class="rules-card"><h2>7. Warranties and site liability</h2><ul>
       <li>The site is free to use. Registration, participation, donations, subscriptions, gifts and transfers are entirely up to you; nobody forces you into anything.</li>
-      <li>The site is provided “as is”. We try to keep everything working and fix bugs, but we don’t guarantee there will be no failures, interruptions or loss of data, coins and subscriptions.</li>
+      <li>The site is provided “as is”. We try to keep everything working and fix bugs, but we don’t guarantee there will be no failures, interruptions or loss of data, Puzocoins and subscriptions.</li>
       <li>To the extent permitted by law, the administration is not liable for indirect losses or lost profits. If liability arises by law, it is limited to the amount the user personally paid to the project in the last 12 months. Rights that the law does not allow to be limited are preserved.</li>
       <li>Third-party services (Twitch, YouTube, DonationAlerts, 7TV, GIPHY, Telegram) operate under their own rules.</li>
     </ul></section>

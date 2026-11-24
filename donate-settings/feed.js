@@ -83,7 +83,7 @@ function iconHtml(ev) {
   return '✨';
 }
 function amountLabel(ev) {
-  if (ev.type === 'coin') return `${fmt(ev.amount)} coin`;
+  if (ev.type === 'coin') return `${fmt(ev.amount)} Puzocoins`;
   if (ev.type === 'da') return `${fmt(ev.amount)} ${ev.unit || 'RUB'}`;
   if (ev.type === 'dn') return `${fmt(ev.amount)} ${ev.unit || 'UAH'}`;
   if (ev.type === 'tw_follow') return 'Фолловер';
@@ -330,7 +330,7 @@ document.addEventListener('click', async e => {
   }
   const dnc = e.target.closest('[data-dn-connect]');
   if (dnc) {
-    const link = prompt('Ссылка виджета Donatello для стрима (donatello.to → Віджети → Алерти → скопировать ссылку).\nНужен ОТДЕЛЬНЫЙ виджет, не тот, что для монет на сайте.');
+    const link = prompt('Ссылка виджета Donatello для стрима (donatello.to → Віджети → Алерти → скопировать ссылку).\nНужен ОТДЕЛЬНЫЙ виджет, не тот, что для пузокоїнів на сайте.');
     if (!link) return;
     try {
       const r = await post('/auc/feed/admin', { a: 'token', service: 'donatello', token: link.trim() });

@@ -365,8 +365,8 @@ const PA_SVCS = [
     logo: '<svg class="pa-plogo" viewBox="0 0 64 64" title="Donatello"><circle fill="#ffc21a" stroke="none" cx="32" cy="32" r="30"/><path fill="#1d4fd7" stroke="none" d="M32 49s-15-9.2-15-20.1C17 23.4 21.2 19 26.3 19c2.6 0 4.6 1.3 5.7 3.2 1.1-1.9 3.1-3.2 5.7-3.2C42.8 19 47 23.4 47 28.9 47 39.8 32 49 32 49z"/></svg>' },
   { id: 'twitch', title: 'Twitch — баллы канала', sym: '✦', connected: d => !!d.integrations?.twitch?.login,
     logo: '<svg class="pa-plogo" viewBox="0 0 2400 2800" title="Twitch"><path fill="#9146ff" stroke="none" d="M500 0 0 500v1800h600v500l500-500h400l900-900V0H500zm1700 1300-400 400h-400l-350 350v-350H600V200h1600v1100z"/><rect fill="#9146ff" stroke="none" x="1700" y="550" width="200" height="600"/><rect fill="#9146ff" stroke="none" x="1150" y="550" width="200" height="600"/></svg>' },
-  { id: 'site', title: 'renah0cki coin', sym: '₽', connected: d => d.config?.site_enabled !== false,
-    logo: '<img class="pa-plogo" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="renah0cki coin" title="renah0cki coin">' },
+  { id: 'site', title: 'Puzocoins', sym: '₽', connected: d => d.config?.site_enabled !== false,
+    logo: '<img class="pa-plogo" src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="Puzocoins" title="Puzocoins">' },
   { id: 'donatepay', title: 'DonatePay', sym: '₽', connected: d => !!d.integrations?.donatepay?.connected,
     logo: '<svg class="pa-plogo wide" viewBox="0 0 29 15" title="DonatePay"><path fill="#44AB4F" stroke="none" d="M21.063 5.802a.91.91 0 1 1 1.832 0 .91.91 0 0 1-1.832 0zm-1.984 1.957a.91.91 0 1 1 1.831 0 .91.91 0 0 1-1.831 0zm4.884-.904a.91.91 0 1 1 0 1.807.91.91 0 0 1 0-1.807zm-2.9 2.861a.91.91 0 1 1 1.832 0 .91.91 0 0 1-1.832 0z"/><path fill="#44AB4F" stroke="none" fill-rule="evenodd" d="M15.704 11.208C17.135 13.245 18.946 14.834 21.903 14.834 25.816 14.834 29 11.694 29 7.834S25.81.834 21.903.834c-2.175 0-3.859.918-5.1 2.189-1.215 1.243-2.068 2.788-2.909 4.313l-.084.153c-.86 1.557-1.729 3.077-2.758 4.138-.514.53-1.057.965-1.7 1.264-.645.301-1.375.46-2.255.46-3.1 0-5.592-2.459-5.592-5.517 0-3.043 2.507-5.516 5.592-5.516 2.504 0 3.992 1.398 5.237 3.266.263-.456.543-.92.84-1.39C11.764 2.293 9.96.835 7.097.835 3.184.834 0 3.974 0 7.834s3.19 7 7.097 7c2.155 0 3.838-.918 5.067-2.189.83-.857 1.488-1.862 2.093-2.908l.28-.485.257.497c.195.377.574 1.007.91 1.459zm.647-1.69c1.31 2.135 2.844 3.832 5.552 3.832 3.085 0 5.593-2.473 5.593-5.516 0-3.059-2.492-5.516-5.593-5.516-1.807 0-2.97.646-4.02 1.722-.857.876-1.65 2.257-2.35 3.497l-.054.096.02.108c.047.236.207.579.366.889.166.323.354.655.486.888z"/><path fill="#44AB4F" stroke="none" d="M6.41 5.35h1.222v1.807h1.831V8.36H7.632v1.806H6.41V8.361H4.579V7.157H6.41z"/></svg>' },
   { id: 'donatex', title: 'DonateX', sym: '₽', connected: d => !!d.integrations?.donatex?.connected,
@@ -973,7 +973,7 @@ async function exportCsv() {
 /* ── настройки ── */
 function convExample(rub, uah) {
   const n = v => { const x = Math.round((Number(v) || 0) * 100) / 100; return x.toLocaleString('ru-RU'); };
-  return `Пример: 500 ₽ → <b>${n(500 * rub)}</b> б. · 100 ₴ → <b>${n(100 * uah)}</b> б. · 300 coin → <b>${n(300 * rub)}</b> б.`;
+  return `Пример: 500 ₽ → <b>${n(500 * rub)}</b> б. · 100 ₴ → <b>${n(100 * uah)}</b> б. · 300 Puzocoins → <b>${n(300 * rub)}</b> б.`;
 }
 document.addEventListener('input', e => {
   const f = e.target.closest?.('#setForm');
@@ -997,21 +997,21 @@ function settingsHtml() {
         <button class="btn sm ${I.twitch?.login ? 'ghost' : 'pri'}" data-act="conn" data-id="twitch" ${I.twitch?.configured ? '' : 'disabled'}>${I.twitch?.login ? 'Переподключить' : 'Подключить Twitch'}</button></div></div>
     <div class="int"><div class="int-h">${st(I.da)}<b>DonationAlerts</b><span class="muted">${esc(I.da?.name || '')}</span></div><p>${esc(I.da?.text || '')}</p>
       <div class="row"><button class="btn sm ${I.da?.name ? 'ghost' : 'pri'}" data-act="conn" data-id="da" ${I.da?.configured ? '' : 'disabled'}>${I.da?.name ? 'Переподключить' : 'Подключить DonationAlerts'}</button>${I.da?.name ? '<button class="btn sm ghost" data-act="disc" data-id="da">Отключить</button>' : ''}</div></div>
-    <div class="int"><div class="int-h">${st(I.donatello)}<b>Donatello</b></div><p>${esc(I.donatello?.text || '')} · ссылка виджета: donatello.to → Віджети → Алерти (отдельный виджет, не тот, что для монет сайта)</p>
+    <div class="int"><div class="int-h">${st(I.donatello)}<b>Donatello</b></div><p>${esc(I.donatello?.text || '')} · ссылка виджета: donatello.to → Віджети → Алерти (отдельный виджет, не тот, что для пузокоїнів сайта)</p>
       <div class="row"><button class="btn sm ${I.donatello?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatello">${I.donatello?.connected ? 'Сменить ссылку' : 'Вставить ссылку'}</button>${I.donatello?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatello">Отключить</button>' : ''}</div></div>
     <div class="int"><div class="int-h">${st(I.donatepay)}<b>DonatePay</b></div><p>${esc(I.donatepay?.text || '')} · API-ключ: donatepay.ru → Настройки → API</p>
       <div class="row"><button class="btn sm ${I.donatepay?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatepay">${I.donatepay?.connected ? 'Сменить ключ' : 'Ввести ключ'}</button>${I.donatepay?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatepay">Отключить</button>' : ''}</div></div>
     <div class="int"><div class="int-h">${st(I.donatex)}<b>DonateX</b></div><p>${esc(I.donatex?.text || '')} · токен: donatex.gg → Настройки → API и доступ</p>
       <div class="row"><button class="btn sm ${I.donatex?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatex">${I.donatex?.connected ? 'Сменить токен' : 'Ввести токен'}</button>${I.donatex?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatex">Отключить</button>' : ''}</div></div>
-    <div class="int"><div class="int-h"><span class="dot ${siteOn ? 'ok' : ''}"></span><b>renah0cki coin</b><span class="muted">${esc(sNick)}</span></div><p>${siteOn ? 'Подключён · зрители донатят coin по личной ссылке и могут выбрать лот.' : 'Отключён · приём донатов coin по личной ссылке остановлен.'}</p>
+    <div class="int"><div class="int-h"><span class="dot ${siteOn ? 'ok' : ''}"></span><b>Puzocoins</b><span class="muted">${esc(sNick)}</span></div><p>${siteOn ? 'Подключён · зрители донатят Puzocoins по личной ссылке и могут выбрать лот.' : 'Отключён · приём донатов Puzocoins по личной ссылке остановлен.'}</p>
       <div class="row"><code class="code">${esc(donate)}</code><button class="btn sm" data-act="copy" data-id="${esc(donate)}">Копировать</button><a class="btn sm ghost" href="${esc(donate)}">Открыть</a><button class="btn sm ${siteOn ? 'ghost' : 'pri'}" data-act="siteToggle" data-id="${siteOn ? '0' : '1'}">${siteOn ? 'Отключить' : 'Подключить'}</button></div></div>
   </div></div>
   <form class="box" id="setForm" data-form="settings"><h2 class="h2">Конвертация в баллы</h2>
-    <p class="hint">Сколько баллов аукциона даёт донат. renah0cki coin считается как рубль. Донат с кодом RN-… — пополнение coin, аукцион его не трогает.</p>
+    <p class="hint">Сколько баллов аукциона даёт донат. Puzocoins считается как рубль. Донат с кодом RN-… — пополнение Puzocoins, аукцион его не трогает.</p>
     <div class="conv">
       <label class="conv-row"><span class="conv-cur">1 ₽</span><span class="conv-eq">=</span><input class="in" name="rate_RUB" type="number" step="any" min="0" inputmode="decimal" required value="${esc(r.RUB ?? 1)}"><span class="conv-u">баллов</span></label>
       <label class="conv-row"><span class="conv-cur">1 ₴</span><span class="conv-eq">=</span><input class="in" name="rate_UAH" type="number" step="any" min="0" inputmode="decimal" required value="${esc(r.UAH ?? 2)}"><span class="conv-u">баллов</span></label>
-      <div class="conv-row muted"><span class="conv-cur">1 coin</span><span class="conv-eq">=</span><b class="conv-coin" id="convCoin">${esc(r.RUB ?? 1)}</b><span class="conv-u">баллов (как 1 ₽)</span></div>
+      <div class="conv-row muted"><span class="conv-cur">1 Puzocoins</span><span class="conv-eq">=</span><b class="conv-coin" id="convCoin">${esc(r.RUB ?? 1)}</b><span class="conv-u">баллов (как 1 ₽)</span></div>
     </div>
     <p class="hint conv-ex" id="convEx">${convExample(r.RUB ?? 1, r.UAH ?? 2)}</p>
     <details class="conv-more"><summary>Другие валюты</summary>
@@ -1021,7 +1021,7 @@ function settingsHtml() {
     <div class="rates" style="margin-top:10px">
       <label>+сек к таймеру при ставке<input class="in" name="add_sec" type="number" min="0" max="600" inputmode="numeric" value="${c.add_sec}"></label>
       <label>…если осталось меньше (сек)<input class="in" name="add_below_sec" type="number" min="0" max="3600" inputmode="numeric" value="${c.add_below_sec}"></label>
-      <label>Мин. донат coin<input class="in" name="min_site_bid" type="number" min="1" inputmode="numeric" value="${c.min_site_bid}"></label>
+      <label>Мин. донат Puzocoins<input class="in" name="min_site_bid" type="number" min="1" inputmode="numeric" value="${c.min_site_bid}"></label>
       <label>Колесо крутится (сек)<input class="in" name="wheel_sec" type="number" min="3" max="120" inputmode="numeric" value="${c.wheel_sec || 20}"></label>
       <label style="grid-column:1/-1">Награды Twitch (цены)<input class="in" name="twitch_costs" value="${esc((c.twitch_costs || []).join(', '))}"></label>
     </div>
@@ -1179,11 +1179,11 @@ function finishSheet(winnerId) {
   const d = A(); const top = winnerId ?? d.lots[0]?.id ?? null;
   const live = (S.adm?.bids || []).filter(b => ['active', 'queue', 'failed'].includes(b.status));
   const by = s => live.filter(b => b.source === s).length;
-  sheet('Завершить аукцион', `<p class="hint">Ставки на победителя остаются (coin с него уходят тебе), остальным баллы возвращаются.</p>
+  sheet('Завершить аукцион', `<p class="hint">Ставки на победителя остаются (Puzocoins с него уходят тебе), остальным баллы возвращаются.</p>
     ${lotPick(top, false, 'winner')}
     <label class="check"><input type="checkbox" name="refund" ${S.adm?.config?.no_refund ? '' : 'checked'}><span>Вернуть баллы всем, кроме победителя</span></label>
     <div class="summary">
-      <div><span>coin → обратно зрителю</span><b>${by('site')}</b></div>
+      <div><span>Puzocoins → обратно зрителю</span><b>${by('site')}</b></div>
       <div><span>Twitch → баллы канала обратно</span><b>${by('twitch')}</b></div>
       <div><span>Донаты, вручную → кошелёк аукциона</span><b>${by('da') + by('donatello') + by('donatepay') + by('donatex') + by('manual') + by('wallet')}</b></div>
     </div>${acts('Завершить', 'ok')}`,
@@ -1487,8 +1487,8 @@ document.addEventListener('click', async e => {
       case 'csv': return exportCsv();
       case 'conn': { const r = await admDo({ a: 'connect', service: id }); location.href = r.url; return; }
       case 'disc': return admDo({ a: 'disconnect', service: id }, 'Отключено');
-      case 'siteToggle': { const on = id === '1'; return admDo({ a: 'config', config: { site_enabled: on } }, on ? 'Донаты renah0cki coin подключены' : 'Донаты renah0cki coin отключены'); }
-      case 'tok': return sheet(({ donatepay: 'Ключ DonatePay', donatex: 'Токен DonateX', donatello: 'Ссылка виджета Donatello' })[id], `<p class="hint">${id === 'donatello' ? 'В кабинете Donatello создай ОТДЕЛЬНЫЙ виджет «Алерти» (не тот, что подключён к сайту для монет) и вставь его ссылку. ' : ''}Хранится только на сервере и больше нигде не показывается.</p>
+      case 'siteToggle': { const on = id === '1'; return admDo({ a: 'config', config: { site_enabled: on } }, on ? 'Донаты Puzocoins подключены' : 'Донаты Puzocoins отключены'); }
+      case 'tok': return sheet(({ donatepay: 'Ключ DonatePay', donatex: 'Токен DonateX', donatello: 'Ссылка виджета Donatello' })[id], `<p class="hint">${id === 'donatello' ? 'В кабинете Donatello создай ОТДЕЛЬНЫЙ виджет «Алерти» (не тот, что подключён к сайту для пузокоинов) и вставь его ссылку. ' : ''}Хранится только на сервере и больше нигде не показывается.</p>
         <label class="field"><span>${({ donatepay: 'API-ключ', donatex: 'Внешний токен', donatello: 'https://donatello.to/widget/…/token/…' })[id]}</span><input class="in" name="t" type="password" autocomplete="off" required></label>${acts('Сохранить')}`,
         f => admDo({ a: 'token', service: id, token: f.get('t') }, 'Подключено'));
       case 'twRewards': { const r = await admDo({ a: 'twitch_rewards' }); return toast('Награды: ' + r.rewards.map(x => x.cost).join(', ')); }
@@ -1559,7 +1559,7 @@ document.addEventListener('submit', async e => {
       const rates = { ...S.adm.config.rates };
       for (const [k, v] of fd) if (k.startsWith('rate_') && v !== '') rates[k.slice(5)] = Number(v);
       if (!(rates.RUB > 0) || !(rates.UAH > 0)) return toast('Курс ₽ и ₴ должен быть больше 0', true);
-      rates.site = rates.RUB;   // renah0cki coin = рубль
+      rates.site = rates.RUB;   // Puzocoins = рубль
       const wheel = {
         reroll_on: fd.get('reroll_on') === 'on',
         reroll_price: Math.max(0, Number(fd.get('reroll_price')) || 0),

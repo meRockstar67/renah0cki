@@ -321,7 +321,7 @@ async function init() {
         : m.kind === 'bid'
           ? `<span class="src site">ставка${m.lot_label ? ': ' + esc(m.lot_label) : ''}</span>`
           : '<span class="src">донат</span>';
-      return `<li class="item"><span class="main"><b${incoming ? ' class="inc"' : ''}>${incoming ? '+' : ''}${fmt(m.amount)} coin</b> ${tag}</span>
+      return `<li class="item"><span class="main"><b${incoming ? ' class="inc"' : ''}>${incoming ? '+' : ''}${fmt(m.amount)} Puzocoins</b> ${tag}</span>
         <span class="side">${new Date(m.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>${m.message ? `<span class="meta">«${esc(m.message)}»</span>` : ''}</li>`;
     }).join('');
   }
