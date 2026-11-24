@@ -3014,7 +3014,7 @@ async function viewWallet(tab) {
       <p class="muted">Донат — это добровольная поддержка проекта. В благодарность за него вы получаете <b>монеты в подарок</b> — автоматически, обычно за минуту.</p>
       <ol class="wal-steps">
         <li><b>Скопируйте свой ник</b><div class="wal-code"><span id="walCode">${esc(S.me?.username || '…')}</span><button class="btn" type="button" id="walCopy">Скопировать</button></div></li>
-        <li><div><b>Откройте страницу доната</b> и укажите сумму: российской картой — «${tl('Ру карта')}», украинской — «${tl('Укр карта')}».</div><div class="wal-go"><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a><a class="btn accent" id="walDn" href="#" target="_blank" rel="noopener" hidden>${tl('Укр карта')}</a></div></li>
+        <li><div><b>Откройте страницу доната</b> и укажите сумму.</div><div class="wal-go"><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a><a class="btn accent" id="walDn" href="#" target="_blank" rel="noopener" hidden>${tl('Укр карта')}</a></div></li>
         <li><div><b>Вставьте ник в поле «Имя»</b> (на Donatello — «Ім'я») — по нему мы поймём, кому отправить подарок. Сообщение пишите любое, хоть смешное, или оставьте пустым.</div></li>
       </ol>
       <div class="wal-rate"><img src="${COIN}" alt=""><span>Подарок: ${DA_RATES_TXT}</span></div>
