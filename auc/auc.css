@@ -289,6 +289,18 @@ code, .code { font-family: var(--mono); font-size: 12.5px; background: var(--bg)
 .dot.ok { background: var(--ok); } .dot.error { background: var(--danger); } .dot.connecting { background: var(--warn); }
 .rates { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .rates label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); font-weight: 700; }
+/* конвертация денег в баллы */
+.conv { display: grid; gap: 8px; }
+.conv-row { display: grid; grid-template-columns: 64px 14px minmax(0, 140px) auto; align-items: center; gap: 8px; font-size: 14px; }
+.conv-cur { font-weight: 800; color: var(--text); white-space: nowrap; }
+.conv-eq { color: var(--dim); text-align: center; }
+.conv-u { color: var(--muted); font-size: 13px; }
+.conv-coin { font-variant-numeric: tabular-nums; padding-left: 12px; color: var(--text); }
+.conv-ex { margin: 10px 0 8px; }
+.conv-ex b { color: var(--text); }
+.conv-more { margin-top: 4px; }
+.conv-more summary { cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 700; padding: 6px 0; }
+.conv-more .rates { margin-top: 6px; }
 
 /* колесо */
 .wheel-pane { flex: 1; display: grid; justify-items: center; align-content: center; gap: 12px; padding: 14px; }

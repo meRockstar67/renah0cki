@@ -949,6 +949,17 @@ async function exportCsv() {
 }
 
 /* ── настройки ── */
+function convExample(rub, uah) {
+  const n = v => { const x = Math.round((Number(v) || 0) * 100) / 100; return x.toLocaleString('ru-RU'); };
+  return `Пример: 500 ₽ → <b>${n(500 * rub)}</b> б. · 100 ₴ → <b>${n(100 * uah)}</b> б. · 300 coin → <b>${n(300 * rub)}</b> б.`;
+}
+document.addEventListener('input', e => {
+  const f = e.target.closest?.('#setForm');
+  if (!f || !/^rate_(RUB|UAH)$/.test(e.target.name)) return;
+  const rub = Number(f.rate_RUB.value) || 0, uah = Number(f.rate_UAH.value) || 0;
+  const c = document.getElementById('convCoin'); if (c) c.textContent = (Math.round(rub * 100) / 100).toLocaleString('ru-RU');
+  const ex = document.getElementById('convEx'); if (ex) ex.innerHTML = convExample(rub, uah);
+});
 function settingsHtml() {
   const d = S.adm; const c = d.config; const I = d.integrations || {};
   const st = s => `<span class="dot ${s?.state || ''}"></span>`;
@@ -973,9 +984,18 @@ function settingsHtml() {
     <div class="int"><div class="int-h"><span class="dot ${siteOn ? 'ok' : ''}"></span><b>renah0cki coin</b><span class="muted">${esc(sNick)}</span></div><p>${siteOn ? 'Подключён · зрители донатят coin по личной ссылке и могут выбрать лот.' : 'Отключён · приём донатов coin по личной ссылке остановлен.'}</p>
       <div class="row"><code class="code">${esc(donate)}</code><button class="btn sm" data-act="copy" data-id="${esc(donate)}">Копировать</button><a class="btn sm ghost" href="${esc(donate)}">Открыть</a><button class="btn sm ${siteOn ? 'ghost' : 'pri'}" data-act="siteToggle" data-id="${siteOn ? '0' : '1'}">${siteOn ? 'Отключить' : 'Подключить'}</button></div></div>
   </div></div>
-  <form class="box" id="setForm" data-form="settings"><h2 class="h2">Курсы и таймер</h2>
-    <p class="hint">Сколько баллов аукциона даёт 1 единица. Донат с кодом RN-… — пополнение coin, аукцион его не трогает.</p>
-    <div class="rates">${rate('RUB', '1 ₽')}${rate('UAH', '1 ₴')}${rate('USD', '1 $')}${rate('EUR', '1 €')}${rate('KZT', '1 ₸')}${rate('BYN', '1 BYN')}${rate('twitch', '1 балл канала')}${rate('site', '1 coin')}</div>
+  <form class="box" id="setForm" data-form="settings"><h2 class="h2">Конвертация в баллы</h2>
+    <p class="hint">Сколько баллов аукциона даёт донат. renah0cki coin считается как рубль. Донат с кодом RN-… — пополнение coin, аукцион его не трогает.</p>
+    <div class="conv">
+      <label class="conv-row"><span class="conv-cur">1 ₽</span><span class="conv-eq">=</span><input class="in" name="rate_RUB" type="number" step="any" min="0" inputmode="decimal" required value="${esc(r.RUB ?? 1)}"><span class="conv-u">баллов</span></label>
+      <label class="conv-row"><span class="conv-cur">1 ₴</span><span class="conv-eq">=</span><input class="in" name="rate_UAH" type="number" step="any" min="0" inputmode="decimal" required value="${esc(r.UAH ?? 2)}"><span class="conv-u">баллов</span></label>
+      <div class="conv-row muted"><span class="conv-cur">1 coin</span><span class="conv-eq">=</span><b class="conv-coin" id="convCoin">${esc(r.RUB ?? 1)}</b><span class="conv-u">баллов (как 1 ₽)</span></div>
+    </div>
+    <p class="hint conv-ex" id="convEx">${convExample(r.RUB ?? 1, r.UAH ?? 2)}</p>
+    <details class="conv-more"><summary>Другие валюты и Twitch</summary>
+      <div class="rates">${rate('USD', '1 $')}${rate('EUR', '1 €')}${rate('KZT', '1 ₸')}${rate('BYN', '1 BYN')}${rate('twitch', '1 балл канала')}</div>
+    </details>
+    <h2 class="h2" style="margin-top:16px">Таймер и прочее</h2>
     <div class="rates" style="margin-top:10px">
       <label>+сек к таймеру при ставке<input class="in" name="add_sec" type="number" min="0" max="600" inputmode="numeric" value="${c.add_sec}"></label>
       <label>…если осталось меньше (сек)<input class="in" name="add_below_sec" type="number" min="0" max="3600" inputmode="numeric" value="${c.add_below_sec}"></label>
@@ -1501,6 +1521,8 @@ document.addEventListener('submit', async e => {
     } else if (f.dataset.form === 'settings') {
       const rates = { ...S.adm.config.rates };
       for (const [k, v] of fd) if (k.startsWith('rate_') && v !== '') rates[k.slice(5)] = Number(v);
+      if (!(rates.RUB > 0) || !(rates.UAH > 0)) return toast('Курс ₽ и ₴ должен быть больше 0', true);
+      rates.site = rates.RUB;   // renah0cki coin = рубль
       const wheel = {
         reroll_on: fd.get('reroll_on') === 'on',
         reroll_price: Math.max(0, Number(fd.get('reroll_price')) || 0),
