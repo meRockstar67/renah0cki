@@ -85,6 +85,10 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .me-menu a:hover, .me-menu button:hover { background: var(--panel-2); }
 .me-menu [hidden] { display: none; }
 .me-menu .danger { color: #ff8a8a; }
+.me-menu .me-langs { display: flex; gap: 4px; margin: 4px 0; padding: 4px; border-radius: 10px; background: var(--panel-2); }
+.me-menu .me-langs button { flex: 1; padding: 7px 0; text-align: center; font-size: 13px; font-weight: 600; color: var(--muted, var(--text)); }
+.me-menu .me-langs button:hover { background: var(--panel); }
+.me-menu .me-langs button.on { background: var(--accent); color: var(--on-accent, #0b1220); }
 .login-btn svg { width: 16px; height: 16px; }
 .app.guest .me-wrap, .app.guest .bell, .app.guest .coin-chip, .app.guest .new-post { display: none; }
 .page { padding: 18px 24px 40px; outline: none; }

@@ -8,15 +8,15 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
 <link rel="preconnect" href="https://api.renah0cki.xyz" crossorigin>
 <link rel="preconnect" href="https://cdn.renah0cki.xyz" crossorigin>
-<link rel="stylesheet" href="/v2/v2.css?v=20261124e">
-<script src="/v2/i18n.js?v=20261125a" defer></script>
-<script src="/v2/v2.js?v=20261125b" defer></script>
+<link rel="stylesheet" href="/v2/v2.css?v=20261125c">
+<script src="/v2/i18n.js?v=20261125c" defer></script>
+<script src="/v2/v2.js?v=20261125c" defer></script>
 </head>
 <body>
 <div class="app">
   <aside class="side" id="side">
     <div class="side-head">
-      <a class="logo" href="/" aria-label="renah0cki, лента">
+      <a class="logo" href="/" aria-label="renah0cki, лента" data-i18n-attr="aria-label">
         <img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt="">
         <span>rena<b>h0cki</b></span>
       </a>
@@ -42,7 +42,7 @@
     </section>
     <div class="side-bottom">
       <a class="nav-item" data-nav="mod" id="navMod" href="/mod" hidden><svg viewBox="0 0 24 24"><path d="M12 3.5 5 6v5.5c0 4.3 3 7.6 7 9 4-1.4 7-4.7 7-9V6z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg><span data-i18n>Модерация</span><b class="nav-badge" id="modBadge" hidden></b></a>
-      <div class="sb-row"><a class="nav-item" data-nav="support" href="/support"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.7M12 16.8v.2"/></svg><span data-i18n>Поддержка</span></a><button class="collapse-btn" id="collapseBtn" type="button" aria-label="Свернуть меню" title="Свернуть меню"><svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg></button></div>
+      <div class="sb-row"><a class="nav-item" data-nav="support" href="/support"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.7M12 16.8v.2"/></svg><span data-i18n>Поддержка</span></a><button class="collapse-btn" id="collapseBtn" type="button" aria-label="Свернуть меню" title="Свернуть меню" data-i18n-attr="aria-label,title"><svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg></button></div>
     </div>
   </aside>
 
@@ -52,7 +52,7 @@
       <label class="search"><input id="searchInput" type="search" placeholder="Поиск" autocomplete="off" aria-label="Поиск по постам" data-i18n-attr="aria-label,placeholder"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></label>
       <div class="top-right">
         <a class="btn accent new-post" href="/new"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span data-i18n>Новый пост</span></a>
-        <div class="bell-wrap"><button class="coin-chip sq bell" id="bellBtn" type="button" aria-label="Уведомления" aria-haspopup="true" data-i18n-attr="aria-label"><svg viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg><span class="bell-badge" id="bellBadge" hidden></span></button><div class="notif-pop" id="notifPop" hidden><div class="np-head"><b>Уведомления</b><a href="/notifications" class="np-all" data-i18n>Все уведомления</a></div><div class="np-list" id="npList"></div></div></div>
+        <div class="bell-wrap"><button class="coin-chip sq bell" id="bellBtn" type="button" aria-label="Уведомления" aria-haspopup="true" data-i18n-attr="aria-label"><svg viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg><span class="bell-badge" id="bellBadge" hidden></span></button><div class="notif-pop" id="notifPop" hidden><div class="np-head"><b data-i18n>Уведомления</b><a href="/notifications" class="np-all" data-i18n>Все уведомления</a></div><div class="np-list" id="npList"></div></div></div>
         <button class="coin-chip sq gg-btn" id="ggBtn" type="button" title="Угадай художника" aria-label="Игра «Угадай художника»" data-i18n-attr="aria-label,title"><svg viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 4 4v1.5a3.5 3.5 0 0 1-6.2 2.2L14 14.5h-4l-.8 1.2A3.5 3.5 0 0 1 3 13.5V12a4 4 0 0 1 4-4z"/><path d="M8 10.5v3M6.5 12h3"/><circle cx="15.5" cy="11" r=".9" fill="currentColor"/><circle cx="17.3" cy="13" r=".9" fill="currentColor"/></svg></button>
         <button class="coin-chip streak-chip" id="streakChip" type="button" title="Стрик: дней подряд на сайте" hidden data-i18n-attr="title">🔥<b id="streakVal">0</b></button>
         <span class="coin-chip" id="coinChip" title="renah0cki coin"><img src="https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png" alt=""><b id="coinVal">…</b></span>
@@ -67,6 +67,7 @@
             <a href="/settings" data-i18n>Настройки</a>
             <a href="/rules" data-i18n>Правила · 16+</a>
             <a href="/old/" id="meOld" hidden data-i18n>Старый дизайн</a>
+            <div class="me-langs" role="group" aria-label="Язык сайта" data-i18n-attr="aria-label"><button type="button" data-setlang="uk" title="Українська">Ua</button><button type="button" data-setlang="ru" title="Русский">Ru</button><button type="button" data-setlang="en" title="English">Eng</button></div>
             <button type="button" id="meLogout" class="danger" data-i18n>Выйти</button>
           </div>
         </div>
