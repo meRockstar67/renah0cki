@@ -1192,7 +1192,7 @@ page.addEventListener('click', async e => {
 });
 
 /* ── профиль ── */
-const ROLE_LABEL = { user: 'Нормис', moderator: 'Модератор', gl_moder: 'Главный модератор', admin: 'Админ', sponsor: 'Спонсор', respect_plus: 'Respect+', streamer: 'Стример' };
+const ROLE_LABEL = { user: 'Нормис', moderator: 'Модератор', gl_moder: 'Админ', admin: 'Админ', sponsor: 'Спонсор', respect_plus: 'Respect+', streamer: 'Стример' };
 function activeTempRoles(eq) {
   const list = Array.isArray(eq?.temp_roles) ? eq.temp_roles : [];
   const now = Date.now();
@@ -1882,7 +1882,7 @@ async function loadMe() {
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
     $('#navAwards').hidden = !isMod(); // OvosheAwards — только модераторам и глав модеру
-    $('#meOld').hidden = !(hasRole(me, 'gl_moder') || me?.id === OWNER_ID); // старый дизайн — только главному модератору
+    $('#meOld').hidden = !(hasRole(me, 'admin') || hasRole(me, 'gl_moder') || me?.id === OWNER_ID); // старый дизайн — только админу
     applyMeFrame();
     $('#navMod').hidden = !isMod();
     if (isMod()) modCount();
@@ -2007,7 +2007,9 @@ function viewMod(tab) {
   ({ queue: modQueue, reports: modReports, users: modUsers, bans: modBans })[MOD.tab]();
 }
 /* пользователи, баны, роли */
-const ROLE_LIST = ['respect_plus', 'sponsor', 'streamer', 'moderator', 'gl_moder'];
+// роль «Админ» назначает только владелец (проверка ещё и в базе — profiles_guard, SQL 073)
+const ROLE_LIST = ['respect_plus', 'sponsor', 'streamer', 'moderator', 'admin'];
+const roleListFor = () => S.uid === OWNER_ID ? ROLE_LIST : ROLE_LIST.filter(r => r !== 'admin');
 const canRoles = () => hasRole(S.me, 'gl_moder') || hasRole(S.me, 'admin');
 const rolesOf = p => [p.role, ...(p.extra_roles || [])].filter((r, i, a) => r && r !== 'user' && a.indexOf(r) === i);
 function userRow(p) {
@@ -2075,7 +2077,7 @@ function rolesDialog(id) {
   const ov = document.createElement('div');
   ov.className = 'v2-overlay';
   const draw = () => `<h2>Роли: ${esc(pname(p))}</h2><p class="muted" style="margin:0;font-size:13px">Первая роль — основная (её значок виден у ника).</p>
-    <div class="roles-pick">${ROLE_LIST.map(r => `<label class="sw"><input type="checkbox" data-r="${r}"${roles.includes(r) ? ' checked' : ''}><i></i><div><b>${ROLE_LABEL[r]}</b>${roles[0] === r ? '<span>основная</span>' : roles.includes(r) ? `<span><a href="#" data-main="${r}">сделать основной</a></span>` : ''}</div></label>`).join('')}</div>
+    <div class="roles-pick">${roleListFor().map(r => `<label class="sw"><input type="checkbox" data-r="${r}"${roles.includes(r) ? ' checked' : ''}><i></i><div><b>${ROLE_LABEL[r]}</b>${roles[0] === r ? '<span>основная</span>' : roles.includes(r) ? `<span><a href="#" data-main="${r}">сделать основной</a></span>` : ''}</div></label>`).join('')}</div>
     <p class="hint"></p><div class="v2-modal-acts"><button type="button" class="btn" data-x>Отмена</button><button class="btn accent" type="submit">Сохранить</button></div>`;
   ov.innerHTML = `<form class="v2-modal">${draw()}</form>`;
   const f = $('form', ov);
