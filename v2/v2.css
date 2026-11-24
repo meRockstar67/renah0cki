@@ -1320,3 +1320,13 @@ html.terms-lock, html.terms-lock body { overflow: hidden; }
 .terms-box .btn { width: 100%; }
 .rev-rep { background: none; border: 0; color: var(--muted); font-size: 12.5px; cursor: pointer; padding: 0 6px; }
 .rev-rep:hover { color: var(--text); }
+/* удаление аккаунта */
+.sets-danger { border-color: rgba(255,107,125,.35); }
+.sets-danger h2 { color: #ff8a96; }
+.accdel-mod p { margin: 0; }
+.accdel-list { margin: 0; padding-left: 20px; display: grid; gap: 4px; color: var(--muted); font-size: 14px; }
+.accdel-mod label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.accdel-mod label.accdel-chk { flex-direction: row; align-items: flex-start; gap: 10px; cursor: pointer; }
+.accdel-chk input { width: 18px; height: 18px; margin-top: 1px; flex: none; accent-color: #ff6b7d; }
+.accdel-err { color: #ff8a8a !important; }
+.accdel-mod .btn.danger:disabled { opacity: .55; cursor: not-allowed; }

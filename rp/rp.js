@@ -2224,6 +2224,7 @@ function viewSettings() {
         <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">${tl('Светлая')}</span></label>
       </div></div>
     ${chatLookHtml()}
+    ${window.PWA ? PWA.card(tl, 'Y', 'set-sec') : ''}
     ${S.me && 'is_adult' in S.me ? `<div class="set-sec"><h2>${tl('Возраст')}</h2><label class="set-toggle"><span><b>${tl('Мне есть 18 лет')}</b><small>${tl('Показывать посты с меткой 18+ и разрешить ставить её на свои посты. Указывая это, вы подтверждаете свой возраст.')}</small></span><input type="checkbox" data-adult${S.me.is_adult ? ' checked' : ''}></label></div>` : ''}
     ${callsOk() ? `<div class="set-sec"><h2>${tl('Звонки')}</h2><label class="set-toggle"><span><b>${tl('Изменять мой голос в звонках')}</b><small>${tl('Голос слегка выше или ниже — случайно при каждом звонке. Выключите, чтобы вас слышали обычным голосом.')}</small></span><input type="checkbox" data-voice-fx${voiceFxOn() ? ' checked' : ''}></label></div>` : ''}
     <div class="set-sec"><h2>${tl('Аккаунт')}</h2>
@@ -2237,6 +2238,7 @@ function viewSettings() {
   fillCoinBalance(main);
   bindShop(main);
   bindChatLook(main);
+  if (window.PWA) PWA.bind(main, tl, 'Y');
   const adl = $('[data-adult]', main);
   if (adl) adl.onchange = async () => {
     try { S.me = await rpc('set_adult', { p_adult: adl.checked }); toast(adl.checked ? tl('Посты 18+ теперь видны') : tl('Посты 18+ скрыты')); }
@@ -2954,6 +2956,12 @@ async function callRefresh() {
   try { rows = await api(base + ',prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username)'); }
   catch { try { rows = await api(base); } catch { return; } }
   if (CALL.id !== id) return;
+  if (!rows.some(r => r.user_id === S.uid) && !CALL.kickChecking) {   // меня нет в звонке — может, выгнали
+    CALL.kickChecking = true;
+    const kicked = await rpc('call_kicked', { p_call: id }).catch(() => false);
+    CALL.kickChecking = false;
+    if (kicked === true && CALL.id === id) { callHangup(true); toast(tl('Вас выгнали из звонка. Зайти снова можно через 10 минут.'), true); return; }
+  }
   const live = rows.filter(r => Date.now() - new Date(r.last_seen).getTime() < 65000);
   CALL.members = live;
   for (const uid of [...CALL.pcs.keys()]) if (!live.some(m => m.user_id === uid)) callDropPeer(uid);
@@ -3135,6 +3143,38 @@ addEventListener('hashchange', () => setTimeout(() => { if (CALL.id) CALL.min = 
 addEventListener('resize', () => { const b = $('#callBar'); if (b) callApplyPos(b); });
 const callMinKey = 'rp_call_min';
 const callIsMin = () => { try { return localStorage.getItem(callMinKey) === '1'; } catch { return false; } };
+// выгонять: владелец и главные модеры — в звонках комнат и войсах, создатель войса — в своём войсе (SQL 078)
+const callCanKick = () => !!CALL.info && CALL.info.kind !== 'dm'
+  && (mainAdmin() || glMod() || (CALL.info.kind === 'voice' && CALL.info.owner === S.uid));
+function callReportDialog() {
+  if (!CALL.id) return;
+  const callId = CALL.id, title = (CALL.title || tl('Звонок')).replace(/^(Звонок|Войс) · /, '');
+  const people = callOthers().filter(m => !m.is_admin).map(m => {
+    const s = m.slot || (m.prof ? userAv(m.prof) : { char_name: tl('Гость') });
+    return { uid: m.user_id, name: s.char_name || tl('Участник') };
+  });
+  modal(tl('Пожаловаться на звонок'), `
+    <div class="form-note">${tl('Жалобу увидят модераторы. На кого жалуетесь?')}</div>
+    <div class="rep-reasons" role="radiogroup">
+      <label class="rep-opt"><input type="radio" name="who" value="" checked><span>${tl('На весь звонок')} «${esc(title)}»</span></label>
+      ${people.map(p => `<label class="rep-opt"><input type="radio" name="who" value="${esc(p.uid)}"><span>${esc(p.name)}</span></label>`).join('')}
+    </div>
+    <div class="form-note">${tl('Причина:')}</div>
+    <div class="rep-reasons" role="radiogroup">${REPORT_REASONS.map((r, i) => `<label class="rep-opt"><input type="radio" name="reason" value="${esc(r)}"${i ? '' : ' checked'}><span>${esc(tl(r))}</span></label>`).join('')}</div>
+    <div class="field"><label for="repc-d">${tl('Подробнее (необязательно)')}</label><textarea id="repc-d" name="details" rows="3" maxlength="400"></textarea></div>`, {
+    submitLabel: tl('Отправить'),
+    onSubmit: async f => {
+      const reason = (f.querySelector('input[name="reason"]:checked') || {}).value || 'Другое';
+      const who = (f.querySelector('input[name="who"]:checked') || {}).value || '';
+      const extra = f.details.value.trim();
+      const details = (`Звонок «${title}» (${callId})` + (extra ? ': ' + extra : '')).slice(0, 500);
+      const body = who ? { target_type: 'user', target_id: who, reason, details } : { target_type: 'call', target_id: callId, reason, details: extra || null };
+      try { await api('content_reports', { method: 'POST', schema: 'public', prefer: 'return=minimal', body }); }
+      catch (e) { if (/duplicate|unique|409/i.test(e.message)) throw new Error(tl('Вы уже отправили такую жалобу')); throw e; }
+      toast(tl('Жалоба отправлена модераторам'));
+    },
+  });
+}
 function callMemberHtml(m) {
   const me = m.user_id === S.uid;
   const st = me ? 'me' : (CALL.pcs.get(m.user_id)?.connectionState || 'new');
@@ -3143,8 +3183,10 @@ function callMemberHtml(m) {
   const s = m.is_admin ? null : (m.slot || (m.prof ? userAv(m.prof) : { char_name: tl('Гость'), handle: '' }));
   const pic = m.is_admin ? `<span class="av cmx-adm">${I.shield}</span>` : avatar(s);
   const name = m.is_admin ? tl('Администратор') : s.char_name;
+  const kick = !me && !m.is_admin && callCanKick() && m.user_id !== OWNER_ID
+    ? `<button type="button" class="cmx-kick" data-cb-kick="${esc(m.user_id)}" data-name="${esc(name)}" title="${tl('Выгнать из звонка')}" aria-label="${tl('Выгнать из звонка')}">${I.close}</button>` : '';
   return `<div class="cmx${ok ? '' : ' wait'}${me ? ' me' : ''}${m.is_admin ? ' adm' : ''}" data-uid="${esc(m.user_id)}" title="${esc(name)}${ok ? '' : tl(' — соединяемся…')}">
-    <div class="cmx-av">${pic}${muted ? `<span class="cmx-muted">${I.micOff}</span>` : ''}</div>
+    <div class="cmx-av">${pic}${muted ? `<span class="cmx-muted">${I.micOff}</span>` : ''}${kick}</div>
     <i>${me ? tl('Вы') : esc(name)}</i></div>`;
 }
 function callDraw() {
@@ -3171,7 +3213,7 @@ function callDraw() {
   const ctrl = `<div class="cb-ctrl">
       <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? tl('Включить микрофон') : tl('Выключить микрофон')}" title="${CALL.muted ? tl('Включить микрофон') : tl('Выключить микрофон')}">${CALL.muted ? I.micOff : I.mic}</button>
       ${min ? '' : `<button type="button" class="cb-btn" data-cb-link aria-label="${tl('Скопировать ссылку на звонок')}" title="${tl('Скопировать ссылку-приглашение')}">${I.link}</button>`}
-      ${min ? '' : `<a class="cb-btn" href="#/support" aria-label="${tl('Пожаловаться модераторам')}" title="${tl('Пожаловаться модераторам')}">${I.flag}</a>`}
+      ${min ? '' : `<button type="button" class="cb-btn" data-cb-report aria-label="${tl('Пожаловаться модераторам')}" title="${tl('Пожаловаться модераторам')}">${I.flag}</button>`}
       ${(mainAdmin() || glMod() || (CALL.info?.kind === 'voice' && CALL.info?.owner === S.uid)) && !min ? `<button type="button" class="cb-btn" data-cb-end title="${tl('Завершить звонок для всех')}" aria-label="${tl('Завершить звонок для всех')}">${I.close}</button>` : ''}
       <button type="button" class="cb-btn hang" data-cb-leave aria-label="${tl('Выйти из звонка')}" title="${tl('Выйти из звонка')}">${I.hang}</button>
     </div>`;
@@ -3243,6 +3285,15 @@ function bindCallBar(bar) {
       return;
     }
     if (e.target.closest('[data-cb-leave]')) return callHangup();
+    if (e.target.closest('[data-cb-report]')) return callReportDialog();
+    const kb = e.target.closest('[data-cb-kick]');
+    if (kb) {
+      if (!confirm(tl('Выгнать «{0}» из звонка? Зайти снова получится только через 10 минут.', { 0: kb.dataset.name || '' }))) return;
+      kb.disabled = true;
+      try { await rpc('call_kick', { p_call: CALL.id, p_user: kb.dataset.cbKick }); toast(tl('Участник выгнан из звонка')); callRefresh(); }
+      catch (er) { kb.disabled = false; toast(errText(er), true); }
+      return;
+    }
     if (e.target.closest('[data-cb-end]')) {
       if (!confirm(tl('Завершить этот звонок для всех участников?'))) return;
       const id = CALL.id;

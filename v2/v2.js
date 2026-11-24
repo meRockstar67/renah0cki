@@ -2458,13 +2458,14 @@ const langCard = () => window.I18N ? `<section class="rules-card sets-card" id="
       <div class="chips">${Object.entries(I18N.short).map(([k, n]) => `<button type="button" class="chip${I18N.lang() === k ? ' on' : ''}" data-setlang="${k}" title="${esc(I18N.langs[k])}">${esc(n)}</button>`).join('')}</div></section>` : '';
 function viewSettings() {
   setNav('settings');
-  if (!S.uid) { page.innerHTML = `<div class="sets"><div class="page-head"><h1>${tl('Настройки')}</h1></div>${langCard()}<div class="empty">${tl('Войдите, чтобы открыть остальные настройки.')}<br><br><button class="btn accent" data-login>${tl('Войти')}</button></div></div>`; return; }
+  if (!S.uid) { page.innerHTML = `<div class="sets"><div class="page-head"><h1>${tl('Настройки')}</h1></div>${langCard()}${window.PWA ? PWA.card(tl, 'renah0cki') : ''}<div class="empty">${tl('Войдите, чтобы открыть остальные настройки.')}<br><br><button class="btn accent" data-login>${tl('Войти')}</button></div></div>`; if (window.PWA) PWA.bind(page, tl, 'renah0cki'); return; }
   if (!S.me) { page.innerHTML = `<div class="empty">${tl('Загрузка…')}</div>`; loadMe().then(() => { if (curRoute().startsWith('settings')) viewSettings(); }); return; }
   const me = S.me, sw = (name, title, sub, on) => `<label class="sw"><input type="checkbox" name="${name}"${on ? ' checked' : ''}><i></i><div><b>${title}</b>${sub ? `<span>${sub}</span>` : ''}</div></label>`;
   const opts = [...NOTIF_OPTS, ...(isMod() ? [['notify_new_submission', tl('Новые работы на проверку (модераторам)')]] : [])];
   page.innerHTML = `<div class="sets">
     <div class="page-head"><h1>${tl('Настройки')}</h1></div>
     ${langCard()}
+    ${window.PWA ? PWA.card(tl, 'renah0cki') : ''}
     <section class="rules-card sets-card"><h2>${tl('Просмотр')}</h2>
       ${sw('puzzle', tl('Пазлы на спойлерах'), tl('Размытый арт собирается из кусочков. Выключено — открывается сразу по клику.'), puzzleOn())}</section>
     ${me.username ? `<section class="rules-card sets-card" id="setDonate"><h2>${tl('Донаты coin')}</h2>
@@ -2481,6 +2482,9 @@ function viewSettings() {
       <ol class="sets-steps"><li>${tl('Откройте бота и нажмите')} <b>/start</b>.</li><li>${tl('Бот пришлёт ссылку — откройте её в этом браузере, где вы вошли на сайт.')}</li><li>${tl('Готово: бот сам подтвердит привязку.')}</li></ol>
       <a class="btn accent" href="https://t.me/renah0ckibot" target="_blank" rel="noopener">${tl('Открыть бота')}</a></section>
     <section class="rules-card sets-card"><h2>${tl('Аккаунт')}</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>${tl('Редактировать профиль')}</button><a class="btn" href="${routeUrl('rules')}">${tl('Правила')}</a><button class="btn danger" type="button" data-logout>${tl('Выйти')}</button></div></section>
+    ${S.uid !== OWNER_ID ? `<section class="rules-card sets-card sets-danger"><h2>${tl('Удаление аккаунта')}</h2>
+      <p class="muted">${tl('Аккаунт и все ваши данные будут удалены навсегда: работы, сборники, комментарии, отзывы, персонажи и посты в Y, монеты и покупки. Отменить это нельзя.')}</p>
+      <button class="btn danger" type="button" data-accdel>${tl('Удалить аккаунт')}</button></section>` : ''}
   </div>`;
   page.querySelector('[name=puzzle]').onchange = e => { try { localStorage.setItem('v2_puzzle', e.target.checked ? '1' : '0'); } catch {} toast(e.target.checked ? tl('Пазлы включены') : tl('Пазлы выключены')); };
   if (me.username) {
@@ -2563,6 +2567,51 @@ function viewSettings() {
   };
   page.querySelector('[data-editprof]').onclick = editProfile;
   page.querySelector('[data-logout]').onclick = logout;
+  const ad = page.querySelector('[data-accdel]'); if (ad) ad.onclick = accountDeleteDialog;
+  if (window.PWA) PWA.bind(page, tl, 'renah0cki');
+}
+/* удаление аккаунта: ввести свой ник, поставить галочку и подождать 10 секунд */
+function accountDeleteDialog() {
+  const nick = S.me?.username || '';
+  if (!nick) return toast(tl('Сначала задайте ник в профиле'), true);
+  const WAIT = 10;
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<form class="v2-modal accdel-mod"><h2>${tl('Удалить аккаунт навсегда?')}</h2>
+    <p>${tl('Будут удалены без возможности восстановления:')}</p>
+    <ul class="accdel-list"><li>${tl('профиль, аватарка и роли')}</li><li>${tl('ваши работы, сборники, комментарии и отзывы')}</li><li>${tl('персонажи, посты и сообщения в Y')}</li><li>${tl('монеты на балансе и все покупки в магазине')}</li></ul>
+    <label>${tl('Чтобы подтвердить, введите свой ник:')} <b>@${esc(nick)}</b><input name="n" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(nick)}"></label>
+    <label class="accdel-chk"><input type="checkbox" name="ok"><span>${tl('Я понимаю, что аккаунт нельзя будет вернуть')}</span></label>
+    <p class="hint accdel-err" hidden></p>
+    <div class="v2-modal-acts"><button type="button" class="btn" data-x>${tl('Отмена')}</button><button class="btn danger" type="submit" disabled data-go>${tl('Удалить аккаунт')}</button></div></form>`;
+  document.body.append(ov);
+  const f = $('form', ov), go = $('[data-go]', ov), inp = $('[name=n]', ov), chk = $('[name=ok]', ov), err = $('.accdel-err', ov);
+  let left = WAIT, timer = null, busy = false;
+  const ready = () => inp.value.trim().replace(/^@/, '').toLowerCase() === nick.toLowerCase() && chk.checked;
+  const draw = () => {
+    const r = ready();
+    if (r && !timer && left > 0) timer = setInterval(() => { left--; if (left <= 0) { clearInterval(timer); timer = null; } draw(); }, 1000);
+    if (!r) { clearInterval(timer); timer = null; left = WAIT; }
+    go.disabled = busy || !r || left > 0;
+    go.textContent = busy ? tl('Удаляю…') : r && left > 0 ? tl('Удалить аккаунт ({0})', { 0: left }) : tl('Удалить аккаунт');
+  };
+  const close = () => { clearInterval(timer); ov.remove(); };
+  inp.addEventListener('input', draw); chk.addEventListener('change', draw);
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) { if (!busy) close(); } });
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!ready() || left > 0 || busy) return;
+    busy = true; err.hidden = true; draw();
+    try {
+      const r = await fetch(CDN_URL + '/account-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await getToken()) }, body: JSON.stringify({ nick: inp.value.trim() }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      try { localStorage.removeItem(LS_SESSION); } catch {}
+      ov.querySelector('form').innerHTML = `<h2>${tl('Аккаунт удалён')}</h2><p>${tl('Все ваши данные удалены. Спасибо, что были с нами.')}</p>`;
+      setTimeout(() => { location.href = BASE; }, 2500);
+    } catch (er) { busy = false; err.textContent = er.message; err.hidden = false; draw(); }
+  });
+  inp.focus();
 }
 // ссылка привязки из бота: /v2/?tglink=ТОКЕН
 (async () => {
@@ -3581,7 +3630,7 @@ const RULES_TXT = {
       <li>Технические журналы сервера (в том числе IP-адреса) — для защиты от атак и ошибок, хранятся недолго. Резервные копии базы зашифрованы.</li>
       <li>Данные нужны только для работы сайта, не продаются и не передаются третьим лицам, кроме случаев, когда этого требует закон, и того, без чего не работают функции: поисковый запрос GIF уходит в GIPHY, уведомления в Telegram доставляет Telegram, донаты обрабатывает DonationAlerts.</li>
       <li>Хранятся данные на сервере renah0cki в Германии (ЕС), пока существует аккаунт. Факт звонка — 30 дней, журналы сервера — недолго, резервные копии — до 5 последних.</li>
-      <li>Вы можете узнать, какие данные о вас хранятся, исправить их, отозвать согласие и удалить аккаунт со всеми данными — напишите в поддержку. Свои работы, комментарии и посты можно удалить и самостоятельно.</li>
+      <li>Вы можете узнать, какие данные о вас хранятся, исправить их и отозвать согласие — напишите в поддержку. Удалить аккаунт со всеми данными можно самому: «Настройки» → «Удаление аккаунта». Свои работы, комментарии и посты можно удалить и самостоятельно.</li>
     </ul></section>
 
     <section class="rules-card"><h2>6. Возраст</h2><ul>
@@ -3657,7 +3706,7 @@ const RULES_TXT = {
       <li>Технічні журнали сервера (зокрема IP-адреси) — для захисту від атак і помилок, зберігаються недовго. Резервні копії бази зашифровані.</li>
       <li>Дані потрібні лише для роботи сайту, не продаються й не передаються третім особам, крім випадків, коли цього вимагає закон, і того, без чого не працюють функції: пошуковий запит GIF іде в GIPHY, сповіщення в Telegram доставляє Telegram, донати обробляє DonationAlerts.</li>
       <li>Дані зберігаються на сервері renah0cki в Німеччині (ЄС), поки існує акаунт. Факт дзвінка — 30 днів, журнали сервера — недовго, резервні копії — до 5 останніх.</li>
-      <li>Ви можете дізнатися, які дані про вас зберігаються, виправити їх, відкликати згоду та видалити акаунт з усіма даними — напишіть у підтримку. Свої роботи, коментарі та пости можна видалити й самостійно.</li>
+      <li>Ви можете дізнатися, які дані про вас зберігаються, виправити їх і відкликати згоду — напишіть у підтримку. Видалити акаунт з усіма даними можна самостійно: «Налаштування» → «Видалення акаунта». Свої роботи, коментарі та пости можна видалити й самостійно.</li>
     </ul></section>
 
     <section class="rules-card"><h2>6. Вік</h2><ul>
@@ -3733,7 +3782,7 @@ const RULES_TXT = {
       <li>Technical server logs (including IP addresses) are kept briefly to protect against attacks and errors. Database backups are encrypted.</li>
       <li>Data is needed only to run the site; it is not sold or shared with third parties, except where required by law and where features can’t work without it: GIF searches go to GIPHY, Telegram delivers Telegram notifications, DonationAlerts processes donations.</li>
       <li>Data is stored on the renah0cki server in Germany (EU) for as long as the account exists. Call records — 30 days, server logs — briefly, backups — up to the 5 most recent.</li>
-      <li>You can find out what data about you is stored, correct it, withdraw consent and delete your account with all its data — write to support. You can also delete your own works, comments and posts yourself.</li>
+      <li>You can find out what data about you is stored, correct it and withdraw consent — write to support. You can delete your account with all its data yourself: “Settings” → “Delete account”. You can also delete your own works, comments and posts yourself.</li>
     </ul></section>
 
     <section class="rules-card"><h2>6. Age</h2><ul>

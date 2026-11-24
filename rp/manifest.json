@@ -1,0 +1,17 @@
+{
+  "name": "Y — переписки renah0cki",
+  "short_name": "Y",
+  "description": "Ролевые переписки renah0cki",
+  "id": "/rp/",
+  "start_url": "/rp/",
+  "scope": "/rp/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "ru",
+  "icons": [
+    { "src": "/rp/y-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/rp/y-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/rp/y-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
