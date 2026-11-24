@@ -631,7 +631,7 @@ async function renderReact(it) {
   const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
   await loadProfiles(top.map(t => t[0]));
   const own = S.uid && S.uid === it.submitted_by;
-  box.innerHTML = `<button class="btn react-btn${mine ? ' mine' : ''}" data-react-toggle title="${own ? tl('Пузокоины, подаренные этой работе') : tl('Подарить автору Puzocoins')}"><img src="${COIN}" alt=""><span>${total ? fmt(total) : (own ? '0' : tl('Подарить'))}</span></button>
+  box.innerHTML = `<button class="btn react-btn${mine ? ' mine' : ''}" data-react-toggle title="${own ? tl('Пузокоины, подаренные этой работе') : tl('Подарить автору пузокоины')}"><img src="${COIN}" alt=""><span>${total ? fmt(total) : (own ? '0' : tl('Подарить'))}</span></button>
     <div class="react-pop" hidden>
       <div class="react-title">${own ? tl('Вашей работе подарили') : tl('Подарить автору')} <img src="${COIN}" alt=""> <b>${fmt(total)}</b></div>
       ${top.length ? `<div class="react-top">${top.map(([uid, a], i) => `<span>${['🥇', '🥈', '🥉'][i]} ${esc(pname(S.profiles.get(uid)))} — <b>${fmt(a)}</b></span>`).join('')}</div>` : ''}
@@ -655,7 +655,7 @@ async function renderReact(it) {
       try {
         const bal = await rpc('coin_react', { p_kind: 'content', p_id: it.id, p_emoji: 'coin', p_amount: a });
         $('#coinVal').textContent = fmt(bal);
-        toast(tl('Подарено {0} Puzocoins автору', {0: fmt(a)}));
+        toast(tl('Подарено {0} пузокоинов автору', {0: fmt(a)}));
         await renderReact(it);
         $('.react-btn', $('#reactWrap'))?.classList.add('pop');
       } catch (er) { st.textContent = tl('Ошибка: ') + er.message; send.disabled = false; }
@@ -1383,7 +1383,7 @@ async function viewProfile(key) {
   const roles = visibleUserRoles(p, eq);
   const socialLabel = u => { try { return /^(?:.+\.)?(?:t\.me|telegram\.(?:me|dog|org))$/i.test(new URL(u).hostname) ? tl('Телеграм') : tl('Соцсеть'); } catch { return tl('Соцсеть'); } };
   const coinDonateLink = p.username && coinTarget?.coin_donate_enabled === true ? `${location.origin}/donate/${encodeURIComponent(p.username)}` : null;
-  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && [tl('Донат'), p.stream_donate_url], coinDonateLink && [tl('Донат Puzocoins'), coinDonateLink]].filter(x => x && /^https?:\/\//.test(x[1]));
+  const links = [p.stream_twitch_url && ['Twitch', p.stream_twitch_url], p.stream_social_url && [socialLabel(p.stream_social_url), p.stream_social_url], p.stream_donate_url && [tl('Донат'), p.stream_donate_url], coinDonateLink && [tl('Донат пузокоинами'), coinDonateLink]].filter(x => x && /^https?:\/\//.test(x[1]));
   page.innerHTML = `<div class="prof">
     <section class="prof-card${bgCls}">
       <div class="prof-left">${cosAva(p, 'prof-ava')}
@@ -1393,11 +1393,11 @@ async function viewProfile(key) {
         <h1>${cosName(p)}</h1>
         ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
         ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
-        <div class="prof-stats"><span><b>${fmt(works.length)}</b> ${tl('публикаций')}</span><span><b id="subsN">${fmt(subs)}</b> ${tl('подписчиков')}</span>${adminBal != null ? `<span class="prof-coin" title="${tl('Баланс пользователя (видно только вам)')}"><img src="${COIN}" alt=""><b id="profCoinVal" data-uid="${esc(p.id)}">${fmt(adminBal)}</b> Puzocoins</span>` : ''}</div>
+        <div class="prof-stats"><span><b>${fmt(works.length)}</b> ${tl('публикаций')}</span><span><b id="subsN">${fmt(subs)}</b> ${tl('подписчиков')}</span>${adminBal != null ? `<span class="prof-coin" title="${tl('Баланс пользователя (видно только вам)')}"><img src="${COIN}" alt=""><b id="profCoinVal" data-uid="${esc(p.id)}">${fmt(adminBal)}</b> ${tl('пузокоинов')}</span>` : ''}</div>
       </div>
       <div class="prof-acts">
         ${own ? `<button class="btn" type="button" id="profEdit">${tl('Редактировать')}</button>`
-          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? tl('✓ Вы подписаны') : tl('Подписаться')}</button><button class="btn icon-only" id="profSend" title="${tl('Перевести Puzocoins')}"><img src="${COIN}" alt="" style="width:20px;height:20px"></button><button class="btn icon-only" data-report="user" data-rid="${esc(p.id)}" title="${tl('Пожаловаться на пользователя')}" aria-label="${tl('Пожаловаться')}"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button><button class="btn${S.blocked.has(p.id) ? ' accent' : ''}" id="profBlock" title="${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать для себя')}">${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать')}</button>` : ''}
+          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? tl('✓ Вы подписаны') : tl('Подписаться')}</button><button class="btn icon-only" id="profSend" title="${tl('Перевести пузокоины')}"><img src="${COIN}" alt="" style="width:20px;height:20px"></button><button class="btn icon-only" data-report="user" data-rid="${esc(p.id)}" title="${tl('Пожаловаться на пользователя')}" aria-label="${tl('Пожаловаться')}"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button><button class="btn${S.blocked.has(p.id) ? ' accent' : ''}" id="profBlock" title="${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать для себя')}">${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать')}</button>` : ''}
         <button class="btn icon-only" id="profCopy" title="${tl('Скопировать ссылку')}">${I.link}</button>
       </div>
     </section>
@@ -1457,7 +1457,7 @@ async function loadNotifs() {
     const or = [cIds.length && `content_id.in.(${cIds.join(',')})`, kIds.length && `collection_id.in.(${kIds.join(',')})`].filter(Boolean).join(',');
     jobs.push(api(`moderation_log?action=eq.rejected&or=(${or})&select=content_id,collection_id,comment,created_at,moderator:profiles(id,username,display_name,avatar_url)&order=created_at.desc&limit=20`).then(r => r.map(x => ({ type: 'reject', target: x.content_id ? t[x.content_id] : tc[x.collection_id], body: x.comment, actor: x.moderator, at: x.created_at }))).catch(() => []));
   }
-  // переводы Puzocoins и подарки ролей (SQL 070)
+  // переводы пузокоинов и подарки ролей (SQL 070)
   jobs.push(api(`user_notifications?user_id=eq.${S.uid}&select=kind,actor_id,amount,title,days,note,created_at&order=created_at.desc&limit=30`).then(async r => {
     await loadProfiles(r.map(x => x.actor_id).filter(Boolean));
     return r.map(x => ({ type: { coin_transfer: 'coin', coin_grant: 'grant', role_gift: 'gift' }[x.kind] || 'coin', actor: x.actor_id ? S.profiles.get(x.actor_id) : null, amount: x.amount, title: x.title, days: x.days, body: x.note, at: x.created_at }));
@@ -1474,8 +1474,8 @@ function updateBell() {
   b.textContent = n > 99 ? '99+' : String(n); b.hidden = !n;
 }
 const NOTIF_TEXT = { like: tl('лайкнул(а) вашу работу'), comment: tl('прокомментировал(а)'), follow: tl('подписался(ась) на вас'), reject: tl('отклонил(а) вашу работу'),
-  coin: n => `${tl('перевёл(а) вам')} <b>${fmtNum(n.amount)}</b> Puzocoins`,
-  grant: n => `${tl('начислил(а) вам')} <b>${fmtNum(n.amount)}</b> Puzocoins`,
+  coin: n => `${tl('перевёл(а) вам')} <b>${fmtNum(n.amount)}</b> ${tl('пузокоинов')}`,
+  grant: n => `${tl('начислил(а) вам')} <b>${fmtNum(n.amount)}</b> ${tl('пузокоинов')}`,
   gift: n => `${tl('подарил(а) вам роль')} <span class="notif-target">«${esc(n.title || tl('роль'))}»</span>${n.days ? tl(' на {0} дн.', {0: n.days}) : ''}` };
 const fmtNum = n => Number(n || 0).toLocaleString('ru-RU');
 const COIN_SVG = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.5 9.5h3.8a1.7 1.7 0 010 3.4h-2.6a1.7 1.7 0 000 3.4H14.5"/></svg>';
@@ -1931,9 +1931,9 @@ function editProfile() {
       <span>${tl('Краски (7TV)')}</span><div class="sw-row">${NAME_PAINTS.map(p => `<button type="button" class="nc-sw${me.name_color === p.css ? ' on' : ''}" data-nc="${esc(p.css)}" title="${esc(p.label)}" style="background:${p.css}"></button>`).join('')}</div>
       <div class="pe-prev">${tl('Предпросмотр:')} <b id="ncPrev"${nameAttr(me.name_color)}>${esc(pname(me))}</b></div></div>` : ''}
     ${hasRole(me, 'streamer') ? `<label>${tl('Ссылка на Twitch')}<input name="tw" value="${esc(me.stream_twitch_url || '')}" placeholder="https://twitch.tv/..."></label><label>${tl('Соцсеть (Telegram, VK…)')}<input name="so" value="${esc(me.stream_social_url || '')}" placeholder="https://t.me/..."></label><label>${tl('Ссылка на донат')}<input name="dn" value="${esc(me.stream_donate_url || '')}" placeholder="https://..."></label>` : ''}
-    ${me.username ? `<div class="pe-color" style="gap:8px"><span>${tl('Личная ссылка для доната Puzocoins')}</span>
+    ${me.username ? `<div class="pe-color" style="gap:8px"><span>${tl('Личная ссылка для доната пузокоинами')}</span>
       <div style="display:flex;gap:6px;align-items:center"><input type="text" readonly value="${esc(location.origin + '/donate/' + encodeURIComponent(me.username))}" style="flex:1;min-width:0;opacity:.85"><button type="button" class="btn" id="peCopyDn" style="flex:none">${tl('Копировать')}</button></div>
-      <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:500"><input type="checkbox" name="cdon" style="width:16px;height:16px;flex:none"><span>${tl('Принимать донаты Puzocoins и показывать кнопку в профиле')}</span></label></div>` : ''}
+      <label style="flex-direction:row;align-items:center;gap:8px;cursor:pointer;font-weight:500"><input type="checkbox" name="cdon" style="width:16px;height:16px;flex:none"><span>${tl('Принимать донаты пузокоинами и показывать кнопку в профиле')}</span></label></div>` : ''}
     <p class="hint">${tl('Логин Twitch (@')}${esc(me.username || '')}${tl(') не меняется.')}</p>
     <div class="v2-modal-acts"><button type="button" class="btn" data-x>${tl('Отмена')}</button><button class="btn accent" type="submit">${tl('Сохранить')}</button></div></form>`;
   const close = () => ov.remove();
@@ -2472,8 +2472,8 @@ function viewSettings() {
     ${window.PWA ? PWA.card(tl, 'renah0cki') : ''}
     <section class="rules-card sets-card"><h2>${tl('Просмотр')}</h2>
       ${sw('puzzle', tl('Пазлы на спойлерах'), tl('Размытый арт собирается из кусочков. Выключено — открывается сразу по клику.'), puzzleOn())}</section>
-    ${me.username ? `<section class="rules-card sets-card" id="setDonate"><h2>${tl('Донаты Puzocoins')}</h2>
-      ${sw('coin_donate', tl('Кнопка «Донат Puzocoins» в профиле'), tl('Показывать кнопку доната в профиле и принимать переводы по личной ссылке.'), false)}
+    ${me.username ? `<section class="rules-card sets-card" id="setDonate"><h2>${tl('Донаты пузокоинами')}</h2>
+      ${sw('coin_donate', tl('Кнопка «Донат пузокоинами» в профиле'), tl('Показывать кнопку доната в профиле и принимать переводы по личной ссылке.'), false)}
       <div class="wal-code" id="setDnRow" hidden style="margin-top:10px"><span>${esc(location.origin + '/donate/' + encodeURIComponent(me.username))}</span><button class="btn" type="button" id="setDnCopy">${tl('Скопировать')}</button></div></section>` : ''}
     <section class="rules-card sets-card" id="setRoles"><h2>${tl('Отображение ролей')}</h2>
       <p class="muted">${tl('Выбери, какие роли показывать в профиле. Должна быть включена минимум 1 роль.')}</p>
@@ -3028,7 +3028,7 @@ async function viewStreak() {
   box.innerHTML = rows.length ? rows.map((p, i) => `<a class="st-row${p.id === S.uid ? ' me' : ''}" href="${userPath(p)}"><i>${['🥇', '🥈', '🥉'][i] || i + 1}</i>${cosAva(p)}<span>${cosName(p)}</span><b>🔥 ${fmt(p.streak_count)}</b></a>`).join('') : `<div class="empty">${tl('Пока пусто.')}</div>`;
 }
 
-/* ── кошелёк Puzocoins ── */
+/* ── кошелёк пузокоинов ── */
 const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const TX = {
   purchase: [tl('Пополнение'), 'plus'], reward: [tl('Награда'), 'gift'], spend: [tl('Покупка'), 'bag'], admin: [tl('От администрации'), 'gift'],
@@ -3050,12 +3050,12 @@ async function viewWallet(tab) {
   page.innerHTML = `<div class="wal">
     <section class="wal-hero">
       <div class="wal-coin"><img src="${COIN}" alt=""></div>
-      <div class="wal-sum"><span>${tl('Ваш баланс')}</span><b><i id="walBal">${esc($('#coinVal').textContent)}</i> Puzocoins</b></div>
+      <div class="wal-sum"><span>${tl('Ваш баланс')}</span><b><i id="walBal">${esc($('#coinVal').textContent)}</i> ${tl('пузокоинов')}</b></div>
       <div class="wal-acts">
         <a class="btn accent" href="${routeUrl('wallet/topup')}">${TXI.plus}${tl('Пополнить')}</a>
         <a class="btn" href="${routeUrl('wallet/send')}">${TXI.swap}${tl('Перевести')}</a>
       </div>
-      <p class="wal-what">${tl('Puzocoins (пузокоины) — бонусная валюта сайта. Ими можно оплатить подписку в Y, подарить автору пузокоины за работу или перевести другу.')} <a href="${routeUrl('rules')}">${tl('Правила Puzocoins')}</a></p>
+      <p class="wal-what">${tl('Пузокоины — бонусная валюта сайта. Ими можно оплатить подписку в Y, подарить автору пузокоины за работу или перевести другу.')} <a href="${routeUrl('rules')}">${tl('Правила пузокоинов')}</a></p>
     </section>
     <div class="tabs wal-tabs"><a class="tab${T === 'topup' ? ' on' : ''}" href="${routeUrl('wallet/topup')}">${tl('Пополнить')}</a><a class="tab${T === 'history' ? ' on' : ''}" href="${routeUrl('wallet/history')}">${tl('История')}</a><a class="tab${T === 'send' ? ' on' : ''}" href="${routeUrl('wallet/send')}">${tl('Перевести')}</a></div>
     <div id="walBody"></div>
@@ -3137,8 +3137,8 @@ function coinSendDialog(p) {
   const ov = document.createElement('div');
   ov.className = 'v2-overlay';
   ov.innerHTML = `<form class="v2-modal send">
-    <h2>${tl('Перевести Puzocoins')}</h2>
-    <div class="send-to">${avaHtml(p.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b><span>${tl('Ваш баланс:')} ${esc($('#coinVal').textContent)} Puzocoins</span></div></div>
+    <h2>${tl('Перевести пузокоины')}</h2>
+    <div class="send-to">${avaHtml(p.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b><span>${tl('Ваш баланс:')} ${esc($('#coinVal').textContent)} ${tl('пузокоинов')}</span></div></div>
     <div class="send-amts">${SEND_AMTS.map((a, i) => `<button type="button" class="chip${i === 1 ? ' on' : ''}" data-samt="${a}">${a}</button>`).join('')}<input type="number" name="c" min="1" max="100000" step="1" placeholder="${tl('своя')}"></div>
     <label>${tl('Сообщение (необязательно)')}<textarea name="n" rows="2" maxlength="200"></textarea></label>
     <p class="hint">${tl('Перевод нельзя отменить.')}</p>
@@ -3157,7 +3157,7 @@ function coinSendDialog(p) {
     btn.disabled = true; hint.textContent = '…';
     try {
       const bal = await rpc('coin_transfer', { p_to: p.id, p_amount: a, p_note: f.n.value.trim() || null });
-      setBalance(bal); ov.remove(); toast(tl('Переведено {0} Puzocoins → {1}', {0: fmt(a), 1: pname(p)}));
+      setBalance(bal); ov.remove(); toast(tl('Переведено {0} пузокоинов → {1}', {0: fmt(a), 1: pname(p)}));
       const pc = $('#profCoinVal'); if (pc && pc.dataset.uid === p.id) rpc('coin_admin_balance', { p_user: p.id }).then(v => { if (v != null) pc.textContent = fmt(v); }).catch(() => {});
     } catch (er) { hint.textContent = tl('Ошибка: ') + er.message; btn.disabled = false; }
   };
@@ -3195,8 +3195,8 @@ function giftRoleDialog(it, defaultDays = 14, onSaved) {
     <div class="cs-prev">${isCustom ? `<span class="role role-custom" id="csPrev" style="--rc:${clr}">${tl('Роль в подарок')}</span>` : roleChipHtml(it.id, EQ.get(S.uid))}</div>
     ${isCustom ? `<div class="pe-color"><span>${tl('Срок действия')}</span>
       <div class="chips" data-grdur>
-        <button type="button" class="chip${days === 14 ? ' on' : ''}" data-grdays="14">${tl('2 недели — 500 Puzocoins')}</button>
-        <button type="button" class="chip${days === 30 ? ' on' : ''}" data-grdays="30">${tl('1 месяц — 700 Puzocoins')}</button>
+        <button type="button" class="chip${days === 14 ? ' on' : ''}" data-grdays="14">${tl('2 недели — 500 пузокоинов')}</button>
+        <button type="button" class="chip${days === 30 ? ' on' : ''}" data-grdays="30">${tl('1 месяц — 700 пузокоинов')}</button>
       </div>
     </div>
     <label>${tl('Название роли (до 18 символов)')}<input name="t" maxlength="18" required placeholder="${tl('Например: Любимчик чата')}"></label>
@@ -3377,7 +3377,7 @@ async function viewShop(tab) {
     page.innerHTML = `<div class="shop">
       <div class="shop-head">
         <h1>${tl('Магазин косметики')}</h1>
-        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> Puzocoins<a href="${routeUrl('wallet/topup')}">${tl('Пополнить')}</a></div>` : `<button type="button" class="btn accent" data-login>${tl('Войти, чтобы покупать')}</button>`}
+        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> ${tl('пузокоинов')}<a href="${routeUrl('wallet/topup')}">${tl('Пополнить')}</a></div>` : `<button type="button" class="btn accent" data-login>${tl('Войти, чтобы покупать')}</button>`}
       </div>
       ${renderPreview()}
       <div class="tabs shop-tabs">${SHOP_CATS.map(([k, l]) => `<a class="tab${T === k ? ' on' : ''}" href="${routeUrl(k === 'all' ? 'shop' : 'shop/' + k)}">${l}${k === 'mine' ? ` (${owned.size + activeTemp.length})` : ''}</a>`).join('')}</div>
@@ -3449,7 +3449,7 @@ async function viewShop(tab) {
       if (bs) {
         if (!S.uid) return login();
         const it = SHOP_ITEMS.get(bs.dataset.shbuyself); if (!it) return;
-        if (!confirm(tl('Купить роль «{0}» себе на 2 недели за {1} Puzocoins?', {0: it.title, 1: fmt(it.price)}))) return;
+        if (!confirm(tl('Купить роль «{0}» себе на 2 недели за {1} пузокоинов?', {0: it.title, 1: fmt(it.price)}))) return;
         bs.disabled = true;
         try {
           const res = await rpc('shop_gift_role', { p_item_id: it.id, p_target_user: S.uid, p_days: 14 });
@@ -3539,7 +3539,7 @@ async function viewShop(tab) {
         const it = SHOP_ITEMS.get(buyBtn.dataset.shbuy); if (!it) return;
         const isPackBuy = it.category === 'bundle';
         const payNow = isPackBuy ? Number(buyBtn.dataset.shpay ?? it.price) : it.price;
-        if (!confirm(isPackBuy ? tl('Купить набор «{0}» за {1} Puzocoins? Всё из набора останется у вас навсегда и сразу наденется.', {0: it.title, 1: fmt(payNow)}) : tl('Купить «{0}» за {1} Puzocoins? Предмет останется у вас навсегда.', {0: it.title, 1: fmt(it.price)}))) return;
+        if (!confirm(isPackBuy ? tl('Купить набор «{0}» за {1} пузокоинов? Всё из набора останется у вас навсегда и сразу наденется.', {0: it.title, 1: fmt(payNow)}) : tl('Купить «{0}» за {1} пузокоинов? Предмет останется у вас навсегда.', {0: it.title, 1: fmt(it.price)}))) return;
         buyBtn.disabled = true;
         try {
           const bal = await rpc('shop_buy', { p_item_id: it.id });
@@ -3612,9 +3612,9 @@ const RULES_TXT = {
       <li>Незнание правил не освобождает от ответственности. Обход блокировки — повод для бессрочного бана.</li>
     </ul></section>
 
-    <section class="rules-card"><h2>4. Донаты и Puzocoins</h2>
+    <section class="rules-card"><h2>4. Донаты и пузокоины</h2>
       <p><b>Донат</b> через DonationAlerts — добровольный подарок проекту. Он ни к чему не обязывает ни вас, ни нас и не возвращается, кроме случаев, прямо предусмотренных законом.</p>
-      <p><b>Puzocoins</b> — внутренняя бонусная валюта сайта (пузокоины). Их можно получить в подарок за донат (впишите свой ник в поле «Имя»; сейчас 1 ₽ → 1 Puzocoins, другие валюты — по курсу), за активность, от администрации и от других пользователей.</p>
+      <p><b>Пузокоины</b> — внутренняя бонусная валюта сайта. Их можно получить в подарок за донат (впишите свой ник в поле «Имя»; сейчас 1 ₽ → 1 пузокоин, другие валюты — по курсу), за активность, от администрации и от других пользователей.</p>
       <ul>
         <li>Пузокоины нельзя вывести, обменять на деньги или продать; они не дают права требовать деньги назад.</li>
         <li>Пузокоинами можно оплатить подписки ГОЙ и VIP в Y, роли и косметику в магазине, подарить автору работы или перевести другу. Потраченные, подаренные и переведённые пузокоины не возвращаются.</li>
@@ -3688,9 +3688,9 @@ const RULES_TXT = {
       <li>Незнання правил не звільняє від відповідальності. Обхід блокування — привід для безстрокового бану.</li>
     </ul></section>
 
-    <section class="rules-card"><h2>4. Донати та Puzocoins</h2>
+    <section class="rules-card"><h2>4. Донати та пузокоїни</h2>
       <p><b>Донат</b> через DonationAlerts — добровільний подарунок проєкту. Він ні до чого не зобов’язує ні вас, ні нас і не повертається, крім випадків, прямо передбачених законом.</p>
-      <p><b>Puzocoins</b> — внутрішня бонусна валюта сайту (пузокоїни). Їх можна отримати в подарунок за донат (впишіть свій нік у поле «Ім’я»; зараз 1 ₽ → 1 Puzocoins, інші валюти — за курсом), за активність, від адміністрації та від інших користувачів.</p>
+      <p><b>Пузокоїни</b> — внутрішня бонусна валюта сайту. Їх можна отримати в подарунок за донат (впишіть свій нік у поле «Ім’я»; зараз 1 ₽ → 1 пузокоїн, інші валюти — за курсом), за активність, від адміністрації та від інших користувачів.</p>
       <ul>
         <li>Пузокоїни не можна вивести, обміняти на гроші чи продати; вони не дають права вимагати гроші назад.</li>
         <li>Пузокоїнами можна оплатити підписки ГОЙ і VIP в Y, ролі та косметику в магазині, подарувати автору роботи або переказати другу. Витрачені, подаровані й переказані пузокоїни не повертаються.</li>

@@ -134,7 +134,7 @@ async function api(path, { method = 'GET', body, prefer, schema = 'rp' } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
-/* ── Puzocoins: баланс в своём профиле — для всех вошедших ── */
+/* ── Пузокоины: баланс в своём профиле — для всех вошедших ── */
 const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const COIN_LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
 const coinsVisible = () => !!S.uid;
@@ -227,7 +227,7 @@ function vipInfoDialog() {
     <div class="vip-info-body">
       <div class="vip-info-ic">${I.verify}</div>
       <h2>${tl('Статус VIP в Y')}</h2>
-      <p>${tl('Эта синяя галочка показывает, что игрок приобрёл статус')} <b>VIP</b> ${tl('в Y за Puzocoins.')}</p>
+      <p>${tl('Эта синяя галочка показывает, что игрок приобрёл статус')} <b>VIP</b> ${tl('в Y за пузокоины.')}</p>
       <p class="vip-info-sub">${tl('Галочка')} <b>${tl('не означает')}</b> ${tl('официальный аккаунт и не подтверждает, что за профилем или персонажем стоит реальный человек.')}</p>
       <div class="vip-info-acts">
         <button type="button" class="btn blue" data-close>${tl('Понятно')}</button>
@@ -1818,7 +1818,7 @@ async function viewUser(key) {
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
       <div class="cp-stats"><span><b data-fcount>${followers.length}</b> <span data-fword>${plural(followers.length, tl('подписчик'), tl('подписчика'), tl('подписчиков'))}</span></span><span><b>${following.length}</b> ${plural(following.length, tl('подписка'), tl('подписки'), tl('подписок'))}</span></div>
-      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, tl('роль'), tl('роли'), tl('ролей'))}</span><span><b>${reposts.length}</b> ${plural(reposts.length, tl('репост'), tl('репоста'), tl('репостов'))}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> Puzocoins</span>` : (!isMe && S.uid === OWNER_ID ? `<span class="cp-coin" data-admin-coin-wrap title="${tl('Баланс пользователя (видно только вам)')}">${coinIco()} <b data-admin-coin-bal>…</b> Puzocoins</span>` : '')}</div>
+      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, tl('роль'), tl('роли'), tl('ролей'))}</span><span><b>${reposts.length}</b> ${plural(reposts.length, tl('репост'), tl('репоста'), tl('репостов'))}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> ${tl('пузокоинов')}</span>` : (!isMe && S.uid === OWNER_ID ? `<span class="cp-coin" data-admin-coin-wrap title="${tl('Баланс пользователя (видно только вам)')}">${coinIco()} <b data-admin-coin-bal>…</b> ${tl('пузокоинов')}</span>` : '')}</div>
       ${isMe ? `<button class="btn ghost cp-edit only-m" data-edit-profile>${tl('Редактировать профиль')}</button>` : ''}</div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">${tl('Репосты')}</button><button type="button" data-utab="roles">${tl('Роли')}</button></div>
     <div id="uList"></div>`;
@@ -2071,7 +2071,7 @@ const RULES_TXT = {
     <p>Фото и голосовые из ЛС хранятся на сервере renah0cki по длинной случайной ссылке: другие игроки не могут их найти, но открыть файл может любой, кому эту ссылку переслали.</p>
 
     <h2>6. Подписки, синяя галочка и пузокоины</h2>
-    <p>Роли ГОЙ и VIP оплачиваются Puzocoins на 30 дней и сами не продлеваются. Пузокоины — бонусная валюта сайта: их нельзя вывести или обменять на деньги (подробнее — в <a href="/rules" target="_blank" rel="noopener">общих правилах</a>). При блокировке за нарушения подписка не возвращается.</p>
+    <p>Роли ГОЙ и VIP оплачиваются пузокоинами на 30 дней и сами не продлеваются. Пузокоины — бонусная валюта сайта: их нельзя вывести или обменять на деньги (подробнее — в <a href="/rules" target="_blank" rel="noopener">общих правилах</a>). При блокировке за нарушения подписка не возвращается.</p>
     <p><b>Синяя галочка (✓)</b> у имени профиля или персонажа означает только то, что у пользователя есть <b>VIP</b>. Она <b>не означает</b> официальный аккаунт и не подтверждает, что за профилем или персонажем стоит реальный человек, на которого он похож.</p>
 
     <h2>7. Если вас или ваш образ используют</h2>
@@ -2128,7 +2128,7 @@ const RULES_TXT = {
     <p>Фото й голосові з особистих зберігаються на сервері renah0cki за довгим випадковим посиланням: інші гравці не можуть їх знайти, але відкрити файл може будь-хто, кому це посилання переслали.</p>
 
     <h2>6. Підписки, синя галочка та пузокоїни</h2>
-    <p>Ролі ГОЙ і VIP оплачуються Puzocoins на 30 днів і самі не продовжуються. Пузокоїни — бонусна валюта сайту: їх не можна вивести чи обміняти на гроші (докладніше — у <a href="/rules" target="_blank" rel="noopener">загальних правилах</a>). У разі блокування за порушення підписка не повертається.</p>
+    <p>Ролі ГОЙ і VIP оплачуються пузокоїнами на 30 днів і самі не продовжуються. Пузокоїни — бонусна валюта сайту: їх не можна вивести чи обміняти на гроші (докладніше — у <a href="/rules" target="_blank" rel="noopener">загальних правилах</a>). У разі блокування за порушення підписка не повертається.</p>
     <p><b>Синя галочка (✓)</b> біля імені профілю чи персонажа означає лише те, що в користувача є <b>VIP</b>. Вона <b>не означає</b> офіційний акаунт і не підтверджує, що за профілем чи персонажем стоїть реальна людина, на яку він схожий.</p>
 
     <h2>7. Якщо використовують вас або ваш образ</h2>
@@ -2352,7 +2352,7 @@ function bindChatLook(root) {
   if (ts) ts.onclick = e => { e.preventDefault(); $('.shop-grid', root)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
 }
 
-/* ── подписка Y за Puzocoins (пока только meRockstar) ── */
+/* ── подписка Y за пузокоины (пока только meRockstar) ── */
 const shopVisible = () => !!S.uid; // подписки ГОЙ/VIP — всем вошедшим
 const SHOP_ROLES = [
   { id: 'goy', price: 67, perks: [tl('Создавать своих персонажей'), tl('Своя аватарка в Y'), tl('Свой фон чата в переписках'), tl('GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»'), tl('Звонки 1 на 1 в личных сообщениях')] },
@@ -2365,7 +2365,7 @@ function shopHtml() {
   const status = active
     ? `${tl('Активна роль')} <b>${ROLE_NAME[me.paid_role]}</b> ${tl('до')} ${until.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`
     : (ROLE_RANK[me.rp_role] ?? 0) >= 1 ? `${tl('Ваша роль:')} <b>${ROLE_NAME[me.rp_role]}</b>` : tl('Подписки нет');
-  return `<div class="set-sec"><h2>${tl('Подписка')}</h2><p>${status} ${tl('· Баланс:')} ${coinIco()} <b data-coin-bal>…</b> Puzocoins</p>
+  return `<div class="set-sec"><h2>${tl('Подписка')}</h2><p>${status} ${tl('· Баланс:')} ${coinIco()} <b data-coin-bal>…</b> ${tl('пузокоинов')}</p>
     <div class="shop-grid">${SHOP_ROLES.map(r => {
       const base = (ROLE_RANK[me.rp_role] ?? 0) >= ROLE_RANK[r.id];
       const higher = active && ROLE_RANK[me.paid_role] > ROLE_RANK[r.id];
@@ -2381,7 +2381,7 @@ function shopHtml() {
 function bindShop(root) {
   $$('[data-buy-role]', root).forEach(b => b.onclick = async () => {
     const r = SHOP_ROLES.find(x => x.id === b.dataset.buyRole);
-    if (!r || !confirm(tl('Купить роль {0} на 30 дней за {1} Puzocoins?', {0: ROLE_NAME[r.id], 1: r.price}))) return;
+    if (!r || !confirm(tl('Купить роль {0} на 30 дней за {1} пузокоинов?', {0: ROLE_NAME[r.id], 1: r.price}))) return;
     b.disabled = true;
     try {
       const res = await api('rpc/buy_role', { method: 'POST', body: { p_role: r.id, p_months: 1 } });

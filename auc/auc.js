@@ -973,7 +973,7 @@ async function exportCsv() {
 /* ── настройки ── */
 function convExample(rub, uah) {
   const n = v => { const x = Math.round((Number(v) || 0) * 100) / 100; return x.toLocaleString('ru-RU'); };
-  return `Пример: 500 ₽ → <b>${n(500 * rub)}</b> б. · 100 ₴ → <b>${n(100 * uah)}</b> б. · 300 Puzocoins → <b>${n(300 * rub)}</b> б.`;
+  return `Пример: 500 ₽ → <b>${n(500 * rub)}</b> б. · 100 ₴ → <b>${n(100 * uah)}</b> б. · 300 пузокоинов → <b>${n(300 * rub)}</b> б.`;
 }
 document.addEventListener('input', e => {
   const f = e.target.closest?.('#setForm');
@@ -1003,15 +1003,15 @@ function settingsHtml() {
       <div class="row"><button class="btn sm ${I.donatepay?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatepay">${I.donatepay?.connected ? 'Сменить ключ' : 'Ввести ключ'}</button>${I.donatepay?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatepay">Отключить</button>' : ''}</div></div>
     <div class="int"><div class="int-h">${st(I.donatex)}<b>DonateX</b></div><p>${esc(I.donatex?.text || '')} · токен: donatex.gg → Настройки → API и доступ</p>
       <div class="row"><button class="btn sm ${I.donatex?.connected ? 'ghost' : 'pri'}" data-act="tok" data-id="donatex">${I.donatex?.connected ? 'Сменить токен' : 'Ввести токен'}</button>${I.donatex?.connected ? '<button class="btn sm ghost" data-act="disc" data-id="donatex">Отключить</button>' : ''}</div></div>
-    <div class="int"><div class="int-h"><span class="dot ${siteOn ? 'ok' : ''}"></span><b>Puzocoins</b><span class="muted">${esc(sNick)}</span></div><p>${siteOn ? 'Подключён · зрители донатят Puzocoins по личной ссылке и могут выбрать лот.' : 'Отключён · приём донатов Puzocoins по личной ссылке остановлен.'}</p>
+    <div class="int"><div class="int-h"><span class="dot ${siteOn ? 'ok' : ''}"></span><b>Пузокоины</b><span class="muted">${esc(sNick)}</span></div><p>${siteOn ? 'Подключён · зрители донатят пузокоины по личной ссылке и могут выбрать лот.' : 'Отключён · приём донатов пузокоинами по личной ссылке остановлен.'}</p>
       <div class="row"><code class="code">${esc(donate)}</code><button class="btn sm" data-act="copy" data-id="${esc(donate)}">Копировать</button><a class="btn sm ghost" href="${esc(donate)}">Открыть</a><button class="btn sm ${siteOn ? 'ghost' : 'pri'}" data-act="siteToggle" data-id="${siteOn ? '0' : '1'}">${siteOn ? 'Отключить' : 'Подключить'}</button></div></div>
   </div></div>
   <form class="box" id="setForm" data-form="settings"><h2 class="h2">Конвертация в баллы</h2>
-    <p class="hint">Сколько баллов аукциона даёт донат. Puzocoins считается как рубль. Донат с кодом RN-… — пополнение Puzocoins, аукцион его не трогает.</p>
+    <p class="hint">Сколько баллов аукциона даёт донат. Пузокоин считается как рубль. Донат с кодом RN-… — пополнение пузокоинов, аукцион его не трогает.</p>
     <div class="conv">
       <label class="conv-row"><span class="conv-cur">1 ₽</span><span class="conv-eq">=</span><input class="in" name="rate_RUB" type="number" step="any" min="0" inputmode="decimal" required value="${esc(r.RUB ?? 1)}"><span class="conv-u">баллов</span></label>
       <label class="conv-row"><span class="conv-cur">1 ₴</span><span class="conv-eq">=</span><input class="in" name="rate_UAH" type="number" step="any" min="0" inputmode="decimal" required value="${esc(r.UAH ?? 2)}"><span class="conv-u">баллов</span></label>
-      <div class="conv-row muted"><span class="conv-cur">1 Puzocoins</span><span class="conv-eq">=</span><b class="conv-coin" id="convCoin">${esc(r.RUB ?? 1)}</b><span class="conv-u">баллов (как 1 ₽)</span></div>
+      <div class="conv-row muted"><span class="conv-cur">1 пузокоин</span><span class="conv-eq">=</span><b class="conv-coin" id="convCoin">${esc(r.RUB ?? 1)}</b><span class="conv-u">баллов (как 1 ₽)</span></div>
     </div>
     <p class="hint conv-ex" id="convEx">${convExample(r.RUB ?? 1, r.UAH ?? 2)}</p>
     <details class="conv-more"><summary>Другие валюты</summary>
@@ -1021,7 +1021,7 @@ function settingsHtml() {
     <div class="rates" style="margin-top:10px">
       <label>+сек к таймеру при ставке<input class="in" name="add_sec" type="number" min="0" max="600" inputmode="numeric" value="${c.add_sec}"></label>
       <label>…если осталось меньше (сек)<input class="in" name="add_below_sec" type="number" min="0" max="3600" inputmode="numeric" value="${c.add_below_sec}"></label>
-      <label>Мин. донат Puzocoins<input class="in" name="min_site_bid" type="number" min="1" inputmode="numeric" value="${c.min_site_bid}"></label>
+      <label>Мин. донат пузокоинами<input class="in" name="min_site_bid" type="number" min="1" inputmode="numeric" value="${c.min_site_bid}"></label>
       <label>Колесо крутится (сек)<input class="in" name="wheel_sec" type="number" min="3" max="120" inputmode="numeric" value="${c.wheel_sec || 20}"></label>
       <label style="grid-column:1/-1">Награды Twitch (цены)<input class="in" name="twitch_costs" value="${esc((c.twitch_costs || []).join(', '))}"></label>
     </div>
@@ -1179,11 +1179,11 @@ function finishSheet(winnerId) {
   const d = A(); const top = winnerId ?? d.lots[0]?.id ?? null;
   const live = (S.adm?.bids || []).filter(b => ['active', 'queue', 'failed'].includes(b.status));
   const by = s => live.filter(b => b.source === s).length;
-  sheet('Завершить аукцион', `<p class="hint">Ставки на победителя остаются (Puzocoins с него уходят тебе), остальным баллы возвращаются.</p>
+  sheet('Завершить аукцион', `<p class="hint">Ставки на победителя остаются (пузокоины с него уходят тебе), остальным баллы возвращаются.</p>
     ${lotPick(top, false, 'winner')}
     <label class="check"><input type="checkbox" name="refund" ${S.adm?.config?.no_refund ? '' : 'checked'}><span>Вернуть баллы всем, кроме победителя</span></label>
     <div class="summary">
-      <div><span>Puzocoins → обратно зрителю</span><b>${by('site')}</b></div>
+      <div><span>Пузокоины → обратно зрителю</span><b>${by('site')}</b></div>
       <div><span>Twitch → баллы канала обратно</span><b>${by('twitch')}</b></div>
       <div><span>Донаты, вручную → кошелёк аукциона</span><b>${by('da') + by('donatello') + by('donatepay') + by('donatex') + by('manual') + by('wallet')}</b></div>
     </div>${acts('Завершить', 'ok')}`,
@@ -1487,7 +1487,7 @@ document.addEventListener('click', async e => {
       case 'csv': return exportCsv();
       case 'conn': { const r = await admDo({ a: 'connect', service: id }); location.href = r.url; return; }
       case 'disc': return admDo({ a: 'disconnect', service: id }, 'Отключено');
-      case 'siteToggle': { const on = id === '1'; return admDo({ a: 'config', config: { site_enabled: on } }, on ? 'Донаты Puzocoins подключены' : 'Донаты Puzocoins отключены'); }
+      case 'siteToggle': { const on = id === '1'; return admDo({ a: 'config', config: { site_enabled: on } }, on ? 'Донаты пузокоинами подключены' : 'Донаты пузокоинами отключены'); }
       case 'tok': return sheet(({ donatepay: 'Ключ DonatePay', donatex: 'Токен DonateX', donatello: 'Ссылка виджета Donatello' })[id], `<p class="hint">${id === 'donatello' ? 'В кабинете Donatello создай ОТДЕЛЬНЫЙ виджет «Алерти» (не тот, что подключён к сайту для пузокоинов) и вставь его ссылку. ' : ''}Хранится только на сервере и больше нигде не показывается.</p>
         <label class="field"><span>${({ donatepay: 'API-ключ', donatex: 'Внешний токен', donatello: 'https://donatello.to/widget/…/token/…' })[id]}</span><input class="in" name="t" type="password" autocomplete="off" required></label>${acts('Сохранить')}`,
         f => admDo({ a: 'token', service: id, token: f.get('t') }, 'Подключено'));
@@ -1559,7 +1559,7 @@ document.addEventListener('submit', async e => {
       const rates = { ...S.adm.config.rates };
       for (const [k, v] of fd) if (k.startsWith('rate_') && v !== '') rates[k.slice(5)] = Number(v);
       if (!(rates.RUB > 0) || !(rates.UAH > 0)) return toast('Курс ₽ и ₴ должен быть больше 0', true);
-      rates.site = rates.RUB;   // Puzocoins = рубль
+      rates.site = rates.RUB;   // Пузокоины = рубль
       const wheel = {
         reroll_on: fd.get('reroll_on') === 'on',
         reroll_price: Math.max(0, Number(fd.get('reroll_price')) || 0),

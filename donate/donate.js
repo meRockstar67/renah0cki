@@ -1,4 +1,4 @@
-/* renah0cki — личная ссылка для донатов Puzocoins (/donate/<username>).
+/* renah0cki — личная ссылка для донатов пузокоинами (/donate/<username>).
    Каждый аккаунт может включать и отключать приём донатов. */
 (() => {
 'use strict';
@@ -69,7 +69,7 @@ function syncAmountUi() {
   const v = Math.floor(Number($('#amount').value)) || 0;
   document.querySelectorAll('#chips [data-amt]').forEach(b => b.classList.toggle('on', Number(b.dataset.amt) === v));
   const btn = $('#send');
-  if (!btn.disabled) btn.textContent = v > 0 ? `Отправить ${fmt(v)} Puzocoins` : 'Отправить';
+  if (!btn.disabled) btn.textContent = v > 0 ? `Отправить ${fmt(v)} пузокоинов` : 'Отправить';
 }
 
 /* ── отрисовка ── */
@@ -86,7 +86,7 @@ function render() {
     const label = t.display_name || t.username || 'пользователя';
     $('#sName').textContent = label;
     if (t.avatar_url) $('#sAva').src = t.avatar_url;
-    document.title = `Донат Puzocoins для ${label} — renah0cki`;
+    document.title = `Донат пузокоинами для ${label} — renah0cki`;
   }
   const on = targetEnabled();
   $('#disabledBox').hidden = on;
@@ -118,7 +118,7 @@ async function toggleMyDonate(nextOn) {
     if (S.me) S.me.coin_donate_enabled = val;
     if (S.target && S.target.id === S.uid) { S.target.coin_donate_enabled = val; if (S.target.is_streamer) S.target.site_enabled = val; }
     if (S.pub?.config && S.pub.config.streamer_id === S.uid) S.pub.config.site_enabled = val;
-    toast(val ? 'Приём донатов Puzocoins подключён' : 'Приём донатов Puzocoins отключён');
+    toast(val ? 'Приём донатов пузокоинами подключён' : 'Приём донатов пузокоинами отключён');
     render();
   } catch (err) { toast(err.message, true); }
 }
@@ -175,8 +175,8 @@ $('#dForm').addEventListener('submit', async e => {
   e.preventDefault();
   const amount = Math.floor(Number($('#amount').value));
   const min = (S.target?.is_streamer ? S.pub?.config?.min_site_bid : 1) || 1;
-  if (!amount || amount < min) return toast(`Минимум — ${min} Puzocoins`, true);
-  if (S.balance != null && amount > S.balance) return toast('Не хватает Puzocoins', true);
+  if (!amount || amount < min) return toast(`Минимум — ${min} пузокоинов`, true);
+  if (S.balance != null && amount > S.balance) return toast('Не хватает пузокоинов', true);
   const btn = $('#send'); btn.disabled = true; btn.textContent = 'Отправляю…';
   try {
     const recId = S.target?.id || null;
@@ -185,7 +185,7 @@ $('#dForm').addEventListener('submit', async e => {
       ? await aucApi('/auc/donate', { amount, message: $('#msg').value.trim(), voice: $('#voiceField').hidden ? null : S.voice, lot_id: null, lot_name: null, recipient_id: recId })
       : await sb('rpc/auc_coin_donate', { p_amount: amount, p_message: $('#msg').value.trim() || null, p_lot_id: null, p_lot_name: null, p_recipient_id: recId }, true);
     $('#dForm').hidden = true; $('#done').hidden = false;
-    $('#doneT').textContent = `${fmt(r.amount)} Puzocoins отправлено!`;
+    $('#doneT').textContent = `${fmt(r.amount)} пузокоинов отправлено!`;
     $('#doneS').textContent = `Спасибо! Донат уже у ${S.target?.display_name || S.target?.username || 'получателя'}.`;
     S.balance = r.balance; $('#balN').textContent = fmt(r.balance);
     loadMe();
