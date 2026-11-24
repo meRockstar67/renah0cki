@@ -1420,7 +1420,9 @@
   });
 
   document.documentElement.lang = lang;
-  window.I18N = { t, i18nApply, setLang, lang: () => lang, langs: LANGS, short: SHORT, canChoose: true };
+  // дополнительные словари подсайтов (например /rp/i18n-rp.js): I18N.add({ uk: {...}, en: {...} })
+  function add(d) { for (const k in d) if (DICT[k]) Object.assign(DICT[k], d[k]); }
+  window.I18N = { t, i18nApply, setLang, add, lang: () => lang, langs: LANGS, short: SHORT, canChoose: true };
   window.t = t;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => i18nApply());
   else i18nApply();

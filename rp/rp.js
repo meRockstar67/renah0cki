@@ -1,6 +1,8 @@
 /* RP-подсайт renah0cki.xyz/rp/ — vanilla JS, данные в схеме rp (self-hosted Supabase). */
 (() => {
 'use strict';
+const tl = (s, v) => (window.I18N ? window.I18N.t(s, v) : s); // перевод, см. /v2/i18n.js и /rp/i18n-rp.js
+const LANG = () => (window.I18N ? window.I18N.lang() : 'ru');
 
 const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
@@ -9,7 +11,7 @@ const LS_SESSION = 'fh_session';            // сессия основного �
 const LS_ROOM = 'rp_last_room';
 const MAX_LEN = 1000, MAX_IMG = 4, MAX_BYTES = 5 * 1024 * 1024;
 const ROLE_RANK = { user: 0, goy: 1, vip: 2, mod: 3, admin: 4 };
-const ROLE_NAME = { user: 'Игрок', goy: 'ГОЙ', vip: 'VIP', mod: 'Модератор', admin: 'Админ' };
+const ROLE_NAME = { user: tl('Игрок'), goy: tl('ГОЙ'), vip: 'VIP', mod: tl('Модератор'), admin: tl('Админ') };
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -45,22 +47,22 @@ const I = {
   flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
   calendar: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.9-.3 5 1.4 5.5 4.4"/></svg>',
-  verify: '<svg class="vip-check" viewBox="0 0 22 22" aria-label="VIP статус"><path fill="#1d9bf0" stroke="none" d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816z"/><path fill="#fff" stroke="none" d="M9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>',
+  verify: `<svg class="vip-check" viewBox="0 0 22 22" aria-label="${tl('VIP статус')}"><path fill="#1d9bf0" stroke="none" d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816z"/><path fill="#fff" stroke="none" d="M9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>`,
 };
 
 /* ── утилиты ────────────────────────────────────────────── */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmtN = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.0', '') + ' млн' : n >= 1e4 ? Math.floor(n / 1e3) + ' тыс.' : n > 0 ? String(n) : '';
-const MONTHS = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
+const fmtN = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.0', '') + tl(' млн') : n >= 1e4 ? Math.floor(n / 1e3) + tl(' тыс.') : n > 0 ? String(n) : '';
+const MONTHS = [tl('янв.'), tl('февр.'), tl('мар.'), tl('апр.'), tl('мая'), tl('июн.'), tl('июл.'), tl('авг.'), tl('сент.'), tl('окт.'), tl('нояб.'), tl('дек.')];
 function ago(ts) {
   const d = new Date(ts), s = (Date.now() - d) / 1000;
-  if (s < 60) return Math.max(1, Math.floor(s)) + ' с';
-  if (s < 3600) return Math.floor(s / 60) + ' мин';
-  if (s < 86400) return Math.floor(s / 3600) + ' ч';
-  const y = d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() + ' г.' : '';
+  if (s < 60) return Math.max(1, Math.floor(s)) + tl(' с');
+  if (s < 3600) return Math.floor(s / 60) + tl(' мин');
+  if (s < 86400) return Math.floor(s / 3600) + tl(' ч');
+  const y = d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() + tl(' г.') : '';
   return d.getDate() + ' ' + MONTHS[d.getMonth()] + y;
 }
-const fullDate = ts => { const d = new Date(ts); return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) + ' · ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + ' г.'; };
+const fullDate = ts => { const d = new Date(ts); return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) + ' · ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + tl(' г.'); };
 function richText(s) {
   return esc(s)
     .replace(/https?:\/\/[^\s<]+[^\s<.,:;!?)"'»]/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer nofollow">${u.length > 40 ? u.slice(0, 38) + '…' : u}</a>`)
@@ -78,15 +80,15 @@ function toast(msg, err = false) {
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3000);
 }
 const ERR = {
-  'slot taken': 'Этот персонаж уже занят', 'slot limit reached': 'Достигнут лимит слотов', 'room archived': 'Комната в архиве',
-  'no access': 'Нет доступа', 'not authenticated': 'Нужно войти', 'forbidden': 'Нет прав', 'bad image url': 'Неверная картинка',
-  'row-level security': 'Нет прав на это действие', 'duplicate key': 'Уже существует', 'slots_room_id_handle_key': 'Такой @ник уже есть в комнате',
-  'posts_one_repost': 'Уже есть репост', 'characters_handle_uq': 'Такой @ник уже занят другим персонажем', 'character not found': 'Персонаж не найден', 'avatar needs goy': 'Свою аватарку могут ставить ГОЙ и выше', 'banner needs vip': 'Шапку профиля могут ставить VIP и выше', 'bad word in handle': 'В @нике запрещённое слово', 'website_check': 'Неверная ссылка на сайт', 'JWT expired': 'Сессия истекла, обновите страницу',
+  'slot taken': tl('Этот персонаж уже занят'), 'slot limit reached': tl('Достигнут лимит слотов'), 'room archived': tl('Комната в архиве'),
+  'no access': tl('Нет доступа'), 'not authenticated': tl('Нужно войти'), 'forbidden': tl('Нет прав'), 'bad image url': tl('Неверная картинка'),
+  'row-level security': tl('Нет прав на это действие'), 'duplicate key': tl('Уже существует'), 'slots_room_id_handle_key': tl('Такой @ник уже есть в комнате'),
+  'posts_one_repost': tl('Уже есть репост'), 'characters_handle_uq': tl('Такой @ник уже занят другим персонажем'), 'character not found': tl('Персонаж не найден'), 'avatar needs goy': tl('Свою аватарку могут ставить ГОЙ и выше'), 'banner needs vip': tl('Шапку профиля могут ставить VIP и выше'), 'bad word in handle': tl('В @нике запрещённое слово'), 'website_check': tl('Неверная ссылка на сайт'), 'JWT expired': tl('Сессия истекла, обновите страницу'),
 };
 function errText(e) {
   const m = String(e?.message || e);
   for (const k in ERR) if (m.includes(k)) return ERR[k];
-  return m.length > 140 ? 'Ошибка' : m;
+  return m.length > 140 ? tl('Ошибка') : m;
 }
 
 /* ── сессия основного сайта ─────────────────────────────── */
@@ -160,11 +162,11 @@ const roomPath = (rm, sub = '') => `#/r/${rm.short_code || rm.id}${sub}`;
 const postPath = pp => `#/p/${pp.short_code || pp.id}`;
 const charPath = c => `#/c/${c.short_code || c.id}`;
 const userPath = u => `#/u/${encodeURIComponent(u.username || u.user_id)}`;
-async function copyLink(hash, msg = 'Ссылка скопирована') {
+async function copyLink(hash, msg = tl('Ссылка скопирована')) {
   // короткая ссылка: #/p/КОД → /y/КОД, #/r/КОД → /y/r/КОД и т.д.
   const h = hash.replace(/^#\//, '');
   const url = `${location.origin}/y/${h.startsWith('p/') ? h.slice(2) : h}`;
-  try { await navigator.clipboard.writeText(url); toast(msg); } catch { prompt('Ссылка', url); }
+  try { await navigator.clipboard.writeText(url); toast(msg); } catch { prompt(tl('Ссылка'), url); }
 }
 
 /* ── блокировка пользователей (общая с сайтом) ── */
@@ -176,27 +178,27 @@ async function loadBlocks() {
 async function toggleBlock(uid, name) {
   if (!S.uid || !uid || uid === S.uid) return;
   const on = isBlockedUser(uid);
-  if (!on && !confirm(`Заблокировать ${name}? Вы перестанете видеть его посты, он не сможет писать вам в ЛС и звонить.`)) return;
+  if (!on && !confirm(tl('Заблокировать {0}? Вы перестанете видеть его посты, он не сможет писать вам в ЛС и звонить.', {0: name}))) return;
   try {
     if (on) await api(`user_blocks?blocked=eq.${uid}`, { method: 'DELETE', schema: 'public' });
     else await api('user_blocks', { method: 'POST', body: { blocked: uid }, prefer: 'return=minimal', schema: 'public' });
     if (!S.blocked) S.blocked = new Set();
     on ? S.blocked.delete(uid) : S.blocked.add(uid);
-    toast(on ? 'Пользователь разблокирован' : 'Пользователь заблокирован');
+    toast(on ? tl('Пользователь разблокирован') : tl('Пользователь заблокирован'));
     route();
   } catch (e) { toast(errText(e), true); }
 }
 function reportUserDialog(uid, name) {
-  const form = modal('Пожаловаться на пользователя', `
-    <div class="form-note">Жалобу на ${esc(name)} увидят модераторы. Выберите причину:</div>
-    <div class="rep-reasons" role="radiogroup">${REPORT_REASONS.map((r, i) => `<label class="rep-opt"><input type="radio" name="reason" value="${esc(r)}"${i ? '' : ' checked'}><span>${esc(r)}</span></label>`).join('')}</div>
-    <div class="field"><label for="repu-d">Подробнее (необязательно)</label><textarea id="repu-d" name="details" rows="3" maxlength="500"></textarea></div>`, {
-    submitLabel: 'Отправить',
+  const form = modal(tl('Пожаловаться на пользователя'), `
+    <div class="form-note">${tl('Жалобу на')} ${esc(name)} ${tl('увидят модераторы. Выберите причину:')}</div>
+    <div class="rep-reasons" role="radiogroup">${REPORT_REASONS.map((r, i) => `<label class="rep-opt"><input type="radio" name="reason" value="${esc(r)}"${i ? '' : ' checked'}><span>${esc(tl(r))}</span></label>`).join('')}</div>
+    <div class="field"><label for="repu-d">${tl('Подробнее (необязательно)')}</label><textarea id="repu-d" name="details" rows="3" maxlength="500"></textarea></div>`, {
+    submitLabel: tl('Отправить'),
     onSubmit: async f => {
       const reason = (f.querySelector('input[name="reason"]:checked') || {}).value || 'Другое';
       try { await api('content_reports', { method: 'POST', schema: 'public', prefer: 'return=minimal', body: { target_type: 'user', target_id: uid, reason, details: f.details.value.trim() || null } }); }
-      catch (e) { if (/duplicate|unique|409/i.test(e.message)) throw new Error('Вы уже жаловались на этого пользователя'); throw e; }
-      toast('Жалоба отправлена модераторам');
+      catch (e) { if (/duplicate|unique|409/i.test(e.message)) throw new Error(tl('Вы уже жаловались на этого пользователя')); throw e; }
+      toast(tl('Жалоба отправлена модераторам'));
     },
   });
 }
@@ -217,19 +219,19 @@ const effRole = p => (paidActive(p) && (ROLE_RANK[p.paid_role] ?? 0) > (ROLE_RAN
 const rank = () => ROLE_RANK[effRole(S.me)] ?? 0;
 const isVip = p => (ROLE_RANK[effRole(p)] ?? 0) >= 2;
 const slotVip = s => isVip(s?.player || s?.user);
-const vipBadge = () => `<span class="vip-badge" data-vip-info title="Статус VIP в Y (купленная подписка, не официальный аккаунт)">${I.verify}</span>`;
+const vipBadge = () => `<span class="vip-badge" data-vip-info title="${tl('Статус VIP в Y (купленная подписка, не официальный аккаунт)')}">${I.verify}</span>`;
 function vipInfoDialog() {
   const ov = document.createElement('div');
   ov.className = 'overlay';
-  ov.innerHTML = `<div class="modal vip-info-modal" role="dialog" aria-modal="true" aria-label="Статус VIP">
+  ov.innerHTML = `<div class="modal vip-info-modal" role="dialog" aria-modal="true" aria-label="${tl('Статус VIP')}">
     <div class="vip-info-body">
       <div class="vip-info-ic">${I.verify}</div>
-      <h2>Статус VIP в Y</h2>
-      <p>Эта синяя галочка показывает, что игрок приобрёл статус <b>VIP</b> в Y за renah0cki coin.</p>
-      <p class="vip-info-sub">Галочка <b>не означает</b> официальный аккаунт и не подтверждает, что за профилем или персонажем стоит реальный человек.</p>
+      <h2>${tl('Статус VIP в Y')}</h2>
+      <p>${tl('Эта синяя галочка показывает, что игрок приобрёл статус')} <b>VIP</b> ${tl('в Y за renah0cki coin.')}</p>
+      <p class="vip-info-sub">${tl('Галочка')} <b>${tl('не означает')}</b> ${tl('официальный аккаунт и не подтверждает, что за профилем или персонажем стоит реальный человек.')}</p>
       <div class="vip-info-acts">
-        <button type="button" class="btn blue" data-close>Понятно</button>
-        ${rank() < 2 ? '<a class="btn ghost" href="#/settings" data-close>Оформить VIP</a>' : ''}
+        <button type="button" class="btn blue" data-close>${tl('Понятно')}</button>
+        ${rank() < 2 ? `<a class="btn ghost" href="#/settings" data-close>${tl('Оформить VIP')}</a>` : ''}
       </div>
     </div>
   </div>`;
@@ -261,7 +263,7 @@ const P_SEL_ROOM = `${P_SEL},room:room_id(id,title,short_code,image_url)`;
 // ответ «от себя» (без персонажа): подставляем имя/аватар пользователя как «слот»
 function normAuthor(x) {
   if (!x) return;
-  if (!x.slot && x.author) x.slot = { char_name: yName(x.author) || x.author.username || 'Пользователь', handle: x.author.username || '', avatar_url: yAvatar(x.author), user: x.author };
+  if (!x.slot && x.author) x.slot = { char_name: yName(x.author) || x.author.username || tl('Пользователь'), handle: x.author.username || '', avatar_url: yAvatar(x.author), user: x.author };
   if (x.parent && !x.parent.slot && x.parent.author) x.parent.slot = { handle: x.parent.author.username || '' };
   if (x.quoted) normAuthor(x.quoted);
   if (x.orig) normAuthor(x.orig);
@@ -278,7 +280,7 @@ function cache(p) {
 async function loadRoom(key) {
   if (S.room && (S.room.id === key || S.room.short_code === key)) return S.room;
   const rows = await api(`rooms?${keyFilter(key)}&select=*`);
-  if (!rows?.length) throw new Error('Комната не найдена или нет доступа');
+  if (!rows?.length) throw new Error(tl('Комната не найдена или нет доступа'));
   S.room = rows[0]; S.actSlot = null; S.dmAs = null; S.posts.clear();
   await loadSlots();
   await loadMine();
@@ -404,7 +406,7 @@ function onPostUpdate(row) {
     }
   });
   $$(`[data-big-stats="${row.id}"]`).forEach(el => { el.innerHTML = bigStats(p); el.classList.toggle('hidden', !el.innerHTML); });
-  if (row.is_deleted) $$(`[data-body="${row.id}"]`).forEach(el => { el.innerHTML = '<div class="deleted">Этот пост удалён.</div>'; });
+  if (row.is_deleted) $$(`[data-body="${row.id}"]`).forEach(el => { el.innerHTML = `<div class="deleted">${tl('Этот пост удалён.')}</div>`; });
 }
 function onPostDelete(old) {
   if (!old?.id) return;
@@ -438,7 +440,7 @@ function mediaHtml(imgs) {
 }
 function quoteHtml(q) {
   if (!q) return '';
-  const body = q.is_deleted ? '<div class="deleted">Этот пост удалён.</div>'
+  const body = q.is_deleted ? `<div class="deleted">${tl('Этот пост удалён.')}</div>`
     : `<div class="text">${richText(q.body)}</div>${mediaHtml(q.images)}`;
   return `<div class="quote-card" data-open="${q.id}">
     <div class="post-top">${avatar(q.slot, 'xs')}<span class="name">${esc(q.slot?.char_name)}</span>${slotVip(q.slot) ? vipBadge() : ''}<span class="handle">@${esc(q.slot?.handle)}</span><span class="dot">·</span><time>${ago(q.created_at)}</time></div>
@@ -454,17 +456,17 @@ function actionsHtml(p, big = false) {
   const liked = S.liked.has(p.id) || S.userLiked.has(p.id), rted = S.reposted.has(p.id) || S.userReposted.has(p.id);
   const n = v => big ? '' : `<span class="n">${fmtN(v)}</span>`;
   return `<div class="actions" data-cnt="${p.id}">
-    <button class="act reply" data-act="reply" aria-label="Ответить"><span class="ic">${I.reply}</span>${n(p.reply_count)}</button>
-    <button class="act rt${rted ? ' on' : ''}" data-act="rt" aria-label="Репост"><span class="ic">${I.rt}</span>${n(p.repost_count)}</button>
-    <button class="act like${liked ? ' on' : ''}" data-act="like" aria-label="Нравится"><span class="ic">${I.like}</span>${n(p.like_count)}</button>
-    <button class="act share" data-act="share" aria-label="Скопировать ссылку"><span class="ic">${I.share}</span></button>
+    <button class="act reply" data-act="reply" aria-label="${tl('Ответить')}"><span class="ic">${I.reply}</span>${n(p.reply_count)}</button>
+    <button class="act rt${rted ? ' on' : ''}" data-act="rt" aria-label="${tl('Репост')}"><span class="ic">${I.rt}</span>${n(p.repost_count)}</button>
+    <button class="act like${liked ? ' on' : ''}" data-act="like" aria-label="${tl('Нравится')}"><span class="ic">${I.like}</span>${n(p.like_count)}</button>
+    <button class="act share" data-act="share" aria-label="${tl('Скопировать ссылку')}"><span class="ic">${I.share}</span></button>
   </div>`;
 }
 function bodyHtml(p) {
-  if (p.is_deleted) return '<div class="deleted">Этот пост удалён.</div>';
-  if (isBlockedUser(p.author?.user_id)) return '<div class="deleted">Пост пользователя, которого вы заблокировали.</div>';
+  if (p.is_deleted) return `<div class="deleted">${tl('Этот пост удалён.')}</div>`;
+  if (isBlockedUser(p.author?.user_id)) return `<div class="deleted">${tl('Пост пользователя, которого вы заблокировали.')}</div>`;
   const media = mediaHtml(p.images);
-  return `${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${voiceHtml(p.voice_url)}${p.is_nsfw && media ? `<div class="nsfw-wrap" data-nsfw>${media}<button type="button" class="nsfw-cover" data-nsfw-show>18+ · нажмите, чтобы показать</button></div>` : media}${quoteHtml(p.quoted)}`;
+  return `${p.body ? `<div class="text">${richText(p.body)}</div>` : ''}${voiceHtml(p.voice_url)}${p.is_nsfw && media ? `<div class="nsfw-wrap" data-nsfw>${media}<button type="button" class="nsfw-cover" data-nsfw-show>${tl('18+ · нажмите, чтобы показать')}</button></div>` : media}${quoteHtml(p.quoted)}`;
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-nsfw-show]'); if (!b) return;
@@ -483,7 +485,7 @@ function renderPost(p, { line = false, showRoom = false, threads = false } = {})
     const o = p.orig;
     wrap.className = 'post-wrap';
     wrap.dataset.post = p.id;
-    wrap.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(p.slot?.char_name)} сделал(а) репост</span>${showRoom && p.room ? `<span class="dot">·</span>${roomLine(p.room)}` : ''}</div>`;
+    wrap.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(p.slot?.char_name)} ${tl('сделал(а) репост')}</span>${showRoom && p.room ? `<span class="dot">·</span>${roomLine(p.room)}` : ''}</div>`;
     wrap.append(renderPost(o, { threads }));
     return wrap;
   }
@@ -501,30 +503,30 @@ function renderPost(p, { line = false, showRoom = false, threads = false } = {})
   el.innerHTML = `${line ? '<div class="thread-line"></div>' : ''}
     <a href="${p.slot?.user ? userPath(p.slot.user) : p.slot?.character_id ? `#/c/${p.slot.character_id}` : `#/r/${p.room_id}/chars`}" class="av-link" aria-label="${esc(p.slot?.char_name)}">${avatar(p.slot)}</a>
     <div class="post-main">
-      <div class="post-top"><span class="name">${esc(p.slot?.char_name)}</span>${slotVip(p.slot) ? vipBadge() : ''}${p.slot?.user ? '<span class="viewer-tag">зритель</span>' : ''}<span class="handle">@${esc(p.slot?.handle)}</span><span class="dot">·</span><time datetime="${p.created_at}" title="${esc(fullDate(p.created_at))}">${ago(p.created_at)}</time>
-        ${!p.is_deleted && S.uid ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
-      ${p.reply_to && p.parent?.slot ? `<div class="reply-to">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
+      <div class="post-top"><span class="name">${esc(p.slot?.char_name)}</span>${slotVip(p.slot) ? vipBadge() : ''}${p.slot?.user ? `<span class="viewer-tag">${tl('зритель')}</span>` : ''}<span class="handle">@${esc(p.slot?.handle)}</span><span class="dot">·</span><time datetime="${p.created_at}" title="${esc(fullDate(p.created_at))}">${ago(p.created_at)}</time>
+        ${!p.is_deleted && S.uid ? `<button class="more" data-act="more" aria-label="${tl('Ещё')}">${I.more}</button>` : ''}</div>
+      ${p.reply_to && p.parent?.slot ? `<div class="reply-to">${tl('В ответ')} <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
       <div data-body="${p.id}">${bodyHtml(p)}</div>
       ${actionsHtml(p)}
       ${threads && !p.is_deleted ? `<div class="thread-wrap" data-tw="${p.id}" hidden>
         <div class="inline-thread replies" data-inline="${p.id}" data-replies="${p.id}"${p.reply_count ? '' : ' data-loaded="1"'}></div>
-        <button type="button" class="thread-reply" data-act="compose">${I.reply}<span>Ответить</span></button></div>` : ''}
+        <button type="button" class="thread-reply" data-act="compose">${I.reply}<span>${tl('Ответить')}</span></button></div>` : ''}
     </div>`;
   return el;
 }
 function bigStats(p) {
-  const parts = [];
-  if (p.repost_count) parts.push(`<span><b>${p.repost_count}</b> репост.</span>`);
-  if (p.like_count) parts.push(`<span><b>${p.like_count}</b> отметок «Нравится»</span>`);
-  if (p.reply_count) parts.push(`<span><b>${p.reply_count}</b> ответ.</span>`);
+  const parts = [], one = (n, en1, key) => (LANG() === 'en' && n === 1 ? en1 : tl(key)); // en: 1 like / 2 likes
+  if (p.repost_count) parts.push(`<span><b>${p.repost_count}</b> ${one(p.repost_count, 'repost', 'репост.')}</span>`);
+  if (p.like_count) parts.push(`<span><b>${p.like_count}</b> ${one(p.like_count, 'like', 'отметок «Нравится»')}</span>`);
+  if (p.reply_count) parts.push(`<span><b>${p.reply_count}</b> ${one(p.reply_count, 'reply', 'ответ.')}</span>`);
   return parts.join('');
 }
 function renderBigPost(p) {
   const el = document.createElement('article');
   el.className = 'post-big'; el.dataset.post = p.id;
   el.innerHTML = `<div class="post-top who" style="gap:12px">${avatar(p.slot)}<div style="min-width:0"><span class="name">${esc(p.slot?.char_name)}${slotVip(p.slot) ? vipBadge() : ''}</span><span class="handle">@${esc(p.slot?.handle)}</span></div>
-      ${!p.is_deleted && S.uid ? `<button class="more" data-act="more" aria-label="Ещё">${I.more}</button>` : ''}</div>
-    ${p.reply_to && p.parent?.slot ? `<div class="reply-to" style="margin-top:8px">В ответ <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
+      ${!p.is_deleted && S.uid ? `<button class="more" data-act="more" aria-label="${tl('Ещё')}">${I.more}</button>` : ''}</div>
+    ${p.reply_to && p.parent?.slot ? `<div class="reply-to" style="margin-top:8px">${tl('В ответ')} <b>@${esc(p.parent.slot.handle)}</b></div>` : ''}
     <div data-body="${p.id}">${bodyHtml(p)}</div>
     <div class="meta">${fullDate(p.created_at)}</div>
     <div class="stats" data-big-stats="${p.id}">${bigStats(p)}</div>
@@ -554,13 +556,13 @@ main.addEventListener('click', async e => {
 
 function needLogin() {
   if (S.uid) return false;
-  toast('Войдите на основном сайте, чтобы играть', true); return true;
+  toast(tl('Войдите на основном сайте, чтобы играть'), true); return true;
 }
 function needSlot() {
   if (canWrite() && actingSlot()) return false;
   if (needLogin()) return true;
-  if (S.room?.status !== 'active') { toast('Комната в архиве', true); return true; }
-  toast('Сначала выберите персонажа', true);
+  if (S.room?.status !== 'active') { toast(tl('Комната в архиве'), true); return true; }
+  toast(tl('Сначала выберите персонажа'), true);
   location.hash = roomPath(S.room, '/chars');
   return true;
 }
@@ -572,7 +574,7 @@ function slotFor(p) {
   return S.mySlots.find(x => x.room_id === p.room_id && x.room?.status !== 'archived') || null;
 }
 async function postAction(act, p, btn) {
-  if (act === 'share') return copyLink(postPath(p), 'Ссылка на пост скопирована');
+  if (act === 'share') return copyLink(postPath(p), tl('Ссылка на пост скопирована'));
   if (act === 'more') return postMenu(p, btn);
   if (act === 'rt') return repostMenu(p, btn);
   // в ленте кнопка комментария сворачивает/разворачивает ветку (если ответы есть)
@@ -582,7 +584,7 @@ async function postAction(act, p, btn) {
     tw.hidden = false;
     const box = $('.inline-thread', tw);
     if (!box.dataset.loaded) {
-      box.innerHTML = '<div class="thread-loading">Загрузка ответов…</div>';
+      box.innerHTML = `<div class="thread-loading">${tl('Загрузка ответов…')}</div>`;
       try { const ch = await loadReplyTree(p.id); box.replaceChildren(...(ch.get(p.id) || []).map(x => renderReplyNode(x, ch))); box.dataset.loaded = '1'; }
       catch (e) { box.innerHTML = ''; tw.hidden = true; toast(errText(e), true); }
     }
@@ -592,7 +594,7 @@ async function postAction(act, p, btn) {
   if (act === 'compose') act = 'reply';
   const a = slotFor(p);
   if (act === 'reply') {
-    if (!a) return inRoomCtx(p) ? needSlot() : toast('Отвечать могут только участники комнаты — займите персонажа', true);
+    if (!a) return inRoomCtx(p) ? needSlot() : toast(tl('Отвечать могут только участники комнаты — займите персонажа'), true);
     return openComposer({ replyTo: p, slot: a });
   }
   if (act === 'like' && !a) return toggleUserLike(p, btn);
@@ -652,19 +654,19 @@ function repostMenu(p, btn) {
   if (needLogin()) return;
   const items = [];
   const a = slotFor(p), mine = S.reposted.get(p.id);
-  if (mine) items.push({ icon: I.rt, label: 'Отменить репост персонажа', run: async () => {
+  if (mine) items.push({ icon: I.rt, label: tl('Отменить репост персонажа'), run: async () => {
     try { await rpc('delete_post', { p_post: mine }); S.reposted.delete(p.id); onPostDelete({ id: mine }); refreshRtState(p.id); }
     catch (e) { toast(errText(e), true); }
   } });
-  else if (a) items.push({ icon: I.rt, label: `Репост от ${a.char_name}`, run: async () => {
+  else if (a) items.push({ icon: I.rt, label: tl('Репост от {0}', {0: a.char_name}), run: async () => {
     try {
       const [x] = await api('posts', { method: 'POST', body: { room_id: p.room_id, slot_id: a.id, repost_of: p.id }, prefer: 'return=representation' });
-      S.reposted.set(p.id, x.id); refreshRtState(p.id); toast('Репост сделан');
+      S.reposted.set(p.id, x.id); refreshRtState(p.id); toast(tl('Репост сделан'));
     } catch (e) { toast(errText(e), true); }
   } });
   const onPage = S.userReposted.has(p.id);
-  items.push({ icon: I.user, label: onPage ? 'Убрать со своей страницы' : 'Репост к себе на страницу', run: () => toggleUserRepost(p) });
-  if (a && inRoomCtx(p)) items.push({ icon: I.quote, label: 'Цитировать', run: () => openComposer({ quoteOf: p }) });
+  items.push({ icon: I.user, label: onPage ? tl('Убрать со своей страницы') : tl('Репост к себе на страницу'), run: () => toggleUserRepost(p) });
+  if (a && inRoomCtx(p)) items.push({ icon: I.quote, label: tl('Цитировать'), run: () => openComposer({ quoteOf: p }) });
   menu(btn, items);
 }
 async function toggleUserRepost(p) {
@@ -675,36 +677,36 @@ async function toggleUserRepost(p) {
     on ? S.userReposted.delete(p.id) : S.userReposted.add(p.id);
     refreshRtState(p.id);
     if (on) $$(`[data-post="ur-${p.id}"]`).forEach(el => el.remove());
-    toast(on ? 'Убрано с вашей страницы' : 'Репост на вашу страницу');
+    toast(on ? tl('Убрано с вашей страницы') : tl('Репост на вашу страницу'));
   } catch (e) { toast(errText(e), true); }
 }
 const isMine = p => !!S.uid && (S.mySlots.some(x => x.id === p.slot_id) || (!p.slot_id && p.slot?.user?.user_id === S.uid));
 function postMenu(p, btn) {
   const items = [];
-  if (!isMine(p)) items.push({ icon: I.flag, label: 'Пожаловаться', run: () => reportDialog(p) });
-  if ((isMine(p) && S.me?.is_adult) || isStaff()) items.push({ icon: I.flag, label: p.is_nsfw ? 'Снять метку 18+' : 'Пометить 18+', run: async () => {
-    try { await rpc('post_set_nsfw', { p_post: p.id, p_nsfw: !p.is_nsfw }); p.is_nsfw = !p.is_nsfw; onPostUpdate({ ...p }); toast(p.is_nsfw ? 'Пост помечен 18+' : 'Метка 18+ снята'); }
+  if (!isMine(p)) items.push({ icon: I.flag, label: tl('Пожаловаться'), run: () => reportDialog(p) });
+  if ((isMine(p) && S.me?.is_adult) || isStaff()) items.push({ icon: I.flag, label: p.is_nsfw ? tl('Снять метку 18+') : tl('Пометить 18+'), run: async () => {
+    try { await rpc('post_set_nsfw', { p_post: p.id, p_nsfw: !p.is_nsfw }); p.is_nsfw = !p.is_nsfw; onPostUpdate({ ...p }); toast(p.is_nsfw ? tl('Пост помечен 18+') : tl('Метка 18+ снята')); }
     catch (e) { toast(errText(e), true); }
   } });
-  if (canManage(p)) items.push({ icon: I.trash, label: 'Удалить', danger: true, run: async () => {
-    if (!confirm('Удалить пост? Отменить нельзя.')) return;
-    try { await rpc('delete_post', { p_post: p.id }); p.is_deleted = true; onPostUpdate({ ...p, is_deleted: true }); toast('Пост удалён'); }
+  if (canManage(p)) items.push({ icon: I.trash, label: tl('Удалить'), danger: true, run: async () => {
+    if (!confirm(tl('Удалить пост? Отменить нельзя.'))) return;
+    try { await rpc('delete_post', { p_post: p.id }); p.is_deleted = true; onPostUpdate({ ...p, is_deleted: true }); toast(tl('Пост удалён')); }
     catch (e) { toast(errText(e), true); }
   } });
   if (items.length) menu(btn, items);
 }
 const REPORT_REASONS = ['Оскорбления', 'Травля', 'Спам', '18+ / NSFW', 'Политика', 'Запрещённые слова', 'Другое'];
 function reportDialog(p) {
-  const form = modal('Пожаловаться', `
-    <div class="form-note">Жалобу увидят модераторы. Выберите причину:</div>
-    <div class="rep-reasons" role="radiogroup">${REPORT_REASONS.map((r, i) => `<label class="rep-opt"><input type="radio" name="reason" value="${esc(r)}"${i ? '' : ' checked'}><span>${esc(r)}</span></label>`).join('')}</div>
-    <div class="field"><label for="rep-d">Подробнее (необязательно)</label><textarea id="rep-d" name="details" rows="3" maxlength="500"></textarea></div>`, {
-    submitLabel: 'Отправить',
+  const form = modal(tl('Пожаловаться'), `
+    <div class="form-note">${tl('Жалобу увидят модераторы. Выберите причину:')}</div>
+    <div class="rep-reasons" role="radiogroup">${REPORT_REASONS.map((r, i) => `<label class="rep-opt"><input type="radio" name="reason" value="${esc(r)}"${i ? '' : ' checked'}><span>${esc(tl(r))}</span></label>`).join('')}</div>
+    <div class="field"><label for="rep-d">${tl('Подробнее (необязательно)')}</label><textarea id="rep-d" name="details" rows="3" maxlength="500"></textarea></div>`, {
+    submitLabel: tl('Отправить'),
     onSubmit: async f => {
       const reason = (f.querySelector('input[name="reason"]:checked') || {}).value || 'Другое';
       try { await api('reports', { method: 'POST', body: { post_id: p.id, reason, details: f.details.value.trim() }, prefer: 'return=minimal' }); }
-      catch (e) { if (String(e.message).includes('duplicate')) throw new Error('Вы уже жаловались на этот пост'); throw e; }
-      toast('Жалоба отправлена модераторам');
+      catch (e) { if (String(e.message).includes('duplicate')) throw new Error(tl('Вы уже жаловались на этот пост')); throw e; }
+      toast(tl('Жалоба отправлена модераторам'));
     },
   });
 }
@@ -712,8 +714,8 @@ function reportDialog(p) {
 function lightbox(src) {
   const lb = document.createElement('div');
   lb.className = 'lightbox';
-  lb.innerHTML = `<button class="icon-btn" aria-label="Закрыть">${I.close}</button><img src="${esc(src)}" alt="">`
-    + (gifOk() && isGifUrl(src) ? `<button type="button" class="btn small lb-save" data-save-gif>Сохранить в мои GIF</button>` : '');
+  lb.innerHTML = `<button class="icon-btn" aria-label="${tl('Закрыть')}">${I.close}</button><img src="${esc(src)}" alt="">`
+    + (gifOk() && isGifUrl(src) ? `<button type="button" class="btn small lb-save" data-save-gif>${tl('Сохранить в мои GIF')}</button>` : '');
   const close = () => { lb.remove(); document.removeEventListener('keydown', onKey); };
   const onKey = e => { if (e.key === 'Escape') close(); };
   lb.onclick = e => { if (e.target.closest('[data-save-gif]')) { e.stopPropagation(); saveGif(src, e.target.closest('[data-save-gif]')); return; } close(); };
@@ -730,12 +732,12 @@ async function recordVoice(host, onSend) {
   if ($('.vrec', host)) return;
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
-  catch { return toast('Нет доступа к микрофону', true); }
+  catch { return toast(tl('Нет доступа к микрофону'), true); }
   const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find(m => MediaRecorder.isTypeSupported?.(m)) || '';
   const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined), chunks = [];
   const bar = document.createElement('div');
   bar.className = 'vrec';
-  bar.innerHTML = `<span class="vrec-dot"></span><b class="vrec-t">0:00</b><span class="vrec-lbl">Идёт запись…</span><button type="button" class="btn ghost small" data-vx>Отмена</button><button type="button" class="btn blue small" data-vok>Отправить</button>`;
+  bar.innerHTML = `<span class="vrec-dot"></span><b class="vrec-t">0:00</b><span class="vrec-lbl">${tl('Идёт запись…')}</span><button type="button" class="btn ghost small" data-vx>${tl('Отмена')}</button><button type="button" class="btn blue small" data-vok>${tl('Отправить')}</button>`;
   host.append(bar);
   const t0 = Date.now(); let ok = false;
   const stop = v => { ok = v; clearInterval(tick); if (rec.state !== 'inactive') rec.stop(); stream.getTracks().forEach(x => x.stop()); };
@@ -743,13 +745,13 @@ async function recordVoice(host, onSend) {
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   rec.onstop = async () => {
     if (!ok || Date.now() - t0 < 400) { bar.remove(); return; }
-    $('.vrec-lbl', bar).textContent = 'Отправляем…'; $$('button', bar).forEach(b => { b.disabled = true; });
+    $('.vrec-lbl', bar).textContent = tl('Отправляем…'); $$('button', bar).forEach(b => { b.disabled = true; });
     try {
       const type = (rec.mimeType || 'audio/webm').split(';')[0], t = await getToken();
-      if (!t) throw new Error('Нужно войти');
+      if (!t) throw new Error(tl('Нужно войти'));
       const r = await fetch(`${CDN}/upload`, { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': type, 'X-File-Name': 'voice', 'X-User-Id': S.uid }, body: new Blob(chunks, { type }) });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d.url) throw new Error(d.error || 'Ошибка загрузки');
+      if (!r.ok || !d.url) throw new Error(d.error || tl('Ошибка загрузки'));
       await onSend(d.url);
     } catch (e) { toast(errText(e), true); }
     bar.remove();
@@ -763,20 +765,20 @@ const isGifUrl = u => isGiphy(u) || /^https:\/\/cdn\.renah0cki\.xyz\/file\/rp\/[
 async function saveGif(url, btn) {
   try {
     await api('saved_gifs', { method: 'POST', body: { url }, prefer: 'return=minimal' });
-    toast('Сохранено в «Мои GIF»');
+    toast(tl('Сохранено в «Мои GIF»'));
   } catch (e) {
-    if (String(e.message).includes('duplicate')) toast('Уже в «Мои GIF»'); else toast(errText(e), true);
+    if (String(e.message).includes('duplicate')) toast(tl('Уже в «Мои GIF»')); else toast(errText(e), true);
   }
-  if (btn) { btn.disabled = true; btn.textContent = 'В «Мои GIF»'; }
+  if (btn) { btn.disabled = true; btn.textContent = tl('В «Мои GIF»'); }
 }
 // окно выбора GIF: поиск GIPHY, «Мои», загрузка своего .gif. onPick(url)
 function gifPicker(onPick) {
   const ov = document.createElement('div');
   ov.className = 'overlay';
-  ov.innerHTML = `<div class="modal gif-modal" role="dialog" aria-modal="true" aria-label="GIF"><div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="Закрыть">${I.close}</button><div class="head-title"><h1>GIF</h1></div></div>
-      <div class="tabs" role="tablist"><button type="button" data-gtab="mine">Мои</button><button type="button" data-gtab="search">Поиск</button></div></div>
-    <div class="gif-top"><input type="search" class="gif-q" placeholder="Поиск GIPHY" aria-label="Поиск GIF" maxlength="50">
-      <label class="btn ghost small gif-up">Свой .gif<input type="file" accept="image/gif" hidden></label></div>
+  ov.innerHTML = `<div class="modal gif-modal" role="dialog" aria-modal="true" aria-label="GIF"><div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="${tl('Закрыть')}">${I.close}</button><div class="head-title"><h1>GIF</h1></div></div>
+      <div class="tabs" role="tablist"><button type="button" data-gtab="mine">${tl('Мои')}</button><button type="button" data-gtab="search">${tl('Поиск')}</button></div></div>
+    <div class="gif-top"><input type="search" class="gif-q" placeholder="${tl('Поиск GIPHY')}" aria-label="${tl('Поиск GIF')}" maxlength="50">
+      <label class="btn ghost small gif-up">${tl('Свой .gif')}<input type="file" accept="image/gif" hidden></label></div>
     <div class="gif-grid"></div><div class="gif-more"></div>
     <div class="gif-attr">Powered by GIPHY</div></div>`;
   const grid = $('.gif-grid', ov), more = $('.gif-more', ov), q = $('.gif-q', ov), file = $('input[type=file]', ov), top = $('.gif-top', ov), attr = $('.gif-attr', ov);
@@ -784,7 +786,7 @@ function gifPicker(onPick) {
   const close = () => { ov.remove(); document.body.style.overflow = ''; document.removeEventListener('keydown', onKey); };
   const onKey = e => { if (e.key === 'Escape') close(); };
   const pick = url => { close(); onPick(url); };
-  const cell = (url, preview, mine) => `<button type="button" class="gif-cell" data-gif="${esc(url)}"><img src="${esc(preview)}" alt="" loading="lazy">${mine ? `<span class="gif-del" data-gif-del="${esc(url)}" title="Убрать из «Мои»">${I.close}</span>` : ''}</button>`;
+  const cell = (url, preview, mine) => `<button type="button" class="gif-cell" data-gif="${esc(url)}"><img src="${esc(preview)}" alt="" loading="lazy">${mine ? `<span class="gif-del" data-gif-del="${esc(url)}" title="${tl('Убрать из «Мои»')}">${I.close}</span>` : ''}</button>`;
   async function search(append) {
     const my = ++seq;
     if (!append) { next = 0; grid.innerHTML = loader(); }
@@ -793,13 +795,13 @@ function gifPicker(onPick) {
       const t = await getToken();
       const r = await fetch(`${CDN}/gif-search`, { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: q.value, offset: next }) });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || 'Ошибка поиска');
+      if (!r.ok) throw new Error(d.error || tl('Ошибка поиска'));
       if (my !== seq || tab !== 'search') return;
       const html = d.items.map(g => cell(g.url, g.preview, false)).join('');
       grid.innerHTML = (append ? grid.innerHTML : '') + html;
-      if (!grid.innerHTML) grid.innerHTML = '<div class="empty">Ничего не найдено</div>';
+      if (!grid.innerHTML) grid.innerHTML = `<div class="empty">${tl('Ничего не найдено')}</div>`;
       next = d.next;
-      if (d.items.length && next < d.total) more.innerHTML = '<button type="button" class="btn ghost small" data-gif-more>Ещё</button>';
+      if (d.items.length && next < d.total) more.innerHTML = `<button type="button" class="btn ghost small" data-gif-more>${tl('Ещё')}</button>`;
     } catch (e) { if (my === seq) grid.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; }
   }
   async function mine() {
@@ -810,7 +812,7 @@ function gifPicker(onPick) {
       if (!rows.length && opening) { opening = false; return setTab('search'); } // «Мои» пусто — сразу поиск
       opening = false;
       grid.innerHTML = rows.length ? rows.map(x => cell(x.url, x.url, true)).join('')
-        : '<div class="empty">Пока пусто. Откройте GIF в посте или сообщении и нажмите «Сохранить в мои GIF».</div>';
+        : `<div class="empty">${tl('Пока пусто. Откройте GIF в посте или сообщении и нажмите «Сохранить в мои GIF».')}</div>`;
     } catch (e) { grid.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; }
   }
   ov.addEventListener('click', async e => {
@@ -833,8 +835,8 @@ function gifPicker(onPick) {
   file.onchange = async () => {
     const f = file.files[0]; file.value = '';
     if (!f) return;
-    if (f.type !== 'image/gif') return toast('Нужен файл .gif', true);
-    if (f.size > MAX_BYTES) return toast('GIF больше 5 МБ', true);
+    if (f.type !== 'image/gif') return toast(tl('Нужен файл .gif'), true);
+    if (f.size > MAX_BYTES) return toast(tl('GIF больше 5 МБ'), true);
     top.classList.add('busy');
     try { const url = await uploadImage(f); saveGif(url); pick(url); }
     catch (e) { toast(errText(e), true); top.classList.remove('busy'); }
@@ -856,18 +858,18 @@ async function shrink(file) {
     const b = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
     if (b && b.size <= MAX_BYTES) return b;
   }
-  throw new Error('Картинка слишком большая');
+  throw new Error(tl('Картинка слишком большая'));
 }
 async function uploadImage(file) {
   let blob = file;
   if (!OK_TYPES.includes(file.type) || (file.size > MAX_BYTES && file.type !== 'image/gif')) {
-    try { blob = await shrink(file); } catch { throw new Error('Не удалось обработать картинку'); }
+    try { blob = await shrink(file); } catch { throw new Error(tl('Не удалось обработать картинку')); }
   }
-  if (blob.size > MAX_BYTES) throw new Error('Картинка больше 5 МБ');
-  const t = await getToken(); if (!t) throw new Error('Нужно войти');
+  if (blob.size > MAX_BYTES) throw new Error(tl('Картинка больше 5 МБ'));
+  const t = await getToken(); if (!t) throw new Error(tl('Нужно войти'));
   const r = await fetch(`${CDN}/rp-upload`, { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': blob.type }, body: blob });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || 'Ошибка загрузки');
+  if (!r.ok) throw new Error(d.error || tl('Ошибка загрузки'));
   return d.url;
 }
 
@@ -877,24 +879,24 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
   box.className = 'composer';
   const imgs = []; // {url|null, preview, loading}
   const slotSel = false
-    ? `<select class="as-select" aria-label="От имени">${S.slots.map(s => `<option value="${s.id}"${s.id === actingSlot()?.id ? ' selected' : ''}>${esc(s.char_name)} @${esc(s.handle)}${s.player_id && s.player_id !== S.uid ? ' (игрок)' : ''}</option>`).join('')}</select>`
+    ? `<select class="as-select" aria-label="${tl('От имени')}">${S.slots.map(s => `<option value="${s.id}"${s.id === actingSlot()?.id ? ' selected' : ''}>${esc(s.char_name)} @${esc(s.handle)}${s.player_id && s.player_id !== S.uid ? tl(' (игрок)') : ''}</option>`).join('')}</select>`
     : '';
   const a = asUser ? userAv(S.me) : (fixedSlot || actingSlot());
   box.innerHTML = `<div class="c-av">${avatar(a)}</div>
     <div class="composer-body">
       ${slotSel}
-      ${asUser ? '<div class="as-user">Вы отвечаете от себя — вы не играете в этой комнате</div>' : fixedSlot ? `<div class="as-user">Ответ от персонажа ${esc(fixedSlot.char_name)}</div>` : ''}
-      ${replyTo ? `<div class="reply-to" style="margin-top:4px">В ответ <b>@${esc(replyTo.slot?.handle)}</b></div>` : ''}
-      <textarea rows="1" maxlength="${MAX_LEN + 200}" placeholder="${replyTo ? 'Опубликуйте свой ответ' : quoteOf ? 'Добавьте комментарий' : 'Что происходит?!'}" aria-label="Текст поста"></textarea>
+      ${asUser ? `<div class="as-user">${tl('Вы отвечаете от себя — вы не играете в этой комнате')}</div>` : fixedSlot ? `<div class="as-user">${tl('Ответ от персонажа')} ${esc(fixedSlot.char_name)}</div>` : ''}
+      ${replyTo ? `<div class="reply-to" style="margin-top:4px">${tl('В ответ')} <b>@${esc(replyTo.slot?.handle)}</b></div>` : ''}
+      <textarea rows="1" maxlength="${MAX_LEN + 200}" placeholder="${replyTo ? tl('Опубликуйте свой ответ') : quoteOf ? tl('Добавьте комментарий') : tl('Что происходит?!')}" aria-label="${tl('Текст поста')}"></textarea>
       <div class="thumbs hidden"></div>
       ${quoteOf ? quoteHtml(quoteOf) : ''}
       <div class="composer-tools">
-        <label class="tool" title="Картинки" aria-label="Добавить картинки">${I.image}<input type="file" accept="image/*" multiple hidden></label>
-        ${gifOk() ? '<button type="button" class="tool gif-tool" data-gif-open title="GIF" aria-label="Добавить GIF">GIF</button>' : ''}
-        ${voiceOk() ? `<button type="button" class="tool" data-voice title="Голосовое" aria-label="Записать голосовое">${I.mic}</button>` : ''}
-        ${S.me?.is_adult ? '<label class="tool nsfw-tool" title="Пост для 18+: увидят только те, кому есть 18, картинки будут размыты"><input type="checkbox" data-nsfw-mark> 18+</label>' : ''}
+        <label class="tool" title="${tl('Картинки')}" aria-label="${tl('Добавить картинки')}">${I.image}<input type="file" accept="image/*" multiple hidden></label>
+        ${gifOk() ? `<button type="button" class="tool gif-tool" data-gif-open title="GIF" aria-label="${tl('Добавить GIF')}">GIF</button>` : ''}
+        ${voiceOk() ? `<button type="button" class="tool" data-voice title="${tl('Голосовое')}" aria-label="${tl('Записать голосовое')}">${I.mic}</button>` : ''}
+        ${S.me?.is_adult ? `<label class="tool nsfw-tool" title="${tl('Пост для 18+: увидят только те, кому есть 18, картинки будут размыты')}"><input type="checkbox" data-nsfw-mark> 18+</label>` : ''}
         <span class="count"></span>
-        <button class="btn blue small send" type="button" disabled>${replyTo ? 'Ответить' : 'Опубликовать'}</button>
+        <button class="btn blue small send" type="button" disabled>${replyTo ? tl('Ответить') : tl('Опубликовать')}</button>
       </div>
     </div>`;
   const ta = $('textarea', box), send = $('.send', box), cnt = $('.count', box), thumbs = $('.thumbs', box), file = $('input[type=file]', box);
@@ -910,18 +912,18 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
   };
   const drawThumbs = () => {
     thumbs.classList.toggle('hidden', !imgs.length);
-    thumbs.innerHTML = imgs.map((im, i) => `<div class="thumb${im.loading ? ' loading' : ''}"><img src="${esc(im.preview)}" alt=""><button type="button" data-rm="${i}" aria-label="Убрать">${I.close}</button></div>`).join('');
+    thumbs.innerHTML = imgs.map((im, i) => `<div class="thumb${im.loading ? ' loading' : ''}"><img src="${esc(im.preview)}" alt=""><button type="button" data-rm="${i}" aria-label="${tl('Убрать')}">${I.close}</button></div>`).join('');
     update();
   };
   thumbs.onclick = e => { const b = e.target.closest('[data-rm]'); if (!b) return; const [im] = imgs.splice(+b.dataset.rm, 1); URL.revokeObjectURL(im.preview); drawThumbs(); };
   const gifBtn = $('[data-gif-open]', box);
   if (gifBtn) gifBtn.onclick = () => {
-    if (imgs.length >= MAX_IMG) return toast(`Не больше ${MAX_IMG} картинок`, true);
+    if (imgs.length >= MAX_IMG) return toast(tl('Не больше {0} картинок', {0: MAX_IMG}), true);
     gifPicker(url => { imgs.push({ url, preview: url, loading: false }); drawThumbs(); });
   };
   file.onchange = async () => {
     const files = [...file.files].slice(0, MAX_IMG - imgs.length); file.value = '';
-    if (!files.length) return toast(`Не больше ${MAX_IMG} картинок`, true);
+    if (!files.length) return toast(tl('Не больше {0} картинок', {0: MAX_IMG}), true);
     const added = files.map(f => ({ url: null, preview: URL.createObjectURL(f), loading: true, f }));
     imgs.push(...added); drawThumbs();
     await Promise.all(added.map(async im => {
@@ -944,7 +946,7 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
       const [row] = await api('posts', { method: 'POST', body, prefer: 'return=representation' });
       ta.value = ''; imgs.length = 0; drawThumbs();
       await onPostInsert(row);
-      toast(replyTo ? 'Ответ отправлен' : 'Пост опубликован');
+      toast(replyTo ? tl('Ответ отправлен') : tl('Пост опубликован'));
       onDone?.(row);
     });
   };
@@ -961,7 +963,7 @@ function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone,
       const [row] = await api('posts', { method: 'POST', body, prefer: 'return=representation' });
       ta.value = ''; imgs.length = 0; drawThumbs();
       await onPostInsert(row);
-      toast(replyTo ? 'Ответ отправлен' : 'Пост опубликован');
+      toast(replyTo ? tl('Ответ отправлен') : tl('Пост опубликован'));
       onDone?.(row);
     } catch (e) { toast(errText(e), true); update(); }
   };
@@ -976,20 +978,20 @@ function refreshComposer() {
 function composerHint() {
   const d = document.createElement('div');
   d.className = 'composer-hint';
-  if (!S.uid) d.innerHTML = `<span>Вы смотрите как гость.</span><a class="btn small blue" href="/">Войти</a>`;
-  else if (S.room?.status !== 'active') d.innerHTML = '<span>Комната в архиве — только чтение.</span>';
-  else if (S.room?.read_only && !isOwner()) d.innerHTML = '<span>Комната в режиме «только чтение».</span>';
-  else d.innerHTML = `<span>Выберите персонажа, чтобы писать.</span><a class="btn small blue" href="${roomPath(S.room, '/chars')}">Персонажи</a>`;
+  if (!S.uid) d.innerHTML = `<span>${tl('Вы смотрите как гость.')}</span><a class="btn small blue" href="/">${tl('Войти')}</a>`;
+  else if (S.room?.status !== 'active') d.innerHTML = `<span>${tl('Комната в архиве — только чтение.')}</span>`;
+  else if (S.room?.read_only && !isOwner()) d.innerHTML = `<span>${tl('Комната в режиме «только чтение».')}</span>`;
+  else d.innerHTML = `<span>${tl('Выберите персонажа, чтобы писать.')}</span><a class="btn small blue" href="${roomPath(S.room, '/chars')}">${tl('Персонажи')}</a>`;
   return d;
 }
 function openComposer(opts = {}) {
   if (!(opts.replyTo && opts.slot)) {
-    if (!S.room) { toast('Сначала зайдите в комнату', true); location.hash = '#/rooms'; return; }
+    if (!S.room) { toast(tl('Сначала зайдите в комнату'), true); location.hash = '#/rooms'; return; }
     if (needSlot()) return;
   } else if (needLogin()) return;
   const ov = document.createElement('div');
   ov.className = 'overlay';
-  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="Новый пост"><div class="head"><div class="head-row"><button class="icon-btn" data-close aria-label="Закрыть">${I.close}</button></div></div></div>`;
+  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="${tl('Новый пост')}"><div class="head"><div class="head-row"><button class="icon-btn" data-close aria-label="${tl('Закрыть')}">${I.close}</button></div></div></div>`;
   const modal = $('.modal', ov);
   if (opts.replyTo) {
     const ctx = renderPost(opts.replyTo, { line: true });
@@ -1011,14 +1013,14 @@ $('#fab').onclick = () => openComposer();
 /* ── виды ───────────────────────────────────────────────── */
 function head(title, { back = false, sub = '', extra = '' } = {}) {
   return `<div class="head"><div class="head-row">
-    ${back ? `<button class="icon-btn" data-back aria-label="Назад">${I.back}</button>` : ''}
+    ${back ? `<button class="icon-btn" data-back aria-label="${tl('Назад')}">${I.back}</button>` : ''}
     <div class="head-title"><h1>${esc(title)}</h1>${sub ? `<div class="head-sub">${sub}</div>` : ''}</div>${extra}
   </div></div>`;
 }
 main.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : (location.hash = S.room ? roomPath(S.room) : '#/'); } });
-const loader = () => '<div class="loading-row"><div class="spinner" role="status" aria-label="Загрузка"></div></div>';
+const loader = () => `<div class="loading-row"><div class="spinner" role="status" aria-label="${tl('Загрузка')}"></div></div>`;
 function errorView(msg) {
-  main.innerHTML = head('Y (переписки)', { back: true }) + `<div class="empty"><h2>Не получилось</h2><p>${esc(msg)}</p><a class="btn blue" href="#/rooms">К комнатам</a></div>`;
+  main.innerHTML = head(tl('Y (переписки)'), { back: true }) + `<div class="empty"><h2>${tl('Не получилось')}</h2><p>${esc(msg)}</p><a class="btn blue" href="#/rooms">${tl('К комнатам')}</a></div>`;
 }
 function updateNav() {
   $('#navChars').href = '#/chars'; $('#bottomChars').href = '#/chars';
@@ -1048,7 +1050,7 @@ function navKey() {
 }
 function renderMe() {
   const box = $('#meCard');
-  if (!S.uid) { box.innerHTML = '<a class="btn blue small" href="/">Войти</a>'; return; }
+  if (!S.uid) { box.innerHTML = `<a class="btn blue small" href="/">${tl('Войти')}</a>`; return; }
   const a = S.room ? (mySlot() || null) : null;
   box.href = S.me ? userPath(S.me) : '/';
   box.innerHTML = a
@@ -1058,13 +1060,13 @@ function renderMe() {
 
 /* главная: лента комнаты */
 async function viewFeed(roomKey) {
-  S.view = 'feed'; main.innerHTML = head('Комната') + loader(); updateNav();
+  S.view = 'feed'; main.innerHTML = head(tl('Комната')) + loader(); updateNav();
   try { await loadRoom(roomKey); await ensureRoomMine(); } catch (e) { return errorView(errText(e)); }
   updateNav();
   const r = S.room;
-  main.innerHTML = head(r.title, { sub: r.status === 'archived' ? 'Архив · только чтение' : `${S.slots.filter(s => s.player_id).length}/${S.slots.length} персонажей в игре`,
-    back: true, extra: `<a class="icon-btn" href="${roomPath(r, '/dm')}" aria-label="Сообщения" style="margin:0">${I.mail}</a><a class="icon-btn" href="${roomPath(r, '/chars')}" aria-label="Персонажи" style="margin:0">${I.users}</a><button class="icon-btn" data-copy="${roomPath(r)}" aria-label="Скопировать ссылку на комнату" style="margin:0">${I.link}</button>${isOwner() ? `<button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : ''}${mySlot() ? `<button class="icon-btn" data-leave-room title="Выйти из роли" aria-label="Выйти из роли" style="margin:0">${I.leave}</button>` : ''}` })
-    + `<div id="callPill"></div><div id="composerSlot"></div><div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="feedList">${loader()}</div><div id="feedMore"></div>`;
+  main.innerHTML = head(r.title, { sub: r.status === 'archived' ? tl('Архив · только чтение') : tl('{0}/{1} персонажей в игре', {0: S.slots.filter(s => s.player_id).length, 1: S.slots.length}),
+    back: true, extra: `<a class="icon-btn" href="${roomPath(r, '/dm')}" aria-label="${tl('Сообщения')}" style="margin:0">${I.mail}</a><a class="icon-btn" href="${roomPath(r, '/chars')}" aria-label="${tl('Персонажи')}" style="margin:0">${I.users}</a><button class="icon-btn" data-copy="${roomPath(r)}" aria-label="${tl('Скопировать ссылку на комнату')}" style="margin:0">${I.link}</button>${isOwner() ? `<button class="icon-btn" data-room-settings aria-label="${tl('Настройки комнаты')}" style="margin:0">${I.gear}</button>` : ''}${mySlot() ? `<button class="icon-btn" data-leave-room title="${tl('Выйти из роли')}" aria-label="${tl('Выйти из роли')}" style="margin:0">${I.leave}</button>` : ''}` })
+    + `<div id="callPill"></div><div id="composerSlot"></div><div class="new-pill"><span id="newPill" class="hidden"><button type="button">${tl('Новые посты')}</button></span></div><div id="feedList">${loader()}</div><div id="feedMore"></div>`;
   $('#newPill button').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); $('#newPill').classList.add('hidden'); };
   if (matchMedia('(min-width: 640px)').matches) refreshComposer();
   else if (!canWrite() || !actingSlot()) refreshComposer();
@@ -1083,19 +1085,19 @@ async function loadFeedPage(before) {
   if (!before) list.innerHTML = '';
   rows.forEach(p => { cache(p); list.append(renderPost(p, { threads: true })); });
   prefetchThreads(rows);
-  if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Напишите первый пост в этой комнате.</p></div>`;
+  if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>${tl('Пока тихо')}</h2><p>${tl('Напишите первый пост в этой комнате.')}</p></div>`;
   const more = $('#feedMore');
-  more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';
+  more.innerHTML = rows.length === 30 ? `<div class="loading-row"><button class="btn ghost" type="button">${tl('Показать ещё')}</button></div>` : '';
   const btn = $('button', more);
   if (btn) btn.onclick = () => { btn.disabled = true; loadFeedPage(rows[rows.length - 1].created_at); };
 }
 
 /* тред */
 async function viewThread(postKey) {
-  S.view = 'thread'; main.innerHTML = head('Пост', { back: true }) + loader(); updateNav();
+  S.view = 'thread'; main.innerHTML = head(tl('Пост'), { back: true }) + loader(); updateNav();
   let p;
   try { p = (await api(`posts?${keyFilter(postKey)}&select=${P_SEL}`))[0]; } catch (e) { return errorView(errText(e)); }
-  if (!p) return errorView('Пост не найден или нет доступа');
+  if (!p) return errorView(tl('Пост не найден или нет доступа'));
   if (p.repost_of && p.orig) { location.replace(postPath(p.orig)); return; }
   try { await loadRoom(p.room_id); await ensureRoomMine(); } catch (e) { return errorView(errText(e)); }
   cache(p); updateNav(); renderRight();
@@ -1107,7 +1109,7 @@ async function viewThread(postKey) {
   }
   const children = await loadReplyTree(p.id);
   if (S.view !== 'thread') return;
-  main.innerHTML = head('Пост', { back: true, sub: `в комнате <a href="${roomPath(S.room)}" class="sub-link">${esc(S.room.title)}</a>` });
+  main.innerHTML = head(tl('Пост'), { back: true, sub: `${tl('в комнате')} <a href="${roomPath(S.room)}" class="sub-link">${esc(S.room.title)}</a>` });
   chain.forEach(c => main.append(renderPost(c, { line: true })));
   main.append(renderBigPost(p));
   const cs = document.createElement('div'); cs.id = 'composerSlot'; main.append(cs);
@@ -1164,7 +1166,7 @@ async function toggleThread(p, btn) {
   const box = btn.closest('.post-main')?.querySelector(`.inline-thread[data-inline="${p.id}"]`); if (!box) return;
   if (box.dataset.loaded && !box.hidden) { box.hidden = true; btn.dataset.open = ''; btn.innerHTML = threadLabel(p); return; }
   if (!box.dataset.loaded) {
-    btn.disabled = true; btn.textContent = 'Загрузка…';
+    btn.disabled = true; btn.textContent = tl('Загрузка…');
     try {
       const children = await loadReplyTree(p.id);
       box.replaceChildren(...(children.get(p.id) || []).map(r => renderReplyNode(r, children)));
@@ -1172,9 +1174,9 @@ async function toggleThread(p, btn) {
     } catch (e) { toast(errText(e), true); btn.disabled = false; btn.innerHTML = threadLabel(p); return; }
     btn.disabled = false;
   }
-  box.hidden = false; btn.dataset.open = '1'; btn.innerHTML = `${I.reply}<span>Скрыть ответы</span>`;
+  box.hidden = false; btn.dataset.open = '1'; btn.innerHTML = `${I.reply}<span>${tl('Скрыть ответы')}</span>`;
 }
-const threadLabel = p => `${I.reply}<span>${p.reply_count ? `Показать ответы (${p.reply_count})` : 'Ответов нет'}</span>`;
+const threadLabel = p => `${I.reply}<span>${p.reply_count ? tl('Показать ответы ({0})', {0: p.reply_count}) : tl('Ответов нет')}</span>`;
 function renderReplyNode(p, children) {
   const node = document.createElement('div');
   node.dataset.post = p.id;
@@ -1188,22 +1190,22 @@ function renderReplyNode(p, children) {
 }
 
 /* ── обрезка картинок (аватар 1:1, шапка 3:1) ───────────── */
-function cropImage(file, { aspect = 1, outW = 400, round = true, title = 'аватар' } = {}) {
+function cropImage(file, { aspect = 1, outW = 400, round = true, title = tl('аватар') } = {}) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не удалось открыть картинку')); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(tl('Не удалось открыть картинку'))); };
     img.onload = () => {
       const ov = document.createElement('div');
       ov.className = 'overlay crop-ov';
-      ov.innerHTML = `<div class="modal crop-modal" role="dialog" aria-modal="true" aria-label="Обрезать ${esc(title)}">
-        <div class="head"><div class="head-row"><button type="button" class="icon-btn" data-x aria-label="Отмена">${I.back}</button>
-          <div class="head-title"><h1>${esc(title[0].toUpperCase() + title.slice(1))}</h1></div><button type="button" class="btn small" data-ok>Применить</button></div></div>
+      ov.innerHTML = `<div class="modal crop-modal" role="dialog" aria-modal="true" aria-label="${tl('Обрезать')} ${esc(title)}">
+        <div class="head"><div class="head-row"><button type="button" class="icon-btn" data-x aria-label="${tl('Отмена')}">${I.back}</button>
+          <div class="head-title"><h1>${esc(title[0].toUpperCase() + title.slice(1))}</h1></div><button type="button" class="btn small" data-ok>${tl('Применить')}</button></div></div>
         <div class="crop-stage"><div class="crop-frame${round ? ' round' : ''}"><img alt="" draggable="false"></div></div>
         <div class="crop-zoom"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.5-4.5M8 11h6"/></svg>
-          <input type="range" min="1" max="4" step="0.01" value="1" aria-label="Масштаб">
+          <input type="range" min="1" max="4" step="0.01" value="1" aria-label="${tl('Масштаб')}">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.5-4.5M8 11h6M11 8v6"/></svg></div>
-        <div class="crop-tip">Двигайте картинку пальцем или мышью, масштаб — ползунком или колёсиком.</div>
+        <div class="crop-tip">${tl('Двигайте картинку пальцем или мышью, масштаб — ползунком или колёсиком.')}</div>
       </div>`;
       document.body.append(ov); document.body.style.overflow = 'hidden';
       const stage = $('.crop-stage', ov), frame = $('.crop-frame', ov), im = $('img', frame), range = $('input', ov);
@@ -1274,11 +1276,11 @@ function autoHandle(nameInp, handleInp) {
 }
 
 /* ── модалка-форма ──────────────────────────────────────── */
-function modal(title, html, { onSubmit, submitLabel = 'Сохранить' } = {}) {
+function modal(title, html, { onSubmit, submitLabel = tl('Сохранить') } = {}) {
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `<form class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}" novalidate>
-    <div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="Закрыть">${I.close}</button><div class="head-title"><h1>${esc(title)}</h1></div><button class="btn small" type="submit">${esc(submitLabel)}</button></div></div>
+    <div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="${tl('Закрыть')}">${I.close}</button><div class="head-title"><h1>${esc(title)}</h1></div><button class="btn small" type="submit">${esc(submitLabel)}</button></div></div>
     <div class="form">${html}<div class="form-err" role="alert"></div></div></form>`;
   const form = $('form', ov);
   const close = () => { ov.remove(); if (!$('.overlay')) document.body.style.overflow = ''; };
@@ -1297,33 +1299,33 @@ function modal(title, html, { onSubmit, submitLabel = 'Сохранить' } = {
 const canEditChar = c => !!S.uid && (c.owner_id === S.uid || isStaff());
 function characterEditor(c, onSaved) {
   const canBanner = rank() >= 2;
-  const form = modal(c ? 'Изменить персонажа' : 'Новый персонаж', `
+  const form = modal(c ? tl('Изменить персонажа') : tl('Новый персонаж'), `
     <div class="ce-head">
-      <label class="ce-banner" style="${bannerStyle(c || {})}" title="${canBanner ? 'Шапка персонажа' : 'Шапку персонажа могут ставить VIP и выше'}">
-        ${canBanner ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку">` : `<span class="ce-banner-lock">${I.lock}<span>Шапка — с роли VIP</span></span>`}
+      <label class="ce-banner" style="${bannerStyle(c || {})}" title="${canBanner ? tl('Шапка персонажа') : tl('Шапку персонажа могут ставить VIP и выше')}">
+        ${canBanner ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="${tl('Загрузить шапку')}">` : `<span class="ce-banner-lock">${I.lock}<span>${tl('Шапка — с роли VIP')}</span></span>`}
       </label>
-      <label class="ce-av" title="Аватар">${c?.avatar_url ? `<img class="av ce-av-img" src="${esc(c.avatar_url)}" alt="">` : '<span class="av ce-av-img" style="background:var(--placeholder)"></span>'}
-        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар"></label>
+      <label class="ce-av" title="${tl('Аватар')}">${c?.avatar_url ? `<img class="av ce-av-img" src="${esc(c.avatar_url)}" alt="">` : '<span class="av ce-av-img" style="background:var(--placeholder)"></span>'}
+        <span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="${tl('Загрузить аватар')}"></label>
     </div>
-    <div class="ce-note">Нажмите на аватар${canBanner ? ' или шапку' : ' (шапка доступна с роли VIP)'}, чтобы загрузить и обрезать картинку.</div>
+    <div class="ce-note">${tl('Нажмите на аватар')}${canBanner ? tl(' или шапку') : tl(' (шапка доступна с роли VIP)')}${tl(', чтобы загрузить и обрезать картинку.')}</div>
     <input type="hidden" name="avatar_url" value="${esc(c?.avatar_url || '')}">
     <input type="hidden" name="banner_url" value="${esc(c?.banner_url || '')}">
-    <div class="ce-rm-row">${c?.banner_url && canBanner ? '<button type="button" class="btn ghost small" data-rm="banner">Убрать шапку</button>' : ''}</div>
-    <div class="field"><label for="f-name">Имя персонажа</label><input id="f-name" name="char_name" required maxlength="50" value="${esc(c?.char_name || '')}" autocomplete="off"></div>
-    <div class="field"><label for="f-handle">@ник (подставится из имени, можно поменять)</label><input id="f-handle" name="handle" required maxlength="30" value="${esc(c?.handle || '')}" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-    <div class="field"><label for="f-bio">Био</label><textarea id="f-bio" name="bio" rows="3" maxlength="300">${esc(c?.bio || '')}</textarea></div>
-    ${c ? '<button type="button" class="btn danger" data-del-char>Удалить персонажа</button>' : ''}`, {
-    submitLabel: c ? 'Сохранить' : 'Создать',
+    <div class="ce-rm-row">${c?.banner_url && canBanner ? `<button type="button" class="btn ghost small" data-rm="banner">${tl('Убрать шапку')}</button>` : ''}</div>
+    <div class="field"><label for="f-name">${tl('Имя персонажа')}</label><input id="f-name" name="char_name" required maxlength="50" value="${esc(c?.char_name || '')}" autocomplete="off"></div>
+    <div class="field"><label for="f-handle">${tl('@ник (подставится из имени, можно поменять)')}</label><input id="f-handle" name="handle" required maxlength="30" value="${esc(c?.handle || '')}" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+    <div class="field"><label for="f-bio">${tl('Био')}</label><textarea id="f-bio" name="bio" rows="3" maxlength="300">${esc(c?.bio || '')}</textarea></div>
+    ${c ? `<button type="button" class="btn danger" data-del-char>${tl('Удалить персонажа')}</button>` : ''}`, {
+    submitLabel: c ? tl('Сохранить') : tl('Создать'),
     onSubmit: async f => {
-      if (+f.dataset.busy) throw new Error('Дождитесь загрузки картинки');
+      if (+f.dataset.busy) throw new Error(tl('Дождитесь загрузки картинки'));
       const body = { char_name: f.char_name.value.trim(), handle: f.handle.value.trim().replace(/^@/, ''), bio: f.bio.value.trim(), avatar_url: f.avatar_url.value || null };
       if (canBanner) body.banner_url = f.banner_url.value || null;
-      if (!body.char_name) throw new Error('Укажите имя');
-      if (!/^[A-Za-z0-9_]{1,30}$/.test(body.handle)) throw new Error('@ник: только латиница, цифры и _');
+      if (!body.char_name) throw new Error(tl('Укажите имя'));
+      if (!/^[A-Za-z0-9_]{1,30}$/.test(body.handle)) throw new Error(tl('@ник: только латиница, цифры и _'));
       const [row] = c
         ? await api(`characters?id=eq.${c.id}`, { method: 'PATCH', body, prefer: 'return=representation' })
         : await api('characters', { method: 'POST', body, prefer: 'return=representation' });
-      toast(c ? 'Сохранено' : 'Персонаж создан');
+      toast(c ? tl('Сохранено') : tl('Персонаж создан'));
       onSaved?.(row);
     },
   });
@@ -1333,7 +1335,7 @@ function characterEditor(c, onSaved) {
     const f = inp.files[0]; inp.value = ''; if (!f) return;
     const isAv = inp.dataset.kind === 'avatar';
     let blob;
-    try { blob = await cropImage(f, isAv ? { aspect: 1, outW: 400, round: true, title: 'аватар' } : { aspect: 3, outW: 1500, round: false, title: 'шапка' }); }
+    try { blob = await cropImage(f, isAv ? { aspect: 1, outW: 400, round: true, title: tl('аватар') } : { aspect: 3, outW: 1500, round: false, title: tl('шапка') }); }
     catch (e) { return toast(errText(e), true); }
     if (!blob) return;
     const box = inp.closest('label'); box.classList.add('loading'); form.dataset.busy = +form.dataset.busy + 1;
@@ -1350,8 +1352,8 @@ function characterEditor(c, onSaved) {
   });
   const del = $('[data-del-char]', form);
   if (del) del.onclick = async () => {
-    if (!confirm('Удалить персонажа из библиотеки? В комнатах он останется, но перестанет обновляться.')) return;
-    try { await api(`characters?id=eq.${c.id}`, { method: 'DELETE' }); form.close(); toast('Персонаж удалён'); location.hash = '#/chars'; }
+    if (!confirm(tl('Удалить персонажа из библиотеки? В комнатах он останется, но перестанет обновляться.'))) return;
+    try { await api(`characters?id=eq.${c.id}`, { method: 'DELETE' }); form.close(); toast(tl('Персонаж удалён')); location.hash = '#/chars'; }
     catch (e) { toast(errText(e), true); }
   };
 }
@@ -1361,15 +1363,15 @@ let libQ = '';
 function charRow(c, extra = '') {
   const n = c.slots ? new Set(c.slots.map(s => s.room_id)).size : null;
   return `<a class="char lib-item" href="${charPath(c)}">${avatar(c)}<div class="char-main"><div class="name">${esc(c.char_name)}</div><div class="handle">@${esc(c.handle)}</div>
-    ${c.bio ? `<div class="bio clamp2">${esc(c.bio)}</div>` : ''}${n !== null ? `<div class="st">${n ? `В ${n} ${plural(n, 'комнате', 'комнатах', 'комнатах')}` : 'Пока ни в одной комнате'}</div>` : ''}</div>${extra}</a>`;
+    ${c.bio ? `<div class="bio clamp2">${esc(c.bio)}</div>` : ''}${n !== null ? `<div class="st">${n ? `${tl('В')} ${n} ${plural(n, tl('комнате'), tl('комнатах'), tl('комнатах'))}` : tl('Пока ни в одной комнате')}</div>` : ''}</div>${extra}</a>`;
 }
-function plural(n, one, few, many) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; }
+function plural(n, one, few, many) { if (LANG() === 'en') return Math.abs(n) === 1 ? one : many; const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; }
 const likeQ = q => encodeURIComponent(q.replace(/[*,()]/g, ' '));
 async function viewLibrary() {
   S.view = 'lib'; updateNav(); renderRight();
   const canCreate = S.uid && rank() >= 1;
-  main.innerHTML = head('Персонажи', { extra: canCreate ? `<button class="btn small blue" data-new-char>${I.plus} Создать</button>` : '' })
-    + `<div class="search">${I.search}<input type="search" placeholder="Поиск персонажей" aria-label="Поиск персонажей" value="${esc(libQ)}" enterkeyhint="search"></div>
+  main.innerHTML = head(tl('Персонажи'), { extra: canCreate ? `<button class="btn small blue" data-new-char>${I.plus} ${tl('Создать')}</button>` : '' })
+    + `<div class="search">${I.search}<input type="search" placeholder="${tl('Поиск персонажей')}" aria-label="${tl('Поиск персонажей')}" value="${esc(libQ)}" enterkeyhint="search"></div>
     <div id="libList">${loader()}</div>`;
   const inp = $('.search input', main); let t;
   inp.oninput = () => { clearTimeout(t); t = setTimeout(() => { libQ = inp.value.trim(); loadLibrary(); }, 300); };
@@ -1383,37 +1385,37 @@ async function loadLibrary() {
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
   if (S.view !== 'lib') return;
   list.innerHTML = rows.length ? rows.map(c => charRow(c)).join('')
-    : `<div class="empty"><h2>${libQ ? 'Ничего не найдено' : 'Персонажей пока нет'}</h2><p>${libQ ? 'Попробуйте другой запрос.' : 'Создайте первого — потом его можно добавить в комнаты.'}</p>${!libQ && S.uid && rank() >= 1 ? `<button class="btn blue" data-new-char style="margin-top:16px">${I.plus} Создать персонажа</button>` : ''}</div>`;
+    : `<div class="empty"><h2>${libQ ? tl('Ничего не найдено') : tl('Персонажей пока нет')}</h2><p>${libQ ? tl('Попробуйте другой запрос.') : tl('Создайте первого — потом его можно добавить в комнаты.')}</p>${!libQ && S.uid && rank() >= 1 ? `<button class="btn blue" data-new-char style="margin-top:16px">${I.plus} ${tl('Создать персонажа')}</button>` : ''}</div>`;
 }
 
 /* ── страница персонажа ─────────────────────────────────── */
 async function viewCharacter(key) {
   S.view = 'char'; updateNav(); renderRight();
-  main.innerHTML = head('Персонаж', { back: true }) + loader();
+  main.innerHTML = head(tl('Персонаж'), { back: true }) + loader();
   let c, rooms, id;
   try {
     [c] = await api(`characters?${keyFilter(key)}&select=*,owner:profiles!owner_id(rp_role,paid_role,paid_until)`);
-    if (!c) return errorView('Персонаж не найден');
+    if (!c) return errorView(tl('Персонаж не найден'));
     id = c.id;
     [rooms] = await Promise.all([
       api(`rooms?select=id,title,short_code,description,is_private,status,image_url,slots!inner(id,character_id,player_id)&slots.character_id=eq.${id}&order=status.asc,created_at.desc`),
     ]);
   } catch (e) { return errorView(errText(e)); }
-  if (!c) return errorView('Персонаж не найден');
+  if (!c) return errorView(tl('Персонаж не найден'));
   if (S.view !== 'char') return;
   const hasCharBanner = !!(c.banner_url && isVip(c.owner));
-  main.innerHTML = head(c.char_name, { back: true, sub: `${rooms.length} ${plural(rooms.length, 'комната', 'комнаты', 'комнат')}` })
+  main.innerHTML = head(c.char_name, { back: true, sub: `${rooms.length} ${plural(rooms.length, tl('комната'), tl('комнаты'), tl('комнат'))}` })
     + (hasCharBanner ? `<div class="cp-banner" style="${bannerStyle(c)}"></div>` : '')
-    + `<div class="cp-top${hasCharBanner ? '' : ' no-banner'}">${avatar(c, 'xl')}<div class="cp-acts"><button class="icon-btn bordered" data-copy="${charPath(c)}" aria-label="Скопировать ссылку">${I.link}</button>${canEditChar(c) ? '<button class="btn ghost" data-edit-char>Изменить</button>' : ''}</div></div>
+    + `<div class="cp-top${hasCharBanner ? '' : ' no-banner'}">${avatar(c, 'xl')}<div class="cp-acts"><button class="icon-btn bordered" data-copy="${charPath(c)}" aria-label="${tl('Скопировать ссылку')}">${I.link}</button>${canEditChar(c) ? `<button class="btn ghost" data-edit-char>${tl('Изменить')}</button>` : ''}</div></div>
     <div class="cp-info"><div class="cp-name"><span>${esc(c.char_name)}</span>${isVip(c.owner) ? vipBadge() : ''}</div><div class="cp-handle">@${esc(c.handle)}</div>${c.bio ? `<div class="cp-bio">${richText(c.bio)}</div>` : ''}</div>
-    <div class="tabs" style="border-bottom:1px solid var(--border)"><span class="active" style="flex:1;text-align:center;padding:16px 8px;font-weight:700;position:relative">Комнаты</span></div>
+    <div class="tabs" style="border-bottom:1px solid var(--border)"><span class="active" style="flex:1;text-align:center;padding:16px 8px;font-weight:700;position:relative">${tl('Комнаты')}</span></div>
     ${rooms.length ? rooms.map(r => {
       const free = r.slots.some(s => !s.player_id);
       return `<a class="room-item" href="${roomPath(r, '/chars')}">${roomIcon(r)}
-        <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? '<span class="badge">Архив</span>' : ''}</div>
+        <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? `<span class="badge">${tl('Архив')}</span>` : ''}</div>
         ${r.description ? `<div class="d">${esc(r.description)}</div>` : ''}
-        <div class="m">${r.status !== 'active' ? 'Только чтение' : free ? '<span class="free">Свободен — можно играть</span>' : 'Занят игроком'}</div></div></a>`;
-    }).join('') : '<div class="empty"><h2>Пока ни в одной комнате</h2><p>Владелец комнаты может добавить этого персонажа в разделе «Персонажи комнаты».</p></div>'}`;
+        <div class="m">${r.status !== 'active' ? tl('Только чтение') : free ? `<span class="free">${tl('Свободен — можно играть')}</span>` : tl('Занят игроком')}</div></div></a>`;
+    }).join('') : `<div class="empty"><h2>${tl('Пока ни в одной комнате')}</h2><p>${tl('Владелец комнаты может добавить этого персонажа в разделе «Персонажи комнаты».')}</p></div>`}`;
   const ed = $('[data-edit-char]', main);
   if (ed) ed.onclick = () => characterEditor(c, () => viewCharacter(key));
 }
@@ -1423,16 +1425,16 @@ function charPicker({ exclude = [] } = {}) {
   const box = document.createElement('div');
   box.className = 'picker';
   const sel = new Map(); let all = [];
-  box.innerHTML = `<div class="search" style="margin:0 0 8px">${I.search}<input type="search" placeholder="Найти персонажа" aria-label="Найти персонажа" enterkeyhint="search"></div>
+  box.innerHTML = `<div class="search" style="margin:0 0 8px">${I.search}<input type="search" placeholder="${tl('Найти персонажа')}" aria-label="${tl('Найти персонажа')}" enterkeyhint="search"></div>
     <div class="pick-list">${loader()}</div>
-    ${S.uid && rank() >= 1 ? `<button type="button" class="btn ghost small" data-pick-new style="margin-top:8px">${I.plus} Новый персонаж</button>` : ''}`;
+    ${S.uid && rank() >= 1 ? `<button type="button" class="btn ghost small" data-pick-new style="margin-top:8px">${I.plus} ${tl('Новый персонаж')}</button>` : ''}`;
   const list = $('.pick-list', box), inp = $('input', box);
   const draw = () => {
     const q = inp.value.trim().toLowerCase();
     const rows = all.filter(c => !exclude.includes(c.id) && (!q || c.char_name.toLowerCase().includes(q) || c.handle.toLowerCase().includes(q)));
     list.innerHTML = rows.length ? rows.map(c => `<label class="pick-item${sel.has(c.id) ? ' on' : ''}"><input type="checkbox" value="${c.id}"${sel.has(c.id) ? ' checked' : ''}>${avatar(c, 'sm')}
       <span class="pick-text"><b>${esc(c.char_name)}</b><span>@${esc(c.handle)}</span></span><span class="pick-check" aria-hidden="true"></span></label>`).join('')
-      : `<div class="pick-empty">${all.length ? 'Никого не найдено' : 'В библиотеке пока нет персонажей — создайте нового.'}</div>`;
+      : `<div class="pick-empty">${all.length ? tl('Никого не найдено') : tl('В библиотеке пока нет персонажей — создайте нового.')}</div>`;
     box.dispatchEvent(new Event('change'));
   };
   list.onchange = e => {
@@ -1455,42 +1457,42 @@ function charPicker({ exclude = [] } = {}) {
 
 /* ── персонажи комнаты (слоты) ──────────────────────────── */
 async function viewChars(roomId) {
-  S.view = 'chars'; main.innerHTML = head('Персонажи комнаты', { back: true }) + loader(); updateNav();
+  S.view = 'chars'; main.innerHTML = head(tl('Персонажи комнаты'), { back: true }) + loader(); updateNav();
   try { await loadRoom(roomId); await loadSlots(); } catch (e) { return errorView(errText(e)); }
   renderRight(); renderChars();
 }
 function renderChars() {
   const r = S.room, own = isOwner(), mine = mySlot();
   const taken = S.slots.filter(s => s.player_id).length;
-  main.innerHTML = head('Персонажи комнаты', { back: true, sub: `${esc(r.title)} · ${taken}/${S.slots.length} заняты`,
-    extra: own ? `<button class="btn small blue" data-add>${I.plus} Добавить</button><button class="icon-btn" data-room-settings aria-label="Настройки комнаты" style="margin:0">${I.gear}</button>` : '' });
-  if (!S.uid) main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>Войдите, чтобы выбрать персонажа.</span><a class="btn small blue" href="/">Войти</a></div>`);
-  else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>${mine ? `Вы играете за ${esc(mine.char_name)}.` : 'Выберите, за кого играть.'}</span></div>`);
+  main.innerHTML = head(tl('Персонажи комнаты'), { back: true, sub: tl('{0} · {1}/{2} заняты', {0: esc(r.title), 1: taken, 2: S.slots.length}),
+    extra: own ? `<button class="btn small blue" data-add>${I.plus} ${tl('Добавить')}</button><button class="icon-btn" data-room-settings aria-label="${tl('Настройки комнаты')}" style="margin:0">${I.gear}</button>` : '' });
+  if (!S.uid) main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>${tl('Войдите, чтобы выбрать персонажа.')}</span><a class="btn small blue" href="/">${tl('Войти')}</a></div>`);
+  else if (r.status === 'active') main.insertAdjacentHTML('beforeend', `<div class="composer-hint"><span>${mine ? tl('Вы играете за {0}.', {0: esc(mine.char_name)}) : tl('Выберите, за кого играть.')}</span></div>`);
   S.slots.forEach(s => {
     const isMine = mine?.id === s.id;
-    const st = isMine ? '<div class="st mine">Вы играете за этого персонажа</div>'
-      : s.player_id ? `<div class="st">Играет ${esc(s.player?.nick || 'игрок')}</div>` : '<div class="st free">Свободен</div>';
+    const st = isMine ? `<div class="st mine">${tl('Вы играете за этого персонажа')}</div>`
+      : s.player_id ? `<div class="st">${tl('Играет')} ${esc(s.player?.nick || tl('игрок'))}</div>` : `<div class="st free">${tl('Свободен')}</div>`;
     const acts = [];
-    if (S.uid && r.status === 'active' && !s.player_id) acts.push(`<button class="btn small blue" data-take="${s.id}">Играть</button>`);
-    if (isMine) acts.push('<button class="btn small ghost" data-leave>Выйти из роли</button>');
+    if (S.uid && r.status === 'active' && !s.player_id) acts.push(`<button class="btn small blue" data-take="${s.id}">${tl('Играть')}</button>`);
+    if (isMine) acts.push(`<button class="btn small ghost" data-leave>${tl('Выйти из роли')}</button>`);
     if (own) {
-      if (s.player_id && !isMine) acts.push(`<button class="btn small ghost" data-kick="${s.id}">Освободить</button>`);
-      acts.push(`<button class="btn small ghost" data-rm-slot="${s.id}" aria-label="Убрать из комнаты">Убрать</button>`);
+      if (s.player_id && !isMine) acts.push(`<button class="btn small ghost" data-kick="${s.id}">${tl('Освободить')}</button>`);
+      acts.push(`<button class="btn small ghost" data-rm-slot="${s.id}" aria-label="${tl('Убрать из комнаты')}">${tl('Убрать')}</button>`);
     }
     const link = s.character_id ? ` data-href="#/c/${s.character_id}"` : '';
     main.insertAdjacentHTML('beforeend', `<div class="char${s.character_id ? ' editable' : ''}"${link}>${avatar(s)}<div class="char-main"><div class="name">${esc(s.char_name)}${slotVip(s) ? vipBadge() : ''}</div><div class="handle">@${esc(s.handle)}</div>${s.bio ? `<div class="bio">${richText(s.bio)}</div>` : ''}${st}</div><div class="char-acts">${acts.join('')}</div></div>`);
   });
-  if (!S.slots.length) main.insertAdjacentHTML('beforeend', `<div class="empty"><h2>Нет персонажей</h2><p>${own ? 'Нажмите «Добавить» и выберите персонажей из библиотеки.' : 'Владелец комнаты ещё не добавил персонажей.'}</p></div>`);
+  if (!S.slots.length) main.insertAdjacentHTML('beforeend', `<div class="empty"><h2>${tl('Нет персонажей')}</h2><p>${own ? tl('Нажмите «Добавить» и выберите персонажей из библиотеки.') : tl('Владелец комнаты ещё не добавил персонажей.')}</p></div>`);
 }
 function addToRoom() {
   const picker = charPicker({ exclude: S.slots.map(s => s.character_id).filter(Boolean) });
-  const form = modal('Добавить в комнату', `<div class="form-note">Выберите персонажей из библиотеки или создайте нового.</div><div data-picker></div>`, {
-    submitLabel: 'Добавить',
+  const form = modal(tl('Добавить в комнату'), `<div class="form-note">${tl('Выберите персонажей из библиотеки или создайте нового.')}</div><div data-picker></div>`, {
+    submitLabel: tl('Добавить'),
     onSubmit: async () => {
       const chosen = picker.getSelected();
-      if (!chosen.length) throw new Error('Выберите хотя бы одного персонажа');
+      if (!chosen.length) throw new Error(tl('Выберите хотя бы одного персонажа'));
       await api('slots', { method: 'POST', body: chosen.map(c => ({ room_id: S.room.id, character_id: c.id, char_name: c.char_name, handle: c.handle })), prefer: 'return=minimal' });
-      await loadSlots(); renderChars(); renderRight(); toast('Добавлено');
+      await loadSlots(); renderChars(); renderRight(); toast(tl('Добавлено'));
     },
   });
   $('[data-picker]', form).replaceWith(picker);
@@ -1499,12 +1501,12 @@ function addToRoom() {
 main.addEventListener('click', async e => {
   const b = e.target.closest('[data-leave-room]'); if (!b || !S.room) return;
   const s = mySlot(); if (!s) return;
-  if (!confirm(`Выйти из роли ${s.char_name}? Персонаж станет свободным, ваши посты останутся.`)) return;
+  if (!confirm(tl('Выйти из роли {0}? Персонаж станет свободным, ваши посты останутся.', {0: s.char_name}))) return;
   b.disabled = true;
   try {
     await rpc('leave_slot', { p_room: S.room.id });
     S.actSlot = null; await loadSlots(); await loadMine(); loadMySlots();
-    toast('Вы вышли из роли'); route();
+    toast(tl('Вы вышли из роли')); route();
   } catch (er) { toast(errText(er), true); b.disabled = false; }
 });
 main.addEventListener('click', async e => {
@@ -1520,16 +1522,16 @@ main.addEventListener('click', async e => {
       t.disabled = true;
       await rpc('take_slot', { p_slot: t.dataset.take });
       S.actSlot = null; await loadSlots(); await loadMine(); loadMySlots();
-      toast('Вы в игре!'); location.hash = roomPath(S.room);
+      toast(tl('Вы в игре!')); location.hash = roomPath(S.room);
     } else if (t.hasAttribute('data-leave')) {
-      if (!confirm(`Выйти из роли ${mySlot()?.char_name || ''}? Персонаж станет свободным, ваши посты останутся.`)) return;
-      await rpc('leave_slot', { p_room: S.room.id }); await loadSlots(); await loadMine(); renderChars(); renderRight(); toast('Слот освобождён');
+      if (!confirm(tl('Выйти из роли {0}? Персонаж станет свободным, ваши посты останутся.', {0: mySlot()?.char_name || ''}))) return;
+      await rpc('leave_slot', { p_room: S.room.id }); await loadSlots(); await loadMine(); renderChars(); renderRight(); toast(tl('Слот освобождён'));
     } else if (t.dataset.kick) {
-      if (!confirm('Освободить слот? Игрок потеряет персонажа.')) return;
+      if (!confirm(tl('Освободить слот? Игрок потеряет персонажа.'))) return;
       await api(`slots?id=eq.${t.dataset.kick}`, { method: 'PATCH', body: { player_id: null }, prefer: 'return=minimal' });
       await loadSlots(); renderChars(); renderRight();
     } else if (t.dataset.rmSlot) {
-      if (!confirm('Убрать персонажа из комнаты? Его посты в этой комнате тоже удалятся. Отменить нельзя.')) return;
+      if (!confirm(tl('Убрать персонажа из комнаты? Его посты в этой комнате тоже удалятся. Отменить нельзя.'))) return;
       await api(`slots?id=eq.${t.dataset.rmSlot}`, { method: 'DELETE' });
       await loadSlots(); renderChars(); renderRight();
     } else if (t.hasAttribute('data-add')) addToRoom();
@@ -1553,7 +1555,7 @@ function wireRoomImage(form) {
   inp.onchange = async () => {
     const f = inp.files[0]; inp.value = ''; if (!f) return;
     let blob;
-    try { blob = await cropImage(f, { aspect: 1, outW: 400, round: false, title: 'картинка' }); } catch (e) { return toast(errText(e), true); }
+    try { blob = await cropImage(f, { aspect: 1, outW: 400, round: false, title: tl('картинка') }); } catch (e) { return toast(errText(e), true); }
     if (!blob) return;
     box.classList.add('loading'); form.dataset.busy = '1';
     try { const url = await uploadImage(blob); form.image_url.value = url; box.innerHTML = `<img src="${esc(url)}" alt="">`; box.append(inp); }
@@ -1570,33 +1572,33 @@ function leaveRoomState() {
   try { localStorage.removeItem(LS_ROOM); } catch {}
 }
 function roleOptions(sel) {
-  return Object.keys(ROLE_RANK).filter(r => r !== 'user').map(r => `<option value="${r}"${r === sel ? ' selected' : ''}>${ROLE_NAME[r]} и выше</option>`).join('');
+  return Object.keys(ROLE_RANK).filter(r => r !== 'user').map(r => `<option value="${r}"${r === sel ? ' selected' : ''}>${ROLE_NAME[r]} ${tl('и выше')}</option>`).join('');
 }
 function roomFields(r = {}) {
-  return `<div class="room-img-edit"><label class="room-img-pick" title="Картинка комнаты">${r.image_url ? `<img src="${esc(r.image_url)}" alt="">` : `<span>${I.image}</span>`}<input type="file" accept="image/*" hidden aria-label="Картинка комнаты"></label>
-      <div><div style="font-weight:700">Картинка комнаты</div><div class="form-note">Нажмите на квадрат, чтобы загрузить и обрезать.</div>${r.image_url ? '<button type="button" class="btn ghost small" data-rm-img style="margin-top:8px">Убрать картинку</button>' : ''}</div></div>
+  return `<div class="room-img-edit"><label class="room-img-pick" title="${tl('Картинка комнаты')}">${r.image_url ? `<img src="${esc(r.image_url)}" alt="">` : `<span>${I.image}</span>`}<input type="file" accept="image/*" hidden aria-label="${tl('Картинка комнаты')}"></label>
+      <div><div style="font-weight:700">${tl('Картинка комнаты')}</div><div class="form-note">${tl('Нажмите на квадрат, чтобы загрузить и обрезать.')}</div>${r.image_url ? `<button type="button" class="btn ghost small" data-rm-img style="margin-top:8px">${tl('Убрать картинку')}</button>` : ''}</div></div>
     <input type="hidden" name="image_url" value="${esc(r.image_url || '')}">
-    <div class="field"><label for="r-title">Название</label><input id="r-title" name="title" required maxlength="80" value="${esc(r.title || '')}" autocomplete="off"></div>
-    <div class="field"><label for="r-desc">Описание</label><textarea id="r-desc" name="description" rows="3" maxlength="1000">${esc(r.description || '')}</textarea></div>
-    <label class="check"><input type="checkbox" name="is_private"${r.is_private ? ' checked' : ''}> Приватная комната</label>
-    <div class="field" data-minrole${r.is_private ? '' : ' hidden'}><label for="r-role">Кто видит приватную комнату</label><select id="r-role" name="min_view_role">${roleOptions(r.min_view_role || 'goy')}</select></div>`;
+    <div class="field"><label for="r-title">${tl('Название')}</label><input id="r-title" name="title" required maxlength="80" value="${esc(r.title || '')}" autocomplete="off"></div>
+    <div class="field"><label for="r-desc">${tl('Описание')}</label><textarea id="r-desc" name="description" rows="3" maxlength="1000">${esc(r.description || '')}</textarea></div>
+    <label class="check"><input type="checkbox" name="is_private"${r.is_private ? ' checked' : ''}> ${tl('Приватная комната')}</label>
+    <div class="field" data-minrole${r.is_private ? '' : ' hidden'}><label for="r-role">${tl('Кто видит приватную комнату')}</label><select id="r-role" name="min_view_role">${roleOptions(r.min_view_role || 'goy')}</select></div>`;
 }
 function wirePrivate(form) {
   const cb = form.is_private, mr = $('[data-minrole]', form);
   cb.onchange = () => { mr.hidden = !cb.checked; };
 }
 function roomBody(f) {
-  if (f.dataset.busy === '1') throw new Error('Дождитесь загрузки картинки');
-  const title = f.title.value.trim(); if (!title) throw new Error('Укажите название');
+  if (f.dataset.busy === '1') throw new Error(tl('Дождитесь загрузки картинки'));
+  const title = f.title.value.trim(); if (!title) throw new Error(tl('Укажите название'));
   return { title, description: f.description.value.trim(), image_url: f.image_url.value || null,
     is_private: f.is_private.checked, min_view_role: f.is_private.checked ? f.min_view_role.value : 'user' };
 }
 function rerenderRoom() { if (S.view === 'chars') { renderChars(); renderRight(); } else route(); }
 function roomSettings() {
   const r = S.room;
-  const form = modal('Настройки комнаты', roomFields(r) + `
-    <button type="button" class="btn ghost" data-archive>${r.status === 'active' ? 'Отправить в архив' : 'Вернуть из архива'}</button>
-    <button type="button" class="btn danger" data-del-room>Удалить комнату</button>`, {
+  const form = modal(tl('Настройки комнаты'), roomFields(r) + `
+    <button type="button" class="btn ghost" data-archive>${r.status === 'active' ? tl('Отправить в архив') : tl('Вернуть из архива')}</button>
+    <button type="button" class="btn danger" data-del-room>${tl('Удалить комнату')}</button>`, {
     onSubmit: async f => {
       const body = roomBody(f);
       await api(`rooms?id=eq.${r.id}`, { method: 'PATCH', body, prefer: 'return=minimal' });
@@ -1605,16 +1607,16 @@ function roomSettings() {
   });
   wirePrivate(form); wireRoomImage(form);
   $('[data-del-room]', form).onclick = async () => {
-    if (!confirm(`Удалить комнату «${r.title}» со всеми персонажами-слотами и постами? Отменить нельзя.`)) return;
+    if (!confirm(tl('Удалить комнату «{0}» со всеми персонажами-слотами и постами? Отменить нельзя.', {0: r.title}))) return;
     try {
       const del = await api(`rooms?id=eq.${r.id}`, { method: 'DELETE', prefer: 'return=representation' });
-      if (!del?.length) throw new Error('Нет прав на удаление');
-      form.close(); leaveRoomState(); toast('Комната удалена'); location.hash = '#/rooms';
+      if (!del?.length) throw new Error(tl('Нет прав на удаление'));
+      form.close(); leaveRoomState(); toast(tl('Комната удалена')); location.hash = '#/rooms';
     } catch (e) { toast(errText(e), true); }
   };
   $('[data-archive]', form).onclick = async () => {
     const status = r.status === 'active' ? 'archived' : 'active';
-    if (status === 'archived' && !confirm('Архив: комната станет только для чтения. Продолжить?')) return;
+    if (status === 'archived' && !confirm(tl('Архив: комната станет только для чтения. Продолжить?'))) return;
     try { await api(`rooms?id=eq.${r.id}`, { method: 'PATCH', body: { status }, prefer: 'return=minimal' }); S.room.status = status; form.close(); rerenderRoom(); }
     catch (e) { toast(errText(e), true); }
   };
@@ -1625,8 +1627,8 @@ let roomsQ = '';
 async function viewRooms() {
   S.view = 'rooms'; updateNav();
   const canCreate = !!S.uid;
-  main.innerHTML = head('Комнаты', { extra: canCreate ? `<a class="btn small blue" href="#/new">${I.plus} Создать комнату</a>` : '' })
-    + `<div class="search">${I.search}<input type="search" placeholder="Поиск комнат" aria-label="Поиск комнат" value="${esc(roomsQ)}" enterkeyhint="search"></div>
+  main.innerHTML = head(tl('Комнаты'), { extra: canCreate ? `<a class="btn small blue" href="#/new">${I.plus} ${tl('Создать комнату')}</a>` : '' })
+    + `<div class="search">${I.search}<input type="search" placeholder="${tl('Поиск комнат')}" aria-label="${tl('Поиск комнат')}" value="${esc(roomsQ)}" enterkeyhint="search"></div>
     <div id="roomList">${loader()}</div>`;
   renderRight();
   const inp = $('.search input', main); let t;
@@ -1639,33 +1641,33 @@ async function loadRooms() {
   let rows;
   try { rows = await api(`rooms?select=id,title,short_code,description,is_private,status,image_url,max_slots,owner_id,created_at,slots(player_id)&order=status.asc,created_at.desc&limit=100${q}`); }
   catch (e) { list.innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; }
-  if (!rows.length) { list.innerHTML = `<div class="empty"><h2>${roomsQ ? 'Ничего не найдено' : 'Комнат пока нет'}</h2><p>${roomsQ ? 'Попробуйте другой запрос.' : 'Создайте первую комнату.'}</p>${!roomsQ && S.uid ? `<a class="btn blue" href="#/new" style="margin-top:16px">${I.plus} Создать комнату</a>` : ''}</div>`; return; }
+  if (!rows.length) { list.innerHTML = `<div class="empty"><h2>${roomsQ ? tl('Ничего не найдено') : tl('Комнат пока нет')}</h2><p>${roomsQ ? tl('Попробуйте другой запрос.') : tl('Создайте первую комнату.')}</p>${!roomsQ && S.uid ? `<a class="btn blue" href="#/new" style="margin-top:16px">${I.plus} ${tl('Создать комнату')}</a>` : ''}</div>`; return; }
   list.innerHTML = rows.map(r => {
     const taken = r.slots.filter(s => s.player_id).length;
     return `<a class="room-item" href="${roomPath(r)}">${roomIcon(r)}
-      <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? '<span class="badge">Архив</span>' : ''} ${r.owner_id === S.uid ? '<span class="badge blue">Ваша</span>' : ''}</div>
+      <div style="min-width:0;flex:1"><div class="t">${esc(r.title)} ${r.is_private ? I.lock : ''} ${r.status === 'archived' ? `<span class="badge">${tl('Архив')}</span>` : ''} ${r.owner_id === S.uid ? `<span class="badge blue">${tl('Ваша')}</span>` : ''}</div>
       ${r.description ? `<div class="d">${esc(r.description)}</div>` : ''}
-      <div class="m">${taken}/${r.slots.length} в игре</div></div></a>`;
+      <div class="m">${taken}/${r.slots.length} ${tl('в игре')}</div></div></a>`;
   }).join('');
 }
 
 /* создание комнаты */
 function viewCreate() {
   S.view = 'create'; updateNav();
-  if (!S.uid) { main.innerHTML = head('Новая комната', { back: true }) + '<div class="empty"><h2>Нужно войти</h2><p>Войдите на renah0cki, чтобы создать комнату.</p><a class="btn blue" href="/" style="margin-top:16px">Войти</a></div>'; return; }
-  main.innerHTML = head('Новая комната', { back: true }) + `<form class="form" novalidate>${roomFields()}
-    <div><div style="font-weight:700;margin-bottom:4px">Персонажи <span class="form-note" data-count></span></div>
-      <div class="form-note" style="margin-bottom:8px">Отметьте, кто будет в комнате. Новых можно создать прямо здесь или во вкладке «Персонажи».</div>
+  if (!S.uid) { main.innerHTML = head(tl('Новая комната'), { back: true }) + `<div class="empty"><h2>${tl('Нужно войти')}</h2><p>${tl('Войдите на renah0cki, чтобы создать комнату.')}</p><a class="btn blue" href="/" style="margin-top:16px">${tl('Войти')}</a></div>`; return; }
+  main.innerHTML = head(tl('Новая комната'), { back: true }) + `<form class="form" novalidate>${roomFields()}
+    <div><div style="font-weight:700;margin-bottom:4px">${tl('Персонажи')} <span class="form-note" data-count></span></div>
+      <div class="form-note" style="margin-bottom:8px">${tl('Отметьте, кто будет в комнате. Новых можно создать прямо здесь или во вкладке «Персонажи».')}</div>
       <div data-picker></div></div>
     <div class="form-err" role="alert"></div>
-    <button class="btn blue" type="submit">Создать комнату</button></form>`;
+    <button class="btn blue" type="submit">${tl('Создать комнату')}</button></form>`;
   const form = $('form', main);
   wirePrivate(form); wireRoomImage(form);
   const picker = charPicker();
   $('[data-picker]', form).replaceWith(picker);
   const cnt = $('[data-count]', form);
   picker.addEventListener('change', () => {
-    const n = picker.getSelected().length; cnt.textContent = n ? `· выбрано ${n}` : '';
+    const n = picker.getSelected().length; cnt.textContent = n ? tl('· выбрано {0}', {0: n}) : '';
   });
   form.onsubmit = async e => {
     e.preventDefault();
@@ -1675,14 +1677,14 @@ function viewCreate() {
       const body = roomBody(form);
       const chars = picker.getSelected();
       const hs = chars.map(c => c.handle.toLowerCase());
-      if (new Set(hs).size !== hs.length) throw new Error('У выбранных персонажей совпадают @ники');
+      if (new Set(hs).size !== hs.length) throw new Error(tl('У выбранных персонажей совпадают @ники'));
       btn.disabled = true;
       const [room] = await api('rooms', { method: 'POST', body: { ...body, owner_id: S.uid }, prefer: 'return=representation' });
       if (chars.length) {
         try { await api('slots', { method: 'POST', body: chars.map(c => ({ room_id: room.id, character_id: c.id, char_name: c.char_name, handle: c.handle })), prefer: 'return=minimal' }); }
-        catch (e2) { toast('Комната создана, но персонажи не добавились: ' + errText(e2), true); location.hash = roomPath(room, '/chars'); return; }
+        catch (e2) { toast(tl('Комната создана, но персонажи не добавились: ') + errText(e2), true); location.hash = roomPath(room, '/chars'); return; }
       }
-      toast('Комната создана');
+      toast(tl('Комната создана'));
       location.hash = roomPath(room, '/chars');
     } catch (e2) { err.textContent = errText(e2); btn.disabled = false; }
   };
@@ -1695,11 +1697,11 @@ async function viewHome() {
   S.view = 'home'; updateNav(); renderRight();
   const meAv = S.me ? avatar(userAv(S.me), 'sm') : '';
   main.innerHTML = `<div class="head home-head">
-      <div class="m-top only-m"><a class="m-av" href="${S.me ? userPath(S.me) : '/'}" aria-label="Профиль">${meAv}</a><a class="m-logo" href="#/" aria-label="Y (переписки)"><svg class="ylogo" viewBox="0 125 454 570" aria-hidden="true"><path fill="currentColor" stroke="none" fill-rule="evenodd" d="M0 130H107L232 375L355 130H454L270 470V690H180V465Z M40 152H95L218 400L193 437Z"/></svg></a><span class="m-sp"></span></div>
-      <div class="head-row only-d"><div class="head-title"><h1>Главная</h1></div></div>
-      <div class="tabs" role="tablist"><button type="button" data-htab="all"${homeTab === 'all' ? ' class="active"' : ''}>Для вас</button><button type="button" data-htab="mine"${homeTab === 'mine' ? ' class="active"' : ''}>Мои комнаты</button></div>
+      <div class="m-top only-m"><a class="m-av" href="${S.me ? userPath(S.me) : '/'}" aria-label="${tl('Профиль')}">${meAv}</a><a class="m-logo" href="#/" aria-label="${tl('Y (переписки)')}"><svg class="ylogo" viewBox="0 125 454 570" aria-hidden="true"><path fill="currentColor" stroke="none" fill-rule="evenodd" d="M0 130H107L232 375L355 130H454L270 470V690H180V465Z M40 152H95L218 400L193 437Z"/></svg></a><span class="m-sp"></span></div>
+      <div class="head-row only-d"><div class="head-title"><h1>${tl('Главная')}</h1></div></div>
+      <div class="tabs" role="tablist"><button type="button" data-htab="all"${homeTab === 'all' ? ' class="active"' : ''}>${tl('Для вас')}</button><button type="button" data-htab="mine"${homeTab === 'mine' ? ' class="active"' : ''}>${tl('Мои комнаты')}</button></div>
     </div>`
-    + `<div class="new-pill"><span id="newPill" class="hidden"><button type="button">Новые посты</button></span></div><div id="homeList">${loader()}</div><div id="homeMore"></div>`;
+    + `<div class="new-pill"><span id="newPill" class="hidden"><button type="button">${tl('Новые посты')}</button></span></div><div id="homeList">${loader()}</div><div id="homeMore"></div>`;
   $('#newPill button').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); $('#newPill').classList.add('hidden'); };
   $$('[data-htab]', main).forEach(b => b.onclick = () => {
     homeTab = b.dataset.htab; try { localStorage.setItem('rp_home_tab', homeTab); } catch {}
@@ -1739,7 +1741,7 @@ async function loadHomePage(before) {
   let filter = '';
   if (tab === 'mine') {
     if (!before) homeRooms = await myRoomIds();
-    if (!homeRooms.length) { list.innerHTML = '<div class="empty"><h2>Пока пусто</h2><p>Займите персонажа в комнате или создайте свою — посты оттуда будут здесь.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>'; return; }
+    if (!homeRooms.length) { list.innerHTML = `<div class="empty"><h2>${tl('Пока пусто')}</h2><p>${tl('Займите персонажа в комнате или создайте свою — посты оттуда будут здесь.')}</p><a class="btn blue" href="#/rooms" style="margin-top:16px">${tl('К комнатам')}</a></div>`; return; }
     filter = `&room_id=in.(${homeRooms.join(',')})`;
   }
   try { rows = await api(`posts?reply_to=is.null&repost_of=is.null&select=${P_SEL_ROOM}${filter}&order=created_at.desc&limit=30${before ? `&created_at=lt.${encodeURIComponent(before)}` : ''}`); }
@@ -1748,16 +1750,16 @@ async function loadHomePage(before) {
   if (!before) { list.innerHTML = ''; writeHomeCache(rows); }
   rows.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true, threads: true })); });
   prefetchThreads(rows);
-  if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>Пока тихо</h2><p>Постов ещё нет. Зайдите в комнату и напишите первый.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>`;
+  if (!before && !rows.length) list.innerHTML = `<div class="empty"><h2>${tl('Пока тихо')}</h2><p>${tl('Постов ещё нет. Зайдите в комнату и напишите первый.')}</p><a class="btn blue" href="#/rooms" style="margin-top:16px">${tl('К комнатам')}</a></div>`;
   const more = $('#homeMore');
-  more.innerHTML = rows.length === 30 ? '<div class="loading-row"><button class="btn ghost" type="button">Показать ещё</button></div>' : '';
+  more.innerHTML = rows.length === 30 ? `<div class="loading-row"><button class="btn ghost" type="button">${tl('Показать ещё')}</button></div>` : '';
   const btn = $('button', more);
   if (btn) btn.onclick = () => { btn.disabled = true; loadHomePage(rows[rows.length - 1].created_at); };
 }
 
 /* ── страница пользователя (профиль Y, отдельный от renah0cki) ── */
-const MONTHS_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
-const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const MONTHS_FULL = [tl('январь'), tl('февраль'), tl('март'), tl('апрель'), tl('май'), tl('июнь'), tl('июль'), tl('август'), tl('сентябрь'), tl('октябрь'), tl('ноябрь'), tl('декабрь')];
+const MONTHS_GEN = [tl('января'), tl('февраля'), tl('марта'), tl('апреля'), tl('мая'), tl('июня'), tl('июля'), tl('августа'), tl('сентября'), tl('октября'), tl('ноября'), tl('декабря')];
 const safeColor = c => /^#[0-9a-f]{3,8}$/i.test(c || '') ? c : '';
 const safeGrad = c => /^linear-gradient\([#0-9a-zA-Z,.%\s()-]{1,200}\)$/.test(c || '') ? c : '';
 // имя/аватар в Y: свои, если заданы, иначе с renah0cki
@@ -1780,14 +1782,14 @@ const U_SEL = 'user_id,nick,avatar_url,username,bio,about,banner_url,name_color,
 
 async function viewUser(key) {
   S.view = 'user'; updateNav(); renderRight();
-  main.innerHTML = head('Профиль', { back: true }) + loader();
+  main.innerHTML = head(tl('Профиль'), { back: true }) + loader();
   let u, reposts, roles, followers, following;
   try {
     // свой профиль — всегда по id (не зависит от ника)
     if (!isUuid(key) && S.uid && S.me?.username && S.me.username.toLowerCase() === String(key).toLowerCase()) key = S.uid;
     [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%*]/g, '').replace(/[\\_]/g, '\\$&'))}`}&select=${U_SEL}`);
     if (!u && !isUuid(key)) [u] = await api(`profiles?username=eq.${encodeURIComponent(key)}&select=${U_SEL}`);
-    if (!u) return errorView('Профиль не найден');
+    if (!u) return errorView(tl('Профиль не найден'));
     S.viewArg = u.user_id; updateNav();
     [reposts, roles, followers, following] = await Promise.all([
       api(`user_reposts?user_id=eq.${u.user_id}&select=created_at,post:post_id(${P_SEL_ROOM})&order=created_at.desc&limit=60`),
@@ -1805,46 +1807,46 @@ async function viewUser(key) {
   const meta = [];
   if (u.location) meta.push(`<span class="cp-meta">${I.pin}<span>${esc(u.location)}</span></span>`);
   if (u.website) meta.push(`<a class="cp-meta cp-site" href="${esc(u.website)}" target="_blank" rel="noopener noreferrer nofollow">${I.link}<span>${esc(siteHost(u.website))}</span></a>`);
-  if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>Дата рождения: ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
+  if (u.birthday) { const b = new Date(u.birthday + 'T00:00:00'); meta.push(`<span class="cp-meta">${I.cake}<span>${tl('Дата рождения:')} ${b.getDate()} ${MONTHS_GEN[b.getMonth()]}</span></span>`); }
   const hasBanner = !!(u.banner_url && isVip(u));
-  main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, 'репост', 'репоста', 'репостов')}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="Настройки" style="margin:0">${I.gear}</a>` : '' })
+  main.innerHTML = head(name, { back: true, sub: `${reposts.length} ${plural(reposts.length, tl('репост'), tl('репоста'), tl('репостов'))}`, extra: isMe ? `<a class="icon-btn" href="#/settings" aria-label="${tl('Настройки')}" style="margin:0">${I.gear}</a>` : '' })
     + (hasBanner ? `<div class="cp-banner" style="${bannerStyle(u)}"></div>` : '')
-    + `<div class="cp-top${hasBanner ? '' : ' no-banner'}">${avatar(userAv(u), 'xl')}${isMe ? '<button class="btn ghost small cp-edit-top only-d" data-edit-profile>Изменить</button>'
-      : S.uid ? `<button class="btn small cp-follow${iFollow ? ' ghost' : ''}" data-follow>${iFollow ? 'Вы подписаны' : 'Подписаться'}</button><button class="icon-btn cp-more" data-user-more aria-label="Ещё" title="Пожаловаться или заблокировать">${I.more}</button>` : ''}</div>
+    + `<div class="cp-top${hasBanner ? '' : ' no-banner'}">${avatar(userAv(u), 'xl')}${isMe ? `<button class="btn ghost small cp-edit-top only-d" data-edit-profile>${tl('Изменить')}</button>`
+      : S.uid ? `<button class="btn small cp-follow${iFollow ? ' ghost' : ''}" data-follow>${iFollow ? tl('Вы подписаны') : tl('Подписаться')}</button><button class="icon-btn cp-more" data-user-more aria-label="${tl('Ещё')}" title="${tl('Пожаловаться или заблокировать')}">${I.more}</button>` : ''}</div>
     <div class="cp-info"><div class="cp-name"><span>${esc(name)}</span>${isVip(u) ? vipBadge() : ''}</div>
-      ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="Скопировать ссылку на профиль">@${esc(u.username)}</button>` : ''}
+      ${u.username ? `<button type="button" class="cp-handle cp-copy" data-copy="${userPath(u)}" title="${tl('Скопировать ссылку на профиль')}">@${esc(u.username)}</button>` : ''}
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
-      <div class="cp-stats"><span><b data-fcount>${followers.length}</b> <span data-fword>${plural(followers.length, 'подписчик', 'подписчика', 'подписчиков')}</span></span><span><b>${following.length}</b> ${plural(following.length, 'подписка', 'подписки', 'подписок')}</span></div>
-      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, 'роль', 'роли', 'ролей')}</span><span><b>${reposts.length}</b> ${plural(reposts.length, 'репост', 'репоста', 'репостов')}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> coin</span>` : (!isMe && S.uid === OWNER_ID ? `<span class="cp-coin" data-admin-coin-wrap title="Баланс пользователя (видно только вам)">${coinIco()} <b data-admin-coin-bal>…</b> coin</span>` : '')}</div>
-      ${isMe ? '<button class="btn ghost cp-edit only-m" data-edit-profile>Редактировать профиль</button>' : ''}</div>
-    <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">Репосты</button><button type="button" data-utab="roles">Роли</button></div>
+      <div class="cp-stats"><span><b data-fcount>${followers.length}</b> <span data-fword>${plural(followers.length, tl('подписчик'), tl('подписчика'), tl('подписчиков'))}</span></span><span><b>${following.length}</b> ${plural(following.length, tl('подписка'), tl('подписки'), tl('подписок'))}</span></div>
+      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, tl('роль'), tl('роли'), tl('ролей'))}</span><span><b>${reposts.length}</b> ${plural(reposts.length, tl('репост'), tl('репоста'), tl('репостов'))}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> coin</span>` : (!isMe && S.uid === OWNER_ID ? `<span class="cp-coin" data-admin-coin-wrap title="${tl('Баланс пользователя (видно только вам)')}">${coinIco()} <b data-admin-coin-bal>…</b> coin</span>` : '')}</div>
+      ${isMe ? `<button class="btn ghost cp-edit only-m" data-edit-profile>${tl('Редактировать профиль')}</button>` : ''}</div>
+    <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">${tl('Репосты')}</button><button type="button" data-utab="roles">${tl('Роли')}</button></div>
     <div id="uList"></div>`;
   scrollTo(0, 0);
   const list = $('#uList');
   const drawRt = () => {
     list.innerHTML = '';
-    if (!reposts.length) { list.innerHTML = `<div class="empty"><h2>Пока нет репостов</h2><p>${isMe ? 'Нажмите ↻ под любым постом → «Репост к себе на страницу».' : 'Здесь появятся посты, которые человек сохранил к себе.'}</p></div>`; return; }
+    if (!reposts.length) { list.innerHTML = `<div class="empty"><h2>${tl('Пока нет репостов')}</h2><p>${isMe ? tl('Нажмите ↻ под любым постом → «Репост к себе на страницу».') : tl('Здесь появятся посты, которые человек сохранил к себе.')}</p></div>`; return; }
     reposts.forEach(x => {
       const pp = cache(x.post);
       const w = document.createElement('div');
       w.className = 'post-wrap'; w.dataset.post = 'ur-' + pp.id;
-      w.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(name)} сделал(а) репост</span>${pp.room ? `<span class="dot">·</span>${roomLine(pp.room)}` : ''}</div>`;
+      w.innerHTML = `<div class="post-ctx">${I.rt}<span>${esc(name)} ${tl('сделал(а) репост')}</span>${pp.room ? `<span class="dot">·</span>${roomLine(pp.room)}` : ''}</div>`;
       const inner = renderPost(pp.repost_of && pp.orig ? pp.orig : pp); inner.removeAttribute('data-post');
       w.append(inner); list.append(w);
     });
   };
   const drawRoles = () => {
-    list.innerHTML = roles.length ? roles.map(x => `<a class="char lib-item" href="${x.room ? roomPath(x.room) : '#/rooms'}">${avatar(x)}<div class="char-main"><div class="name">${esc(x.char_name)}</div><div class="handle">@${esc(x.handle)}</div><div class="st">в комнате ${x.room ? esc(x.room.title) : '—'}</div></div></a>`).join('')
-      : '<div class="empty"><h2>Сейчас без ролей</h2><p>Занятые персонажи появятся здесь.</p></div>';
+    list.innerHTML = roles.length ? roles.map(x => `<a class="char lib-item" href="${x.room ? roomPath(x.room) : '#/rooms'}">${avatar(x)}<div class="char-main"><div class="name">${esc(x.char_name)}</div><div class="handle">@${esc(x.handle)}</div><div class="st">${tl('в комнате')} ${x.room ? esc(x.room.title) : '—'}</div></div></a>`).join('')
+      : `<div class="empty"><h2>${tl('Сейчас без ролей')}</h2><p>${tl('Занятые персонажи появятся здесь.')}</p></div>`;
   };
   $$('[data-edit-profile]', main).forEach(b => { b.onclick = () => profileEditor(u, () => viewUser(key)); });
   if (isMe) fillCoinBalance(main);
   else if (S.uid === OWNER_ID) fillUserCoinBalance(main, u.user_id);
   const um = $('[data-user-more]', main);
   if (um) um.onclick = () => menu(um, [
-    { icon: I.flag, label: 'Пожаловаться', run: () => reportUserDialog(u.user_id, yName(u) || u.username || 'пользователя') },
-    { icon: I.close, label: isBlockedUser(u.user_id) ? 'Разблокировать' : 'Заблокировать', danger: !isBlockedUser(u.user_id), run: () => toggleBlock(u.user_id, yName(u) || u.username || 'пользователя') },
+    { icon: I.flag, label: tl('Пожаловаться'), run: () => reportUserDialog(u.user_id, yName(u) || u.username || tl('пользователя')) },
+    { icon: I.close, label: isBlockedUser(u.user_id) ? tl('Разблокировать') : tl('Заблокировать'), danger: !isBlockedUser(u.user_id), run: () => toggleBlock(u.user_id, yName(u) || u.username || tl('пользователя')) },
   ]);
   const fb = $('[data-follow]', main);
   if (fb) fb.onclick = async () => {
@@ -1854,8 +1856,8 @@ async function viewUser(key) {
       else await api('follows', { method: 'POST', body: { follower: S.uid, followee: u.user_id }, prefer: 'return=minimal' });
       iFollow = !iFollow;
       const n = followers.length + (iFollow ? 1 : 0) - (followers.some(f => f.follower === S.uid) ? 1 : 0);
-      $('[data-fcount]', main).textContent = n; $('[data-fword]', main).textContent = plural(n, 'подписчик', 'подписчика', 'подписчиков');
-      fb.textContent = iFollow ? 'Вы подписаны' : 'Подписаться'; fb.classList.toggle('ghost', iFollow);
+      $('[data-fcount]', main).textContent = n; $('[data-fword]', main).textContent = plural(n, tl('подписчик'), tl('подписчика'), tl('подписчиков'));
+      fb.textContent = iFollow ? tl('Вы подписаны') : tl('Подписаться'); fb.classList.toggle('ghost', iFollow);
     } catch (e) { toast(errText(e), true); }
     fb.disabled = false;
   };
@@ -1869,34 +1871,34 @@ async function viewUser(key) {
 /* ── редактирование профиля Y (как в X; на renah0cki не влияет) ── */
 function profileEditor(u, onSaved) {
   const canAvatar = rank() >= 1, canBanner = rank() >= 2;
-  const form = modal('Изменить профиль', `
+  const form = modal(tl('Изменить профиль'), `
     <div class="ce-head">
-      <label class="ce-banner" style="${bannerStyle(u)}" title="${canBanner ? 'Шапка профиля' : 'Шапку профиля могут ставить VIP и выше'}">
-        ${canBanner ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="Загрузить шапку">` : `<span class="ce-banner-lock">${I.lock}<span>Шапка — с роли VIP</span></span>`}
+      <label class="ce-banner" style="${bannerStyle(u)}" title="${canBanner ? tl('Шапка профиля') : tl('Шапку профиля могут ставить VIP и выше')}">
+        ${canBanner ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="banner" aria-label="${tl('Загрузить шапку')}">` : `<span class="ce-banner-lock">${I.lock}<span>${tl('Шапка — с роли VIP')}</span></span>`}
       </label>
-      <label class="ce-av${canAvatar ? '' : ' ce-av-static'}" title="${canAvatar ? 'Аватар' : 'Менять аватарку могут ГОЙ и выше'}">${avatar(userAv(u), 'ce-av-img')}
-        ${canAvatar ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="Загрузить аватар">` : ''}</label>
+      <label class="ce-av${canAvatar ? '' : ' ce-av-static'}" title="${canAvatar ? tl('Аватар') : tl('Менять аватарку могут ГОЙ и выше')}">${avatar(userAv(u), 'ce-av-img')}
+        ${canAvatar ? `<span class="ce-btn" aria-hidden="true">${I.image}</span><input type="file" accept="image/*" hidden data-kind="avatar" aria-label="${tl('Загрузить аватар')}">` : ''}</label>
     </div>
-    <div class="ce-note">${canAvatar ? `Нажмите на аватар${canBanner ? ' или шапку' : ' (шапка доступна с роли VIP)'}, чтобы загрузить и обрезать картинку.` : 'Свою аватарку в Y могут ставить ГОЙ и выше, а шапку — VIP и выше.'} Изменения действуют только в Y — на renah0cki ничего не меняется.</div>
+    <div class="ce-note">${canAvatar ? `${tl('Нажмите на аватар')}${canBanner ? tl(' или шапку') : tl(' (шапка доступна с роли VIP)')}${tl(', чтобы загрузить и обрезать картинку.')}` : tl('Свою аватарку в Y могут ставить ГОЙ и выше, а шапку — VIP и выше.')} ${tl('Изменения действуют только в Y — на renah0cki ничего не меняется.')}</div>
     <input type="hidden" name="y_avatar_url" value="${esc(u.y_avatar_url || '')}">
     <input type="hidden" name="banner_url" value="${esc(u.banner_url || '')}">
-    <div class="ce-rm-row">${u.banner_url && canBanner ? '<button type="button" class="btn ghost small" data-rm="banner">Убрать шапку</button>' : ''}${u.y_avatar_url && canAvatar ? '<button type="button" class="btn ghost small" data-rm="avatar">Вернуть аватарку с renah0cki</button>' : ''}</div>
-    <div class="field"><label for="p-name">Имя</label><input id="p-name" name="y_name" maxlength="50" value="${esc(u.y_name || '')}" placeholder="${esc(u.nick || '')}" autocomplete="off"></div>
-    <div class="field"><label for="p-about">О себе</label><textarea id="p-about" name="about" rows="3" maxlength="300" placeholder="${esc(u.bio || '')}">${esc(u.about || '')}</textarea></div>
-    <div class="field"><label for="p-loc">Местоположение</label><input id="p-loc" name="location" maxlength="30" value="${esc(u.location || '')}" autocomplete="off"></div>
-    <div class="field"><label for="p-web">Сайт</label><input id="p-web" name="website" type="url" inputmode="url" maxlength="200" value="${esc(u.website || '')}" placeholder="https://" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-    <div class="field"><label for="p-bd">Дата рождения</label><input id="p-bd" name="birthday" type="date" min="1900-01-01" max="2099-12-31" value="${esc(u.birthday || '')}"></div>`, {
+    <div class="ce-rm-row">${u.banner_url && canBanner ? `<button type="button" class="btn ghost small" data-rm="banner">${tl('Убрать шапку')}</button>` : ''}${u.y_avatar_url && canAvatar ? `<button type="button" class="btn ghost small" data-rm="avatar">${tl('Вернуть аватарку с renah0cki')}</button>` : ''}</div>
+    <div class="field"><label for="p-name">${tl('Имя')}</label><input id="p-name" name="y_name" maxlength="50" value="${esc(u.y_name || '')}" placeholder="${esc(u.nick || '')}" autocomplete="off"></div>
+    <div class="field"><label for="p-about">${tl('О себе')}</label><textarea id="p-about" name="about" rows="3" maxlength="300" placeholder="${esc(u.bio || '')}">${esc(u.about || '')}</textarea></div>
+    <div class="field"><label for="p-loc">${tl('Местоположение')}</label><input id="p-loc" name="location" maxlength="30" value="${esc(u.location || '')}" autocomplete="off"></div>
+    <div class="field"><label for="p-web">${tl('Сайт')}</label><input id="p-web" name="website" type="url" inputmode="url" maxlength="200" value="${esc(u.website || '')}" placeholder="https://" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+    <div class="field"><label for="p-bd">${tl('Дата рождения')}</label><input id="p-bd" name="birthday" type="date" min="1900-01-01" max="2099-12-31" value="${esc(u.birthday || '')}"></div>`, {
     onSubmit: async f => {
-      if (+f.dataset.busy) throw new Error('Дождитесь загрузки картинки');
+      if (+f.dataset.busy) throw new Error(tl('Дождитесь загрузки картинки'));
       let web = f.website.value.trim();
       if (web && !/^https?:\/\//i.test(web)) web = 'https://' + web;
-      if (web && !/^https?:\/\/\S{1,200}$/.test(web)) throw new Error('Неверная ссылка на сайт');
+      if (web && !/^https?:\/\/\S{1,200}$/.test(web)) throw new Error(tl('Неверная ссылка на сайт'));
       const body = { about: f.about.value.trim(), y_name: f.y_name.value.trim() || null,
         location: f.location.value.trim(), website: web, birthday: f.birthday.value || null };
       if (canAvatar) body.y_avatar_url = f.y_avatar_url.value || null;
       if (canBanner) body.banner_url = f.banner_url.value || null;
       await api(`profiles?user_id=eq.${S.uid}`, { method: 'PATCH', body, prefer: 'return=minimal' });
-      Object.assign(S.me, body); renderMe(); toast('Профиль сохранён'); onSaved?.();
+      Object.assign(S.me, body); renderMe(); toast(tl('Профиль сохранён')); onSaved?.();
     },
   });
   form.dataset.busy = '0';
@@ -1904,7 +1906,7 @@ function profileEditor(u, onSaved) {
     const file = inp.files[0]; inp.value = ''; if (!file) return;
     const isAv = inp.dataset.kind === 'avatar';
     let blob;
-    try { blob = await cropImage(file, isAv ? { aspect: 1, outW: 400, round: true, title: 'аватар' } : { aspect: 3, outW: 1500, round: false, title: 'шапка' }); }
+    try { blob = await cropImage(file, isAv ? { aspect: 1, outW: 400, round: true, title: tl('аватар') } : { aspect: 3, outW: 1500, round: false, title: tl('шапка') }); }
     catch (e) { return toast(errText(e), true); }
     if (!blob) return;
     const box = inp.closest('label'); box.classList.add('loading'); form.dataset.busy = +form.dataset.busy + 1;
@@ -1927,20 +1929,20 @@ let unread = 0;
 function setBadge(n) {
   unread = Math.max(0, n);
   $$('[data-notif-badge]').forEach(b => { b.textContent = unread > 99 ? '99+' : String(unread); b.classList.toggle('hidden', !unread); });
-  document.title = (unread ? `(${unread > 99 ? '99+' : unread}) ` : '') + 'Y (переписки) · renah0cki';
+  document.title = (unread ? `(${unread > 99 ? '99+' : unread}) ` : '') + tl('Y (переписки) · renah0cki');
 }
 async function loadUnread() {
   if (!S.uid) return;
   try { const r = await api(`notifications?user_id=eq.${S.uid}&read_at=is.null&select=id&limit=100`); setBadge(r.length); } catch {}
 }
 const NOTIF = {
-  like: { ic: I.like, cls: 'n-like', t: 'оценил(а) ваш пост' },
-  repost: { ic: I.rt, cls: 'n-rt', t: 'сделал(а) репост вашего поста' },
-  page_repost: { ic: I.rt, cls: 'n-rt', t: 'сохранил(а) ваш пост к себе на страницу' },
-  reply: { ic: I.reply, cls: 'n-blue', t: 'ответил(а) вам' },
-  quote: { ic: I.quote, cls: 'n-blue', t: 'процитировал(а) ваш пост' },
-  dm: { ic: I.mail, cls: 'n-blue', t: 'написал(а) вам в ЛС' },
-  follow: { ic: I.user, cls: 'n-blue', t: 'подписался(-ась) на вас' },
+  like: { ic: I.like, cls: 'n-like', t: tl('оценил(а) ваш пост') },
+  repost: { ic: I.rt, cls: 'n-rt', t: tl('сделал(а) репост вашего поста') },
+  page_repost: { ic: I.rt, cls: 'n-rt', t: tl('сохранил(а) ваш пост к себе на страницу') },
+  reply: { ic: I.reply, cls: 'n-blue', t: tl('ответил(а) вам') },
+  quote: { ic: I.quote, cls: 'n-blue', t: tl('процитировал(а) ваш пост') },
+  dm: { ic: I.mail, cls: 'n-blue', t: tl('написал(а) вам в ЛС') },
+  follow: { ic: I.user, cls: 'n-blue', t: tl('подписался(-ась) на вас') },
 };
 const N_SEL = 'id,kind,snippet,created_at,read_at,post:post_id(id,short_code,room_id),aslot:actor_slot(id,char_name,handle,avatar_url),actor:actor_user(user_id,nick,y_name,avatar_url,y_avatar_url,username),room:room_id(id,short_code,title)';
 function notifHref(n) {
@@ -1951,7 +1953,7 @@ function notifHref(n) {
 function notifRow(n) {
   const k = NOTIF[n.kind] || NOTIF.reply;
   const who = n.aslot ? n.aslot : n.actor ? userAv(n.actor) : { char_name: '?' };
-  const name = n.aslot?.char_name || (n.actor ? yName(n.actor) : 'Кто-то');
+  const name = n.aslot?.char_name || (n.actor ? yName(n.actor) : tl('Кто-то'));
   const snip = n.snippet ? `<div class="n-snip">${esc(n.snippet)}</div>` : '';
   return `<a class="notif${n.read_at ? '' : ' unread'}" href="${notifHref(n)}">
     <span class="n-ic ${k.cls}">${k.ic}</span>
@@ -1961,14 +1963,14 @@ function notifRow(n) {
 }
 async function viewNotifs() {
   S.view = 'notifs'; updateNav(); renderRight();
-  main.innerHTML = head('Уведомления') + loader();
-  if (!S.uid) { main.innerHTML = head('Уведомления') + '<div class="empty"><h2>Нужно войти</h2><p>Войдите на renah0cki, чтобы получать уведомления.</p><a class="btn blue" href="/" style="margin-top:16px">Войти</a></div>'; return; }
+  main.innerHTML = head(tl('Уведомления')) + loader();
+  if (!S.uid) { main.innerHTML = head(tl('Уведомления')) + `<div class="empty"><h2>${tl('Нужно войти')}</h2><p>${tl('Войдите на renah0cki, чтобы получать уведомления.')}</p><a class="btn blue" href="/" style="margin-top:16px">${tl('Войти')}</a></div>`; return; }
   let rows;
   try { rows = await api(`notifications?user_id=eq.${S.uid}&select=${N_SEL}&order=created_at.desc&limit=100`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'notifs') return;
-  main.innerHTML = head('Уведомления') + (rows.length ? rows.map(notifRow).join('')
-    : '<div class="empty"><h2>Пока пусто</h2><p>Здесь появятся лайки, репосты, ответы, сообщения и новые подписчики.</p></div>');
+  main.innerHTML = head(tl('Уведомления')) + (rows.length ? rows.map(notifRow).join('')
+    : `<div class="empty"><h2>${tl('Пока пусто')}</h2><p>${tl('Здесь появятся лайки, репосты, ответы, сообщения и новые подписчики.')}</p></div>`);
   if (rows.some(n => !n.read_at)) {
     try { await api(`notifications?user_id=eq.${S.uid}&read_at=is.null`, { method: 'PATCH', body: { read_at: new Date().toISOString() }, prefer: 'return=minimal' }); } catch {}
   }
@@ -1986,12 +1988,12 @@ const sup = { thread: null, msgs: [], timer: null };
 async function viewSupport() {
   S.view = 'support'; updateNav(); renderRight();
   clearInterval(sup.timer);
-  if (!S.uid) { main.innerHTML = head('Связь с модераторами', { back: true }) + '<div class="empty"><h2>Нужно войти</h2><p>Войдите, чтобы написать модераторам.</p></div>'; return; }
+  if (!S.uid) { main.innerHTML = head(tl('Связь с модераторами'), { back: true }) + `<div class="empty"><h2>${tl('Нужно войти')}</h2><p>${tl('Войдите, чтобы написать модераторам.')}</p></div>`; return; }
   document.body.classList.add('chat-mode');
-  main.innerHTML = head('Связь с модераторами', { back: true, sub: 'Техподдержка renah0cki' }) + `<div class="chat" id="supChat">${loader()}</div>
+  main.innerHTML = head(tl('Связь с модераторами'), { back: true, sub: tl('Техподдержка renah0cki') }) + `<div class="chat" id="supChat">${loader()}</div>
     <form class="chat-bar" id="supBar" autocomplete="off">
-      <div class="chat-input"><textarea rows="1" maxlength="2000" placeholder="Опишите проблему или вопрос" aria-label="Сообщение модераторам"></textarea></div>
-      <button class="chat-send" type="submit" disabled aria-label="Отправить">${I.send}</button></form>`;
+      <div class="chat-input"><textarea rows="1" maxlength="2000" placeholder="${tl('Опишите проблему или вопрос')}" aria-label="${tl('Сообщение модераторам')}"></textarea></div>
+      <button class="chat-send" type="submit" disabled aria-label="${tl('Отправить')}">${I.send}</button></form>`;
   try { sup.thread = await api('rpc/support_get_or_create_thread', { method: 'POST', body: {}, schema: 'public' }); }
   catch (e) { return errorView(errText(e)); }
   await loadSupport(true);
@@ -2015,14 +2017,14 @@ async function loadSupport(jump = false) {
   if (!jump && rows.length === sup.msgs.length) return;
   sup.msgs = rows;
   const nearBottom = innerHeight + scrollY >= document.body.scrollHeight - 160;
-  if (!rows.length) { box.innerHTML = '<div class="chat-empty"><b>Напишите модераторам</b><span>Сообщение увидят модераторы renah0cki — на сайте и в Telegram. Ответ придёт сюда и в чат поддержки на сайте.</span></div>'; return; }
+  if (!rows.length) { box.innerHTML = `<div class="chat-empty"><b>${tl('Напишите модераторам')}</b><span>${tl('Сообщение увидят модераторы renah0cki — на сайте и в Telegram. Ответ придёт сюда и в чат поддержки на сайте.')}</span></div>`; return; }
   let html = '', prev = null;
   rows.forEach((m, i) => {
     const next = rows[i + 1], t = new Date(m.created_at), mine = m.sender_id === S.uid;
     if (!prev || t - new Date(prev.created_at) > 3600e3) html += `<div class="chat-time">${chatTime(m.created_at)}</div>`;
     const tail = !next || next.sender_id !== m.sender_id;
     const first = !prev || prev.sender_id !== m.sender_id;
-    html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}">${!mine && first ? '<div class="sup-who">Модератор</div>' : ''}<div class="bub${tail ? ' tail' : ''}"><div class="bub-text">${richText(m.body)}</div></div></div>`;
+    html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}">${!mine && first ? `<div class="sup-who">${tl('Модератор')}</div>` : ''}<div class="bub${tail ? ' tail' : ''}"><div class="bub-text">${richText(m.body)}</div></div></div>`;
     prev = m;
   });
   box.innerHTML = html;
@@ -2030,9 +2032,9 @@ async function loadSupport(jump = false) {
 }
 
 /* ── правила и пользовательское соглашение ───────────────── */
-function viewRules() {
-  S.view = 'rules'; updateNav(); renderRight();
-  main.innerHTML = head('Правила и соглашение', { back: true }) + `<article class="rules">
+/* правила Y — отдельные тексты на трёх языках (ru — основной) */
+const RULES_TXT = {
+  ru: () => `
     <p class="rules-lead">Y (переписки) — ролевая игра на renah0cki: пользователи пишут посты, ответы и сообщения от лица персонажей. В Y бывают нецензурная лексика, грубый юмор и ролевые конфликты. Здесь действуют эти правила и <a href="/rules" target="_blank" rel="noopener">общие правила renah0cki</a>. Пользуясь Y, вы соглашаетесь с ними.</p>
 
     <h2>1. Персонажи вымышлены</h2>
@@ -2088,39 +2090,160 @@ function viewRules() {
 
     <h2>Связь с модераторами</h2>
     <p>Вопросы, жалобы, просьбы — <a href="#/support">в техподдержку</a>. Сообщение увидят модераторы renah0cki.</p>
-  </article>`;
+`,
+  uk: () => `
+    <p class="rules-lead">Y (листування) — рольова гра на renah0cki: користувачі пишуть пости, відповіді та повідомлення від імені персонажів. У Y буває нецензурна лексика, грубий гумор і рольові конфлікти. Тут діють ці правила та <a href="/rules" target="_blank" rel="noopener">загальні правила renah0cki</a>. Користуючись Y, ви погоджуєтеся з ними.</p>
+
+    <h2>1. Персонажі вигадані</h2>
+    <p>Усі персонажі в Y — вигадані образи, створені користувачами для рольової гри, і <b>не пов’язані з реальними людьми</b>, навіть якщо ім’я, нік, зовнішність чи характер когось нагадують. Збіги випадкові або мають дружній, жартівливий характер і не несуть злого наміру.</p>
+    <p>Реальні люди, на яких можуть бути схожі персонажі, <b>не беруть участі в грі й не відповідають</b> за те, що пишеться від імені персонажів. Усе написане — художня гра конкретного користувача.</p>
+
+    <h2>2. Хто відповідає за написане</h2>
+    <p>За кожен пост, відповідь, повідомлення, картинку та слова в дзвінку відповідає користувач, який їх опублікував, від якого б персонажа він не писав. <b>Модератори бачать, хто насправді автор.</b></p>
+
+    <h2>3. Що заборонено</h2>
+    <ul>
+      <li><b>Порнографія</b> та відверто сексуальні зображення — повністю. Усе сексуальне з образами реальних людей і неповнолітніх — повністю й одразу бан.</li>
+      <li>Дорослі теми, грубі сцени та шок-контент <b>без мітки 18+</b>. Такі пости публікуйте лише з міткою 18+ (її можуть ставити ті, хто підтвердив 18 років) — їх не побачать неповнолітні, а картинки будуть розмиті.</li>
+      <li>Цькування, погрози та образи реальних людей, зокрема через персонажів.</li>
+      <li>Видавати себе за реальну людину, щоб обдурити інших (ніби це справді пише вона).</li>
+      <li>Публікація чужих персональних даних: адрес, телефонів, справжніх листувань, фото без згоди.</li>
+      <li>Жорстокість, заклики до насильства, розпалювання ненависті, заклики до самогубства та самоушкодження й усе, що заборонено законом.</li>
+      <li>Політика й війна в будь-якому вигляді — у постах, особистих, іменах і аватарках персонажів, дзвінках: обговорення, жарти, символіка, прапори, гасла, пропаганда будь-якої сторони.</li>
+      <li>Спам, реклама, накрутки, мультиакаунти, обхід блокувань і фільтра заборонених слів.</li>
+    </ul>
+
+    <h2>4. Модерація</h2>
+    <ul>
+      <li>Заборонені слова приховуються автоматично.</li>
+      <li>На будь-який пост можна поскаржитися через «⋯ → Поскаржитися». На повідомлення, персонажа, кімнату, дзвінок або користувача — через <a href="#/support">зв’язок із модераторами</a>. Скарги одразу надходять модераторам, зокрема в Telegram.</li>
+      <li>Модератори видаляють пости й відповіді, ставлять мітку 18+, знімають із персонажа, закривають кімнати, завершують дзвінки та войси, блокують в Y і на сайті. За серйозних порушень — одразу й без попередження.</li>
+      <li>Будь-якого користувача можна <b>заблокувати для себе</b> (⋯ у його профілі): ви не побачите його пости, він не зможе писати вам в особисті й дзвонити.</li>
+      <li>Не згодні з рішенням — напишіть модераторам, його перегляне інший модератор або адміністратор.</li>
+    </ul>
+
+    <h2>5. Особисті повідомлення не повністю приватні</h2>
+    <p>Особисті повідомлення між персонажами <b>можуть читати модератори й адміни Y</b> — щоб розбирати скарги та стежити за правилами. Інші гравці чужі особисті не бачать.</p>
+    <p><b>Не пишіть в особисті нічого особистого й справжнього</b>: це частина рольової гри, а не приватний месенджер.</p>
+    <p>Фото й голосові з особистих зберігаються на сервері renah0cki за довгим випадковим посиланням: інші гравці не можуть їх знайти, але відкрити файл може будь-хто, кому це посилання переслали.</p>
+
+    <h2>6. Підписки, синя галочка та монети</h2>
+    <p>Ролі ГОЙ і VIP оплачуються renah0cki coin на 30 днів і самі не продовжуються. Монети — бонусні монети сайту: їх не можна вивести чи обміняти на гроші (докладніше — у <a href="/rules" target="_blank" rel="noopener">загальних правилах</a>). У разі блокування за порушення підписка не повертається.</p>
+    <p><b>Синя галочка (✓)</b> біля імені профілю чи персонажа означає лише те, що в користувача є <b>VIP</b>. Вона <b>не означає</b> офіційний акаунт і не підтверджує, що за профілем чи персонажем стоїть реальна людина, на яку він схожий.</p>
+
+    <h2>7. Якщо використовують вас або ваш образ</h2>
+    <p>Якщо ви реальна людина й не хочете, щоб в Y був персонаж, схожий на вас, — <a href="#/support">напишіть модераторам</a> або поскаржтеся на пости. Такого персонажа приберуть.</p>
+
+    ${callsOk() ? `<h2>8. Голосові дзвінки та войси</h2>${callRulesHtml()}` : ''}
+
+    <h2>${callsOk() ? 9 : 8}. Загальні умови</h2>
+    <ul>
+      <li>Користуватися Y можна безкоштовно. Участь, підписки, подарунки й перекази — лише за вашим бажанням; ніхто ні до чого не змушує.</li>
+      <li>Y працює «як є»: ми виправляємо помилки, але не гарантуємо, що не буде збоїв, перерв чи втрати даних. Обмеження відповідальності, дані й донати — у <a href="/rules" target="_blank" rel="noopener">загальних правилах renah0cki</a>.</li>
+      <li>Сайт розрахований на користувачів від 14 років; якщо вам менше — лише з дозволу батьків.</li>
+      <li>Правила можуть змінюватися, актуальна версія завжди на цій сторінці.</li>
+    </ul>
+    <p>Редакція від 23.11.2026. Переклад для зручності; у разі розбіжностей діє російська версія.</p>
+
+    <h2>Зв’язок із модераторами</h2>
+    <p>Питання, скарги, прохання — <a href="#/support">у техпідтримку</a>. Повідомлення побачать модератори renah0cki.</p>
+`,
+  en: () => `
+    <p class="rules-lead">Y (roleplay) is a roleplaying game on renah0cki: users write posts, replies and messages as characters. Y may contain profanity, crude humor and in-character conflicts. These rules and the <a href="/rules" target="_blank" rel="noopener">general renah0cki rules</a> apply here. By using Y, you agree to them.</p>
+
+    <h2>1. Characters are fictional</h2>
+    <p>All characters in Y are fictional personas created by users for roleplay and <b>are not connected to real people</b>, even if their name, nickname, appearance or personality resembles someone. Any resemblance is coincidental or friendly and playful, with no ill intent.</p>
+    <p>Real people whom characters may resemble <b>do not take part in the game and are not responsible</b> for what is written by the characters. Everything written is the creative roleplay of a specific user.</p>
+
+    <h2>2. Who is responsible for what is written</h2>
+    <p>Each post, reply, message, image and word in a call is the responsibility of the user who published it, whichever character they wrote as. <b>Moderators can see who the real author is.</b></p>
+
+    <h2>3. What is forbidden</h2>
+    <ul>
+      <li><b>Pornography</b> and sexually explicit images — entirely. Anything sexual involving the likeness of real people or minors — entirely, with an immediate ban.</li>
+      <li>Adult themes, graphic scenes and shock content <b>without the 18+ tag</b>. Publish such posts only with the 18+ tag (available to those who confirmed they are 18) — minors won’t see them, and images will be blurred.</li>
+      <li>Harassment, threats and insults towards real people, including through characters.</li>
+      <li>Impersonating a real person to deceive others (as if it were really them writing).</li>
+      <li>Publishing other people’s personal data: addresses, phone numbers, real chats, photos without consent.</li>
+      <li>Cruelty, calls to violence, hate speech, encouraging suicide or self-harm, and anything forbidden by law.</li>
+      <li>Politics and war in any form — in posts, DMs, character names and avatars, calls: discussions, jokes, symbols, flags, slogans, propaganda of any side.</li>
+      <li>Spam, advertising, fake engagement, alt accounts, evading bans and the banned-word filter.</li>
+    </ul>
+
+    <h2>4. Moderation</h2>
+    <ul>
+      <li>Banned words are hidden automatically.</li>
+      <li>You can report any post via “⋯ → Report”. For a message, character, room, call or user — use <a href="#/support">contact moderators</a>. Reports go to moderators immediately, including via Telegram.</li>
+      <li>Moderators delete posts and replies, add the 18+ tag, remove players from characters, close rooms, end calls and voice channels, and ban in Y and on the site. For serious violations — immediately and without warning.</li>
+      <li>You can <b>block any user for yourself</b> (⋯ on their profile): you won’t see their posts, and they won’t be able to DM or call you.</li>
+      <li>Disagree with a decision? Write to the moderators — another moderator or administrator will review it.</li>
+    </ul>
+
+    <h2>5. Direct messages are not fully private</h2>
+    <p>Direct messages between characters <b>may be read by Y moderators and admins</b> — to handle reports and enforce the rules. Other players can’t see other people’s DMs.</p>
+    <p><b>Don’t write anything personal or real in DMs</b>: they are part of the roleplay, not a private messenger.</p>
+    <p>Photos and voice messages from DMs are stored on the renah0cki server under a long random link: other players can’t find them, but anyone the link is forwarded to can open the file.</p>
+
+    <h2>6. Subscriptions, the blue check and coins</h2>
+    <p>The ГОЙ and VIP roles are paid with renah0cki coin for 30 days and don’t renew automatically. Coins are the site’s bonus coins: they can’t be withdrawn or exchanged for money (see the <a href="/rules" target="_blank" rel="noopener">general rules</a> for details). If you are banned for violations, the subscription is not refunded.</p>
+    <p>The <b>blue check (✓)</b> next to a profile or character name only means the user has <b>VIP</b>. It <b>does not mean</b> an official account and doesn’t confirm that the profile or character is run by the real person it resembles.</p>
+
+    <h2>7. If you or your likeness is being used</h2>
+    <p>If you are a real person and don’t want a character resembling you in Y, <a href="#/support">write to the moderators</a> or report the posts. Such a character will be removed.</p>
+
+    ${callsOk() ? `<h2>8. Voice calls and voice channels</h2>${callRulesHtml()}` : ''}
+
+    <h2>${callsOk() ? 9 : 8}. General terms</h2>
+    <ul>
+      <li>Y is free to use. Participation, subscriptions, gifts and transfers are entirely up to you; nobody forces you into anything.</li>
+      <li>Y is provided “as is”: we fix bugs but don’t guarantee there will be no failures, interruptions or data loss. Liability limits, data and donations are covered in the <a href="/rules" target="_blank" rel="noopener">general renah0cki rules</a>.</li>
+      <li>The site is intended for users aged 14 and over; if you are younger — only with parental permission.</li>
+      <li>The rules may change; the current version is always on this page.</li>
+    </ul>
+    <p>Version of 23.11.2026. This translation is for convenience; in case of discrepancies, the Russian version prevails.</p>
+
+    <h2>Contact moderators</h2>
+    <p>Questions, reports, requests — <a href="#/support">to tech support</a>. renah0cki moderators will see your message.</p>
+`,
+};
+function viewRules() {
+  S.view = 'rules'; updateNav(); renderRight();
+  main.innerHTML = head(tl('Правила и соглашение'), { back: true }) + `<article class="rules">
+${(RULES_TXT[LANG()] || RULES_TXT.ru)()}  </article>`;
 }
 
 function viewSettings() {
   S.view = 'settings'; updateNav(); renderRight();
   const t = curTheme();
-  main.innerHTML = head('Настройки', { back: true })
-    + `<div class="set-sec"><h2>Оформление</h2><p>Тема применяется только в Y и запоминается на этом устройстве.</p>
-      <div class="theme-pick" role="radiogroup" aria-label="Тема">
-        <label class="theme-opt dark${t === 'dark' ? ' on' : ''}"><input type="radio" name="theme" value="dark"${t === 'dark' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Тёмная</span></label>
-        <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">Светлая</span></label>
+  main.innerHTML = head(tl('Настройки'), { back: true })
+    + (window.I18N ? `<div class="set-sec"><h2>${tl('Язык')}</h2><p>${tl('Общий для всего сайта renah0cki.')}</p>
+      <div class="lang-pick" role="group" aria-label="${tl('Язык')}">${Object.entries(I18N.short).map(([k, n]) => `<button type="button" class="${LANG() === k ? 'on' : ''}" data-setlang="${k}" title="${I18N.langs[k]}">${n}</button>`).join('')}</div></div>` : '')
+    + `<div class="set-sec"><h2>${tl('Оформление')}</h2><p>${tl('Тема применяется только в Y и запоминается на этом устройстве.')}</p>
+      <div class="theme-pick" role="radiogroup" aria-label="${tl('Тема')}">
+        <label class="theme-opt dark${t === 'dark' ? ' on' : ''}"><input type="radio" name="theme" value="dark"${t === 'dark' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">${tl('Тёмная')}</span></label>
+        <label class="theme-opt light${t === 'light' ? ' on' : ''}"><input type="radio" name="theme" value="light"${t === 'light' ? ' checked' : ''}><span class="theme-prev"><i></i><i></i><i></i></span><span class="theme-name">${tl('Светлая')}</span></label>
       </div></div>
     ${chatLookHtml()}
-    ${S.me && 'is_adult' in S.me ? `<div class="set-sec"><h2>Возраст</h2><label class="set-toggle"><span><b>Мне есть 18 лет</b><small>Показывать посты с меткой 18+ и разрешить ставить её на свои посты. Указывая это, вы подтверждаете свой возраст.</small></span><input type="checkbox" data-adult${S.me.is_adult ? ' checked' : ''}></label></div>` : ''}
-    ${callsOk() ? `<div class="set-sec"><h2>Звонки</h2><label class="set-toggle"><span><b>Изменять мой голос в звонках</b><small>Голос слегка выше или ниже — случайно при каждом звонке. Выключите, чтобы вас слышали обычным голосом.</small></span><input type="checkbox" data-voice-fx${voiceFxOn() ? ' checked' : ''}></label></div>` : ''}
-    <div class="set-sec"><h2>Аккаунт</h2>
-      ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>Мой профиль в Y</span></a>` : ''}
-      <a class="set-row" href="#/support">${I.mail}<span>Связаться с модераторами</span></a>
-      <a class="set-row" href="#/rules">${I.flag}<span>Правила и соглашение</span></a>
-      ${callsOk() ? `<a class="set-row" href="#/voice">${I.phone}<span>Голосовые каналы (войсы)</span></a>` : ''}
-      ${callsOk() && (mainAdmin() || glMod()) ? `<a class="set-row" href="#/calls">${I.shield}<span>Все идущие звонки (модерация)</span></a>` : ''}
-      <a class="set-row site-only" href="/">${I.back}<span>Вернуться на renah0cki</span></a></div>`
+    ${S.me && 'is_adult' in S.me ? `<div class="set-sec"><h2>${tl('Возраст')}</h2><label class="set-toggle"><span><b>${tl('Мне есть 18 лет')}</b><small>${tl('Показывать посты с меткой 18+ и разрешить ставить её на свои посты. Указывая это, вы подтверждаете свой возраст.')}</small></span><input type="checkbox" data-adult${S.me.is_adult ? ' checked' : ''}></label></div>` : ''}
+    ${callsOk() ? `<div class="set-sec"><h2>${tl('Звонки')}</h2><label class="set-toggle"><span><b>${tl('Изменять мой голос в звонках')}</b><small>${tl('Голос слегка выше или ниже — случайно при каждом звонке. Выключите, чтобы вас слышали обычным голосом.')}</small></span><input type="checkbox" data-voice-fx${voiceFxOn() ? ' checked' : ''}></label></div>` : ''}
+    <div class="set-sec"><h2>${tl('Аккаунт')}</h2>
+      ${S.me ? `<a class="set-row" href="${userPath(S.me)}">${I.user}<span>${tl('Мой профиль в Y')}</span></a>` : ''}
+      <a class="set-row" href="#/support">${I.mail}<span>${tl('Связаться с модераторами')}</span></a>
+      <a class="set-row" href="#/rules">${I.flag}<span>${tl('Правила и соглашение')}</span></a>
+      ${callsOk() ? `<a class="set-row" href="#/voice">${I.phone}<span>${tl('Голосовые каналы (войсы)')}</span></a>` : ''}
+      ${callsOk() && (mainAdmin() || glMod()) ? `<a class="set-row" href="#/calls">${I.shield}<span>${tl('Все идущие звонки (модерация)')}</span></a>` : ''}
+      <a class="set-row site-only" href="/">${I.back}<span>${tl('Вернуться на renah0cki')}</span></a></div>`
     + (shopVisible() ? shopHtml() : '');
   fillCoinBalance(main);
   bindShop(main);
   bindChatLook(main);
   const adl = $('[data-adult]', main);
   if (adl) adl.onchange = async () => {
-    try { S.me = await rpc('set_adult', { p_adult: adl.checked }); toast(adl.checked ? 'Посты 18+ теперь видны' : 'Посты 18+ скрыты'); }
+    try { S.me = await rpc('set_adult', { p_adult: adl.checked }); toast(adl.checked ? tl('Посты 18+ теперь видны') : tl('Посты 18+ скрыты')); }
     catch (er) { toast(errText(er), true); adl.checked = !adl.checked; }
   };
   const vfx = $('[data-voice-fx]', main);
-  if (vfx) vfx.onchange = () => { try { localStorage.setItem('rp_voice_fx', vfx.checked ? '1' : '0'); } catch {} toast(vfx.checked ? 'Голос в звонках будет изменяться' : 'В звонках вас будет слышно обычным голосом' + (CALL.id ? ' — со следующего звонка' : '')); };
+  if (vfx) vfx.onchange = () => { try { localStorage.setItem('rp_voice_fx', vfx.checked ? '1' : '0'); } catch {} toast(vfx.checked ? tl('Голос в звонках будет изменяться') : tl('В звонках вас будет слышно обычным голосом') + (CALL.id ? tl(' — со следующего звонка') : '')); };
   $$('input[name="theme"]', main).forEach(inp => inp.onchange = () => {
     setTheme(inp.value);
     $$('.theme-opt', main).forEach(l => l.classList.toggle('on', $('input', l).checked));
@@ -2151,18 +2274,18 @@ function doodleSvg(kind) {
 }
 // [id, название, фон (css) | узор, градиент рисунка]
 const CHAT_WALLS = [
-  ['none', 'Без фона', ''],
-  ['d-space', 'Космос', { d: 'space', base: '#0b0b16', grad: 'linear-gradient(160deg,#6a5cff,#2ad4ff 60%,#8c52ff)' }],
-  ['d-math', 'Формулы', { d: 'math', base: '#0d0f0d', grad: 'linear-gradient(160deg,#e7f59a,#9be15d 50%,#f9d976)' }],
-  ['d-love', 'Сказка', { d: 'love', base: '#110b17', grad: 'linear-gradient(160deg,#ff6ec4,#7873f5 55%,#4adede)' }],
-  ['d-games', 'Игры', { d: 'games', base: '#0a0f12', grad: 'linear-gradient(160deg,#f6d365,#45e3a7 45%,#b56cff)' }],
-  ['d-music', 'Музыка', { d: 'music', base: '#120d0a', grad: 'linear-gradient(160deg,#ffb36b,#ff5e62 55%,#ffd86b)' }],
-  ['d-snow', 'Снежинки', { d: 'snow', base: '#0a0f17', grad: 'linear-gradient(160deg,#5ee7df,#3f8cff 50%,#b490ca)' }],
-  ['sky', 'Небо', 'linear-gradient(160deg,#4f7fb5,#8fb3d9 50%,#c7d9a7)'],
-  ['night', 'Ночь', 'radial-gradient(circle at 20% 20%,#3a2d6b,transparent 45%),radial-gradient(circle at 80% 75%,#1d4e6b,transparent 50%),#0b0f1d'],
-  ['mint', 'Мята', 'linear-gradient(135deg,#a8e6cf,#dcedc1 50%,#ffd3b6)'],
-  ['sunset', 'Закат', 'linear-gradient(160deg,#ff9a8b,#ff6a88 45%,#ff99ac)'],
-  ['lilac', 'Сирень', 'linear-gradient(160deg,#c3a6ff,#8ec5fc)'],
+  ['none', tl('Без фона'), ''],
+  ['d-space', tl('Космос'), { d: 'space', base: '#0b0b16', grad: 'linear-gradient(160deg,#6a5cff,#2ad4ff 60%,#8c52ff)' }],
+  ['d-math', tl('Формулы'), { d: 'math', base: '#0d0f0d', grad: 'linear-gradient(160deg,#e7f59a,#9be15d 50%,#f9d976)' }],
+  ['d-love', tl('Сказка'), { d: 'love', base: '#110b17', grad: 'linear-gradient(160deg,#ff6ec4,#7873f5 55%,#4adede)' }],
+  ['d-games', tl('Игры'), { d: 'games', base: '#0a0f12', grad: 'linear-gradient(160deg,#f6d365,#45e3a7 45%,#b56cff)' }],
+  ['d-music', tl('Музыка'), { d: 'music', base: '#120d0a', grad: 'linear-gradient(160deg,#ffb36b,#ff5e62 55%,#ffd86b)' }],
+  ['d-snow', tl('Снежинки'), { d: 'snow', base: '#0a0f17', grad: 'linear-gradient(160deg,#5ee7df,#3f8cff 50%,#b490ca)' }],
+  ['sky', tl('Небо'), 'linear-gradient(160deg,#4f7fb5,#8fb3d9 50%,#c7d9a7)'],
+  ['night', tl('Ночь'), 'radial-gradient(circle at 20% 20%,#3a2d6b,transparent 45%),radial-gradient(circle at 80% 75%,#1d4e6b,transparent 50%),#0b0f1d'],
+  ['mint', tl('Мята'), 'linear-gradient(135deg,#a8e6cf,#dcedc1 50%,#ffd3b6)'],
+  ['sunset', tl('Закат'), 'linear-gradient(160deg,#ff9a8b,#ff6a88 45%,#ff99ac)'],
+  ['lilac', tl('Сирень'), 'linear-gradient(160deg,#c3a6ff,#8ec5fc)'],
 ];
 // превью в настройках — та же картинка, что и в чате
 const wallPreview = w => !w ? '' : typeof w === 'string' ? `background:${w}` : `background:${w.base}; --pv-grad:${w.grad}; --pv-mask:${doodleSvg(w.d)}`;
@@ -2188,17 +2311,17 @@ function applyChatLook() {
 function chatLookHtml() {
   const st = lsGet('rp_chat_style') === 'tg' ? 'tg' : 'x', w = lsGet('rp_chat_wall') || 'none', ok = wallOk();
   const own = w.startsWith('img:') ? w.slice(4) : '';
-  return `<div class="set-sec"><h2>Переписки</h2><p>Как выглядят личные сообщения. Запоминается на этом устройстве.</p>
-    <div class="theme-pick chat-pick" role="radiogroup" aria-label="Вид переписок">
-      <label class="theme-opt${st === 'x' ? ' on' : ''}"><input type="radio" name="chatstyle" value="x"${st === 'x' ? ' checked' : ''}><span class="cl-prev cl-x"><i></i><i></i><i></i></span><b>Как в X</b></label>
-      <label class="theme-opt${st === 'tg' ? ' on' : ''}"><input type="radio" name="chatstyle" value="tg"${st === 'tg' ? ' checked' : ''}><span class="cl-prev cl-tg"><i></i><i></i><i></i></span><b>Как в Telegram</b></label>
+  return `<div class="set-sec"><h2>${tl('Переписки')}</h2><p>${tl('Как выглядят личные сообщения. Запоминается на этом устройстве.')}</p>
+    <div class="theme-pick chat-pick" role="radiogroup" aria-label="${tl('Вид переписок')}">
+      <label class="theme-opt${st === 'x' ? ' on' : ''}"><input type="radio" name="chatstyle" value="x"${st === 'x' ? ' checked' : ''}><span class="cl-prev cl-x"><i></i><i></i><i></i></span><b>${tl('Как в X')}</b></label>
+      <label class="theme-opt${st === 'tg' ? ' on' : ''}"><input type="radio" name="chatstyle" value="tg"${st === 'tg' ? ' checked' : ''}><span class="cl-prev cl-tg"><i></i><i></i><i></i></span><b>${tl('Как в Telegram')}</b></label>
     </div>
-    <h3 class="wall-h">Фон чата ${ok ? '' : '<span class="wall-lock">с роли ГОЙ</span>'}</h3>
+    <h3 class="wall-h">${tl('Фон чата')} ${ok ? '' : `<span class="wall-lock">${tl('с роли ГОЙ')}</span>`}</h3>
     <div class="wall-grid${ok ? '' : ' locked'}">
       ${CHAT_WALLS.map(([id, name, css]) => `<button type="button" class="wall${typeof css === 'object' ? ' wall-dd' : ''}${w === id ? ' on' : ''}" data-wall="${id}" title="${name}" style="${esc(wallPreview(css))}"${ok ? '' : ' disabled'}><span>${name}</span></button>`).join('')}
-      <label class="wall wall-own${own ? ' on' : ''}" title="Своя картинка" style="${own ? `background:url('${esc(own)}') center/cover` : ''}"><input type="file" accept="image/*" hidden${ok ? '' : ' disabled'}><span>${own ? 'Своя' : '+ Своя картинка'}</span></label>
+      <label class="wall wall-own${own ? ' on' : ''}" title="${tl('Своя картинка')}" style="${own ? `background:url('${esc(own)}') center/cover` : ''}"><input type="file" accept="image/*" hidden${ok ? '' : ' disabled'}><span>${own ? tl('Своя') : tl('+ Своя картинка')}</span></label>
     </div>
-    ${ok ? '' : `<p class="wall-note">Свой фон в переписках — привилегия ГОЙ и выше. <a href="#" data-to-shop>Оформить подписку</a></p>`}</div>`;
+    ${ok ? '' : `<p class="wall-note">${tl('Свой фон в переписках — привилегия ГОЙ и выше.')} <a href="#" data-to-shop>${tl('Оформить подписку')}</a></p>`}</div>`;
 }
 function bindChatLook(root) {
   $$('input[name="chatstyle"]', root).forEach(inp => inp.onchange = () => {
@@ -2210,18 +2333,18 @@ function bindChatLook(root) {
     const b = e.target.closest('[data-wall]'); if (!b || !wallOk()) return;
     lsSet('rp_chat_wall', b.dataset.wall === 'none' ? null : b.dataset.wall); applyChatLook();
     $$('.wall', grid).forEach(x => x.classList.toggle('on', x === b));
-    toast('Фон чата изменён');
+    toast(tl('Фон чата изменён'));
   };
   const fi = $('.wall-own input', root);
   if (fi) fi.onchange = async () => {
     const f = fi.files[0]; fi.value = ''; if (!f || !wallOk()) return;
-    const lbl = fi.parentElement; $('span', lbl).textContent = 'Загрузка…';
+    const lbl = fi.parentElement; $('span', lbl).textContent = tl('Загрузка…');
     try {
       const url = await uploadImage(f);
       lsSet('rp_chat_wall', 'img:' + url); applyChatLook();
-      lbl.style.background = `url('${url}') center/cover`; $('span', lbl).textContent = 'Своя';
-      $$('.wall', grid).forEach(x => x.classList.toggle('on', x === lbl)); toast('Фон чата изменён');
-    } catch (e) { $('span', lbl).textContent = '+ Своя картинка'; toast(errText(e), true); }
+      lbl.style.background = `url('${url}') center/cover`; $('span', lbl).textContent = tl('Своя');
+      $$('.wall', grid).forEach(x => x.classList.toggle('on', x === lbl)); toast(tl('Фон чата изменён'));
+    } catch (e) { $('span', lbl).textContent = tl('+ Своя картинка'); toast(errText(e), true); }
   };
   const ts = $('[data-to-shop]', root);
   if (ts) ts.onclick = e => { e.preventDefault(); $('.shop-grid', root)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
@@ -2230,38 +2353,38 @@ function bindChatLook(root) {
 /* ── подписка Y за renah0cki coin (пока только meRockstar) ── */
 const shopVisible = () => !!S.uid; // подписки ГОЙ/VIP — всем вошедшим
 const SHOP_ROLES = [
-  { id: 'goy', price: 67, perks: ['Создавать своих персонажей', 'Своя аватарка в Y', 'Свой фон чата в переписках', 'GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»', 'Звонки 1 на 1 в личных сообщениях'] },
-  { id: 'vip', price: 141, perks: ['Всё, что даёт ГОЙ', 'Синяя галочка VIP ✓ у имени и персонажей (как в X)', 'Свой баннер (шапка) в профиле Y и у персонажей'] },
+  { id: 'goy', price: 67, perks: [tl('Создавать своих персонажей'), tl('Своя аватарка в Y'), tl('Свой фон чата в переписках'), tl('GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»'), tl('Звонки 1 на 1 в личных сообщениях')] },
+  { id: 'vip', price: 141, perks: [tl('Всё, что даёт ГОЙ'), tl('Синяя галочка VIP ✓ у имени и персонажей (как в X)'), tl('Свой баннер (шапка) в профиле Y и у персонажей')] },
 ];
 function shopHtml() {
   const me = S.me || {};
   const active = paidActive(me);
   const until = active ? new Date(me.paid_until) : null;
   const status = active
-    ? `Активна роль <b>${ROLE_NAME[me.paid_role]}</b> до ${until.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`
-    : (ROLE_RANK[me.rp_role] ?? 0) >= 1 ? `Ваша роль: <b>${ROLE_NAME[me.rp_role]}</b>` : 'Подписки нет';
-  return `<div class="set-sec"><h2>Подписка</h2><p>${status} · Баланс: ${coinIco()} <b data-coin-bal>…</b> coin</p>
+    ? `${tl('Активна роль')} <b>${ROLE_NAME[me.paid_role]}</b> ${tl('до')} ${until.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`
+    : (ROLE_RANK[me.rp_role] ?? 0) >= 1 ? `${tl('Ваша роль:')} <b>${ROLE_NAME[me.rp_role]}</b>` : tl('Подписки нет');
+  return `<div class="set-sec"><h2>${tl('Подписка')}</h2><p>${status} ${tl('· Баланс:')} ${coinIco()} <b data-coin-bal>…</b> coin</p>
     <div class="shop-grid">${SHOP_ROLES.map(r => {
       const base = (ROLE_RANK[me.rp_role] ?? 0) >= ROLE_RANK[r.id];
       const higher = active && ROLE_RANK[me.paid_role] > ROLE_RANK[r.id];
       const renew = active && me.paid_role === r.id;
-      const label = base ? 'Уже есть' : higher ? 'Есть выше' : renew ? 'Продлить на 30 дней' : (active && me.paid_role === 'goy' && r.id === 'vip') ? 'Перейти на VIP' : 'Купить на 30 дней';
+      const label = base ? tl('Уже есть') : higher ? tl('Есть выше') : renew ? tl('Продлить на 30 дней') : (active && me.paid_role === 'goy' && r.id === 'vip') ? tl('Перейти на VIP') : tl('Купить на 30 дней');
       return `<div class="shop-card"><div class="shop-name">${ROLE_NAME[r.id]}</div>
-        <div class="shop-price">${coinIco()} <b>${r.price}</b> / 30 дней</div>
+        <div class="shop-price">${coinIco()} <b>${r.price}</b> ${tl('/ 30 дней')}</div>
         <ul>${r.perks.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
         <button type="button" class="btn${base || higher ? ' ghost' : ' blue'} small" data-buy-role="${r.id}"${base || higher ? ' disabled' : ''}>${label}</button></div>`;
     }).join('')}</div>
-    <p style="margin:12px 0 0">Роль не продлевается сама: когда срок закончится, её можно купить снова. При переходе с ГОЯ на VIP оставшиеся дни пересчитываются в дни VIP. Синяя галочка ✓ означает активную подписку VIP в Y и не является подтверждением личности или официального аккаунта.</p></div>`;
+    <p style="margin:12px 0 0">${tl('Роль не продлевается сама: когда срок закончится, её можно купить снова. При переходе с ГОЯ на VIP оставшиеся дни пересчитываются в дни VIP. Синяя галочка ✓ означает активную подписку VIP в Y и не является подтверждением личности или официального аккаунта.')}</p></div>`;
 }
 function bindShop(root) {
   $$('[data-buy-role]', root).forEach(b => b.onclick = async () => {
     const r = SHOP_ROLES.find(x => x.id === b.dataset.buyRole);
-    if (!r || !confirm(`Купить роль ${ROLE_NAME[r.id]} на 30 дней за ${r.price} coin?`)) return;
+    if (!r || !confirm(tl('Купить роль {0} на 30 дней за {1} coin?', {0: ROLE_NAME[r.id], 1: r.price}))) return;
     b.disabled = true;
     try {
       const res = await api('rpc/buy_role', { method: 'POST', body: { p_role: r.id, p_months: 1 } });
       Object.assign(S.me, { paid_role: res.role, paid_until: res.until });
-      toast(`Готово! ${ROLE_NAME[r.id]} до ${new Date(res.until).toLocaleDateString('ru-RU')}`);
+      toast(tl('Готово! {0} до {1}', {0: ROLE_NAME[r.id], 1: new Date(res.until).toLocaleDateString('ru-RU')}));
       renderMe(); updateNav(); viewSettings();
     } catch (e) { toast(errText(e), true); b.disabled = false; }
   });
@@ -2269,7 +2392,7 @@ function bindShop(root) {
 
 /* ── тема ───────────────────────────────────────────────── */
 const curTheme = () => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-const themeLabel = () => curTheme() === 'light' ? 'Тёмная тема' : 'Светлая тема';
+const themeLabel = () => curTheme() === 'light' ? tl('Тёмная тема') : tl('Светлая тема');
 function setTheme(t) {
   document.documentElement.dataset.theme = t;
   try { localStorage.setItem('rp_theme', t); } catch {}
@@ -2286,7 +2409,7 @@ function dmSlot() { return dmOptions()[0] || null; }
 function dmAsSelect() {
   return ''; // писать в ЛС можно только за своего персонажа
   const o = dmOptions(); if (o.length < 2) return '';
-  return `<select class="as-select" data-dm-as aria-label="Писать от имени">${o.map(x => `<option value="${x.id}"${x.id === dmSlot()?.id ? ' selected' : ''}>${esc(x.char_name)}${x.player_id ? '' : ' (NPC)'}</option>`).join('')}</select>`;
+  return `<select class="as-select" data-dm-as aria-label="${tl('Писать от имени')}">${o.map(x => `<option value="${x.id}"${x.id === dmSlot()?.id ? ' selected' : ''}>${esc(x.char_name)}${x.player_id ? '' : ' (NPC)'}</option>`).join('')}</select>`;
 }
 main.addEventListener('change', e => {
   const sel = e.target.closest('[data-dm-as]'); if (!sel) return;
@@ -2296,8 +2419,8 @@ function chatTime(ts) {
   const d = new Date(ts), now = new Date(), t = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = (day(now) - day(d)) / 864e5;
-  if (diff === 0) return 'Сегодня ' + t;
-  if (diff === 1) return 'Вчера ' + t;
+  if (diff === 0) return tl('Сегодня ') + t;
+  if (diff === 1) return tl('Вчера ') + t;
   return `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : ''} ${t}`;
 }
 
@@ -2305,16 +2428,16 @@ async function viewDmHub() {
   S.view = 'dmhub'; updateNav(); renderRight();
   const peek = peekOk();
   if (S.room && !peek) { location.replace(roomPath(S.room, '/dm')); return; }
-  main.innerHTML = head('Сообщения') + loader();
+  main.innerHTML = head(tl('Сообщения')) + loader();
   try { await loadMySlots(); } catch {}
   if (S.view !== 'dmhub') return;
   const mine = S.mySlots.filter(x => x.room);
   if (mine.length === 1 && !peek) { location.replace(roomPath(mine[0].room, '/dm')); return; }
-  main.innerHTML = head('Сообщения', { sub: 'Переписка идёт внутри комнат' })
-    + (peek && mine.length ? '<div class="peek-head" style="border-top:0;margin-top:0">Мои переписки</div>' : '')
+  main.innerHTML = head(tl('Сообщения'), { sub: tl('Переписка идёт внутри комнат') })
+    + (peek && mine.length ? `<div class="peek-head" style="border-top:0;margin-top:0">${tl('Мои переписки')}</div>` : '')
     + (mine.length
-      ? mine.map(x => `<a class="room-item" href="${roomPath(x.room, '/dm')}">${roomIcon(x.room)}<div style="min-width:0;flex:1"><div class="t">${esc(x.room.title)}</div><div class="m">вы играете за ${esc(x.char_name)}</div></div></a>`).join('')
-      : (peek ? '' : '<div class="empty"><h2>Пока нет переписок</h2><p>Займите персонажа в комнате, чтобы писать другим персонажам.</p><a class="btn blue" href="#/rooms" style="margin-top:16px">К комнатам</a></div>'))
+      ? mine.map(x => `<a class="room-item" href="${roomPath(x.room, '/dm')}">${roomIcon(x.room)}<div style="min-width:0;flex:1"><div class="t">${esc(x.room.title)}</div><div class="m">${tl('вы играете за')} ${esc(x.char_name)}</div></div></a>`).join('')
+      : (peek ? '' : `<div class="empty"><h2>${tl('Пока нет переписок')}</h2><p>${tl('Займите персонажа в комнате, чтобы писать другим персонажам.')}</p><a class="btn blue" href="#/rooms" style="margin-top:16px">${tl('К комнатам')}</a></div>`))
     + (peek ? `<div id="peekAll">${loader()}</div>` : '');
   if (peek) fillPeekAll(new Set(S.mySlots.map(x => x.id)));
 }
@@ -2353,21 +2476,21 @@ async function fillPeekAll(mySlotIds) {
 }
 function drawPeekAll(vis) {
   const box = $('#peekAll'); if (!box || S.view !== 'dmhub') return;
-  box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + (vis.length ? vis.map(({ a, b, m, n, A, B, R, at }) => {
-    const txt = m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
-    return `<a class="dm-row" href="${roomPath(R, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(at)}</time></div>
-      <div class="dm-last"><span class="dm-none">${esc(R.title)} ·</span> ${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
-  }).join('') : '<div class="empty"><p>Пока нет переписок, доступных вам по роли.</p></div>');
+  box.innerHTML = `<div class="peek-head">${tl('Переписки других')} <span>${tl('видны вам по роли')}</span></div>` + (vis.length ? vis.map(({ a, b, m, n, A, B, R, at }) => {
+    const txt = m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? tl('🎤 Голосовое') : m.images?.length ? tl('Фото') : '');
+    return `<a class="dm-row" href="${roomPath(R, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} ${tl('и')} ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(at)}</time></div>
+      <div class="dm-last"><span class="dm-none">${esc(R.title)} ·</span> ${esc(txt)} <span class="dm-none">· ${n} ${plural(n, tl('сообщение'), tl('сообщения'), tl('сообщений'))}</span></div></div></a>`;
+  }).join('') : `<div class="empty"><p>${tl('Пока нет переписок, доступных вам по роли.')}</p></div>`);
 }
 
 async function viewDmList(roomKey) {
-  S.view = 'dms'; main.innerHTML = head('Сообщения', { back: true }) + loader(); updateNav();
+  S.view = 'dms'; main.innerHTML = head(tl('Сообщения'), { back: true }) + loader(); updateNav();
   try { await loadRoom(roomKey); } catch (e) { return errorView(errText(e)); }
   updateNav(); renderRight();
   const me = dmSlot();
-  const h = head('Сообщения', { back: true, extra: `<a class="dm-room" href="${roomPath(S.room)}">${roomIcon(S.room, 'mini')}<span>${esc(S.room.title)}</span></a>` });
-  if (!S.uid) { main.innerHTML = h + `<div class="composer-hint"><span>Войдите, чтобы переписываться.</span><a class="btn small blue" href="/">Войти</a></div>`; return; }
-  if (!me) { main.innerHTML = h + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в этой комнате, чтобы писать другим.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>` + (peekOk() ? '<div id="peekList"></div>' : ''); if (peekOk()) fillPeekList(null); return; }
+  const h = head(tl('Сообщения'), { back: true, extra: `<a class="dm-room" href="${roomPath(S.room)}">${roomIcon(S.room, 'mini')}<span>${esc(S.room.title)}</span></a>` });
+  if (!S.uid) { main.innerHTML = h + `<div class="composer-hint"><span>${tl('Войдите, чтобы переписываться.')}</span><a class="btn small blue" href="/">${tl('Войти')}</a></div>`; return; }
+  if (!me) { main.innerHTML = h + `<div class="empty"><h2>${tl('Нет персонажа')}</h2><p>${tl('Займите персонажа в этой комнате, чтобы писать другим.')}</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">${tl('Выбрать персонажа')}</a></div>` + (peekOk() ? '<div id="peekList"></div>' : ''); if (peekOk()) fillPeekList(null); return; }
   let rows;
   try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(from_slot.eq.${me.id},to_slot.eq.${me.id})&select=*&order=created_at.desc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
@@ -2380,11 +2503,11 @@ async function viewDmList(roomKey) {
   const items = [...withMsgs, ...rest];
   main.innerHTML = h + (items.length ? items.map(([pid, m]) => {
       const peer = S.slotMap.get(pid);
-      const txt = m ? (m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '')) : '';
+      const txt = m ? (m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? tl('🎤 Голосовое') : m.images?.length ? tl('Фото') : '')) : '';
       return `<a class="dm-row" href="${roomPath(S.room, '/dm/' + pid)}">${avatar(peer)}<div class="dm-main"><div class="dm-top"><b>${esc(peer.char_name)}</b>${m ? `<span class="dot">·</span><time>${ago(m.created_at)}</time>` : ''}</div>
-        <div class="dm-last">${m ? esc(txt) : '<span class="dm-none">Пусто</span>'}</div></div></a>`;
+        <div class="dm-last">${m ? esc(txt) : `<span class="dm-none">${tl('Пусто')}</span>`}</div></div></a>`;
     }).join('')
-    : '<div class="empty"><h2>В комнате больше никого</h2><p>Когда владелец добавит персонажей, им можно будет написать.</p></div>')
+    : `<div class="empty"><h2>${tl('В комнате больше никого')}</h2><p>${tl('Когда владелец добавит персонажей, им можно будет написать.')}</p></div>`)
     + (peekOk() ? '<div id="peekList"></div>' : '');
   if (peekOk()) fillPeekList(me.id);
 }
@@ -2404,34 +2527,34 @@ async function fillPeekList(myId) {
   });
   const items = [...pairs.values()].filter(x => S.slotMap.has(x.a) && S.slotMap.has(x.b));
   if (!items.length || !$('#peekList')) return;
-  box.innerHTML = `<div class="peek-head">Переписки других <span>видны вам по роли</span></div>` + items.map(({ a, b, m, n }) => {
+  box.innerHTML = `<div class="peek-head">${tl('Переписки других')} <span>${tl('видны вам по роли')}</span></div>` + items.map(({ a, b, m, n }) => {
     const A = S.slotMap.get(a), B = S.slotMap.get(b);
-    const txt = m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? '🎤 Голосовое' : m.images?.length ? 'Фото' : '');
-    return `<a class="dm-row" href="${roomPath(S.room, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} и ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
-      <div class="dm-last">${esc(txt)} <span class="dm-none">· ${n} ${plural(n, 'сообщение', 'сообщения', 'сообщений')}</span></div></div></a>`;
+    const txt = m.call_event ? '📞 ' + callEventText(m, true) : m.body || (m.voice_url ? tl('🎤 Голосовое') : m.images?.length ? tl('Фото') : '');
+    return `<a class="dm-row" href="${roomPath(S.room, `/peek/${a}/${b}`)}"><div class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</div><div class="dm-main"><div class="dm-top"><b>${esc(A.char_name)} ${tl('и')} ${esc(B.char_name)}</b><span class="dot">·</span><time>${ago(m.created_at)}</time></div>
+      <div class="dm-last">${esc(txt)} <span class="dm-none">· ${n} ${plural(n, tl('сообщение'), tl('сообщения'), tl('сообщений'))}</span></div></div></a>`;
   }).join('');
 }
 // чтение чужой переписки (только просмотр)
 async function viewDmPeek(roomKey, aId, bId) {
   S.view = 'dmpeek'; document.body.classList.add('chat-mode');
-  main.innerHTML = head('Переписка', { back: true }) + loader(); updateNav();
+  main.innerHTML = head(tl('Переписка'), { back: true }) + loader(); updateNav();
   try { await loadRoom(roomKey); } catch (e) { return errorView(errText(e)); }
   updateNav(); renderRight();
   const A = S.slotMap.get(aId), B = S.slotMap.get(bId);
-  if (!A || !B) return errorView('Персонаж не найден в этой комнате');
-  if (!peekOk()) return errorView('Нет доступа');
+  if (!A || !B) return errorView(tl('Персонаж не найден в этой комнате'));
+  if (!peekOk()) return errorView(tl('Нет доступа'));
   Object.assign(chat, { msgs: [], me: A.id, peer: B.id, ids: new Set() });
   main.innerHTML = `<div class="head chat-head"><div class="head-row">
-      <button class="icon-btn" data-back aria-label="Назад">${I.back}</button>
-      <div class="chat-peer"><span class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</span><span class="chat-peer-name">${esc(A.char_name)} и ${esc(B.char_name)}</span></div>
+      <button class="icon-btn" data-back aria-label="${tl('Назад')}">${I.back}</button>
+      <div class="chat-peer"><span class="peek-avs">${avatar(A, 'sm')}${avatar(B, 'sm')}</span><span class="chat-peer-name">${esc(A.char_name)} ${tl('и')} ${esc(B.char_name)}</span></div>
       <span class="chat-spacer"></span></div></div>
-    <div class="peek-note">Вы читаете чужую переписку — только просмотр. Справа сообщения ${esc(A.char_name)}.</div>
+    <div class="peek-note">${tl('Вы читаете чужую переписку — только просмотр. Справа сообщения')} ${esc(A.char_name)}.</div>
     <div class="chat" id="chat">${loader()}</div>`;
   let rows;
   try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${A.id},to_slot.eq.${B.id}),and(from_slot.eq.${B.id},to_slot.eq.${A.id}))&select=*&order=created_at.asc&limit=1000`); }
   catch (e) { return errorView(errText(e)); }
   if (S.view !== 'dmpeek') return;
-  if (!rows.length) { $('#chat').innerHTML = '<div class="empty"><h2>Нет доступа или пусто</h2><p>Переписка видна только ролям выше обоих участников.</p></div>'; return; }
+  if (!rows.length) { $('#chat').innerHTML = `<div class="empty"><h2>${tl('Нет доступа или пусто')}</h2><p>${tl('Переписка видна только ролям выше обоих участников.')}</p></div>`; return; }
   rows.forEach(m => { chat.msgs.push(m); chat.ids.add(m.id); });
   drawChat(true);
 }
@@ -2441,8 +2564,8 @@ main.addEventListener('click', e => {
   const others = S.slots.filter(x => x.id !== me.id);
   const ov = document.createElement('div');
   ov.className = 'overlay';
-  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="Новое сообщение"><div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="Закрыть">${I.close}</button><div class="head-title"><h1>Кому написать</h1></div></div></div>
-    ${others.length ? others.map(x => `<a class="char lib-item" href="${roomPath(S.room, '/dm/' + x.id)}">${avatar(x)}<div class="char-main"><div class="name">${esc(x.char_name)}</div><div class="handle">@${esc(x.handle)}</div><div class="st">${x.player_id ? 'играет ' + esc(x.player?.nick || 'игрок') : 'свободен'}</div></div></a>`).join('') : '<div class="empty">В комнате больше нет персонажей.</div>'}</div>`;
+  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="${tl('Новое сообщение')}"><div class="head"><div class="head-row"><button type="button" class="icon-btn" data-close aria-label="${tl('Закрыть')}">${I.close}</button><div class="head-title"><h1>${tl('Кому написать')}</h1></div></div></div>
+    ${others.length ? others.map(x => `<a class="char lib-item" href="${roomPath(S.room, '/dm/' + x.id)}">${avatar(x)}<div class="char-main"><div class="name">${esc(x.char_name)}</div><div class="handle">@${esc(x.handle)}</div><div class="st">${x.player_id ? tl('играет ') + esc(x.player?.nick || tl('игрок')) : tl('свободен')}</div></div></a>`).join('') : `<div class="empty">${tl('В комнате больше нет персонажей.')}</div>`}</div>`;
   ov.addEventListener('click', ev => { if (ev.target === ov || ev.target.closest('[data-close]') || ev.target.closest('a')) { ov.remove(); document.body.style.overflow = ''; } });
   document.body.append(ov); document.body.style.overflow = 'hidden';
 });
@@ -2450,26 +2573,26 @@ main.addEventListener('click', e => {
 const chat = { msgs: [], me: null, peer: null, ids: new Set() };
 async function viewDmChat(roomKey, peerId) {
   S.view = 'dm'; document.body.classList.add('chat-mode');
-  main.innerHTML = head('Сообщения', { back: true }) + loader(); updateNav();
+  main.innerHTML = head(tl('Сообщения'), { back: true }) + loader(); updateNav();
   try { await loadRoom(roomKey); } catch (e) { return errorView(errText(e)); }
   updateNav(); renderRight();
   const me = dmSlot(), peer = S.slotMap.get(peerId);
-  if (!peer) return errorView('Персонаж не найден в этой комнате');
-  if (!me) { main.innerHTML = head(peer.char_name, { back: true }) + `<div class="empty"><h2>Нет персонажа</h2><p>Займите персонажа в комнате, чтобы писать.</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">Выбрать персонажа</a></div>`; return; }
+  if (!peer) return errorView(tl('Персонаж не найден в этой комнате'));
+  if (!me) { main.innerHTML = head(peer.char_name, { back: true }) + `<div class="empty"><h2>${tl('Нет персонажа')}</h2><p>${tl('Займите персонажа в комнате, чтобы писать.')}</p><a class="btn blue" href="${roomPath(S.room, '/chars')}" style="margin-top:16px">${tl('Выбрать персонажа')}</a></div>`; return; }
   if (me.id === peer.id) { location.replace(roomPath(S.room, '/dm')); return; }
   Object.assign(chat, { msgs: [], me: me.id, peer: peer.id, ids: new Set() });
   main.innerHTML = `<div class="head chat-head"><div class="head-row">
-      <button class="icon-btn" data-back aria-label="Назад">${I.back}</button>
+      <button class="icon-btn" data-back aria-label="${tl('Назад')}">${I.back}</button>
       <a class="chat-peer" href="${peer.character_id ? `#/c/${peer.character_id}` : roomPath(S.room, '/chars')}">${avatar(peer, 'sm')}<span class="chat-peer-name">${esc(peer.char_name)}</span></a>
-      ${callsOk() ? `<button class="icon-btn" data-call-dm title="Позвонить" aria-label="Позвонить">${I.phone}</button>` : '<span class="chat-spacer"></span>'}</div>
-      ${dmAsSelect() ? `<div class="chat-as"><span>Вы пишете как</span>${dmAsSelect()}</div>` : ''}</div>
+      ${callsOk() ? `<button class="icon-btn" data-call-dm title="${tl('Позвонить')}" aria-label="${tl('Позвонить')}">${I.phone}</button>` : '<span class="chat-spacer"></span>'}</div>
+      ${dmAsSelect() ? `<div class="chat-as"><span>${tl('Вы пишете как')}</span>${dmAsSelect()}</div>` : ''}</div>
     <div class="chat" id="chat">${loader()}</div>
     <form class="chat-bar" id="chatBar" autocomplete="off">
-      <label class="chat-tool" aria-label="Добавить фото">${I.image}<input type="file" accept="image/*" multiple hidden></label>
-      ${gifOk() ? '<button type="button" class="chat-tool gif-tool" data-gif-open aria-label="Добавить GIF">GIF</button>' : ''}
-      ${voiceOk() ? `<button type="button" class="chat-tool" data-voice aria-label="Записать голосовое">${I.mic}</button>` : ''}
-      <div class="chat-input"><div class="thumbs hidden"></div><textarea rows="1" maxlength="1000" placeholder="Сообщение" aria-label="Сообщение"></textarea></div>
-      <button class="chat-send" type="submit" disabled aria-label="Отправить">${I.send}</button>
+      <label class="chat-tool" aria-label="${tl('Добавить фото')}">${I.image}<input type="file" accept="image/*" multiple hidden></label>
+      ${gifOk() ? `<button type="button" class="chat-tool gif-tool" data-gif-open aria-label="${tl('Добавить GIF')}">GIF</button>` : ''}
+      ${voiceOk() ? `<button type="button" class="chat-tool" data-voice aria-label="${tl('Записать голосовое')}">${I.mic}</button>` : ''}
+      <div class="chat-input"><div class="thumbs hidden"></div><textarea rows="1" maxlength="1000" placeholder="${tl('Сообщение')}" aria-label="${tl('Сообщение')}"></textarea></div>
+      <button class="chat-send" type="submit" disabled aria-label="${tl('Отправить')}">${I.send}</button>
     </form>`;
   let rows;
   try { rows = await api(`dms?room_id=eq.${S.room.id}&or=(and(from_slot.eq.${me.id},to_slot.eq.${peer.id}),and(from_slot.eq.${peer.id},to_slot.eq.${me.id}))&select=*&order=created_at.asc&limit=1000`); }
@@ -2485,19 +2608,19 @@ async function viewDmChat(roomKey, peerId) {
 function callEventText(m, short = false) {
   const e = m.call_event || {};
   const dur = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
-  if (short) return e.type === 'end' ? `Звонок · ${dur(e.secs || 0)}` : e.type === 'declined' ? 'Отклонённый звонок' : e.type === 'missed' ? 'Пропущенный звонок' : 'Звонок';
+  if (short) return e.type === 'end' ? tl('Звонок · {0}', {0: dur(e.secs || 0)}) : e.type === 'declined' ? tl('Отклонённый звонок') : e.type === 'missed' ? tl('Пропущенный звонок') : tl('Звонок');
   const mine = S.view === 'dm' && m.from_slot === chat.me;
-  const who = S.slotMap.get(m.from_slot)?.char_name || 'Собеседник';
-  if (e.type === 'start') return mine ? 'Вы начали звонок' : `${who} начал(а) звонок`;
-  if (e.type === 'end') return `Звонок окончен · ${dur(e.secs || 0)}`;
-  if (e.type === 'declined') return S.view !== 'dm' ? 'Звонок отклонён' : mine ? 'Собеседник отклонил звонок' : 'Вы отклонили звонок';
-  if (e.type === 'missed') return S.view !== 'dm' ? 'Пропущенный звонок' : mine ? 'Звонок без ответа' : 'Пропущенный звонок';
-  return 'Звонок';
+  const who = S.slotMap.get(m.from_slot)?.char_name || tl('Собеседник');
+  if (e.type === 'start') return mine ? tl('Вы начали звонок') : tl('{0} начал(а) звонок', {0: who});
+  if (e.type === 'end') return tl('Звонок окончен · {0}', {0: dur(e.secs || 0)});
+  if (e.type === 'declined') return S.view !== 'dm' ? tl('Звонок отклонён') : mine ? tl('Собеседник отклонил звонок') : tl('Вы отклонили звонок');
+  if (e.type === 'missed') return S.view !== 'dm' ? tl('Пропущенный звонок') : mine ? tl('Звонок без ответа') : tl('Пропущенный звонок');
+  return tl('Звонок');
 }
 function drawChat(jump = false) {
   const box = $('#chat'); if (!box) return;
   const nearBottom = innerHeight + scrollY >= document.body.scrollHeight - 160;
-  if (!chat.msgs.length) { box.innerHTML = `<div class="chat-empty">${avatar(S.slotMap.get(chat.peer), 'lg')}<b>${esc(S.slotMap.get(chat.peer)?.char_name || '')}</b><span>Начните переписку. Её могут читать игроки с ролью выше вашей и выше роли собеседника.</span></div>`; return; }
+  if (!chat.msgs.length) { box.innerHTML = `<div class="chat-empty">${avatar(S.slotMap.get(chat.peer), 'lg')}<b>${esc(S.slotMap.get(chat.peer)?.char_name || '')}</b><span>${tl('Начните переписку. Её могут читать игроки с ролью выше вашей и выше роли собеседника.')}</span></div>`; return; }
   let html = '', prev = null;
   const HOUR = 60 * 60e3;
   chat.msgs.forEach((m, i) => {
@@ -2513,11 +2636,11 @@ function drawChat(jump = false) {
     html += `<div class="bub-row ${mine ? 'me' : 'them'}${first ? ' first' : ''}"><div class="bub${tail ? ' tail' : ''}" title="${esc(fullDate(m.created_at))}">`
       + (m.images?.length ? `<div class="bub-imgs n${m.images.length}">${m.images.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-zoom>`).join('')}</div>` : '')
       + voiceHtml(m.voice_url)
-      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + `<span class="bub-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${mine && (S.view === 'dm' || S.view === 'dmpeek') ? `<i class="ticks${m.read_at ? ' read' : ''}" title="${m.read_at ? 'Прочитано' : 'Отправлено'}">${m.read_at ? I.check2 : I.check1}</i>` : ''}</span></div></div>`;
+      + (m.body ? `<div class="bub-text">${richText(m.body)}</div>` : '') + `<span class="bub-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${mine && (S.view === 'dm' || S.view === 'dmpeek') ? `<i class="ticks${m.read_at ? ' read' : ''}" title="${m.read_at ? tl('Прочитано') : tl('Отправлено')}">${m.read_at ? I.check2 : I.check1}</i>` : ''}</span></div></div>`;
     prev = m;
   });
   const lastM = [...chat.msgs].reverse().find(x => !x.call_event);
-  if ((S.view === 'dm' || S.view === 'dmpeek') && lastM && lastM.from_slot === chat.me) html += `<div class="bub-status${lastM.read_at ? ' read' : ''}">${lastM.read_at ? I.check2 + 'Прочитано' : I.check1 + 'Отправлено'}</div>`;
+  if ((S.view === 'dm' || S.view === 'dmpeek') && lastM && lastM.from_slot === chat.me) html += `<div class="bub-status${lastM.read_at ? ' read' : ''}">${lastM.read_at ? I.check2 + tl('Прочитано') : I.check1 + tl('Отправлено')}</div>`;
   box.innerHTML = html;
   if (jump || nearBottom) requestAnimationFrame(() => scrollTo({ top: document.body.scrollHeight, behavior: jump ? 'auto' : 'smooth' }));
 }
@@ -2530,18 +2653,18 @@ function wireChatBar() {
   };
   const drawThumbs = () => {
     thumbs.classList.toggle('hidden', !imgs.length);
-    thumbs.innerHTML = imgs.map((im, i) => `<div class="thumb${im.loading ? ' loading' : ''}"><img src="${esc(im.preview)}" alt=""><button type="button" data-rm="${i}" aria-label="Убрать">${I.close}</button></div>`).join('');
+    thumbs.innerHTML = imgs.map((im, i) => `<div class="thumb${im.loading ? ' loading' : ''}"><img src="${esc(im.preview)}" alt=""><button type="button" data-rm="${i}" aria-label="${tl('Убрать')}">${I.close}</button></div>`).join('');
     update();
   };
   thumbs.onclick = e => { const b = e.target.closest('[data-rm]'); if (!b) return; imgs.splice(+b.dataset.rm, 1); drawThumbs(); };
   const gifBtn = $('[data-gif-open]', bar);
   if (gifBtn) gifBtn.onclick = () => {
-    if (imgs.length >= MAX_IMG) return toast(`Не больше ${MAX_IMG} картинок`, true);
+    if (imgs.length >= MAX_IMG) return toast(tl('Не больше {0} картинок', {0: MAX_IMG}), true);
     gifPicker(url => { imgs.push({ url, preview: url, loading: false }); drawThumbs(); });
   };
   file.onchange = async () => {
     const files = [...file.files].slice(0, MAX_IMG - imgs.length); file.value = '';
-    if (!files.length) return toast(`Не больше ${MAX_IMG} картинок`, true);
+    if (!files.length) return toast(tl('Не больше {0} картинок', {0: MAX_IMG}), true);
     const added = files.map(f => ({ url: null, preview: URL.createObjectURL(f), loading: true, f }));
     imgs.push(...added); drawThumbs();
     await Promise.all(added.map(async im => {
@@ -2601,19 +2724,19 @@ function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
   if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs', 'rules', 'support', 'voice', 'calls', 'callinvite'].includes(S.view)) {
     const mine = S.mySlots.filter(x => x.room);
-    right.innerHTML = `<div class="panel"><h2>Y (переписки)</h2><p>Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.</p></div>
-      ${mine.length ? `<div class="panel"><h2>Ваши роли</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
-      <div class="panel"><a class="link" href="#/rooms">Все комнаты</a></div>
-      <p class="side-note">Все персонажи вымышлены и не связаны с реальными людьми. <a href="#/rules">Правила</a> · <a href="#/support">Связь с модераторами</a></p>`;
+    right.innerHTML = `<div class="panel"><h2>${tl('Y (переписки)')}</h2><p>${tl('Заходите в комнату, занимайте персонажа и отыгрывайте его: посты, ответы, лайки, ЛС.')}</p></div>
+      ${mine.length ? `<div class="panel"><h2>${tl('Ваши роли')}</h2>${mine.map(x => `<a class="row" href="${roomPath(x.room)}">${avatar(x, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(x.char_name)}</div><div class="h">${esc(x.room.title)}</div></div></a>`).join('')}</div>` : ''}
+      <div class="panel"><a class="link" href="#/rooms">${tl('Все комнаты')}</a></div>
+      <p class="side-note">${tl('Все персонажи вымышлены и не связаны с реальными людьми.')} <a href="#/rules">${tl('Правила')}</a> · <a href="#/support">${tl('Связь с модераторами')}</a></p>`;
     return;
   }
   const r = S.room;
   right.innerHTML = `<div class="panel"><div class="panel-room">${roomIcon(r, 'big')}<h2>${esc(r.title)} ${r.is_private ? I.lock : ''}</h2></div>${r.description ? `<p>${esc(r.description)}</p>` : ''}
-    ${r.status === 'archived' ? '<p><span class="badge">Архив · только чтение</span></p>' : ''}</div>
-    <div class="panel"><h2>Персонажи</h2>
-      ${S.slots.slice(0, 8).map(s => `<a class="row" href="${roomPath(r, '/chars')}">${avatar(s, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(s.char_name)}</div><div class="h">@${esc(s.handle)}</div></div>${s.player_id ? '' : '<span class="free">свободен</span>'}</a>`).join('')}
-      <a class="link" href="${roomPath(r, '/chars')}">Все персонажи</a></div>
-    <div class="panel"><a class="link" href="#/rooms">Другие комнаты</a></div>`;
+    ${r.status === 'archived' ? `<p><span class="badge">${tl('Архив · только чтение')}</span></p>` : ''}</div>
+    <div class="panel"><h2>${tl('Персонажи')}</h2>
+      ${S.slots.slice(0, 8).map(s => `<a class="row" href="${roomPath(r, '/chars')}">${avatar(s, 'sm')}<div style="min-width:0;flex:1"><div class="n">${esc(s.char_name)}</div><div class="h">@${esc(s.handle)}</div></div>${s.player_id ? '' : `<span class="free">${tl('свободен')}</span>`}</a>`).join('')}
+      <a class="link" href="${roomPath(r, '/chars')}">${tl('Все персонажи')}</a></div>
+    <div class="panel"><a class="link" href="#/rooms">${tl('Другие комнаты')}</a></div>`;
 }
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderRight, 200); });
 
@@ -2638,8 +2761,8 @@ const CALL = { id: null, info: null, stream: null, pcs: new Map(), audios: new M
   levels: new Map(), actx: null, lvl: null, since: 0 };
 let callConsentOk = false, callIceWarned = false;
 
-function callRulesHtml() {
-  return `<ul class="call-rules">
+const CALL_RULES_TXT = {
+  ru: () => `
     <li>Звонки <b>не записываются</b> — ни звук, ни текст.</li>
     <li>В звонке может быть <b>до ${CALL_MAX} человек</b>. Звонить 1 на 1 в личных сообщениях можно, если роль <b>ГОЙ</b> или <b>VIP</b> есть у вас или у собеседника. Звонки в комнатах и войсы создают администраторы, а зайти в них может любой.</li>
     <li>В каждом звонке должен быть хотя бы один участник с ролью ГОЙ. Когда последний такой участник выходит, звонок заканчивается.</li>
@@ -2649,18 +2772,44 @@ function callRulesHtml() {
     <li>По умолчанию голос каждого участника в звонке слегка изменяется (чаще чуть выше, иногда чуть ниже). Это можно выключить в настройках Y.</li>
     <li>Хранится только факт звонка (кто и когда) — 30 дней, для разбора жалоб.</li>
     <li>Запрещены оскорбления, угрозы, травля, разжигание ненависти, 18+, запись собеседников без их согласия и всё, что запрещено <a href="#/rules">правилами Y</a>. За нарушения звонок завершают, а доступ к звонкам или аккаунт блокируют.</li>
-  </ul>`;
+`,
+  uk: () => `
+    <li>Дзвінки <b>не записуються</b> — ні звук, ні текст.</li>
+    <li>У дзвінку може бути <b>до ${CALL_MAX} людей</b>. Дзвонити 1 на 1 в особистих повідомленнях можна, якщо роль <b>ГОЙ</b> або <b>VIP</b> є у вас чи у співрозмовника. Дзвінки в кімнатах і войси створюють адміністратори, а зайти в них може будь-хто.</li>
+    <li>У кожному дзвінку має бути хоча б один учасник із роллю ГОЙ. Коли останній такий учасник виходить, дзвінок завершується.</li>
+    <li>Увійти в дзвінок можна за посиланням-запрошенням. Надсилайте його лише тим, кого кличете: будь-хто, у кого є посилання й акаунт, зможе зайти.</li>
+    <li>Головний адміністратор (власник сайту) може підключитися до будь-якого дзвінка, щоб перевірити скаргу чи порушення. <b>Коли він у дзвінку, це бачать усі учасники.</b> Таємно підключитися не можна.</li>
+    <li>Голос іде через сервер renah0cki: співрозмовники не бачать вашу IP-адресу.</li>
+    <li>За замовчуванням голос кожного учасника в дзвінку трохи змінюється (частіше трохи вище, іноді трохи нижче). Це можна вимкнути в налаштуваннях Y.</li>
+    <li>Зберігається лише факт дзвінка (хто й коли) — 30 днів, для розбору скарг.</li>
+    <li>Заборонені образи, погрози, цькування, розпалювання ненависті, 18+, запис співрозмовників без їхньої згоди й усе, що заборонено <a href="#/rules">правилами Y</a>. За порушення дзвінок завершують, а доступ до дзвінків чи акаунт блокують.</li>
+`,
+  en: () => `
+    <li>Calls <b>are not recorded</b> — neither audio nor text.</li>
+    <li>A call can have <b>up to ${CALL_MAX} people</b>. 1-on-1 calls in direct messages are available if you or the other person has the <b>ГОЙ</b> or <b>VIP</b> role. Room calls and voice channels are created by administrators, and anyone can join them.</li>
+    <li>Every call must have at least one participant with the ГОЙ role. When the last such participant leaves, the call ends.</li>
+    <li>You can join a call via an invite link. Send it only to the people you invite: anyone with the link and an account can join.</li>
+    <li>The head administrator (the site owner) can join any call to check a report or violation. <b>When they are in the call, all participants can see it.</b> Joining secretly is impossible.</li>
+    <li>Voice goes through the renah0cki server: other participants can’t see your IP address.</li>
+    <li>By default, each participant’s voice in a call is slightly altered (usually a bit higher, sometimes a bit lower). You can turn this off in Y settings.</li>
+    <li>Only the fact of a call (who and when) is stored — for 30 days, to handle reports.</li>
+    <li>Insults, threats, harassment, hate speech, 18+, recording others without their consent and anything forbidden by the <a href="#/rules">Y rules</a> are prohibited. For violations, the call is ended and access to calls or the account is blocked.</li>
+`,
+};
+function callRulesHtml() {
+  return `<ul class="call-rules">
+${(CALL_RULES_TXT[LANG()] || CALL_RULES_TXT.ru)()}  </ul>`;
 }
 async function callConsent() {
   if (callConsentOk) return true;
   try { const r = await api(`call_consents?user_id=eq.${S.uid}&select=version`); if ((r[0]?.version || 0) >= CALL_VER) return (callConsentOk = true); } catch {}
   return new Promise(res => {
     let done = false;
-    const form = modal('Правила звонков', `${callRulesHtml()}
-      <label class="call-agree"><input type="checkbox" name="agree"> <span>Я прочитал(а) правила звонков и согласен(на) с ними</span></label>`, {
-      submitLabel: 'Принять',
+    const form = modal(tl('Правила звонков'), `${callRulesHtml()}
+      <label class="call-agree"><input type="checkbox" name="agree"> <span>${tl('Я прочитал(а) правила звонков и согласен(на) с ними')}</span></label>`, {
+      submitLabel: tl('Принять'),
       onSubmit: async f => {
-        if (!f.agree.checked) throw new Error('Поставьте галочку, чтобы продолжить');
+        if (!f.agree.checked) throw new Error(tl('Поставьте галочку, чтобы продолжить'));
         await rpc('call_accept_rules', { p_version: CALL_VER });
         callConsentOk = true; done = true; res(true);
       },
@@ -2675,7 +2824,7 @@ async function callIceConfig() {
     const t = await rpc('call_turn');
     if (t?.urls) return { iceServers: [{ urls: t.urls, username: t.username, credential: t.credential }], iceTransportPolicy: 'relay' };
   } catch {}
-  if (!callIceWarned) { callIceWarned = true; toast('Сервер звонков ещё не настроен — соединение может не установиться', true); }
+  if (!callIceWarned) { callIceWarned = true; toast(tl('Сервер звонков ещё не настроен — соединение может не установиться'), true); }
   return { iceServers: [] };
 }
 
@@ -2730,22 +2879,22 @@ function callMicError(e) {
   const n = e?.name || '';
   if (TG.initData) {
     const url = location.origin + '/rp/' + (location.hash || '#/');
-    modal('Звонок в браузере', `<div class="form-note">Telegram не даёт доступ к микрофону внутри мини-приложения (чаще всего на компьютере). Это ограничение Telegram, а не Y.</div>
-      <div class="form-note">Откройте эту комнату в обычном браузере — там звонок работает. Если в браузере вы не вошли на renah0cki, нажмите «Войти» и войдите через Twitch.</div>`, {
-      submitLabel: 'Открыть в браузере',
+    modal(tl('Звонок в браузере'), `<div class="form-note">${tl('Telegram не даёт доступ к микрофону внутри мини-приложения (чаще всего на компьютере). Это ограничение Telegram, а не Y.')}</div>
+      <div class="form-note">${tl('Откройте эту комнату в обычном браузере — там звонок работает. Если в браузере вы не вошли на renah0cki, нажмите «Войти» и войдите через Twitch.')}</div>`, {
+      submitLabel: tl('Открыть в браузере'),
       onSubmit: async () => { const w = window.Telegram?.WebApp; w?.openLink ? w.openLink(url, { try_instant_view: false }) : open(url, '_blank'); },
     });
     return;
   }
-  toast(n === 'NotFoundError' ? 'Микрофон не найден — подключите его и попробуйте снова'
-    : n === 'NotReadableError' ? 'Микрофон занят другой программой — закройте её и попробуйте снова'
-    : 'Нет доступа к микрофону — разрешите его для renah0cki.xyz в настройках браузера', true);
+  toast(n === 'NotFoundError' ? tl('Микрофон не найден — подключите его и попробуйте снова')
+    : n === 'NotReadableError' ? tl('Микрофон занят другой программой — закройте её и попробуйте снова')
+    : tl('Нет доступа к микрофону — разрешите его для renah0cki.xyz в настройках браузера'), true);
 }
 
 async function callJoin(fn, args) {
   if (!S.uid) return needLogin();
   if (CALL.joining) return;
-  if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) return toast('Этот браузер не поддерживает звонки', true);
+  if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) return toast(tl('Этот браузер не поддерживает звонки'), true);
   if (!(await callConsent())) return;
   CALL.joining = true;
   try {
@@ -2756,7 +2905,7 @@ async function callJoin(fn, args) {
     let info;
     try { info = await rpc(fn, args); } catch (e) { stream.getTracks().forEach(t => t.stop()); toast(errText(e), true); return; }
     const voice = await callVoiceChain(stream);
-    if (!voice.ok && !voice.off) toast('Изменение голоса не работает в этом браузере — вас слышно обычным голосом', true);
+    if (!voice.ok && !voice.off) toast(tl('Изменение голоса не работает в этом браузере — вас слышно обычным голосом'), true);
     Object.assign(CALL, { voice, min: false, levels: new Map(), since: Date.now(), id: info.id, info, stream, muted: false, pcs: new Map(), audios: new Map(), members: [], seen: new Set(), lastSig: 0, adminSeen: false, title: '' });
     if (!$('#callAudio')) document.body.insertAdjacentHTML('beforeend', '<div id="callAudio" hidden></div>');
     callWatchLevel(S.uid, stream);
@@ -2770,19 +2919,19 @@ async function callJoin(fn, args) {
     await callRefresh();
     CALL.ping = setInterval(callPing, 20000);
     CALL.tick = setInterval(callTick, 4000);
-    if (fn === 'call_dm') CALL.wait = setTimeout(() => { if (CALL.id === info.id && !callOthers().some(m => !m.is_admin)) { toast('Не отвечает'); callHangup(true); } }, 45000);
-    if (info.as_admin) toast('Вы в звонке как администратор — участники это видят');
+    if (fn === 'call_dm') CALL.wait = setTimeout(() => { if (CALL.id === info.id && !callOthers().some(m => !m.is_admin)) { toast(tl('Не отвечает')); callHangup(true); } }, 45000);
+    if (info.as_admin) toast(tl('Вы в звонке как администратор — участники это видят'));
   } finally { CALL.joining = false; }
 }
 async function callTitle(info) {
   try {
-    if (info.kind === 'voice') return 'Войс · ' + (info.title || 'голосовой канал');
-    if (info.kind === 'room') { const r = await api(`rooms?id=eq.${info.room_id}&select=title,short_code`); info.roomCode = r[0]?.short_code; return 'Звонок · ' + (r[0]?.title || 'комната'); }
+    if (info.kind === 'voice') return tl('Войс · ') + (info.title || tl('голосовой канал'));
+    if (info.kind === 'room') { const r = await api(`rooms?id=eq.${info.room_id}&select=title,short_code`); info.roomCode = r[0]?.short_code; return tl('Звонок · ') + (r[0]?.title || tl('комната')); }
     const other = info.slot_id === info.slot_a ? info.slot_b : info.slot_a;
     const s = await api(`slots?id=in.(${info.slot_a},${info.slot_b})&select=id,char_name`);
-    if (info.as_admin || !info.slot_id) return 'Звонок в ЛС · ' + s.map(x => x.char_name).join(' и ');
-    return 'Звонок · ' + (s.find(x => x.id === other)?.char_name || 'ЛС');
-  } catch { return 'Звонок'; }
+    if (info.as_admin || !info.slot_id) return tl('Звонок в ЛС · ') + s.map(x => x.char_name).join(tl(' и '));
+    return tl('Звонок · ') + (s.find(x => x.id === other)?.char_name || tl('ЛС'));
+  } catch { return tl('Звонок'); }
 }
 async function callSubscribe() {
   const c = rtClient(); if (!c) return;
@@ -2815,7 +2964,7 @@ async function callRefresh() {
     if (later && !CALL.pcs.has(m.user_id)) callOffer(m.user_id).catch(e => console.warn('offer', e));
   }
   const adm = live.some(m => m.is_admin && m.user_id !== S.uid);
-  if (adm && !CALL.adminSeen) toast('В звонок вошёл администратор');
+  if (adm && !CALL.adminSeen) toast(tl('В звонок вошёл администратор'));
   CALL.adminSeen = adm;
   if (CALL.wait && callOthers().some(m => !m.is_admin)) { clearTimeout(CALL.wait); CALL.wait = null; }
   callDraw();
@@ -2901,7 +3050,7 @@ async function callPing() {
 }
 function callEnded(reason) {
   if (!CALL.id) return;
-  const msg = reason === 'admin' ? (CALL.info?.kind === 'voice' ? 'Войс закрыт' : 'Звонок завершён администратором') : reason === 'declined' ? 'Звонок отклонён' : 'Звонок завершён';
+  const msg = reason === 'admin' ? (CALL.info?.kind === 'voice' ? tl('Войс закрыт') : tl('Звонок завершён администратором')) : reason === 'declined' ? tl('Звонок отклонён') : tl('Звонок завершён');
   callHangup(true); toast(msg);
 }
 async function callHangup(silent = false) {
@@ -2920,7 +3069,7 @@ async function callHangup(silent = false) {
   $('#callAudio')?.remove();
   callDraw(); callRoomPill();
   try { await rpc('call_leave', { p_call: id }); } catch {}
-  if (!silent) toast('Вы вышли из звонка');
+  if (!silent) toast(tl('Вы вышли из звонка'));
 }
 addEventListener('pagehide', () => {
   if (!CALL.id) return;
@@ -2991,12 +3140,12 @@ function callMemberHtml(m) {
   const st = me ? 'me' : (CALL.pcs.get(m.user_id)?.connectionState || 'new');
   const ok = st === 'me' || st === 'connected';
   const muted = me && CALL.muted;
-  const s = m.is_admin ? null : (m.slot || (m.prof ? userAv(m.prof) : { char_name: 'Гость', handle: '' }));
+  const s = m.is_admin ? null : (m.slot || (m.prof ? userAv(m.prof) : { char_name: tl('Гость'), handle: '' }));
   const pic = m.is_admin ? `<span class="av cmx-adm">${I.shield}</span>` : avatar(s);
-  const name = m.is_admin ? 'Администратор' : s.char_name;
-  return `<div class="cmx${ok ? '' : ' wait'}${me ? ' me' : ''}${m.is_admin ? ' adm' : ''}" data-uid="${esc(m.user_id)}" title="${esc(name)}${ok ? '' : ' — соединяемся…'}">
+  const name = m.is_admin ? tl('Администратор') : s.char_name;
+  return `<div class="cmx${ok ? '' : ' wait'}${me ? ' me' : ''}${m.is_admin ? ' adm' : ''}" data-uid="${esc(m.user_id)}" title="${esc(name)}${ok ? '' : tl(' — соединяемся…')}">
     <div class="cmx-av">${pic}${muted ? `<span class="cmx-muted">${I.micOff}</span>` : ''}</div>
-    <i>${me ? 'Вы' : esc(name)}</i></div>`;
+    <i>${me ? tl('Вы') : esc(name)}</i></div>`;
 }
 function callDraw() {
   let bar = $('#callBar');
@@ -3014,31 +3163,31 @@ function callDraw() {
   const adminIn = CALL.members.some(m => m.is_admin);
   const waiting = CALL.wait && !callOthers().some(m => !m.is_admin);
   const head = `<div class="cb-head">
-      <span class="cb-live"><span class="cb-dot"></span>${waiting ? 'Вызов' : 'В звонке'}</span>
-      <b class="cb-title">${esc((CALL.title || 'Звонок').replace(/^(Звонок|Войс) · /, ''))}</b>
+      <span class="cb-live"><span class="cb-dot"></span>${waiting ? tl('Вызов') : tl('В звонке')}</span>
+      <b class="cb-title">${esc((CALL.title || tl('Звонок')).replace(/^(Звонок|Войс) · /, ''))}</b>
       <span class="cb-time">0:00</span>
-      ${host ? '' : `<button type="button" class="cb-min" data-cb-min aria-label="${min ? 'Развернуть' : 'Свернуть'}" title="${min ? 'Развернуть' : 'Свернуть'}"><svg viewBox="0 0 24 24"><path d="${min ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg></button>`}
+      ${host ? '' : `<button type="button" class="cb-min" data-cb-min aria-label="${min ? tl('Развернуть') : tl('Свернуть')}" title="${min ? tl('Развернуть') : tl('Свернуть')}"><svg viewBox="0 0 24 24"><path d="${min ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg></button>`}
     </div>`;
   const ctrl = `<div class="cb-ctrl">
-      <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
-      ${min ? '' : `<button type="button" class="cb-btn" data-cb-link aria-label="Скопировать ссылку на звонок" title="Скопировать ссылку-приглашение">${I.link}</button>`}
-      ${min ? '' : `<a class="cb-btn" href="#/support" aria-label="Пожаловаться модераторам" title="Пожаловаться модераторам">${I.flag}</a>`}
-      ${(mainAdmin() || glMod() || (CALL.info?.kind === 'voice' && CALL.info?.owner === S.uid)) && !min ? `<button type="button" class="cb-btn" data-cb-end title="Завершить звонок для всех" aria-label="Завершить звонок для всех">${I.close}</button>` : ''}
-      <button type="button" class="cb-btn hang" data-cb-leave aria-label="Выйти из звонка" title="Выйти из звонка">${I.hang}</button>
+      <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? tl('Включить микрофон') : tl('Выключить микрофон')}" title="${CALL.muted ? tl('Включить микрофон') : tl('Выключить микрофон')}">${CALL.muted ? I.micOff : I.mic}</button>
+      ${min ? '' : `<button type="button" class="cb-btn" data-cb-link aria-label="${tl('Скопировать ссылку на звонок')}" title="${tl('Скопировать ссылку-приглашение')}">${I.link}</button>`}
+      ${min ? '' : `<a class="cb-btn" href="#/support" aria-label="${tl('Пожаловаться модераторам')}" title="${tl('Пожаловаться модераторам')}">${I.flag}</a>`}
+      ${(mainAdmin() || glMod() || (CALL.info?.kind === 'voice' && CALL.info?.owner === S.uid)) && !min ? `<button type="button" class="cb-btn" data-cb-end title="${tl('Завершить звонок для всех')}" aria-label="${tl('Завершить звонок для всех')}">${I.close}</button>` : ''}
+      <button type="button" class="cb-btn hang" data-cb-leave aria-label="${tl('Выйти из звонка')}" title="${tl('Выйти из звонка')}">${I.hang}</button>
     </div>`;
   if (min) {
-    bar.innerHTML = `<div class="cb-mini" title="Перетащите, чтобы подвинуть">
+    bar.innerHTML = `<div class="cb-mini" title="${tl('Перетащите, чтобы подвинуть')}">
       <span class="cb-dot"></span>
-      <div class="cb-mini-t"><b>${esc((CALL.title || 'Звонок').replace(/^(Звонок|Войс) · /, ''))}</b><span class="cb-time">0:00</span></div>
-      <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}" title="${CALL.muted ? 'Включить микрофон' : 'Выключить микрофон'}">${CALL.muted ? I.micOff : I.mic}</button>
-      <button type="button" class="cb-btn" data-cb-min aria-label="Открыть звонок" title="Открыть звонок: участники и все кнопки"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>
-      <button type="button" class="cb-btn hang" data-cb-leave aria-label="Выйти из звонка" title="Выйти из звонка">${I.hang}</button>
+      <div class="cb-mini-t"><b>${esc((CALL.title || tl('Звонок')).replace(/^(Звонок|Войс) · /, ''))}</b><span class="cb-time">0:00</span></div>
+      <button type="button" class="cb-btn${CALL.muted ? ' off' : ''}" data-cb-mute aria-label="${CALL.muted ? tl('Включить микрофон') : tl('Выключить микрофон')}" title="${CALL.muted ? tl('Включить микрофон') : tl('Выключить микрофон')}">${CALL.muted ? I.micOff : I.mic}</button>
+      <button type="button" class="cb-btn" data-cb-min aria-label="${tl('Открыть звонок')}" title="${tl('Открыть звонок: участники и все кнопки')}"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>
+      <button type="button" class="cb-btn hang" data-cb-leave aria-label="${tl('Выйти из звонка')}" title="${tl('Выйти из звонка')}">${I.hang}</button>
     </div>`;
   } else {
     bar.innerHTML = head
-      + (adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? 'Вы в звонке как администратор — участники это видят' : 'В звонке администратор renah0cki'}</span></div>` : '')
+      + (adminIn ? `<div class="cb-admin">${I.shield}<span>${CALL.info?.as_admin ? tl('Вы в звонке как администратор — участники это видят') : tl('В звонке администратор renah0cki')}</span></div>` : '')
       + `<div class="cb-grid">${CALL.members.map(callMemberHtml).join('')}</div>`
-      + `<div class="cb-meta">${waiting ? '<span>Ждём ответа…</span>' : CALL.info?.kind === 'dm' ? '' : `<span>${players} из ${callMaxOf()}</span>`}${CALL.voice ? `<span class="cb-voice">Ваш голос: <b>${CALL.voice.ok ? (CALL.voice.up ? 'выше' : 'ниже') : 'обычный'}</b></span>` : ''}</div>`
+      + `<div class="cb-meta">${waiting ? `<span>${tl('Ждём ответа…')}</span>` : CALL.info?.kind === 'dm' ? '' : `<span>${players} ${tl('из')} ${callMaxOf()}</span>`}${CALL.voice ? `<span class="cb-voice">${tl('Ваш голос:')} <b>${CALL.voice.ok ? (CALL.voice.up ? tl('выше') : tl('ниже')) : tl('обычный')}</b></span>` : ''}</div>`
       + ctrl;
   }
   callLevelTick();
@@ -3090,12 +3239,12 @@ function bindCallBar(bar) {
     if (e.target.closest('[data-cb-mute]')) return callToggleMute();
     if (e.target.closest('[data-cb-link]')) {
       const url = callLink(CALL.id, CALL.info?.code);
-      try { await navigator.clipboard.writeText(url); toast('Ссылка на звонок скопирована — отправьте её другу'); } catch { prompt('Ссылка на звонок', url); }
+      try { await navigator.clipboard.writeText(url); toast(tl('Ссылка на звонок скопирована — отправьте её другу')); } catch { prompt(tl('Ссылка на звонок'), url); }
       return;
     }
     if (e.target.closest('[data-cb-leave]')) return callHangup();
     if (e.target.closest('[data-cb-end]')) {
-      if (!confirm('Завершить этот звонок для всех участников?')) return;
+      if (!confirm(tl('Завершить этот звонок для всех участников?'))) return;
       const id = CALL.id;
       try { await rpc('call_end', { p_call: id }); } catch (er) { toast(errText(er), true); }
       callHangup(true);
@@ -3113,17 +3262,17 @@ async function callRoomPill() {
   if (!c) {
     box.innerHTML = mySlot() && r.status !== 'archived'
       ? (glMod()
-        ? `<div class="call-pill idle">${I.phone}<span>Голосовой звонок комнаты</span><button type="button" class="btn ghost small" data-call-room>Начать звонок</button></div>` : '') : '';
+        ? `<div class="call-pill idle">${I.phone}<span>${tl('Голосовой звонок комнаты')}</span><button type="button" class="btn ghost small" data-call-room>${tl('Начать звонок')}</button></div>` : '') : '';
     return;
   }
   const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000);
   const n = live.filter(m => !m.is_admin).length;
   const inIt = CALL.id === c.id;
-  const act = inIt ? '<span class="cp-in">Вы в звонке</span>'
-    : n >= CALL_MAX ? '<span class="cp-in">Звонок заполнен</span>'
-    : !mySlot() && mainAdmin() ? `<button type="button" class="btn ghost small" data-call-admin="${c.id}">Войти (видно всем)</button>`
-    : `<button type="button" class="btn blue small" data-call-admin="${c.id}">Присоединиться</button>`;
-  box.innerHTML = `<div class="call-pill">${I.phone}<span><b>Голосовой звонок</b> · ${n}/${CALL_MAX}${live.some(m => m.is_admin) ? ' · в звонке админ' : ''}</span>${act}</div>`;
+  const act = inIt ? `<span class="cp-in">${tl('Вы в звонке')}</span>`
+    : n >= CALL_MAX ? `<span class="cp-in">${tl('Звонок заполнен')}</span>`
+    : !mySlot() && mainAdmin() ? `<button type="button" class="btn ghost small" data-call-admin="${c.id}">${tl('Войти (видно всем)')}</button>`
+    : `<button type="button" class="btn blue small" data-call-admin="${c.id}">${tl('Присоединиться')}</button>`;
+  box.innerHTML = `<div class="call-pill">${I.phone}<span><b>${tl('Голосовой звонок')}</b> · ${n}/${CALL_MAX}${live.some(m => m.is_admin) ? tl(' · в звонке админ') : ''}</span>${act}</div>`;
 }
 setInterval(() => { if (S.view === 'feed' && $('#callPill')) callRoomPill(); }, 15000);
 document.addEventListener('click', async e => {
@@ -3134,7 +3283,7 @@ document.addEventListener('click', async e => {
     if (!mySlot()) {
       const c = (await api(`calls?room_id=eq.${S.room.id}&kind=eq.room&ended_at=is.null&select=id`).catch(() => []))[0];
       if (c) { await callJoin('call_enter', { p_call: c.id }); callRoomPill(); return; }
-      return toast('Чтобы начать звонок, займите персонажа в комнате', true);
+      return toast(tl('Чтобы начать звонок, займите персонажа в комнате'), true);
     }
     await callJoin('call_room', { p_room: S.room.id });
     callRoomPill();
@@ -3145,8 +3294,8 @@ document.addEventListener('click', async e => {
   const eb = e.target.closest('[data-call-end]');
   if (eb) {
     e.preventDefault();
-    if (!confirm('Завершить этот звонок для всех участников?')) return;
-    try { await rpc('call_end', { p_call: eb.dataset.callEnd }); toast('Звонок завершён'); } catch (er) { toast(errText(er), true); }
+    if (!confirm(tl('Завершить этот звонок для всех участников?'))) return;
+    try { await rpc('call_end', { p_call: eb.dataset.callEnd }); toast(tl('Звонок завершён')); } catch (er) { toast(errText(er), true); }
     if (S.view === 'calls') viewCallsAdmin();
     if (S.view === 'voice') viewVoice();
     return;
@@ -3156,7 +3305,7 @@ document.addEventListener('click', async e => {
     e.preventDefault();
     const me = dmSlot(), peer = S.slotMap.get(chat.peer);
     if (!me || !peer) return;
-    if (!peer.player_id) return toast('У этого персонажа сейчас нет игрока', true);
+    if (!peer.player_id) return toast(tl('У этого персонажа сейчас нет игрока'), true);
     await callJoin('call_dm', { p_from_slot: me.id, p_to_slot: peer.id });
   }
 });
@@ -3187,49 +3336,49 @@ function callRingSound() {
 function callShowRing(row, from) {
   callStopRing();
   const el = document.createElement('div');
-  el.className = 'call-ring'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-label', 'Входящий звонок');
-  el.innerHTML = `${from ? avatar(from) : ''}<div class="cr-text"><b>${esc(from?.char_name || 'Персонаж')}</b><span>Входящий звонок${from?.room?.title ? ' · ' + esc(from.room.title) : ''}</span></div>
-    <button type="button" class="cb-btn hang" data-ring-no aria-label="Отклонить" title="Отклонить">${I.hang}</button>
-    <button type="button" class="cb-btn ok" data-ring-yes aria-label="Принять" title="Принять">${I.phone}</button>`;
+  el.className = 'call-ring'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-label', tl('Входящий звонок'));
+  el.innerHTML = `${from ? avatar(from) : ''}<div class="cr-text"><b>${esc(from?.char_name || tl('Персонаж'))}</b><span>${tl('Входящий звонок')}${from?.room?.title ? ' · ' + esc(from.room.title) : ''}</span></div>
+    <button type="button" class="cb-btn hang" data-ring-no aria-label="${tl('Отклонить')}" title="${tl('Отклонить')}">${I.hang}</button>
+    <button type="button" class="cb-btn ok" data-ring-yes aria-label="${tl('Принять')}" title="${tl('Принять')}">${I.phone}</button>`;
   document.body.append(el); callRingEl = el;
   callRingSound();
   el.querySelector('[data-ring-no]').onclick = async () => { callStopRing(); try { await rpc('call_decline', { p_call: row.id }); } catch {} };
   el.querySelector('[data-ring-yes]').onclick = async () => { callStopRing(); await callJoin('call_enter', { p_call: row.id }); };
   const t0 = Date.now();
   callRingPoll = setInterval(async () => {
-    if (Date.now() - t0 > 45000) { callStopRing(); toast('Пропущенный звонок'); return; }
-    try { const c = (await api(`calls?id=eq.${row.id}&select=ended_at`))[0]; if (!c || c.ended_at) { callStopRing(); toast('Пропущенный звонок'); } } catch {}
+    if (Date.now() - t0 > 45000) { callStopRing(); toast(tl('Пропущенный звонок')); return; }
+    try { const c = (await api(`calls?id=eq.${row.id}&select=ended_at`))[0]; if (!c || c.ended_at) { callStopRing(); toast(tl('Пропущенный звонок')); } } catch {}
   }, 3000);
 }
 
 /* приглашение по ссылке: #/call/<id> */
 async function viewCallInvite(id) {
   S.view = 'callinvite'; updateNav(); renderRight();
-  const shell = inner => head('Приглашение в звонок', { back: true }) + `<div class="call-invite">${inner}</div>`;
-  if (!S.uid) { main.innerHTML = shell(`<div class="ci-ic">${I.phone}</div><h2>Вас зовут в звонок</h2><p>Войдите в аккаунт renah0cki, чтобы присоединиться.</p><a class="btn blue" href="/">Войти</a>`); return; }
+  const shell = inner => head(tl('Приглашение в звонок'), { back: true }) + `<div class="call-invite">${inner}</div>`;
+  if (!S.uid) { main.innerHTML = shell(`<div class="ci-ic">${I.phone}</div><h2>${tl('Вас зовут в звонок')}</h2><p>${tl('Войдите в аккаунт renah0cki, чтобы присоединиться.')}</p><a class="btn blue" href="/">${tl('Войти')}</a>`); return; }
   main.innerHTML = shell(loader());
   let c;
   // короткий код → id звонка
   if (!/^[0-9a-f-]{36}$/i.test(id)) { try { id = await rpc('call_by_code', { p_code: id }); } catch { id = null; } }
-  if (!id) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>Звонок не найден</h2><p>Ссылка неверная или звонок давно закончился.</p><a class="btn ghost" href="#/">На главную Y</a>`); return; }
-  try { c = await rpc('call_peek', { p_call: id }); } catch (e) { main.innerHTML = shell(`<h2>Не получилось</h2><p>${esc(errText(e))}</p>`); return; }
+  if (!id) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>${tl('Звонок не найден')}</h2><p>${tl('Ссылка неверная или звонок давно закончился.')}</p><a class="btn ghost" href="#/">${tl('На главную Y')}</a>`); return; }
+  try { c = await rpc('call_peek', { p_call: id }); } catch (e) { main.innerHTML = shell(`<h2>${tl('Не получилось')}</h2><p>${esc(errText(e))}</p>`); return; }
   if (S.view !== 'callinvite') return;
-  if (!c || c.ended) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>Звонок уже закончился</h2><p>Попросите прислать новую ссылку.</p><a class="btn ghost" href="#/">На главную Y</a>`); return; }
-  const what = c.kind === 'voice' ? `Войс «${esc(c.title)}»` : c.kind === 'room' ? `Комната «${esc(c.title)}»` : `ЛС: ${esc(c.title)}`;
+  if (!c || c.ended) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>${tl('Звонок уже закончился')}</h2><p>${tl('Попросите прислать новую ссылку.')}</p><a class="btn ghost" href="#/">${tl('На главную Y')}</a>`); return; }
+  const what = c.kind === 'voice' ? tl('Войс «{0}»', {0: esc(c.title)}) : c.kind === 'room' ? tl('Комната «{0}»', {0: esc(c.title)}) : tl('ЛС: {0}', {0: esc(c.title)});
   const cap = c.max || CALL_MAX;
   const inIt = CALL.id === c.id;
   main.innerHTML = shell(`<div class="ci-ic">${I.phone}</div><h2>${what}</h2>
-    <p>Сейчас в звонке: <b>${c.count}</b> из ${cap}</p>
-    ${!c.has_goy && !callGoy() ? '<p class="ci-warn">В звонке пока нет участника с ролью ГОЙ — войти можно, когда он зайдёт.</p>' : ''}
-    ${inIt ? '<p><b>Вы уже в этом звонке</b></p>' : c.count >= cap ? '<p class="ci-warn">Звонок заполнен.</p>' : `<button type="button" class="btn blue" data-call-admin="${esc(c.id)}">Войти в звонок</button>`}
-    <p class="ci-note">Звонки не записываются. Перед первым звонком нужно принять правила.</p>`);
+    <p>${tl('Сейчас в звонке:')} <b>${c.count}</b> ${tl('из')} ${cap}</p>
+    ${!c.has_goy && !callGoy() ? `<p class="ci-warn">${tl('В звонке пока нет участника с ролью ГОЙ — войти можно, когда он зайдёт.')}</p>` : ''}
+    ${inIt ? `<p><b>${tl('Вы уже в этом звонке')}</b></p>` : c.count >= cap ? `<p class="ci-warn">${tl('Звонок заполнен.')}</p>` : `<button type="button" class="btn blue" data-call-admin="${esc(c.id)}">${tl('Войти в звонок')}</button>`}
+    <p class="ci-note">${tl('Звонки не записываются. Перед первым звонком нужно принять правила.')}</p>`);
 }
 
 /* голосовые каналы (войсы): видят все вошедшие, создают главные модеры */
 async function viewVoice() {
   S.view = 'voice'; updateNav(); renderRight();
-  const H = head('Голосовые каналы', { back: true, sub: 'Заходите своим аккаунтом, без персонажа' });
-  if (!S.uid) { main.innerHTML = H + '<div class="empty"><h2>Войдите</h2><p>Чтобы зайти в войс, войдите в аккаунт.</p><a class="btn blue" href="/">Войти</a></div>'; return; }
+  const H = head(tl('Голосовые каналы'), { back: true, sub: tl('Заходите своим аккаунтом, без персонажа') });
+  if (!S.uid) { main.innerHTML = H + `<div class="empty"><h2>${tl('Войдите')}</h2><p>${tl('Чтобы зайти в войс, войдите в аккаунт.')}</p><a class="btn blue" href="/">${tl('Войти')}</a></div>`; return; }
   main.innerHTML = H + loader();
   let rows = [];
   const vsel = 'id,title,max_members,created_by,created_at,members:call_members(user_id,is_admin,left_at,last_seen,prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username))&order=created_at.asc';
@@ -3239,11 +3388,11 @@ async function viewVoice() {
   const opts = sel => Array.from({ length: 9 }, (_, i) => i + 2).map(n => `<option value="${n}"${n === sel ? ' selected' : ''}>${n}</option>`).join('');
   const canCreate = glMod();
   const create = canCreate ? `<form class="vc-new" id="vcNew" autocomplete="off">
-      <b>Новый войс</b>
-      <div class="vc-new-row"><input name="t" maxlength="40" placeholder="Название, например «Болталка»" required>
-        <label class="vc-max">Мест <select name="m">${opts(10)}</select></label>
-        <button class="btn blue small" type="submit">Создать</button></div>
-    </form>` : '<div class="vc-new"><span class="cp-in">Войсы создают администраторы, заходить может любой. С ролью ГОЙ или VIP можно звонить 1 на 1 в личных сообщениях.</span></div>';
+      <b>${tl('Новый войс')}</b>
+      <div class="vc-new-row"><input name="t" maxlength="40" placeholder="${tl('Название, например «Болталка»')}" required>
+        <label class="vc-max">${tl('Мест')} <select name="m">${opts(10)}</select></label>
+        <button class="btn blue small" type="submit">${tl('Создать')}</button></div>
+    </form>` : `<div class="vc-new"><span class="cp-in">${tl('Войсы создают администраторы, заходить может любой. С ролью ГОЙ или VIP можно звонить 1 на 1 в личных сообщениях.')}</span></div>`;
   const items = rows.map(c => {
     const canManage = glMod() || c.created_by === S.uid;
     const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000 && !m.is_admin);
@@ -3251,15 +3400,15 @@ async function viewVoice() {
     const faces = live.slice(0, 6).map(m => avatar(m.prof ? userAv(m.prof) : { char_name: '?' }, 'sm')).join('');
     return `<div class="vc-row">
       <div class="vc-ic">${I.phone}</div>
-      <div class="vc-main"><b>${esc(c.title)}</b><span>${live.length} из ${c.max_members}${live.length ? '' : ' · пусто'}</span>${faces ? `<div class="vc-faces">${faces}</div>` : ''}</div>
+      <div class="vc-main"><b>${esc(c.title)}</b><span>${live.length} ${tl('из')} ${c.max_members}${live.length ? '' : tl(' · пусто')}</span>${faces ? `<div class="vc-faces">${faces}</div>` : ''}</div>
       <div class="vc-acts">
-        ${inIt ? '<span class="cp-in">Вы здесь</span>' : full ? '<span class="cp-in">Мест нет</span>' : `<button type="button" class="btn blue small" data-call-admin="${c.id}">Зайти</button>`}
-        <button type="button" class="icon-btn" data-vc-link="${c.id}" data-vc-code="${esc(c.short_code || '')}" title="Скопировать ссылку" aria-label="Скопировать ссылку">${I.link}</button>
-        ${canManage ? `<select class="vc-sel" data-vc-max="${c.id}" title="Мест" aria-label="Мест">${opts(c.max_members)}</select>
-          <button type="button" class="btn danger small" data-call-end="${c.id}">Закрыть</button>` : ''}
+        ${inIt ? `<span class="cp-in">${tl('Вы здесь')}</span>` : full ? `<span class="cp-in">${tl('Мест нет')}</span>` : `<button type="button" class="btn blue small" data-call-admin="${c.id}">${tl('Зайти')}</button>`}
+        <button type="button" class="icon-btn" data-vc-link="${c.id}" data-vc-code="${esc(c.short_code || '')}" title="${tl('Скопировать ссылку')}" aria-label="${tl('Скопировать ссылку')}">${I.link}</button>
+        ${canManage ? `<select class="vc-sel" data-vc-max="${c.id}" title="${tl('Мест')}" aria-label="${tl('Мест')}">${opts(c.max_members)}</select>
+          <button type="button" class="btn danger small" data-call-end="${c.id}">${tl('Закрыть')}</button>` : ''}
       </div></div>`;
   }).join('');
-  main.innerHTML = H + create + `<div class="vc-list">${items || `<div class="empty"><h2>Пока нет войсов</h2><p>${canCreate ? 'Создайте первый — сверху.' : 'Их создают администраторы.'}</p></div>`}</div>`;
+  main.innerHTML = H + create + `<div class="vc-list">${items || `<div class="empty"><h2>${tl('Пока нет войсов')}</h2><p>${canCreate ? tl('Создайте первый — сверху.') : tl('Их создают администраторы.')}</p></div>`}</div>`;
   const f = $('#vcNew');
   if (f) f.onsubmit = async e => {
     e.preventDefault();
@@ -3269,10 +3418,10 @@ async function viewVoice() {
   };
   $$('[data-vc-link]', main).forEach(b => b.onclick = async () => {
     const url = callLink(b.dataset.vcLink, b.dataset.vcCode);
-    try { await navigator.clipboard.writeText(url); toast('Ссылка на войс скопирована'); } catch { prompt('Ссылка на войс', url); }
+    try { await navigator.clipboard.writeText(url); toast(tl('Ссылка на войс скопирована')); } catch { prompt(tl('Ссылка на войс'), url); }
   });
   $$('[data-vc-max]', main).forEach(sel => sel.onchange = async () => {
-    try { await rpc('call_voice_set_max', { p_call: sel.dataset.vcMax, p_max: +sel.value }); toast('Мест: ' + sel.value); if (CALL.id === sel.dataset.vcMax && CALL.info) { CALL.info.max = +sel.value; callDraw(); } }
+    try { await rpc('call_voice_set_max', { p_call: sel.dataset.vcMax, p_max: +sel.value }); toast(tl('Мест: ') + sel.value); if (CALL.id === sel.dataset.vcMax && CALL.info) { CALL.info.max = +sel.value; callDraw(); } }
     catch (er) { toast(errText(er), true); }
   });
 }
@@ -3280,8 +3429,8 @@ async function viewVoice() {
 /* главный админ: все идущие звонки */
 async function viewCallsAdmin() {
   S.view = 'calls'; updateNav(); renderRight();
-  if (!mainAdmin() && !glMod()) { main.innerHTML = head('Звонки', { back: true }) + '<div class="empty"><h2>Нет доступа</h2></div>'; return; }
-  main.innerHTML = head('Идущие звонки', { back: true, sub: 'Ваш вход всегда виден участникам' }) + loader();
+  if (!mainAdmin() && !glMod()) { main.innerHTML = head(tl('Звонки'), { back: true }) + `<div class="empty"><h2>${tl('Нет доступа')}</h2></div>`; return; }
+  main.innerHTML = head(tl('Идущие звонки'), { back: true, sub: tl('Ваш вход всегда виден участникам') }) + loader();
   let rows = [];
   try { rows = await api('calls?ended_at=is.null&select=id,kind,title,max_members,created_at,room:room_id(title,short_code,id),a:slot_a(char_name),b:slot_b(char_name),members:call_members(user_id,is_admin,left_at,last_seen)&order=created_at.desc'); }
   catch (e) { return errorView(errText(e)); }
@@ -3289,13 +3438,13 @@ async function viewCallsAdmin() {
   const items = rows.map(c => {
     const live = c.members.filter(m => !m.left_at && Date.now() - new Date(m.last_seen).getTime() < 65000);
     const n = live.filter(m => !m.is_admin).length, inIt = CALL.id === c.id;
-    const what = c.kind === 'voice' ? `Войс «${esc(c.title || '')}»` : c.kind === 'room' ? `Комната «${esc(c.room?.title || '')}»` : `ЛС: ${esc(c.a?.char_name || '?')} и ${esc(c.b?.char_name || '?')}`;
-    return `<div class="call-adm-row"><div class="ca-main"><b>${what}</b><span>${n}/${c.max_members || CALL_MAX} · с ${new Date(c.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${live.some(m => m.is_admin) ? ' · админ в звонке' : ''}</span></div>
-      ${inIt ? '<span class="cp-in">Вы здесь</span>' : (mainAdmin() || c.kind === 'voice') ? `<button type="button" class="btn ghost small" data-call-admin="${c.id}">Войти</button>` : ''}
-      <button type="button" class="btn danger small" data-call-end="${c.id}">Завершить</button></div>`;
+    const what = c.kind === 'voice' ? tl('Войс «{0}»', {0: esc(c.title || '')}) : c.kind === 'room' ? tl('Комната «{0}»', {0: esc(c.room?.title || '')}) : tl('ЛС: {0} и {1}', {0: esc(c.a?.char_name || '?'), 1: esc(c.b?.char_name || '?')});
+    return `<div class="call-adm-row"><div class="ca-main"><b>${what}</b><span>${n}/${c.max_members || CALL_MAX} ${tl('· с')} ${new Date(c.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}${live.some(m => m.is_admin) ? tl(' · админ в звонке') : ''}</span></div>
+      ${inIt ? `<span class="cp-in">${tl('Вы здесь')}</span>` : (mainAdmin() || c.kind === 'voice') ? `<button type="button" class="btn ghost small" data-call-admin="${c.id}">${tl('Войти')}</button>` : ''}
+      <button type="button" class="btn danger small" data-call-end="${c.id}">${tl('Завершить')}</button></div>`;
   }).join('');
-  main.innerHTML = head('Идущие звонки', { back: true, sub: 'Ваш вход всегда виден участникам' })
-    + `<div class="call-adm">${items || '<div class="empty"><h2>Сейчас звонков нет</h2></div>'}</div>`;
+  main.innerHTML = head(tl('Идущие звонки'), { back: true, sub: tl('Ваш вход всегда виден участникам') })
+    + `<div class="call-adm">${items || `<div class="empty"><h2>${tl('Сейчас звонков нет')}</h2></div>`}</div>`;
 }
 
 /* ── роутер ─────────────────────────────────────────────── */
@@ -3446,7 +3595,7 @@ async function tgLinkIfNeeded() {
   try {
     const r = await fetch(`${CDN}/tg-link`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await getToken() }, body: JSON.stringify({ initData: TG.initData }) });
     const d = await r.json().catch(() => ({}));
-    if (explicit) toast(r.ok ? 'Telegram привязан — дальше вход будет сам' : (d.error || 'Не удалось привязать Telegram'), !r.ok);
+    if (explicit) toast(r.ok ? tl('Telegram привязан — дальше вход будет сам') : (d.error || tl('Не удалось привязать Telegram')), !r.ok);
     try { sessionStorage.setItem('rp_tg_done', '1'); sessionStorage.removeItem('rp_tg_link'); } catch {}
   } catch {}
 }
@@ -3456,27 +3605,27 @@ async function tgLinkIfNeeded() {
 function yRulesGate() {
   const ov = document.createElement('div');
   ov.className = 'gate-ov';
-  ov.innerHTML = `<form class="gate" role="dialog" aria-modal="true" aria-label="Правила Y">
-    <h2>Добро пожаловать в Y</h2>
-    <p>Y — ролевая игра: посты, ответы и сообщения пишутся от лица вымышленных персонажей. Перед входом прочитайте главное:</p>
+  ov.innerHTML = `<form class="gate" role="dialog" aria-modal="true" aria-label="${tl('Правила Y')}">
+    <h2>${tl('Добро пожаловать в Y')}</h2>
+    <p>${tl('Y — ролевая игра: посты, ответы и сообщения пишутся от лица вымышленных персонажей. Перед входом прочитайте главное:')}</p>
     <ul>
-      <li>Все персонажи вымышлены и не связаны с реальными людьми.</li>
-      <li>В Y бывает <b>нецензурная лексика</b>, грубый юмор и ролевые конфликты персонажей.</li>
-      <li>Посты с меткой <b>18+</b> видят только те, кто подтвердил, что им есть 18 лет. Порнография запрещена полностью.</li>
-      <li>Личные сообщения могут читать модераторы — не пишите в них ничего личного и настоящего.</li>
-      <li>Политика, травля, угрозы, чужие личные данные и всё незаконное — бан. Пожаловаться можно через «⋯» у поста или профиля.</li>
+      <li>${tl('Все персонажи вымышлены и не связаны с реальными людьми.')}</li>
+      <li>${tl('В Y бывает')} <b>${tl('нецензурная лексика')}</b>${tl(', грубый юмор и ролевые конфликты персонажей.')}</li>
+      <li>${tl('Посты с меткой')} <b>18+</b> ${tl('видят только те, кто подтвердил, что им есть 18 лет. Порнография запрещена полностью.')}</li>
+      <li>${tl('Личные сообщения могут читать модераторы — не пишите в них ничего личного и настоящего.')}</li>
+      <li>${tl('Политика, травля, угрозы, чужие личные данные и всё незаконное — бан. Пожаловаться можно через «⋯» у поста или профиля.')}</li>
     </ul>
-    <p><a href="#/rules" data-gate-rules>Полные правила Y</a> · <a href="/rules" target="_blank" rel="noopener">общие правила renah0cki</a></p>
-    <label class="gate-check"><input type="checkbox" name="ok"> <span>Я прочитал(а) правила Y и согласен(на) с ними</span></label>
-    <label class="gate-check"><input type="checkbox" name="adult"> <span>Мне есть 18 лет (необязательно — без этого посты 18+ скрыты)</span></label>
+    <p><a href="#/rules" data-gate-rules>${tl('Полные правила Y')}</a> · <a href="/rules" target="_blank" rel="noopener">${tl('общие правила renah0cki')}</a></p>
+    <label class="gate-check"><input type="checkbox" name="ok"> <span>${tl('Я прочитал(а) правила Y и согласен(на) с ними')}</span></label>
+    <label class="gate-check"><input type="checkbox" name="adult"> <span>${tl('Мне есть 18 лет (необязательно — без этого посты 18+ скрыты)')}</span></label>
     <p class="gate-err" role="alert"></p>
-    <button class="btn blue" type="submit">Войти в Y</button>
+    <button class="btn blue" type="submit">${tl('Войти в Y')}</button>
   </form>`;
   const f = $('form', ov);
   $('[data-gate-rules]', ov).onclick = e => { e.preventDefault(); showRulesInGate(ov); };
   f.onsubmit = async e => {
     e.preventDefault();
-    if (!f.ok.checked) { $('.gate-err', ov).textContent = 'Поставьте галочку, что прочитали правила'; return; }
+    if (!f.ok.checked) { $('.gate-err', ov).textContent = tl('Поставьте галочку, что прочитали правила'); return; }
     $('button', f).disabled = true;
     try { S.me = await rpc('accept_y_rules', { p_adult: f.adult.checked }); ov.remove(); document.body.style.overflow = ''; route(); }
     catch (er) { $('.gate-err', ov).textContent = errText(er); $('button', f).disabled = false; }
@@ -3488,7 +3637,7 @@ function showRulesInGate(ov) {
   const box = document.createElement('div');
   box.className = 'gate-rules';
   const prev = main.innerHTML; viewRules(); const html = main.querySelector('.rules')?.outerHTML || ''; main.innerHTML = prev;
-  box.innerHTML = '<button type="button" class="btn small ghost" data-gate-back>← Назад</button>' + html;
+  box.innerHTML = `<button type="button" class="btn small ghost" data-gate-back>${tl('← Назад')}</button>` + html;
   $('.gate', ov).hidden = true; ov.append(box);
   $('[data-gate-back]', box).onclick = () => { box.remove(); $('.gate', ov).hidden = false; };
 }
@@ -3512,12 +3661,12 @@ async function init() {
     tgLinkIfNeeded();
   } else {
     document.body.classList.add('guest');
-    const msg = TG.status === 'unlinked' ? 'Telegram не привязан к renah0cki. Войди один раз через Twitch — дальше вход будет сам.'
-      : TG.status === 'no_email' ? 'Не получилось войти через Telegram: у аккаунта нет почты. Войди на сайте.'
-      : TG.status ? 'Не получилось войти через Telegram. Попробуй открыть Y ещё раз.'
-      : 'Смотрите как гость. Войдите, чтобы играть.';
-    document.body.insertAdjacentHTML('beforeend', `<div class="guest-bar"><span>${esc(msg)}</span>${TG.initData ? '<button class="btn small" type="button" data-tg-login>Войти через Twitch</button>' : '<a class="btn small" href="/">Войти</a>'}</div>`);
-    const tl = $('[data-tg-login]'); if (tl) tl.onclick = startTwitchLogin;
+    const msg = TG.status === 'unlinked' ? tl('Telegram не привязан к renah0cki. Войди один раз через Twitch — дальше вход будет сам.')
+      : TG.status === 'no_email' ? tl('Не получилось войти через Telegram: у аккаунта нет почты. Войди на сайте.')
+      : TG.status ? tl('Не получилось войти через Telegram. Попробуй открыть Y ещё раз.')
+      : tl('Смотрите как гость. Войдите, чтобы играть.');
+    document.body.insertAdjacentHTML('beforeend', `<div class="guest-bar"><span>${esc(msg)}</span>${TG.initData ? `<button class="btn small" type="button" data-tg-login>${tl('Войти через Twitch')}</button>` : `<a class="btn small" href="/">${tl('Войти')}</a>`}</div>`);
+    const tgl = $('[data-tg-login]'); if (tgl) tgl.onclick = startTwitchLogin;
   }
   renderMe();
   if (S.uid && S.me && 'y_rules_at' in S.me && !S.me.y_rules_at) yRulesGate();
