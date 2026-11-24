@@ -83,7 +83,7 @@ function iconHtml(ev) {
   return '✨';
 }
 function amountLabel(ev) {
-  if (ev.type === 'coin') return `${fmt(ev.amount)} Puzocoins`;
+  if (ev.type === 'coin') return `${fmt(ev.amount)} пузокоинов`;
   if (ev.type === 'da') return `${fmt(ev.amount)} ${ev.unit || 'RUB'}`;
   if (ev.type === 'dn') return `${fmt(ev.amount)} ${ev.unit || 'UAH'}`;
   if (ev.type === 'tw_follow') return 'Фолловер';

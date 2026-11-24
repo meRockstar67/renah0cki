@@ -137,7 +137,7 @@
     return '✨';
   }
   function rightLabel(ev) {
-    if (ev.type === 'coin') return `${fmt(ev.amount)} Puzocoins`;
+    if (ev.type === 'coin') return `${fmt(ev.amount)} пузокоинов`;
     if (ev.type === 'da') return `${fmt(ev.amount)} ${ev.unit || 'RUB'}`;
     if (ev.type === 'dn') return `${fmt(ev.amount)} ${ev.unit || 'UAH'}`;
     if (ev.type === 'tw_follow') return 'Фолловер';
@@ -147,7 +147,7 @@
     return '';
   }
   function subLabel(ev) {
-    if (ev.type === 'coin') return 'Puzocoins';
+    if (ev.type === 'coin') return 'Пузокоины';
     if (ev.type === 'da') return 'DonationAlerts';
     if (ev.type === 'dn') return 'Donatello';
     if (ev.type === 'tw_points') return ev.title || 'Баллы Twitch';
