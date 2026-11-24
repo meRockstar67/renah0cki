@@ -695,6 +695,8 @@ html.vw-lock, html.vw-lock body { overflow: hidden; }
 .wal-warn { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
 .wal-admin { margin-top: 16px; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--border); display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
 .wal-admin[hidden] { display: none; }
+.wal-admin { flex-wrap: wrap; } .wal-income { flex-basis: 100%; color: var(--text); }
+.wal-go { display: flex; flex-wrap: wrap; gap: 8px; } .wal-go .btn[hidden] { display: none; }
 .wal-admin .ok { color: #7be0a0; } .wal-admin .bad { color: #ff8a8a; }
 .wal-admin .btn { height: 34px; flex: none; }
 .tx { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--border); animation: cardIn .3s var(--ease) both; }

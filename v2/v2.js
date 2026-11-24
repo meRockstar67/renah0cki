@@ -3009,8 +3009,8 @@ async function viewWallet(tab) {
       <p class="muted">Донат — это добровольная поддержка проекта. В благодарность за него вы получаете <b>монеты в подарок</b> — автоматически, обычно за минуту.</p>
       <ol class="wal-steps">
         <li><b>Скопируйте свой ник</b><div class="wal-code"><span id="walCode">${esc(S.me?.username || '…')}</span><button class="btn" type="button" id="walCopy">Скопировать</button></div></li>
-        <li><div><b>Откройте страницу доната</b> и укажите сумму.</div><div><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a></div></li>
-        <li><div><b>Вставьте ник в поле «Имя»</b> — по нему мы поймём, кому отправить подарок. Сообщение пишите любое, хоть смешное, или оставьте пустым.</div></li>
+        <li><div><b>Откройте страницу доната</b> и укажите сумму.</div><div class="wal-go"><a class="btn accent" id="walGo" href="#" target="_blank" rel="noopener">Открыть страницу доната</a><a class="btn accent" id="walDn" href="#" target="_blank" rel="noopener" hidden>Украинская или другая карта (Donatello)</a></div></li>
+        <li><div><b>Вставьте ник в поле «Имя»</b> (на Donatello — «Ім'я») — по нему мы поймём, кому отправить подарок. Сообщение пишите любое, хоть смешное, или оставьте пустым.</div></li>
       </ol>
       <div class="wal-rate"><img src="${COIN}" alt=""><span>Подарок: ${DA_RATES_TXT}</span></div>
       <p class="wal-warn">Если в поле «Имя» не ваш ник — подарок не придёт (или придёт тому, чей ник указан). Донат добровольный и не возвращается. Что-то пошло не так — напишите в <a href="${routeUrl('support')}">поддержку</a>.</p>
@@ -3024,9 +3024,22 @@ async function viewWallet(tab) {
       $('#walCode').textContent = prof?.username || '—';
       if (info.url) $('#walGo').href = info.url.replace(/^https:\/\/www\.donationalerts\.com\/r\//, 'https://dalink.to/');
       else { $('#walGo').classList.add('disabled'); $('#walGo').textContent = 'Пополнение временно недоступно'; }
+      // Donatello (карты Украины и мира) — пока только владельцу
+      if (info.dn_url && S.uid === OWNER_ID) {
+        const dn = $('#walDn'); dn.href = info.dn_url; dn.hidden = false;
+        if (info.url) $('#walGo').textContent = 'Российская карта (DonationAlerts)';
+      }
       if (S.uid === OWNER_ID) {
         const a = $('#walAdmin'); a.hidden = false;
         a.innerHTML = `<span>Админ: DonationAlerts ${info.connected ? '<b class="ok">подключён</b>' : '<b class="bad">не подключён</b>'}. Переподключать, только если донаты перестали начисляться.</span><button class="btn" type="button" id="walDa">${info.connected ? 'Переподключить' : 'Подключить'}</button>`;
+        // донаты за год — для налоговой декларации (суммы в валюте доната; в гривнах считать по выписке банка)
+        const yr = new Date().getFullYear();
+        rpc('donation_income', { p_year: yr }).then(rows => {
+          if (!Array.isArray(rows) || !$('#walAdmin')) return;
+          const el = document.createElement('div'); el.className = 'wal-income';
+          el.innerHTML = `<b>Донаты за ${yr}:</b> ` + (rows.length ? rows.map(r => `${esc(r.service)} — ${Number(r.total).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ${esc(r.currency)} (${Number(r.donations)} шт.)`).join(' · ') : 'пока нет');
+          $('#walAdmin').append(el);
+        }).catch(() => {});
         $('#walDa').onclick = async () => {
           try { const r = await fetch(CDN_URL + '/da/login-url', { method: 'POST', headers: { Authorization: 'Bearer ' + (await getToken()) } }); const j = await r.json().catch(() => ({})); if (!r.ok || !j.url) throw new Error(j.error || 'ошибка'); location.href = j.url; }
           catch (er) { toast(er.message, true); }
