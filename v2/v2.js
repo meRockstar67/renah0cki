@@ -611,7 +611,11 @@ async function viewPost(key, root = page) {
   $('#copyBtn').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/${it.short_code || '?post=' + it.id}`); toast(tl('Ссылка скопирована')); } catch { toast(tl('Не удалось скопировать'), true); } };
   S.curPost = { it, root };
   wirePostMenu(root, it);
-  if (it.content_type !== 'fanfic') { rpc('increment_content_views', { content_id: it.id }).catch(() => {}); loadComments(it.id); }
+  if (it.content_type !== 'fanfic') {
+    try { if (!sessionStorage.getItem('pv_' + it.id)) { sessionStorage.setItem('pv_' + it.id, '1'); rpc('increment_content_views', { content_id: it.id }).catch(() => {}); } }
+    catch { rpc('increment_content_views', { content_id: it.id }).catch(() => {}); }
+    loadComments(it.id);
+  }
   renderReact(it);
 }
 
