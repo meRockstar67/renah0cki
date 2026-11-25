@@ -1384,7 +1384,6 @@ html.terms-lock, html.terms-lock body { overflow: hidden; }
 .rc-modal h2 span { color: var(--muted); font-weight: 600; }
 .rc-list { display: flex; flex-direction: column; gap: 2px; max-height: min(60dvh, 480px); overflow-y: auto; margin: 0 -8px; }
 .rc-list .spons-item { padding: 0 8px; }
-@media (max-width: 1250px) { .top-timer > span { display: none; } }
 @media (max-width: 900px) {
   .top.has-extra { flex-wrap: wrap; row-gap: 8px; }
   .top-extra { display: flex; order: 5; flex-basis: 100%; align-items: center; gap: 6px; min-width: 0; }
@@ -1395,3 +1394,10 @@ html.terms-lock, html.terms-lock body { overflow: hidden; }
   .top.has-extra .notif-pop { top: calc(102px + env(safe-area-inset-top)); }
 }
 @media (max-width: 420px) { .top-extra, .role-counts { gap: 4px; } .rc-chip { gap: 4px; padding: 0 7px; font-size: 12px; } .rc-chip i, .top-timer svg { display: none; } .top-timer { padding: 0 8px; } }
+@media (min-width: 901px) and (max-width: 1250px) {
+  .top.has-extra { flex-wrap: wrap; row-gap: 8px; }
+  .top-extra { display: flex; order: 5; flex-basis: 100%; justify-content: center; align-items: center; gap: 8px; }
+  .top.has-extra > .search { margin: 0 auto; }
+  .top.has-extra .role-counts { margin: 0; }
+  .top-timer, .rc-chip { height: 34px; }
+}

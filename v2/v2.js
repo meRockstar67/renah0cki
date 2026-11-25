@@ -3858,7 +3858,7 @@ document.addEventListener('click', e => {
     const ms = END - Date.now();
     if (ms <= 0) { el.hidden = true; clearInterval(t); return; }
     const s = Math.floor(ms / 1000), d = Math.floor(s / 86400);
-    val.textContent = `${d ? d + tl('д') + ' ' : ''}${pad(Math.floor(s / 3600) % 24)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+    val.textContent = `${d ? d + tl('д') + ' ' : ''}${Math.floor(s / 3600) % 24}${tl('ч')} ${pad(Math.floor(s / 60) % 60)}${tl('м')} ${pad(s % 60)}${tl('с')}`;
   };
   const t = setInterval(tick, 1000);
   tick();
