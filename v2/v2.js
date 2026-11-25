@@ -1754,8 +1754,12 @@ const TERMS_KEY = 'rn_terms_v2';
 const TERMS_REV = '2026-11-25T14:30:00Z';
 const termsOutdated = t => !t || Date.parse(t) < Date.parse(TERMS_REV);
 const termsLocal = () => { try { return !!localStorage.getItem(TERMS_KEY); } catch { return false; } };
+let termsPending = false;
+const onLegalPage = () => /^(rules|privacy)(\/|$)/.test(curRoute());
 function termsGate() {
   if ($('#termsGate')) return;
+  if (onLegalPage()) { termsPending = true; return; }
+  termsPending = false;
   const ov = document.createElement('div');
   ov.id = 'termsGate'; ov.className = 'terms-ov';
   ov.innerHTML = `<form class="terms-box" role="dialog" aria-modal="true" aria-label="${tl('Правила сайта')}">
@@ -3564,6 +3568,7 @@ document.addEventListener('click', e => {
 
 function route() {
   const cur = curRoute();
+  if (termsPending && !onLegalPage()) setTimeout(termsGate, 0);
   const parts = cur.split('/').filter(Boolean).map(decodeURIComponent);
   if (LB.skip) { LB.skip = false; return; }
   if (LB.open) {
