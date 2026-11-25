@@ -1851,7 +1851,6 @@ async function loadMe() {
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
     $('#navAwards').hidden = !isMod();
-    $('#navGame').hidden = !(me?.id === OWNER_ID && matchMedia('(any-pointer: fine)').matches);
     $('#meOld').hidden = !(hasRole(me, 'admin') || hasRole(me, 'gl_moder') || me?.id === OWNER_ID);
     applyMeFrame();
     $('#navMod').hidden = !isMod();
@@ -2410,7 +2409,8 @@ const langCard = () => window.I18N ? `<section class="rules-card sets-card" id="
 function viewSettings() {
   setNav('settings');
   if (!S.uid) { page.innerHTML = `<div class="sets"><div class="page-head"><h1>${tl('Настройки')}</h1></div>${langCard()}${window.PWA ? PWA.card(tl, 'renah0cki') : ''}<div class="empty">${tl('Войдите, чтобы открыть остальные настройки.')}<br><br><button class="btn accent" data-login>${tl('Войти')}</button></div></div>`; if (window.PWA) PWA.bind(page, tl, 'renah0cki'); return; }
-  if (!S.me) { page.innerHTML = `<div class="empty">${tl('Загрузка…')}</div>`; loadMe().then(() => { if (curRoute().startsWith('settings')) viewSettings(); }); return; }
+  if (!S.me) { page.innerHTML = `<div class="empty">${tl('Загрузка…')}</div>`; $('#navGame').hidden = !matchMedia('(any-pointer: fine)').matches;
+loadMe().then(() => { if (curRoute().startsWith('settings')) viewSettings(); }); return; }
   const me = S.me, sw = (name, title, sub, on) => `<label class="sw"><input type="checkbox" name="${name}"${on ? ' checked' : ''}><i></i><div><b>${title}</b>${sub ? `<span>${sub}</span>` : ''}</div></label>`;
   const opts = [...NOTIF_OPTS, ...(isMod() ? [['notify_new_submission', tl('Новые работы на проверку (модераторам)')]] : [])];
   page.innerHTML = `<div class="sets">
