@@ -47,7 +47,7 @@ canvas{display:block}
 .yt-name.long span{padding-left:100%;animation:ytMarq 14s linear infinite}
 @keyframes ytMarq{to{transform:translateX(-100%)}}
 .yt-screen{border:3px solid #000;background:#000;box-shadow:0 0 0 2px #7a5532}
-#ytPlayer,#ytBox iframe{display:block;width:244px;height:200px;border:0}
+#ytPlayer,#ytBox iframe{display:block;width:356px;height:200px;border:0}
 .yt-ctl{display:flex;align-items:center;gap:6px;margin-top:7px}
 #ytBox button{font:inherit;font-size:8px;line-height:1;padding:5px 7px;color:var(--ink);background:var(--panel);border:2px solid #000;box-shadow:2px 2px 0 #000;cursor:pointer}
 #ytBox button:hover{background:var(--gold)}
@@ -335,7 +335,7 @@ const ytBox=document.getElementById('ytBox'),ytNameEl=document.getElementById('y
 const YT_POS=['br','tr','tl','bl'];let ytPos='br';try{ytPos=YT_POS.includes(localStorage.getItem('pitbike_ytpos'))?localStorage.getItem('pitbike_ytpos'):'br';}catch(e){}
 function ytApplyPos(){YT_POS.forEach(p=>ytBox.classList.remove('pos-'+p));ytBox.classList.add('pos-'+ytPos);}
 ytApplyPos();
-function ytShowName(name){const sp=ytNameEl.firstElementChild;sp.textContent=name;ytNameEl.title=name;ytNameEl.classList.toggle('long',name.length>24);}
+function ytShowName(name){const sp=ytNameEl.firstElementChild;sp.textContent=name;ytNameEl.title=name;ytNameEl.classList.toggle('long',name.length>38);}
 function ytSetPlaying(on){ytBox.classList.toggle('playing',on);ytPlayBtn.textContent=on?'❚❚':'▶';ytPlayBtn.title=on?'Пауза':'Играть';}
 ytBox.addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preventDefault();});
 ytBox.addEventListener('click',e=>{
