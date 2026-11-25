@@ -34,10 +34,26 @@ canvas{display:block}
 #pcOnly{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--bg)}
 #pcOnly[hidden]{display:none}
 #pcOnly a.opt{text-decoration:none;text-align:center}
-#ytBox{position:fixed;right:12px;bottom:12px;z-index:6;background:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 #000}
+#ytBox{position:fixed;z-index:6;padding:6px;border:3px solid #000;border-radius:6px;background:linear-gradient(#4a301c,#24170d);box-shadow:5px 5px 0 #000,inset 0 0 0 2px #7a5532;color:var(--panel);font-size:7px;transition:opacity .2s}
 #ytBox[hidden]{display:none}
-#ytBox .yt-h{font-size:7px;color:var(--gold);padding:4px 6px 5px}
-#ytPlayer,#ytBox iframe{display:block;width:240px;height:200px;border:0}
+#ytBox.pos-br{right:12px;bottom:12px}#ytBox.pos-tr{right:12px;top:12px}#ytBox.pos-tl{left:12px;top:30px}#ytBox.pos-bl{left:12px;bottom:12px}
+.yt-top{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.yt-reels{display:flex;gap:4px;padding:3px 5px;background:#130b05;border:2px solid #000;border-radius:3px}
+.yt-reels i{width:10px;height:10px;border-radius:50%;border:2px dashed var(--gold);box-sizing:border-box}
+#ytBox.playing .yt-reels i{animation:ytReel 1.1s linear infinite}
+@keyframes ytReel{to{transform:rotate(360deg)}}
+.yt-name{flex:1;min-width:0;overflow:hidden;white-space:nowrap;color:var(--gold);line-height:1.6;background:#130b05;border:2px solid #000;padding:2px 5px}
+.yt-name span{display:inline-block}
+.yt-name.long span{padding-left:100%;animation:ytMarq 14s linear infinite}
+@keyframes ytMarq{to{transform:translateX(-100%)}}
+.yt-screen{border:3px solid #000;background:#000;box-shadow:0 0 0 2px #7a5532}
+#ytPlayer,#ytBox iframe{display:block;width:244px;height:200px;border:0}
+.yt-ctl{display:flex;align-items:center;gap:6px;margin-top:7px}
+#ytBox button{font:inherit;font-size:8px;line-height:1;padding:5px 7px;color:var(--ink);background:var(--panel);border:2px solid #000;box-shadow:2px 2px 0 #000;cursor:pointer}
+#ytBox button:hover{background:var(--gold)}
+#ytBox button:active{transform:translate(2px,2px);box-shadow:none}
+.yt-hint{margin-left:auto;font-size:6px;opacity:.6}
+@media (prefers-reduced-motion:reduce){#ytBox.playing .yt-reels i,.yt-name.long span{animation:none}}
 #backSite{position:fixed;top:8px;left:10px;z-index:6;font-size:8px;color:var(--panel);opacity:.55;text-decoration:none}
 #backSite:hover{opacity:1}
 </style>
@@ -47,7 +63,11 @@ canvas{display:block}
 <a id="backSite" href="/" title="Вернуться на renah0cki">← renah0cki</a>
 <div id="wrap"><canvas id="c"></canvas></div>
 <div id="ov" class="ov on"><div id="box" class="box"></div></div>
-<div id="ytBox" hidden><div class="yt-h">МАГНИТОЛА · YOUTUBE</div><div id="ytPlayer"></div></div>
+<div id="ytBox" class="pos-br" hidden>
+  <div class="yt-top"><span class="yt-reels"><i></i><i></i></span><span class="yt-name" id="ytName"><span></span></span><button type="button" tabindex="-1" id="ytMove" title="Переставить в другой угол">⇱</button></div>
+  <div class="yt-screen"><div id="ytPlayer"></div></div>
+  <div class="yt-ctl"><button type="button" tabindex="-1" data-yt="prev" title="Предыдущий трек">◀◀</button><button type="button" tabindex="-1" data-yt="play" id="ytPlayBtn" title="Пауза">❚❚</button><button type="button" tabindex="-1" data-yt="next" title="Следующий трек (F)">▶▶</button><span class="yt-hint">Q — выкл</span></div>
+</div>
 <input type="file" id="fileIn" accept="audio/*,.mp3,.m4a,.ogg,.wav,.flac,.aac" multiple hidden>
 <div id="touch">
   <div class="g"><button data-k="ArrowLeft">◀</button><button data-k="ArrowRight">▶</button></div>
@@ -261,7 +281,13 @@ function playStep(s,t){
 }
 /* --- плейлист: свои треки (mp3 и т.п.), хранятся в браузере --- */
 /* треки с YouTube: играют в официальном плеере YouTube (виден в углу, не меньше 200x200 — правило YouTube) */
-const YT_LIST=[];
+const YT_LIST=[
+  {name:"VILLIAN, madk1d — ДИНАСТИЯ",yt:"J7NFL-eOxiQ"},
+  {name:"madk1d, VILLIAN — 8 миля",yt:"N9ZjkSrsZRA"},
+  {name:"madk1d, Тёмный принц — ты чё обиделась",yt:"GaGOwFAlwkU"},
+  {name:"madk1d, Greyrock, Tewiq — MARTINE ROSE",yt:"uE0pZWN1Au8"},
+  {name:"Aarne, Toxi$, madk1d — Christian Poell",yt:"bUMvl6tV7bs"},
+];
 let ytOwn=[];try{ytOwn=JSON.parse(localStorage.getItem('pitbike_yt')||'[]').filter(t=>t&&/^[\w-]{11}$/.test(t.yt));}catch(e){}
 const BUILTIN=YT_LIST;
 let tracks=BUILTIN.concat(ytOwn),trackI=0,trackURL=null,DB=null,playTok=0;
@@ -305,13 +331,28 @@ function addFiles(files){
 fileIn.addEventListener('change',()=>{addFiles(fileIn.files);fileIn.value='';});
 addEventListener('dragover',e=>e.preventDefault());
 addEventListener('drop',e=>{e.preventDefault();addFiles(e.dataTransfer.files);});
-const ytBox=document.getElementById('ytBox');let ytP=null,ytApiP=null;
+const ytBox=document.getElementById('ytBox'),ytNameEl=document.getElementById('ytName'),ytPlayBtn=document.getElementById('ytPlayBtn');let ytP=null,ytApiP=null;
+const YT_POS=['br','tr','tl','bl'];let ytPos='br';try{ytPos=YT_POS.includes(localStorage.getItem('pitbike_ytpos'))?localStorage.getItem('pitbike_ytpos'):'br';}catch(e){}
+function ytApplyPos(){YT_POS.forEach(p=>ytBox.classList.remove('pos-'+p));ytBox.classList.add('pos-'+ytPos);}
+ytApplyPos();
+function ytShowName(name){const sp=ytNameEl.firstElementChild;sp.textContent=name;ytNameEl.title=name;ytNameEl.classList.toggle('long',name.length>24);}
+function ytSetPlaying(on){ytBox.classList.toggle('playing',on);ytPlayBtn.textContent=on?'❚❚':'▶';ytPlayBtn.title=on?'Пауза':'Играть';}
+ytBox.addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preventDefault();});
+ytBox.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;b.blur();
+  if(b.id==='ytMove'){ytPos=YT_POS[(YT_POS.indexOf(ytPos)+1)%YT_POS.length];ytApplyPos();try{localStorage.setItem('pitbike_ytpos',ytPos);}catch(e){}return;}
+  const a=b.dataset.yt;
+  if(a==='next')nextTrack(true);
+  else if(a==='prev')prevTrack();
+  else if(a==='play'&&ytP){try{ytP.getPlayerState()===1?ytP.pauseVideo():ytP.playVideo();}catch(e){}}
+});
+addEventListener('blur',()=>setTimeout(()=>{const a=document.activeElement;if(a&&a.tagName==='IFRAME')toast('Кликни по игре, чтобы снова рулить');},0));
 function ytApi(){return ytApiP||(ytApiP=new Promise((res,rej)=>{window.onYouTubeIframeAPIReady=res;const sc=document.createElement('script');sc.src='https://www.youtube.com/iframe_api';sc.onerror=()=>{ytApiP=null;rej();};document.head.appendChild(sc);}));}
 async function ytPlay(id){
-  await ytApi();ytBox.hidden=false;
+  await ytApi();ytBox.hidden=false;ytShowName((tracks[trackI]||{}).name||'');
   if(!ytP){await new Promise(res=>{ytP=new YT.Player('ytPlayer',{host:'https://www.youtube-nocookie.com',width:'100%',height:'100%',videoId:id,playerVars:{autoplay:1,playsinline:1,rel:0},
     events:{onReady:e=>{e.target.setVolume(Math.round(SET.vol*100));e.target.playVideo();res();},
-      onStateChange:e=>{if(e.data===0&&S&&S.music)nextTrack(false);},
+      onStateChange:e=>{ytSetPlaying(e.data===1);if(e.data===0&&S&&S.music)nextTrack(false);},
       onError:()=>{toast('Это видео нельзя включить на другом сайте');if(S&&S.music&&tracks.length>1)nextTrack(false);}}});});}
   else{ytP.setVolume(Math.round(SET.vol*100));ytP.loadVideoById(id);}
 }
@@ -347,6 +388,11 @@ function startMusic(){
   toast('Магнитола: бит. Треки — Y (YouTube) или L (свои mp3)');
 }
 function stopMusic(){playTok++;aud.pause();ytStop();if(mTimer){clearInterval(mTimer);mTimer=null;}}
+function prevTrack(){
+  if(!tracks.length)return;
+  trackI=(trackI-1+tracks.length)%tracks.length;
+  if(S&&S.music)playTrack();
+}
 function nextTrack(manual){
   if(!tracks.length){if(manual)toast('Треков нет. Y — трек с YouTube, L — свои mp3');return;}
   trackI=(trackI+1)%tracks.length;
