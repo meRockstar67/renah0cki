@@ -34,6 +34,10 @@ canvas{display:block}
 #pcOnly{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--bg)}
 #pcOnly[hidden]{display:none}
 #pcOnly a.opt{text-decoration:none;text-align:center}
+#ytBox{position:fixed;right:12px;bottom:12px;z-index:6;background:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 #000}
+#ytBox[hidden]{display:none}
+#ytBox .yt-h{font-size:7px;color:var(--gold);padding:4px 6px 5px}
+#ytPlayer,#ytBox iframe{display:block;width:240px;height:200px;border:0}
 #backSite{position:fixed;top:8px;left:10px;z-index:6;font-size:8px;color:var(--panel);opacity:.55;text-decoration:none}
 #backSite:hover{opacity:1}
 </style>
@@ -43,6 +47,7 @@ canvas{display:block}
 <a id="backSite" href="/" title="Вернуться на renah0cki">← renah0cki</a>
 <div id="wrap"><canvas id="c"></canvas></div>
 <div id="ov" class="ov on"><div id="box" class="box"></div></div>
+<div id="ytBox" hidden><div class="yt-h">МАГНИТОЛА · YOUTUBE</div><div id="ytPlayer"></div></div>
 <input type="file" id="fileIn" accept="audio/*,.mp3,.m4a,.ogg,.wav,.flac,.aac" multiple hidden>
 <div id="touch">
   <div class="g"><button data-k="ArrowLeft">◀</button><button data-k="ArrowRight">▶</button></div>
@@ -133,6 +138,7 @@ function press(c){
   else if(c==='Digit3')eat('gazyava');
   else if(c==='KeyF')nextTrack(true);
   else if(c==='KeyL')fileIn.click();
+  else if(c==='KeyY')addYt();
 }
 
 /* ---------- настройки ---------- */
@@ -254,8 +260,11 @@ function playStep(s,t){
   const m=MEL[s%32];if(m&&s>=32)cowbell(m*TR[bar],t);
 }
 /* --- плейлист: свои треки (mp3 и т.п.), хранятся в браузере --- */
-const BUILTIN=[];
-let tracks=BUILTIN.slice(),trackI=0,trackURL=null,DB=null,playTok=0;
+/* треки с YouTube: играют в официальном плеере YouTube (виден в углу, не меньше 200x200 — правило YouTube) */
+const YT_LIST=[];
+let ytOwn=[];try{ytOwn=JSON.parse(localStorage.getItem('pitbike_yt')||'[]').filter(t=>t&&/^[\w-]{11}$/.test(t.yt));}catch(e){}
+const BUILTIN=YT_LIST;
+let tracks=BUILTIN.concat(ytOwn),trackI=0,trackURL=null,DB=null,playTok=0;
 const aud=new Audio();
 const pendingTr={};
 window.PIBIKE_TRACK=(id,b64)=>{const f=pendingTr[id];if(f){delete pendingTr[id];f(b64);}};
@@ -281,7 +290,7 @@ async function dbLoad(){
   try{
     const st=DB.transaction('tracks').objectStore('tracks'),qv=st.getAll(),qk=st.getAllKeys();
     await new Promise((r,j)=>{let n=0;const ok=()=>{if(++n===2)r();};qv.onsuccess=ok;qk.onsuccess=ok;qv.onerror=j;qk.onerror=j;});
-    tracks=BUILTIN.concat(qk.result.map((k,i)=>({name:cleanName(String(k)),blob:qv.result[i]})).sort((a,b)=>a.name.localeCompare(b.name)));
+    tracks=BUILTIN.concat(ytOwn,qk.result.map((k,i)=>({name:cleanName(String(k)),blob:qv.result[i]})).sort((a,b)=>a.name.localeCompare(b.name)));
   }catch(e){}
   if(ov.classList.contains('on')&&!S)title();
 }
@@ -296,8 +305,33 @@ function addFiles(files){
 fileIn.addEventListener('change',()=>{addFiles(fileIn.files);fileIn.value='';});
 addEventListener('dragover',e=>e.preventDefault());
 addEventListener('drop',e=>{e.preventDefault();addFiles(e.dataTransfer.files);});
+const ytBox=document.getElementById('ytBox');let ytP=null,ytApiP=null;
+function ytApi(){return ytApiP||(ytApiP=new Promise((res,rej)=>{window.onYouTubeIframeAPIReady=res;const sc=document.createElement('script');sc.src='https://www.youtube.com/iframe_api';sc.onerror=()=>{ytApiP=null;rej();};document.head.appendChild(sc);}));}
+async function ytPlay(id){
+  await ytApi();ytBox.hidden=false;
+  if(!ytP){await new Promise(res=>{ytP=new YT.Player('ytPlayer',{host:'https://www.youtube-nocookie.com',width:'100%',height:'100%',videoId:id,playerVars:{autoplay:1,playsinline:1,rel:0},
+    events:{onReady:e=>{e.target.setVolume(Math.round(SET.vol*100));e.target.playVideo();res();},
+      onStateChange:e=>{if(e.data===0&&S&&S.music)nextTrack(false);},
+      onError:()=>{toast('Это видео нельзя включить на другом сайте');if(S&&S.music&&tracks.length>1)nextTrack(false);}}});});}
+  else{ytP.setVolume(Math.round(SET.vol*100));ytP.loadVideoById(id);}
+}
+function ytStop(){try{ytP&&ytP.pauseVideo();}catch(e){}ytBox.hidden=true;}
+function ytId(u){const m=String(u||'').trim().match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/)||String(u||'').trim().match(/^([\w-]{11})$/);return m?m[1]:null;}
+async function addYt(){
+  clearKeys();const u=prompt('Ссылка на трек на YouTube (лучше с официального канала артиста):');if(!u)return;
+  const id=ytId(u);if(!id){toast('Это не ссылка на видео YouTube');return;}
+  if(tracks.some(t=>t.yt===id)){toast('Этот трек уже в магнитоле');return;}
+  let name='YouTube '+id;
+  try{const r=await fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+id));if(r.ok){const d=await r.json();if(d.title)name=String(d.title).slice(0,80);}}catch(e){}
+  const t={name,yt:id};ytOwn.push(t);tracks.splice(BUILTIN.length+ytOwn.length-1,0,t);
+  try{localStorage.setItem('pitbike_yt',JSON.stringify(ytOwn));}catch(e){}
+  toast('В магнитоле: '+name+'. Q — играть, F — следующий');
+  if(!S&&ov.classList.contains('on'))title();
+}
 async function playTrack(){
   const t=tracks[trackI];if(!t)return;const tok=++playTok;
+  if(t.yt){aud.pause();toast('▶ '+t.name);try{await ytPlay(t.yt);}catch(e){toast('YouTube не загрузился');}if(tok!==playTok||!S||!S.music)ytStop();return;}
+  ytStop();
   if(!t.blob)toast('Кассета перематывается...');
   let blob;try{blob=await loadTrack(t);}catch(e){toast('Не нашёл трек: '+t.name);return;}
   if(tok!==playTok||!S||!S.music)return;
@@ -310,11 +344,11 @@ function musicName(){return tracks.length?tracks[trackI].name:'бит с кас�
 function startMusic(){
   if(tracks.length){playTrack();return;}
   mNext=AC.currentTime+.05;mStep=0;mTimer=setInterval(()=>{while(mNext<AC.currentTime+.12){playStep(mStep,mNext);mNext+=STEP;mStep++;}},25);
-  toast('Магнитола: бит. Свои треки — L или перетащи mp3 в окно');
+  toast('Магнитола: бит. Треки — Y (YouTube) или L (свои mp3)');
 }
-function stopMusic(){playTok++;aud.pause();if(mTimer){clearInterval(mTimer);mTimer=null;}}
+function stopMusic(){playTok++;aud.pause();ytStop();if(mTimer){clearInterval(mTimer);mTimer=null;}}
 function nextTrack(manual){
-  if(!tracks.length){if(manual)toast('Треков нет. L — загрузить mp3');return;}
+  if(!tracks.length){if(manual)toast('Треков нет. Y — трек с YouTube, L — свои mp3');return;}
   trackI=(trackI+1)%tracks.length;
   if(S&&S.music)playTrack();else if(manual)toast('Следующий: '+tracks[trackI].name);
 }
@@ -990,7 +1024,7 @@ function openSettings(fromTitle){
   const back=fromTitle?()=>title():closeMenu;
   const btns=[
     {label:'1. Эффект магнитолы: <b>'+(SET.fx?'ВКЛ':'ВЫКЛ')+'</b><br><span class="small">Звук как из маленького динамика с кассетой: моно, шипение, плавание плёнки</span>',fn:()=>{SET.fx=!SET.fx;saveSet();openSettings(fromTitle);}},
-    {label:'2. Громкость музыки: <b>'+Math.round(SET.vol*100)+'%</b>',fn:()=>{const v=[.25,.5,.8,1];SET.vol=v[(v.indexOf(SET.vol)+1)%v.length]||.8;saveSet();openSettings(fromTitle);}},
+    {label:'2. Громкость музыки: <b>'+Math.round(SET.vol*100)+'%</b>',fn:()=>{const v=[.25,.5,.8,1];SET.vol=v[(v.indexOf(SET.vol)+1)%v.length]||.8;saveSet();try{ytP&&ytP.setVolume(Math.round(SET.vol*100));}catch(e){}openSettings(fromTitle);}},
   ];
   if(!fromTitle&&S)btns.push({label:'3. Начать заново',fn:()=>{closeMenu();newGame();}});
   btns.push({label:(btns.length+1)+'. '+(fromTitle?'Назад':'Продолжить')+' (Esc)',fn:back});
@@ -1006,15 +1040,16 @@ function title(){
   <b>Space</b> перднуть мотором — пугает гусей, бесит бабок, девчонкам нравится<br>
   <b>E</b> сельмаг / подкатить &nbsp; <b>Q</b> магнитола<br>
   <b>1 2 3</b> съесть хрумки / кирики / газяву<br>
-  <b>F</b> следующий трек &nbsp; <b>L</b> загрузить треки &nbsp; <b>Esc</b> пауза и настройки<br>
+  <b>F</b> следующий трек &nbsp; <b>Y</b> трек с YouTube &nbsp; <b>L</b> свои mp3 &nbsp; <b>Esc</b> пауза и настройки<br>
   <span class="small">Стрелки тоже работают</span>
   </div>
   <p class="small">Респект x2 под музыку и x2 с девчонкой сзади. Кончился бензин и денег нет — конец.</p>
   <p class="small">Магнитола (Q): ${tracks.length?'треков '+tracks.length+' ('+tracks.slice(0,3).map(t=>t.name).join(', ')+(tracks.length>3?'…':'')+')':'пусто, играет бит'}</p>`,
   [{label:'Погнали!',fn:()=>{closeMenu();newGame();}},
    {label:'Настройки',fn:()=>openSettings(true)},
-   {label:'Загрузить треки в магнитолу (mp3)',fn:()=>fileIn.click()},
-   ...(tracks.length>BUILTIN.length?[{label:'Убрать загруженные треки',fn:()=>{tracks=BUILTIN.slice();trackI=0;dbClear();title();}}]:[])]);
+   {label:'Добавить трек с YouTube (ссылка)',fn:()=>addYt()},
+   {label:'Загрузить свои треки (mp3)',fn:()=>fileIn.click()},
+   ...(tracks.length>BUILTIN.length?[{label:'Убрать добавленные треки',fn:()=>{tracks=BUILTIN.slice();trackI=0;dbClear();ytOwn=[];try{localStorage.removeItem('pitbike_yt');}catch(e){}title();}}]:[])]);
 }
 title();
 dbLoad();
