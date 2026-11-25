@@ -1410,3 +1410,12 @@ html.terms-lock, html.terms-lock body { overflow: hidden; }
 @keyframes rcPulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .rc-chip.rc-online i { animation: none; } }
 @media (max-width: 900px) { .top.has-extra .role-counts { flex: 0 1 auto; } .rc-chip.rc-online { order: -1; } .rc-chip.rc-online > span { display: none; } }
+.legal-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.legal-tabs a { padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--muted); font-size: 13.5px; font-weight: 600; }
+.legal-tabs a:hover { color: var(--text); }
+.legal-tabs a.on { color: var(--text); border-color: var(--accent); }
+.rules .page-head h1 { font-size: 22px; line-height: 1.3; }
+.rules-upd { color: var(--muted); font-size: 13px; margin: 2px 0 4px; }
+.rules-card p + ul { margin-top: 2px; }
+.rules-card a { color: var(--accent); }
+.rules-card[id] { scroll-margin-top: 80px; }

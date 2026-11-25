@@ -69,7 +69,7 @@ async function api(path, { method = 'GET', body, prefer } = {}) {
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
 const BASE = location.pathname.startsWith('/v2/') ? '/v2/' : '/';
-const SPA_TOP = new Set(['art', 'video', 'fanfic', 'news', 'suggest', 'u', 'p', 'c', 'notifications', 'support', 'new', 'collections', 'mod', 'rules', 'wallet', 'shop', 'settings', 'streak']);
+const SPA_TOP = new Set(['art', 'video', 'fanfic', 'news', 'suggest', 'u', 'p', 'c', 'notifications', 'support', 'new', 'collections', 'mod', 'rules', 'privacy', 'wallet', 'shop', 'settings', 'streak']);
 function curRoute() {
   if (location.hash.startsWith('#/')) return location.hash.slice(2).replace(/^\/+|\/+$/g, '');
   const p = location.pathname.startsWith(BASE) ? location.pathname.slice(BASE.length) : location.pathname.replace(/^\/+/, '');
@@ -1750,7 +1750,9 @@ async function loadTopDonors() {
 loadTopDonors();
 setInterval(() => { if (!document.hidden) { loadTopDonors(); loadSponsors(); } }, 60e3);
 $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
-const TERMS_KEY = 'rn_terms_v1';
+const TERMS_KEY = 'rn_terms_v2';
+const TERMS_REV = '2026-11-25T14:30:00Z';
+const termsOutdated = t => !t || Date.parse(t) < Date.parse(TERMS_REV);
 const termsLocal = () => { try { return !!localStorage.getItem(TERMS_KEY); } catch { return false; } };
 function termsGate() {
   if ($('#termsGate')) return;
@@ -1758,14 +1760,14 @@ function termsGate() {
   ov.id = 'termsGate'; ov.className = 'terms-ov';
   ov.innerHTML = `<form class="terms-box" role="dialog" aria-modal="true" aria-label="${tl('Правила сайта')}">
     <h2>${tl('Добро пожаловать на renah0cki')}</h2>
-    <p>${tl('Прежде чем пользоваться сайтом, ознакомьтесь с')} <a href="/rules" target="_blank" rel="noopener">${tl('правилами и пользовательским соглашением')}</a>${tl('. Коротко:')}</p>
+    <p>${tl('Прежде чем пользоваться сайтом, ознакомьтесь с')} <a href="/rules" target="_blank" rel="noopener">${tl('Пользовательским соглашением')}</a> ${tl('и')} <a href="/privacy" target="_blank" rel="noopener">${tl('Политикой конфиденциальности')}</a>${tl('. Коротко:')}</p>
     <ul>
       <li>${tl('Запрещены 18+, политика, травля, угрозы, чужие личные данные и всё незаконное — за это удаляют контент и блокируют.')}</li>
       <li>${tl('Работы проверяют модераторы, на всё остальное можно пожаловаться. Любого пользователя можно заблокировать для себя.')}</li>
       <li>${tl('Донаты добровольные, пузокоины — подарок за поддержку; их нельзя вывести или обменять на деньги.')}</li>
       <li>${tl('Сайт работает «как есть». За свои публикации отвечаете вы.')}</li>
     </ul>
-    <label class="terms-check"><input type="checkbox" name="ok"> <span>${tl('Я ознакомлен(а) с правилами и пользовательским соглашением, согласен(на) с ними и с обработкой моих персональных данных (раздел 5 правил)')}</span></label>
+    <label class="terms-check"><input type="checkbox" name="ok"> <span>${tl('Я принимаю Пользовательское соглашение (оферту) и Политику конфиденциальности и даю')} <a href="/privacy#consent" target="_blank" rel="noopener">${tl('согласие на обработку персональных данных')}</a></span></label>
     <p class="terms-err" role="alert"></p>
     <button class="btn accent" type="submit">${tl('Продолжить')}</button>
   </form>`;
@@ -1837,7 +1839,7 @@ async function loadMe() {
     const [me] = await api(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,short_code,role,extra_roles,name_color,bio,stream_twitch_url,stream_social_url,stream_donate_url,notify_likes,notify_comments,notify_new_followers,notify_new_submission,terms_accepted_at`);
     S.me = me; if (me) S.profiles.set(me.id, me);
     loadBlocks();
-    if (me && 'terms_accepted_at' in me && !me.terms_accepted_at) {
+    if (me && 'terms_accepted_at' in me && termsOutdated(me.terms_accepted_at)) {
       if (termsLocal()) rpc('accept_terms').then(t => { me.terms_accepted_at = t; }).catch(() => {});
       else termsGate();
     }
@@ -2425,7 +2427,7 @@ function viewSettings() {
       <p>${tl('Бот')} <a href="https://t.me/renah0ckibot" target="_blank" rel="noopener">@renah0ckibot</a> ${tl('присылает уведомления модераторам и открывает Y прямо в Telegram.')}</p>
       <ol class="sets-steps"><li>${tl('Откройте бота и нажмите')} <b>/start</b>.</li><li>${tl('Бот пришлёт ссылку — откройте её в этом браузере, где вы вошли на сайт.')}</li><li>${tl('Готово: бот сам подтвердит привязку.')}</li></ol>
       <a class="btn accent" href="https://t.me/renah0ckibot" target="_blank" rel="noopener">${tl('Открыть бота')}</a></section>
-    <section class="rules-card sets-card"><h2>${tl('Аккаунт')}</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>${tl('Редактировать профиль')}</button><a class="btn" href="${routeUrl('rules')}">${tl('Правила')}</a><button class="btn danger" type="button" data-logout>${tl('Выйти')}</button></div></section>
+    <section class="rules-card sets-card"><h2>${tl('Аккаунт')}</h2><div class="sets-acts"><button class="btn" type="button" data-editprof>${tl('Редактировать профиль')}</button><a class="btn" href="${routeUrl('rules')}">${tl('Правила')}</a><a class="btn" href="${routeUrl('privacy')}">${tl('Конфиденциальность')}</a><button class="btn danger" type="button" data-logout>${tl('Выйти')}</button></div></section>
     ${S.uid !== OWNER_ID ? `<section class="rules-card sets-card sets-danger"><h2>${tl('Удаление аккаунта')}</h2>
       <p class="muted">${tl('Аккаунт и все ваши данные будут удалены навсегда: работы, сборники, комментарии, отзывы, персонажи и посты в Y, пузокоины и покупки. Отменить это нельзя.')}</p>
       <button class="btn danger" type="button" data-accdel>${tl('Удалить аккаунт')}</button></section>` : ''}
@@ -3507,241 +3509,21 @@ async function viewShop(tab) {
   draw();
 }
 
-const RULES_TXT = {
-  ru: sup => `
-    <div class="page-head"><h1>Правила</h1></div>
-    <p class="rules-lead">renah0cki — фан-сайт сообщества стримера: арты, видео, фанфики, новости, ролевая игра Y, звонки и войсы, награды OvosheAwards. Эти правила — пользовательское соглашение сайта: при первом входе вы подтверждаете, что ознакомились с ними, и, пользуясь сайтом, соглашаетесь с ними.</p>
-
-    <section class="rules-card"><h2>1. Что запрещено</h2><ul>
-      <li>Всё, что нарушает правила Twitch и закон: запрещённые слова (банворды), разжигание ненависти, призывы к насилию, экстремизм, наркотики, призывы к самоубийству и самоповреждению.</li>
-      <li><b>18+ и сексуальный контент</b> — в артах, видео, комментариях, аватарках, звонках. Фанфик с рейтингом 18+ можно добавить только ссылкой на оригинал и с отметкой «18+»; название, метки, описание и обложка при этом должны быть без откровенных подробностей. Порнография и всё сексуальное, связанное с реальными людьми или несовершеннолетними, запрещено везде. В ролевой игре Y взрослые темы допускаются только в постах с меткой 18+, которые не видны несовершеннолетним.</li>
-      <li>Травля, угрозы, оскорбления, доксинг — публикация чужих адресов, телефонов, фото и переписок без согласия.</li>
-      <li>Выдавать себя за другого человека, чтобы обмануть других.</li>
-      <li>Чужие работы без разрешения автора и без указания авторства.</li>
-      <li><b>Политика и война</b> — в любом виде: обсуждения, шутки, символика, флаги, лозунги, пропаганда любой стороны. renah0cki — фан-сайт, политики здесь нет.</li>
-      <li>Спам, реклама (в том числе казино, ставок, VPN и любых платных услуг), накрутки, мультиаккаунты для обхода блокировок, использование ошибок сайта.</li>
-      <li>Продажа, покупка или обмен пузокоинов, ролей и аккаунтов за деньги вне сайта; выманивание пузокоинов обманом.</li>
-      <li>Запись чужих голосов в звонках и войсах без согласия собеседников.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>2. Модерация</h2><ul>
-      <li><b>Работы</b> (арты, видео, фанфики), отзывы и сборники <b>проверяются модераторами до публикации</b>. То, что нарушает правила, не публикуется.</li>
-      <li>Комментарии, посты в Y, сообщения и звонки модераторы проверяют <b>по жалобам</b> и выборочно. Запрещённые слова скрываются автоматически.</li>
-      <li>Пожаловаться можно на работу, комментарий, отзыв, пользователя и пост в Y — кнопкой с флажком или «Пожаловаться». На звонок или что угодно ещё — в <a href="${sup}">поддержку</a>. Жалобы сразу приходят модераторам, в том числе в Telegram, и нарушения убираются как можно быстрее.</li>
-      <li>Любого пользователя можно <b>заблокировать для себя</b> в его профиле: вы перестанете видеть его работы, комментарии и отзывы, а он не сможет писать вам в ЛС и звонить в Y.</li>
-      <li>За нарушения модераторы удаляют контент, предупреждают, снимают с персонажа, закрывают комнаты и звонки, блокируют в чате, в Y или на всём сайте. При серьёзных нарушениях — сразу и без предупреждения.</li>
-      <li>Модераторы видят, кто на самом деле автор поста, комментария или сообщения, в том числе от лица персонажа.</li>
-      <li>Роли: <b>модераторы</b> проверяют работы и жалобы и блокируют нарушителей; <b>администраторы</b> ещё выдают роли. Администраторов назначает только владелец сайта.</li>
-      <li>Не согласны с решением — напишите в поддержку, его пересмотрит другой модератор или администратор.</li>
-      <li>Если на сайте что-то нарушает закон или ваши права (например, ваше фото или ваш образ), напишите в поддержку — такое убираем в первую очередь.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>3. Ответственность пользователей</h2><ul>
-      <li>За свои работы, комментарии, посты, сообщения, слова в звонках и войсах, переводы пузокоинов отвечает пользователь, который их сделал.</li>
-      <li>Незнание правил не освобождает от ответственности. Обход блокировки — повод для бессрочного бана.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>4. Донаты и пузокоины</h2>
-      <p><b>Донат</b> через DonationAlerts — добровольный подарок проекту. Он ни к чему не обязывает ни вас, ни нас и не возвращается, кроме случаев, прямо предусмотренных законом.</p>
-      <p><b>Пузокоины</b> — внутренняя бонусная валюта сайта. Их можно получить в подарок за донат (впишите свой ник в поле «Имя»; сейчас 1 ₽ → 1 пузокоин, другие валюты — по курсу), за активность, от администрации и от других пользователей.</p>
-      <ul>
-        <li>Пузокоины нельзя вывести, обменять на деньги или продать; они не дают права требовать деньги назад.</li>
-        <li>Пузокоинами можно оплатить подписки ГОЙ и VIP в Y, роли и косметику в магазине, подарить автору работы или перевести другу. Потраченные, подаренные и переведённые пузокоины не возвращаются.</li>
-        <li>Курс подарка, цены и то, на что тратятся пузокоины, могут меняться. Если систему пузокоинов когда-нибудь закроют, мы заранее предупредим.</li>
-        <li>Если подарок за донат не пришёл в течение часа или вы ошиблись в нике — напишите в <a href="${sup}">поддержку</a>, разберёмся вручную.</li>
-        <li>За нарушения правил пузокоины, роли и косметику могут отобрать.</li>
-      </ul></section>
-
-    <section class="rules-card"><h2>5. Персональные данные</h2><ul>
-      <li>Данные обрабатывает администрация renah0cki — только для работы сайта: вход, публикации, переписка, модерация, пузокоины, уведомления. Основание — ваше согласие, которое вы даёте при первом входе.</li>
-      <li>Данные Twitch-аккаунта, через который вы входите: ник, аватарку, почту (не показывается другим), id.</li>
-      <li>То, что вы сами публикуете и отправляете: работы, комментарии, посты, сообщения, жалобы, обращения в поддержку, историю пузокоинов.</li>
-      <li>Для звонков — только факт звонка (кто и когда), 30 дней. Звонки не записываются.</li>
-      <li>Если вы привязали Telegram-бота — id вашего Telegram-аккаунта (чтобы присылать уведомления); отвязать — командой /logout в боте. Если включили push-уведомления — адрес подписки браузера.</li>
-      <li><b>Личные сообщения в Y и обращения в поддержку</b> видят только участники переписки и модераторы (чтобы разбирать жалобы). Другим пользователям и гостям они недоступны. Сквозного шифрования нет — это не приватный мессенджер.</li>
-      <li>Фото, видео и голосовые хранятся на сервере renah0cki. У файлов из ЛС и поддержки — длинные случайные ссылки: найти или подобрать их нельзя, но открыть файл может любой, кому эту ссылку переслали.</li>
-      <li>Технические журналы сервера (в том числе IP-адреса) — для защиты от атак и ошибок, хранятся недолго. Резервные копии базы зашифрованы.</li>
-      <li>Данные нужны только для работы сайта, не продаются и не передаются третьим лицам, кроме случаев, когда этого требует закон, и того, без чего не работают функции: поисковый запрос GIF уходит в GIPHY, уведомления в Telegram доставляет Telegram, донаты обрабатывает DonationAlerts.</li>
-      <li>Хранятся данные на сервере renah0cki в Германии (ЕС), пока существует аккаунт. Факт звонка — 30 дней, журналы сервера — недолго, резервные копии — до 5 последних.</li>
-      <li>Вы можете узнать, какие данные о вас хранятся, исправить их и отозвать согласие — напишите в поддержку. Удалить аккаунт со всеми данными можно самому: «Настройки» → «Удаление аккаунта». Свои работы, комментарии и посты можно удалить и самостоятельно.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>6. Возраст</h2><ul>
-      <li>Возрастная маркировка сайта — <b>16+</b> (в Y бывает нецензурная лексика). Пользователям 14–15 лет — только с разрешения родителей, младше 14 лет пользоваться сайтом нельзя.</li>
-      <li>Для доната DonationAlerts может требовать совершеннолетия или согласия родителей — это правила DonationAlerts.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>7. Гарантии и ответственность сайта</h2><ul>
-      <li>Пользоваться сайтом можно бесплатно. Регистрация, участие, донаты, подписки, подарки и переводы — только по вашему желанию; никто ни к чему не принуждает.</li>
-      <li>Сайт работает «как есть». Мы стараемся, чтобы всё работало, и исправляем ошибки, но не гарантируем, что не будет сбоев, перерывов или потери данных, пузокоинов и подписок.</li>
-      <li>В той мере, в какой это допускает закон, администрация не отвечает за косвенные убытки и упущенную выгоду. Если ответственность возникает по закону, она ограничена суммой, которую пользователь сам перечислил на проект за последние 12 месяцев. Права, которые закон не позволяет ограничить, сохраняются.</li>
-      <li>Сторонние сервисы (Twitch, YouTube, DonationAlerts, 7TV, GIPHY, Telegram) работают по своим правилам.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>8. Изменения правил</h2>
-      <p>Правила могут меняться — актуальная версия всегда на этой странице. Пользуясь сайтом после изменений, вы соглашаетесь с новой редакцией. Если какое-то положение окажется недействительным по закону, остальные продолжают действовать.</p>
-      <p class="rules-upd">Редакция от 24.11.2026</p></section>
-
-    <p class="rules-foot">Вопросы, жалобы, удаление данных — в <a href="${sup}">поддержку</a>.</p>
-`,
-  uk: sup => `
-    <div class="page-head"><h1>Правила</h1></div>
-    <p class="rules-lead">renah0cki — фан-сайт спільноти стримера: арти, відео, фанфіки, новини, рольова гра Y, дзвінки та войси, нагороди OvosheAwards. Ці правила — користувацька угода сайту: під час першого входу ви підтверджуєте, що ознайомилися з ними, і, користуючись сайтом, погоджуєтеся з ними.</p>
-
-    <section class="rules-card"><h2>1. Що заборонено</h2><ul>
-      <li>Усе, що порушує правила Twitch і закон: заборонені слова (банворди), розпалювання ненависті, заклики до насильства, екстремізм, наркотики, заклики до самогубства та самоушкодження.</li>
-      <li><b>18+ і сексуальний контент</b> — в артах, відео, коментарях, аватарках, дзвінках. Фанфік із рейтингом 18+ можна додати лише посиланням на оригінал і з позначкою «18+»; назва, мітки, опис і обкладинка при цьому мають бути без відвертих подробиць. Порнографія та все сексуальне, пов’язане з реальними людьми або неповнолітніми, заборонене всюди. У рольовій грі Y дорослі теми допускаються лише в постах із міткою 18+, які не бачать неповнолітні.</li>
-      <li>Цькування, погрози, образи, доксинг — публікація чужих адрес, телефонів, фото та листувань без згоди.</li>
-      <li>Видавати себе за іншу людину, щоб обдурити інших.</li>
-      <li>Чужі роботи без дозволу автора та без зазначення авторства.</li>
-      <li><b>Політика й війна</b> — у будь-якому вигляді: обговорення, жарти, символіка, прапори, гасла, пропаганда будь-якої сторони. renah0cki — фан-сайт, політики тут немає.</li>
-      <li>Спам, реклама (зокрема казино, ставок, VPN і будь-яких платних послуг), накрутки, мультиакаунти для обходу блокувань, використання помилок сайту.</li>
-      <li>Продаж, купівля або обмін пузокоїнів, ролей і акаунтів за гроші поза сайтом; виманювання пузокоїнів обманом.</li>
-      <li>Запис чужих голосів у дзвінках і войсах без згоди співрозмовників.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>2. Модерація</h2><ul>
-      <li><b>Роботи</b> (арти, відео, фанфіки), відгуки та збірки <b>перевіряють модератори до публікації</b>. Те, що порушує правила, не публікується.</li>
-      <li>Коментарі, пости в Y, повідомлення та дзвінки модератори перевіряють <b>за скаргами</b> і вибірково. Заборонені слова приховуються автоматично.</li>
-      <li>Поскаржитися можна на роботу, коментар, відгук, користувача та пост у Y — кнопкою з прапорцем або «Поскаржитися». На дзвінок чи будь-що інше — у <a href="${sup}">підтримку</a>. Скарги одразу надходять модераторам, зокрема в Telegram, і порушення прибираються якнайшвидше.</li>
-      <li>Будь-якого користувача можна <b>заблокувати для себе</b> в його профілі: ви перестанете бачити його роботи, коментарі та відгуки, а він не зможе писати вам в особисті й дзвонити в Y.</li>
-      <li>За порушення модератори видаляють контент, попереджають, знімають із персонажа, закривають кімнати й дзвінки, блокують у чаті, в Y або на всьому сайті. За серйозних порушень — одразу й без попередження.</li>
-      <li>Модератори бачать, хто насправді автор поста, коментаря чи повідомлення, зокрема від імені персонажа.</li>
-      <li>Ролі: <b>модератори</b> перевіряють роботи та скарги й блокують порушників; <b>адміністратори</b> ще й видають ролі. Адміністраторів призначає лише власник сайту.</li>
-      <li>Не згодні з рішенням — напишіть у підтримку, його перегляне інший модератор або адміністратор.</li>
-      <li>Якщо на сайті щось порушує закон або ваші права (наприклад, ваше фото чи ваш образ), напишіть у підтримку — таке прибираємо в першу чергу.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>3. Відповідальність користувачів</h2><ul>
-      <li>За свої роботи, коментарі, пости, повідомлення, слова в дзвінках і войсах, перекази пузокоїнів відповідає користувач, який їх зробив.</li>
-      <li>Незнання правил не звільняє від відповідальності. Обхід блокування — привід для безстрокового бану.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>4. Донати та пузокоїни</h2>
-      <p><b>Донат</b> через DonationAlerts — добровільний подарунок проєкту. Він ні до чого не зобов’язує ні вас, ні нас і не повертається, крім випадків, прямо передбачених законом.</p>
-      <p><b>Пузокоїни</b> — внутрішня бонусна валюта сайту. Їх можна отримати в подарунок за донат (впишіть свій нік у поле «Ім’я»; зараз 1 ₽ → 1 пузокоїн, інші валюти — за курсом), за активність, від адміністрації та від інших користувачів.</p>
-      <ul>
-        <li>Пузокоїни не можна вивести, обміняти на гроші чи продати; вони не дають права вимагати гроші назад.</li>
-        <li>Пузокоїнами можна оплатити підписки ГОЙ і VIP в Y, ролі та косметику в магазині, подарувати автору роботи або переказати другу. Витрачені, подаровані й переказані пузокоїни не повертаються.</li>
-        <li>Курс подарунка, ціни та те, на що витрачаються пузокоїни, можуть змінюватися. Якщо систему пузокоїнів колись закриють, ми попередимо заздалегідь.</li>
-        <li>Якщо подарунок за донат не прийшов протягом години або ви помилилися в ніку — напишіть у <a href="${sup}">підтримку</a>, розберемося вручну.</li>
-        <li>За порушення правил пузокоїни, ролі та косметику можуть забрати.</li>
-      </ul></section>
-
-    <section class="rules-card"><h2>5. Персональні дані</h2><ul>
-      <li>Дані обробляє адміністрація renah0cki — лише для роботи сайту: вхід, публікації, листування, модерація, пузокоїни, сповіщення. Підстава — ваша згода, яку ви даєте під час першого входу.</li>
-      <li>Дані Twitch-акаунта, через який ви входите: нік, аватарку, пошту (не показується іншим), id.</li>
-      <li>Те, що ви самі публікуєте й надсилаєте: роботи, коментарі, пости, повідомлення, скарги, звернення в підтримку, історію пузокоїнів.</li>
-      <li>Для дзвінків — лише факт дзвінка (хто й коли), 30 днів. Дзвінки не записуються.</li>
-      <li>Якщо ви прив’язали Telegram-бота — id вашого Telegram-акаунта (щоб надсилати сповіщення); відв’язати — командою /logout у боті. Якщо ввімкнули push-сповіщення — адреса підписки браузера.</li>
-      <li><b>Особисті повідомлення в Y і звернення в підтримку</b> бачать лише учасники листування та модератори (щоб розбирати скарги). Іншим користувачам і гостям вони недоступні. Наскрізного шифрування немає — це не приватний месенджер.</li>
-      <li>Фото, відео та голосові зберігаються на сервері renah0cki. У файлів з особистих і підтримки — довгі випадкові посилання: знайти чи підібрати їх не можна, але відкрити файл може будь-хто, кому це посилання переслали.</li>
-      <li>Технічні журнали сервера (зокрема IP-адреси) — для захисту від атак і помилок, зберігаються недовго. Резервні копії бази зашифровані.</li>
-      <li>Дані потрібні лише для роботи сайту, не продаються й не передаються третім особам, крім випадків, коли цього вимагає закон, і того, без чого не працюють функції: пошуковий запит GIF іде в GIPHY, сповіщення в Telegram доставляє Telegram, донати обробляє DonationAlerts.</li>
-      <li>Дані зберігаються на сервері renah0cki в Німеччині (ЄС), поки існує акаунт. Факт дзвінка — 30 днів, журнали сервера — недовго, резервні копії — до 5 останніх.</li>
-      <li>Ви можете дізнатися, які дані про вас зберігаються, виправити їх і відкликати згоду — напишіть у підтримку. Видалити акаунт з усіма даними можна самостійно: «Налаштування» → «Видалення акаунта». Свої роботи, коментарі та пости можна видалити й самостійно.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>6. Вік</h2><ul>
-      <li>Вікове маркування сайту — <b>16+</b> (в Y буває нецензурна лексика). Користувачам 14–15 років — лише з дозволу батьків, молодшим за 14 років користуватися сайтом не можна.</li>
-      <li>Для донату DonationAlerts може вимагати повноліття або згоди батьків — це правила DonationAlerts.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>7. Гарантії та відповідальність сайту</h2><ul>
-      <li>Користуватися сайтом можна безкоштовно. Реєстрація, участь, донати, підписки, подарунки й перекази — лише за вашим бажанням; ніхто ні до чого не змушує.</li>
-      <li>Сайт працює «як є». Ми намагаємося, щоб усе працювало, і виправляємо помилки, але не гарантуємо, що не буде збоїв, перерв чи втрати даних, пузокоїнів і підписок.</li>
-      <li>Тією мірою, якою це допускає закон, адміністрація не відповідає за непрямі збитки та втрачену вигоду. Якщо відповідальність виникає за законом, вона обмежена сумою, яку користувач сам переказав на проєкт за останні 12 місяців. Права, які закон не дозволяє обмежити, зберігаються.</li>
-      <li>Сторонні сервіси (Twitch, YouTube, DonationAlerts, 7TV, GIPHY, Telegram) працюють за своїми правилами.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>8. Зміни правил</h2>
-      <p>Правила можуть змінюватися — актуальна версія завжди на цій сторінці. Користуючись сайтом після змін, ви погоджуєтеся з новою редакцією. Якщо якесь положення виявиться недійсним за законом, решта продовжує діяти.</p>
-      <p class="rules-upd">Редакція від 24.11.2026. Переклад для зручності; у разі розбіжностей діє російська версія.</p></section>
-
-    <p class="rules-foot">Питання, скарги, видалення даних — у <a href="${sup}">підтримку</a>.</p>
-`,
-  en: sup => `
-    <div class="page-head"><h1>Rules</h1></div>
-    <p class="rules-lead">renah0cki is a fan site of a streamer’s community: art, videos, fanfics, news, the Y roleplay, calls and voice messages, the OvosheAwards. These rules are the site’s user agreement: on your first login you confirm that you have read them, and by using the site you agree to them.</p>
-
-    <section class="rules-card"><h2>1. What is forbidden</h2><ul>
-      <li>Anything that breaks Twitch rules or the law: banned words, hate speech, calls to violence, extremism, drugs, encouraging suicide or self-harm.</li>
-      <li><b>18+ and sexual content</b> — in art, videos, comments, avatars, calls. An 18+ fanfic may only be added as a link to the original and marked “18+”; its title, tags, description and cover must have no explicit details. Pornography and anything sexual involving real people or minors is forbidden everywhere. In the Y roleplay, adult themes are allowed only in posts marked 18+, which minors can’t see.</li>
-      <li>Harassment, threats, insults, doxxing — publishing other people’s addresses, phone numbers, photos or chats without consent.</li>
-      <li>Impersonating another person to deceive others.</li>
-      <li>Other people’s works without the author’s permission and without credit.</li>
-      <li><b>Politics and war</b> — in any form: discussions, jokes, symbols, flags, slogans, propaganda of any side. renah0cki is a fan site; there are no politics here.</li>
-      <li>Spam, advertising (including casinos, betting, VPNs and any paid services), fake engagement, alt accounts to evade bans, exploiting site bugs.</li>
-      <li>Selling, buying or trading Puzocoins, roles and accounts for money outside the site; tricking people out of Puzocoins.</li>
-      <li>Recording other people’s voices in calls and voice messages without their consent.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>2. Moderation</h2><ul>
-      <li><b>Works</b> (art, videos, fanfics), reviews and collections <b>are checked by moderators before publication</b>. Anything that breaks the rules is not published.</li>
-      <li>Moderators check comments, Y posts, messages and calls <b>based on reports</b> and selectively. Banned words are hidden automatically.</li>
-      <li>You can report a work, comment, review, user or Y post with the flag button or “Report”. For a call or anything else, write to <a href="${sup}">support</a>. Reports go to moderators immediately, including via Telegram, and violations are removed as quickly as possible.</li>
-      <li>You can <b>block any user for yourself</b> on their profile: you will stop seeing their works, comments and reviews, and they won’t be able to DM you or call you in Y.</li>
-      <li>For violations, moderators remove content, issue warnings, remove you from a character, close rooms and calls, and ban you in chat, in Y or on the whole site. For serious violations — immediately and without warning.</li>
-      <li>Moderators can see who actually wrote a post, comment or message, including ones written as a character.</li>
-      <li>Roles: <b>moderators</b> review works and reports and ban violators; <b>administrators</b> also grant roles. Only the site owner appoints administrators.</li>
-      <li>Disagree with a decision? Write to support — another moderator or administrator will review it.</li>
-      <li>If something on the site breaks the law or your rights (for example, your photo or likeness), write to support — we remove such things first.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>3. User responsibility</h2><ul>
-      <li>The user who made them is responsible for their works, comments, posts, messages, words in calls and voice messages, and Puzocoin transfers.</li>
-      <li>Not knowing the rules does not excuse you. Evading a ban is grounds for a permanent ban.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>4. Donations and Puzocoins</h2>
-      <p>A <b>donation</b> via DonationAlerts is a voluntary gift to the project. It creates no obligations for you or us and is non-refundable, except where the law expressly requires otherwise.</p>
-      <p><b>Puzocoins</b> are the site’s internal bonus currency. You can get them as a gift for a donation (enter your nickname in the “Name” field; currently 1 ₽ → 1 Puzocoin, other currencies at the exchange rate), for activity, from the administration and from other users.</p>
-      <ul>
-        <li>Puzocoins can’t be withdrawn, exchanged for money or sold; they give no right to demand money back.</li>
-        <li>Puzocoins can pay for the ГОЙ and VIP subscriptions in Y, roles and cosmetics in the shop, be gifted to the author of a work or transferred to a friend. Spent, gifted and transferred Puzocoins are non-refundable.</li>
-        <li>The gift rate, prices and what Puzocoins can be spent on may change. If the Puzocoin system is ever shut down, we will warn you in advance.</li>
-        <li>If the gift for a donation hasn’t arrived within an hour or you mistyped your nickname, write to <a href="${sup}">support</a> and we’ll sort it out manually.</li>
-        <li>Puzocoins, roles and cosmetics may be taken away for breaking the rules.</li>
-      </ul></section>
-
-    <section class="rules-card"><h2>5. Personal data</h2><ul>
-      <li>Data is processed by the renah0cki administration only to run the site: login, posts, messaging, moderation, Puzocoins, notifications. The basis is your consent, which you give on your first login.</li>
-      <li>Data of the Twitch account you log in with: nickname, avatar, email (not shown to others), id.</li>
-      <li>What you publish and send yourself: works, comments, posts, messages, reports, support requests, Puzocoin history.</li>
-      <li>For calls — only the fact of a call (who and when), for 30 days. Calls are not recorded.</li>
-      <li>If you linked the Telegram bot — your Telegram account id (to send notifications); unlink with the /logout command in the bot. If you enabled push notifications — your browser’s subscription address.</li>
-      <li><b>Direct messages in Y and support requests</b> are visible only to the participants and moderators (to handle reports). Other users and guests can’t access them. There is no end-to-end encryption — this is not a private messenger.</li>
-      <li>Photos, videos and voice messages are stored on the renah0cki server. Files from DMs and support have long random links: they can’t be found or guessed, but anyone the link is forwarded to can open the file.</li>
-      <li>Technical server logs (including IP addresses) are kept briefly to protect against attacks and errors. Database backups are encrypted.</li>
-      <li>Data is needed only to run the site; it is not sold or shared with third parties, except where required by law and where features can’t work without it: GIF searches go to GIPHY, Telegram delivers Telegram notifications, DonationAlerts processes donations.</li>
-      <li>Data is stored on the renah0cki server in Germany (EU) for as long as the account exists. Call records — 30 days, server logs — briefly, backups — up to the 5 most recent.</li>
-      <li>You can find out what data about you is stored, correct it and withdraw consent — write to support. You can delete your account with all its data yourself: “Settings” → “Delete account”. You can also delete your own works, comments and posts yourself.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>6. Age</h2><ul>
-      <li>The site’s age rating is <b>16+</b> (Y may contain profanity). Users aged 14–15 only with parental permission; users under 14 may not use the site.</li>
-      <li>DonationAlerts may require you to be an adult or have parental consent to donate — those are DonationAlerts’ rules.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>7. Warranties and site liability</h2><ul>
-      <li>The site is free to use. Registration, participation, donations, subscriptions, gifts and transfers are entirely up to you; nobody forces you into anything.</li>
-      <li>The site is provided “as is”. We try to keep everything working and fix bugs, but we don’t guarantee there will be no failures, interruptions or loss of data, Puzocoins and subscriptions.</li>
-      <li>To the extent permitted by law, the administration is not liable for indirect losses or lost profits. If liability arises by law, it is limited to the amount the user personally paid to the project in the last 12 months. Rights that the law does not allow to be limited are preserved.</li>
-      <li>Third-party services (Twitch, YouTube, DonationAlerts, 7TV, GIPHY, Telegram) operate under their own rules.</li>
-    </ul></section>
-
-    <section class="rules-card"><h2>8. Changes to the rules</h2>
-      <p>The rules may change — the current version is always on this page. By using the site after changes, you agree to the new version. If any provision turns out to be invalid under the law, the rest remain in effect.</p>
-      <p class="rules-upd">Version of 24.11.2026. This translation is for convenience; in case of discrepancies, the Russian version prevails.</p></section>
-
-    <p class="rules-foot">Questions, reports, data deletion — write to <a href="${sup}">support</a>.</p>
-`,
-};
-function viewRules() {
-  setNav('rules');
-  const L = window.I18N ? I18N.lang() : 'ru';
-  page.innerHTML = `<article class="rules">${(RULES_TXT[L] || RULES_TXT.ru)(routeUrl('support'))}</article>`;
+let legalP = null;
+const loadLegal = () => legalP || (legalP = new Promise((ok, bad) => {
+  const sc = document.createElement("script");
+  sc.src = "/v2/legal.js?v=20261125lg"; sc.onload = ok; sc.onerror = () => { legalP = null; bad(new Error("legal")); };
+  document.head.append(sc);
+}));
+async function viewLegal(which) {
+  setNav(which);
+  page.innerHTML = `<div class="skel" style="max-width:760px;margin:0 auto;aspect-ratio:auto;height:240px"></div>`;
+  try { await loadLegal(); } catch { page.innerHTML = `<p class="rules-foot">${tl("Не удалось загрузить. Обновите страницу.")}</p>`; return; }
+  const L = window.I18N ? I18N.lang() : "ru";
+  page.innerHTML = `<article class="rules">${LEGAL.render(which, L, { sup: routeUrl("support"), rules: routeUrl("rules"), privacy: routeUrl("privacy") })}</article>`;
+  if (location.hash === "#consent") $("#consent")?.scrollIntoView();
 }
+const viewRules = () => viewLegal("rules");
 
 (() => {
   if (!('ontouchstart' in window)) return;
@@ -3807,6 +3589,7 @@ function route() {
   if (parts[0] === 'c' && parts[1]) return viewCollection(parts[1]);
   if (parts[0] === 'mod') return viewMod(parts[1]);
   if (parts[0] === 'rules') return viewRules();
+  if (parts[0] === 'privacy') return viewLegal('privacy');
   if (parts[0] === 'wallet') return viewWallet(parts[1]);
   if (parts[0] === 'shop') return viewShop(parts[1]);
   if (parts[0] === 'settings') return viewSettings();
