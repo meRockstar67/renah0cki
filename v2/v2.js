@@ -1403,7 +1403,7 @@ async function viewProfile(key) {
       </div>
       <div class="prof-acts">
         ${own ? `<button class="btn" type="button" id="profEdit">${tl('Редактировать')}</button>`
-          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? tl('✓ Вы подписаны') : tl('Подписаться')}</button><button class="btn icon-only" id="profSend" title="${tl('Перевести пузокоины')}"><img src="${COIN}" alt="" style="width:20px;height:20px"></button><button class="btn icon-only" data-report="user" data-rid="${esc(p.id)}" title="${tl('Пожаловаться на пользователя')}" aria-label="${tl('Пожаловаться')}"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button><button class="btn${S.blocked.has(p.id) ? ' accent' : ''}" id="profBlock" title="${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать для себя')}">${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать')}</button>` : ''}
+          : S.uid ? `<button class="btn${subscribed ? '' : ' accent'}" id="subBtn">${subscribed ? tl('✓ Вы подписаны') : tl('Подписаться')}</button><button class="btn icon-only" id="profSend" title="${tl('Перевести пузокоины')}"><img src="${COIN}" alt="" style="width:20px;height:20px"></button><button class="btn icon-only" data-report="user" data-rid="${esc(p.id)}" title="${tl('Пожаловаться на пользователя')}" aria-label="${tl('Пожаловаться')}"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button>${canRoles() ? `<button class="btn" type="button" data-uroles="${esc(p.id)}" title="${tl('Выдать или снять роли')}">${tl('Роли')}</button>` : ''}<button class="btn${S.blocked.has(p.id) ? ' accent' : ''}" id="profBlock" title="${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать для себя')}">${S.blocked.has(p.id) ? tl('Разблокировать') : tl('Заблокировать')}</button>` : ''}
         <button class="btn icon-only" id="profCopy" title="${tl('Скопировать ссылку')}">${I.link}</button>
       </div>
     </section>
@@ -1412,6 +1412,7 @@ async function viewProfile(key) {
   </div>`;
   wireLazy(page); animateCards(page);
   $('#profCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/@${encodeURIComponent(p.username || p.id)}`); toast(tl('Ссылка скопирована')); } catch { toast(tl('Не удалось скопировать'), true); } };
+  if (p.id && !S.profiles.has(p.id)) S.profiles.set(p.id, p);   // для окна «Роли»
   const pe = $('#profEdit'); if (pe) pe.onclick = () => { if (!S.me) S.me = p; editProfile(); };
   const ps = $('#profSend'); if (ps) ps.onclick = () => coinSendDialog(p);
   const pbl = $('#profBlock'); if (pbl) pbl.onclick = () => toggleBlock(p);
