@@ -305,7 +305,7 @@ function saveEqRow(row) {
 }
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
 let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,syro_role_color,puzo_role_color,hogl_role_color,owned_roles,hidden_roles,temp_roles&limit=1000')
-  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles(); })
+  .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles(); window.drawRoleCounts?.(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
 const badgeHtml = id => {
@@ -3813,6 +3813,58 @@ function route() {
   if (parts[0] === 'streak') return viewStreak();
   return viewFeed('all');
 }
+const TOP_ROLES = ['role_oligarh', 'role_syroh0cki', 'role_hoglin'];
+const topExtraOn = () => S.uid === OWNER_ID;
+function roleHolders(rid) {
+  return [...EQ.values()].filter(e => (e.owned_roles || []).includes(rid) && !(e.hidden_roles || []).includes(rid)).map(e => e.user_id);
+}
+function drawRoleCounts() {
+  const box = $('#roleCounts'); if (!box || !topExtraOn()) return;
+  box.innerHTML = TOP_ROLES.map(rid => {
+    const r = SHOP_ROLES[rid];
+    return `<button type="button" class="rc-chip" data-rc="${rid}" style="--rc:${r.color}" title="${esc(tl('Люди с ролью'))} ${esc(r.title)}"><i></i><span>${esc(r.title)}</span><b>${roleHolders(rid).length}</b></button>`;
+  }).join('');
+  $('#topExtra').hidden = false;
+  document.querySelector('.top')?.classList.add('has-extra');
+}
+window.drawRoleCounts = drawRoleCounts;
+async function roleListDialog(rid) {
+  const r = SHOP_ROLES[rid]; if (!r) return;
+  const ids = roleHolders(rid);
+  const ov = document.createElement('div');
+  ov.className = 'v2-overlay';
+  ov.innerHTML = `<div class="v2-modal rc-modal"><h2><i style="--rc:${r.color}"></i>${esc(r.title)} <span>${ids.length}</span></h2><div class="rc-list">${ids.length ? `<p class="hint">${tl('Загрузка…')}</p>` : `<p class="hint">${tl('Пока никого нет')}</p>`}</div><div class="v2-modal-acts"><button type="button" class="btn" data-x>${tl('Закрыть')}</button></div></div>`;
+  const close = () => { ov.remove(); removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  addEventListener('keydown', onKey);
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]') || e.target.closest('a')) close(); });
+  document.body.append(ov);
+  if (!ids.length) return;
+  await loadProfiles(ids);
+  const list = ids.map(id => S.profiles.get(id) || { id })
+    .sort((a, b) => pname(a).localeCompare(pname(b), 'ru', { sensitivity: 'base' }));
+  $('.rc-list', ov).innerHTML = list.map(p => `<a class="spons-item" href="${userPath(p)}">${sponsAvaHtml(p)}<span class="spons-nm">${cosName(p)}</span></a>`).join('');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-rc]');
+  if (b) roleListDialog(b.dataset.rc);
+});
+(() => {
+  const END = Date.parse('2026-12-01T00:00:00+02:00');
+  const el = $('#topTimer'), val = $('#topTimerVal');
+  if (!el || !topExtraOn() || Date.now() >= END) return;
+  const pad = n => String(n).padStart(2, '0');
+  const tick = () => {
+    const ms = END - Date.now();
+    if (ms <= 0) { el.hidden = true; clearInterval(t); return; }
+    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400);
+    val.textContent = `${d ? d + tl('д') + ' ' : ''}${pad(Math.floor(s / 3600) % 24)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+  };
+  const t = setInterval(tick, 1000);
+  tick();
+  el.hidden = false;
+})();
+drawRoleCounts();
 addEventListener('popstate', route);
 addEventListener('hashchange', () => {
   if (location.hash.startsWith('#/')) go(location.hash.slice(2), { replace: true });
