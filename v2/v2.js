@@ -1851,6 +1851,7 @@ async function loadMe() {
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
     $('#navAwards').hidden = !isMod();
+    $('#navGame').hidden = !(me?.id === OWNER_ID && matchMedia('(any-pointer: fine)').matches);
     $('#meOld').hidden = !(hasRole(me, 'admin') || hasRole(me, 'gl_moder') || me?.id === OWNER_ID);
     applyMeFrame();
     $('#navMod').hidden = !isMod();
