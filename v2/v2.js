@@ -268,6 +268,7 @@ const SHOP_ROLES = {
   role_bezson:      { title: tl('Мажор'), color: '#fde047' },
   role_oligarh:     { title: 'renah0cki', color: '#6cc4ff', keepCase: true, customColor: true },
   role_syroh0cki:   { title: tl('сырохоки'), color: '#c4844e', keepCase: true, customColor: true },
+  role_hoglin:      { title: tl('хоглины'), color: '#4cc46a', keepCase: true, customColor: true },
   gift_role_custom: { title: tl('Кастомная роль в подарок'), color: '#f43f5e', custom: true, giftOnly: true, tempDays: 14 },
   role_nyashka:     { title: tl('Няшка'), color: '#ff85b3', tempDays: 14 },
   role_dyrka:       { title: tl('дырка'), color: '#a855f7', keepCase: true, tempDays: 14 },
@@ -279,17 +280,20 @@ function absorbEq(rows) { EQ.clear(); (rows || []).forEach(r => EQ.set(r.user_id
 function postBorderCls(uidOrProf) {
   const eq = eqOf(uidOrProf);
   const owned = eq?.owned_roles || [], hid = eq?.hidden_roles || [];
-  const hasSyro = owned.includes('role_syroh0cki') && !hid.includes('role_syroh0cki');
-  const hasRena = owned.includes('role_oligarh') && !hid.includes('role_oligarh');
-  if (hasSyro && (!hasRena || owned.indexOf('role_syroh0cki') > owned.indexOf('role_oligarh'))) return 'card-brown';
-  if (hasRena) return 'card-gold';
-  return '';
+  // обводка постов: renah0cki — золотая, сырохоки — коричневая, хоглины — зелёная; если ролей несколько — последняя купленная
+  let best = '', at = -1;
+  for (const [rid, cls] of [['role_oligarh', 'card-gold'], ['role_syroh0cki', 'card-brown'], ['role_hoglin', 'card-green']]) {
+    const i = owned.indexOf(rid);
+    if (i > at && !hid.includes(rid)) { at = i; best = cls; }
+  }
+  return best;
 }
 function applyGoldCards() {
   $$('.card[data-auid]').forEach(el => {
     const cls = postBorderCls(el.dataset.auid);
     el.classList.toggle('card-gold', cls === 'card-gold');
     el.classList.toggle('card-brown', cls === 'card-brown');
+    el.classList.toggle('card-green', cls === 'card-green');
   });
 }
 function inlineRolesHtml(p, uidFallback = '') {
@@ -314,7 +318,7 @@ function saveEqRow(row) {
   applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles();
 }
 (() => { const h = cacheGet('eq_all'); if (h) absorbEq(h); })();
-let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,syro_role_color,puzo_role_color,owned_roles,hidden_roles,temp_roles&limit=1000')
+let eqReady = api('user_equipped?select=user_id,frame,nick_fx,badge,banner,custom_status_text,custom_status_color,brand_role_color,syro_role_color,puzo_role_color,hogl_role_color,owned_roles,hidden_roles,temp_roles&limit=1000')
   .then(rows => { absorbEq(rows); cacheSet('eq_all', rows); applyMeFrame(); drawSponsors(); drawTopDonors(); applyGoldCards(); refreshInlineRoles(); })
   .catch(() => {});
 const eqOf = p => (p && typeof p === 'object' ? EQ.get(p.id || p.user_id) : EQ.get(p)) || null;
@@ -1251,6 +1255,7 @@ function roleChipHtml(r, eq = null) {
     const txt = it?.title || sr?.title || r;
     const savedClr = r === 'role_oligarh' ? eq?.brand_role_color
       : r === 'role_syroh0cki' ? eq?.syro_role_color
+      : r === 'role_hoglin' ? eq?.hogl_role_color
       : r === 'role_puzomafia' ? eq?.puzo_role_color : null;
     const clr = /^#[0-9a-f]{6}$/i.test(savedClr || '')
       ? savedClr
@@ -1266,7 +1271,7 @@ function brandColorDialog(roleId = 'role_oligarh', onSaved) {
   const sr = SHOP_ROLES[roleId] || SHOP_ROLES.role_oligarh;
   const lbl = sr.title;
   const eq = EQ.get(S.uid) || {};
-  const savedClr = roleId === 'role_syroh0cki' ? eq.syro_role_color : roleId === 'role_puzomafia' ? eq.puzo_role_color : eq.brand_role_color;
+  const savedClr = roleId === 'role_syroh0cki' ? eq.syro_role_color : roleId === 'role_hoglin' ? eq.hogl_role_color : roleId === 'role_puzomafia' ? eq.puzo_role_color : eq.brand_role_color;
   let clr = /^#[0-9a-f]{6}$/i.test(savedClr || '') ? savedClr : (sr.color || '#6cc4ff');
   const ov = document.createElement('div');
   ov.className = 'v2-overlay';
@@ -3347,6 +3352,8 @@ async function viewShop(tab) {
         ? `<span class="shop-perk">${tl('✨ Золотая обводка постов · 🛡️ Не удаляются')}</span>`
         : it.id === 'role_syroh0cki'
           ? `<span class="shop-perk">${tl('🟤 Коричневая обводка постов · 🛡️ Не удаляются')}</span>`
+          : it.id === 'role_hoglin'
+          ? `<span class="shop-perk">${tl('🟢 Зелёная обводка постов · 🛡️ Не удаляются')}</span>`
           : it.id === 'role_puzomafia'
             ? `<span class="shop-perk">${tl('🎨 Свой цвет · 🛡️ Посты не удаляются')}</span>`
             : it.id === 'gift_role_custom'
