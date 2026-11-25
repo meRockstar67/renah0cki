@@ -1,6 +1,3 @@
-/* Колесо фортуны аукциона: общий код для страницы и оверлея OBS.
-   Размер сектора = вес лота (баллы; в режиме «Выбывание» — обратная величина).
-   Победитель выбирается заранее (crypto), колесо плавно докручивается до него. */
 (() => {
 'use strict';
 const TAU = Math.PI * 2;
@@ -27,7 +24,6 @@ const rnd = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 const fmt = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('ru-RU');
 const plural = n => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? 'балл' : m >= 2 && m <= 4 && (h < 12 || h > 14) ? 'балла' : 'баллов'; };
 
-// цвет лота стабилен по его номеру — одинаковый в списке, на колесе и в оверлее
 const colorOf = (num, palette) => { const p = PALETTES[palette] || PALETTES.rainbow; return p[(Math.max(1, num) - 1) % p.length]; };
 
 function segs(lots, palette, split = 1) {
@@ -67,7 +63,6 @@ function fitText(ctx, t, maxW, full) {
   return t.trimEnd() + '…';
 }
 
-// o: { hi, labels: 'radial'|'horizontal', hideSum, fullText, img (HTMLImageElement), pointauc }
 function draw(cv, S, rot, o = {}) {
   const size = cv.clientWidth || cv.width; if (!size) return;
   const dpr = window.devicePixelRatio || 1;
@@ -75,7 +70,6 @@ function draw(cv, S, rot, o = {}) {
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const pa = o.pointauc ?? (document.documentElement.dataset.theme === 'pointauc');
   const r = size / 2, R = r - 8; ctx.clearRect(0, 0, size, size);
-  // обод
   ctx.beginPath(); ctx.arc(r, r, R + (pa ? 3.5 : 3), 0, TAU); ctx.fillStyle = pa ? '#eeeeee' : 'rgba(255,240,230,.85)'; ctx.fill();
   if (!S.length) {
     ctx.beginPath(); ctx.arc(r, r, R, 0, TAU); ctx.fillStyle = pa ? '#242424' : '#1a1a26'; ctx.fill();
@@ -113,7 +107,6 @@ function draw(cv, S, rot, o = {}) {
     }
     ctx.restore();
   }
-  // центр с картинкой (если передан htmlImg — картинку рендерит <img> поверх canvas, чтобы работала анимация 7TV)
   const cr = Math.max(26, r * (pa ? 0.21 : 0.2));
   ctx.save(); ctx.beginPath(); ctx.arc(r, r, cr, 0, TAU); ctx.fillStyle = pa ? '#212121' : '#0c0c14'; ctx.fill();
   if (!o.htmlImg && o.img && o.img.complete && o.img.naturalWidth) {
@@ -125,7 +118,6 @@ function draw(cv, S, rot, o = {}) {
 }
 
 function pick(S) { let x = rnd() * S.reduce((t, s) => t + s.weight, 0); for (const s of S) if ((x -= s.weight) < 0) return s; return S[S.length - 1]; }
-// угол, при котором стрелка (сверху) смотрит в случайную точку сектора s
 function target(s, from, turns) {
   const t = s.start + (s.end - s.start) * (0.15 + 0.7 * rnd());
   let R = ((-Math.PI / 2 - t) % TAU + TAU) % TAU;
@@ -134,7 +126,6 @@ function target(s, from, turns) {
   return R;
 }
 function at(S, rot) { const t = ((-Math.PI / 2 - rot) % TAU + TAU) % TAU; return S.find(s => t >= s.start && t < s.end) || null; }
-// сначала быстро, потом долго и плавно тормозит; с «ускорением» — ещё и плавный разгон в начале
 const easeOut = x => 1 - Math.pow(1 - x, 5);
 const easeAccel = x => 1 - Math.pow(1 - Math.pow(x, 1.6), 5);
 function spin(cv, S, from, to, ms, startAt, o, onTick, done) {
@@ -150,7 +141,6 @@ function spin(cv, S, from, to, ms, startAt, o, onTick, done) {
   return () => { stop = true; };
 }
 
-// щелчок при смене сектора под стрелкой (без файлов)
 let ac = null;
 function tick(vol = 0.5) {
   try {

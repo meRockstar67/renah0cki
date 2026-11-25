@@ -1,4 +1,3 @@
-/* renah0cki v2 — новый дизайн. Vanilla JS, данные — та же база Supabase, что у основного сайта. */
 (() => {
 'use strict';
 
@@ -10,13 +9,13 @@ const COIN = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const tl = (s, v) => (window.I18N ? window.I18N.t(s, v) : s); // перевод, см. v2/i18n.js
-const coinW = n => (window.I18N?.coin ? window.I18N.coin(n) : 'пузокоинов'); // 1 пузокоин / 2 пузокоина / 5 пузокоинов
+const tl = (s, v) => (window.I18N ? window.I18N.t(s, v) : s);
+const coinW = n => (window.I18N?.coin ? window.I18N.coin(n) : 'пузокоинов');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = n => {
   n = Number(n) || 0;
-  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e8 ? 0 : 1).replace('.0', '') + 'm';   // 1.9m
-  if (n >= 1e4) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace('.0', '') + 'k';   // 19.5k, 125k
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e8 ? 0 : 1).replace('.0', '') + 'm';
+  if (n >= 1e4) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace('.0', '') + 'k';
   return n.toLocaleString('ru-RU');
 };
 const page = $('#page');
@@ -37,7 +36,6 @@ const I = {
   link: '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
 };
 
-/* ── сессия основного сайта ── */
 function readSession() { try { return JSON.parse(localStorage.getItem(LS_SESSION)); } catch { return null; } }
 function jwtExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch { return 0; } }
 let refreshing = null;
@@ -70,7 +68,6 @@ async function api(path, { method = 'GET', body, prefer } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
-/* ── база адресов и чистый History API роутинг (/shop, /art, /u/..., без #/) ── */
 const BASE = location.pathname.startsWith('/v2/') ? '/v2/' : '/';
 const SPA_TOP = new Set(['art', 'video', 'fanfic', 'news', 'suggest', 'u', 'p', 'c', 'notifications', 'support', 'new', 'collections', 'mod', 'rules', 'wallet', 'shop', 'settings', 'streak']);
 function curRoute() {
@@ -92,7 +89,6 @@ function go(to, { replace = false } = {}) {
   route();
 }
 
-/* ── вход через Twitch: Supabase возвращает #access_token=… — завершаем вход здесь же ── */
 async function finishOAuth() {
   const hp = new URLSearchParams(location.hash.slice(1));
   const back = (() => { try { const b = localStorage.getItem('fh_after_login'); localStorage.removeItem('fh_after_login'); return b && /^\/(?!\/)/.test(b) ? b : BASE; } catch { return BASE; } })();
@@ -104,7 +100,6 @@ async function finishOAuth() {
   try {
     const h = { apikey: SB_KEY, Authorization: 'Bearer ' + token };
     const u = await fetch(`${SB_URL}/auth/v1/user`, { headers: h }).then(r => { if (!r.ok) throw new Error(tl('токен не принят')); return r.json(); });
-    // ник и аватар из Twitch — при каждом входе (как на старом сайте)
     const meta = u.user_metadata || {};
     const tName = meta.nickname || meta.preferred_username || meta.full_name || meta.name || null;
     const tAva = meta.avatar_url || meta.picture || null;
@@ -115,7 +110,6 @@ async function finishOAuth() {
     if (Object.keys(patch).length) await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${u.id}`, { method: 'PATCH', headers: { ...h, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(patch) }).catch(() => {});
     const [p] = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${u.id}&select=username,display_name,avatar_url,role,extra_roles,is_banned,name_color,bio`, { headers: h }).then(r => r.json()).catch(() => []);
     localStorage.setItem(LS_SESSION, JSON.stringify({ user: { ...u, ...(p || {}), extra_roles: p?.extra_roles || [] }, token, refreshToken: refresh }));
-    // привязка Telegram, если человек пришёл по ссылке из бота
     const tg = (() => { try { return localStorage.getItem('fh_tglink'); } catch { return null; } })();
     if (tg) {
       try { localStorage.removeItem('fh_tglink'); } catch {}
@@ -126,7 +120,6 @@ async function finishOAuth() {
 }
 if (/[#&]access_token=|[#&]error=/.test(location.hash)) { finishOAuth(); return; }
 
-/* ── старые и прямые адреса сайта → чистые пути v2: /shop, /art, /КОД, /@ник, /n/КОД, ?post=, ?redirect=, #/... ── */
 async function resolveLegacy() {
   let path = location.pathname.startsWith(BASE) ? location.pathname.slice(BASE.length).replace(/^\/+|\/+$/g, '') : '';
   const qs = new URLSearchParams(location.search);
@@ -161,7 +154,6 @@ async function resolveLegacy() {
   return true;
 }
 
-/* ── кэш: сначала показываем сохранённое, потом тихо обновляем ── */
 const CDN_URL = 'https://cdn.renah0cki.xyz';
 const MEM = new Map();
 const LSC = 'v2c:';
@@ -175,7 +167,6 @@ function cacheSet(k, v, persist = true) {
   try { localStorage.setItem(LSC + k, JSON.stringify(v)); }
   catch { try { Object.keys(localStorage).filter(x => x.startsWith(LSC)).forEach(x => localStorage.removeItem(x)); } catch {} }
 }
-// fetcher → данные; onData(данные, изКэша). Повторный показ только если данные изменились.
 async function swr(key, fetcher, onData, { persist = true } = {}) {
   const hit = cacheGet(key);
   if (hit) onData(hit, true);
@@ -186,7 +177,6 @@ async function swr(key, fetcher, onData, { persist = true } = {}) {
   if (changed) onData(fresh, false);
   return fresh;
 }
-// превью картинок с нашего cdn (сервер делает лёгкий webp); для чужих ссылок — оригинал
 function thumbUrl(u, w) {
   const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+)$/);
   return m && /\.(jpe?g|png|webp|gif|avif|bmp)$/i.test(m[1]) ? `${CDN_URL}/thumb/${w}/${m[1]}` : u;
@@ -196,16 +186,14 @@ const imgTag = (u, w, extra = '') => {
   return `<img class="fade" onload="this.classList.add('ld')" src="${esc(t)}"${t !== u ? ` data-full="${esc(u)}" onerror="this.onerror=null;this.src=this.dataset.full"` : ''} alt="" loading="lazy" decoding="async"${extra}>`;
 };
 
-/* ── состояние ── */
 const S = {
   uid: readSession()?.user?.id || null,
   me: null,
-  profiles: new Map(),           // кэш профилей авторов
-  liked: new Set(),               // мои лайки (content)
+  profiles: new Map(),
+  liked: new Set(),
   feed: { key: '', items: [], done: false, loading: false },
-  items: new Map(),               // посты, уже показанные в лентах (для мгновенного открытия)
+  items: new Map(),
 };
-// автор приходит вместе с постом (один запрос вместо двух)
 const AUTHOR = 'author:profiles!content_submitted_by_fkey(id,username,display_name,avatar_url,name_color,role,extra_roles)';
 const CARD_SEL = `id,short_code,title,description,source_url,cover_image_url,media_items,content_type,submitted_by,views,likes,comments_count,is_blurred,puzzle_difficulty,published_at,created_at,${AUTHOR}`;
 function absorb(rows) {
@@ -215,7 +203,6 @@ function absorb(rows) {
   });
   return rows;
 }
-// мои лайки — один раз на старте, дальше без запросов на каждую страницу
 let likesReady = null;
 function loadAllMyLikes() {
   if (!S.uid) return Promise.resolve();
@@ -237,7 +224,6 @@ const pname = p => p?.display_name || p?.username || tl('без имени');
 const GUEST_AVA = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Cdefs%3E%3ClinearGradient id=%22b%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E%3Cstop offset=%220%22 stop-color=%22%2322365c%22/%3E%3Cstop offset=%221%22 stop-color=%22%2314213a%22/%3E%3C/linearGradient%3E%3ClinearGradient id=%22f%22 x1=%220%22 y1=%220%22 x2=%220%22 y2=%221%22%3E%3Cstop offset=%220%22 stop-color=%22%23cfe9ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%236cc4ff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%22100%22 height=%22100%22 fill=%22url(%23b)%22/%3E%3Ccircle cx=%2250%22 cy=%2240%22 r=%2217%22 fill=%22url(%23f)%22 opacity=%22.9%22/%3E%3Cpath d=%22M18,100 C18,76 32,64 50,64 C68,64 82,76 82,100 Z%22 fill=%22url(%23f)%22 opacity=%22.9%22/%3E%3C/svg%3E";
 const avatarUrl = p => p?.avatar_url || COIN;
 
-/* ── косметика и магазин (пока магазин только для владельца; эффекты видны всем) ── */
 const EQ = new Map();
 const SHOP_BADGES = {
   badge_snow: [tl('Снежинка'), '<svg viewBox="0 0 24 24"><path fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round" d="M12 2.5v19M3.8 7.2l16.4 9.6M20.2 7.2 3.8 16.8"/><path fill="none" stroke="#e0f2fe" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m9.5 4.8 2.5 2.4 2.5-2.4M9.5 19.2 12 16.8l2.5 2.4M4.8 10.6l3.2-.8-.8-3.2M19.2 10.6 16 9.8l.8-3.2M4.8 13.4l3.2.8-.8 3.2M19.2 13.4l-3.2.8.8 3.2"/><polygon points="12,9.2 14.8,12 12,14.8 9.2,12" fill="#fff"/></svg>'],
@@ -281,7 +267,6 @@ function absorbEq(rows) { EQ.clear(); (rows || []).forEach(r => EQ.set(r.user_id
 function postBorderCls(uidOrProf) {
   const eq = eqOf(uidOrProf);
   const owned = eq?.owned_roles || [], hid = eq?.hidden_roles || [];
-  // обводка постов: renah0cki — золотая, сырохоки — коричневая, хоглины — зелёная; если ролей несколько — последняя купленная
   let best = '', at = -1;
   for (const [rid, cls] of [['role_oligarh', 'card-gold'], ['role_syroh0cki', 'card-brown'], ['role_hoglin', 'card-green']]) {
     const i = owned.indexOf(rid);
@@ -353,7 +338,6 @@ function cosName(p, overrideFx, overrideBadge) {
   return `<span${nameAttr(p?.name_color, fx)}>${esc(pname(p))}</span>${badgeHtml(bg)}`;
 }
 
-/* ── время ── */
 const MON = [tl('янв'), tl('фев'), tl('мар'), tl('апр'), tl('мая'), tl('июн'), tl('июл'), tl('авг'), tl('сен'), tl('окт'), tl('ноя'), tl('дек')];
 function when(ts) {
   const d = new Date(ts), now = new Date(), diff = (now - d) / 1000;
@@ -368,7 +352,6 @@ function when(ts) {
   return `${d.getDate()} ${MON[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : ''}`;
 }
 
-/* ── медиа ── */
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
 const isOwnFile = u => /^https:\/\/(cdn\.renah0cki\.xyz|[^/]*backblazeb2\.com)\//.test(u || '');
 const isVideoFile = u => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u || '');
@@ -411,7 +394,6 @@ function cardHtml(it) {
   </article>`;
 }
 
-/* ── лента ── */
 const FEED = { tab: 'all', type: 'all', sort: 'new', q: '', tags: [] };
 const TYPE_NAMES = { all: tl('Все'), art: tl('Арты'), video: tl('Видео'), fanfic: tl('Фанфики') };
 let subsIds = null;
@@ -465,7 +447,6 @@ function renderGrid(rows) {
   if (first) animateCards(grid);
   wireLazy(grid);
 }
-// первая страница: мгновенно из кэша, затем свежая (поиск не кэшируем)
 async function loadFirst() {
   const f = S.feed, key = f.key;
   f.loading = true;
@@ -493,17 +474,15 @@ async function loadMore() {
   } catch {}
   finally { if (key === S.feed.key) f.loading = false; }
 }
-// видео без обложки начинают грузиться только когда карточка рядом с экраном
 const lazyIO = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
   if (!e.isIntersecting) return;
   const v = e.target; lazyIO.unobserve(v); v.preload = 'metadata'; v.src = v.dataset.lazy;
 }), { rootMargin: '300px' }) : null;
 function wireLazy(root) { $$('video[data-lazy]', root).forEach(v => { if (lazyIO) lazyIO.observe(v); else { v.preload = 'metadata'; v.src = v.dataset.lazy; } }); }
-// предзагрузка соседних разделов, пока пользователь смотрит текущий
 let prefetched = false;
 function idlePrefetch() {
   if (prefetched) return; prefetched = true;
-  const idle = cb => setTimeout(cb, 600); // requestIdleCallback может не сработать в фоновой вкладке
+  const idle = cb => setTimeout(cb, 600);
   idle(async () => {
     for (const t of ['art', 'video', 'fanfic', 'all']) {
       const k = 'feed:' + JSON.stringify({ tab: 'all', type: t, sort: 'new', q: '' });
@@ -547,7 +526,6 @@ $('#searchInput').addEventListener('input', e => {
   searchT = setTimeout(() => { FEED.q = e.target.value.trim(); if (!/^(art|video|fanfic)?$/.test(curRoute())) go(''); else viewFeed(FEED.type); }, 350);
 });
 
-/* ── страница поста ── */
 async function viewPost(key, root = page) {
   const inLb = root !== page;
   if (!inLb) setNav('');
@@ -562,7 +540,6 @@ async function viewPost(key, root = page) {
     if (inLb && LB.key !== key) return;
     await loadAllMyLikes();
   } else {
-    // теги и прочие поля догружаем в фоне, показ — сразу
     api(`content?id=eq.${it.id}&select=tags`).then(([r]) => { if (r?.tags?.length && !$('.post .tags') && $('.post h1')) { it.tags = r.tags; $('.post h1').insertAdjacentHTML('afterend', `<div class="tags">${r.tags.map(t => `<span class="tag">#${esc(tagName(t))}</span>`).join('')}</div>`); } }).catch(() => {});
   }
   const a = S.profiles.get(it.submitted_by) || it.author;
@@ -595,7 +572,7 @@ async function viewPost(key, root = page) {
   if (pmEl) pmEl.addEventListener('click', ev => {
     const z = ev.target.closest('[data-zoom]'); if (!z) return;
     ev.preventDefault();
-    if (pmEl.classList.contains('blur')) { // спойлер: пазл (если включён) или просто открыть
+    if (pmEl.classList.contains('blur')) {
       if ($('.pz-over', pmEl)) return;
       if (puzzleOn() && it.puzzle_difficulty !== 'none') startPuzzle(pmEl, z, it.puzzle_difficulty || 'easy'); else pmEl.classList.remove('blur');
       return;
@@ -624,7 +601,6 @@ async function viewPost(key, root = page) {
   renderReact(it);
 }
 
-/* ── платная реакция: пузокоин renah0cki (как звёзды в Telegram), пузокоины уходят автору ── */
 const REACT_AMOUNTS = [1, 5, 10, 25, 50, 100];
 async function renderReact(it) {
   const box = $('#reactWrap'); if (!box) return;
@@ -669,7 +645,6 @@ async function renderReact(it) {
   box.oninput = e => { if (e.target.closest('.react-custom')) { if (e.target.value) $$('[data-ramt]', box).forEach(x => x.classList.remove('on')); sync(); } };
 }
 document.addEventListener('click', e => { if (!e.target.closest('.react-wrap')) $$('.react-pop').forEach(p => { p.hidden = true; }); });
-/* ── просмотр фото на весь экран: колесо/щипок — зум, перетаскивание, двойной клик ── */
 const VW = { el: null, list: [], i: 0, z: 1, x: 0, y: 0 };
 function openViewer(list, i = 0) {
   if (!VW.el) {
@@ -706,7 +681,6 @@ function openViewer(list, i = 0) {
       vwZoom(2.5, e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
     });
     stage.addEventListener('wheel', e => { e.preventDefault(); vwZoom(VW.z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); }, { passive: false });
-    // перетаскивание и щипок
     const pts = new Map(); let start = null;
     stage.addEventListener('pointerdown', e => { stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); start = { x: VW.x, y: VW.y, z: VW.z, px: e.clientX, py: e.clientY, d: pts.size === 2 ? vwDist(pts) : 0 }; });
     stage.addEventListener('pointermove', e => {
@@ -758,7 +732,6 @@ addEventListener('keydown', e => {
   else if (e.key === '-') vwZoom(VW.z / 1.5);
 }, true);
 
-/* ── лайтбокс: пост поверх ленты ── */
 let lbBaseRoute = curRoute();
 function closeLightboxUi() {
   if (!LB.el) return;
@@ -782,7 +755,6 @@ function lbEnsure() {
     const u = e.target.closest('[data-user]');
     if (u) { closeLightbox(true); go('u/' + encodeURIComponent(u.dataset.user)); }
   });
-  // свайп влево/вправо на телефоне — соседняя работа
   let sx = 0, sy = 0, st = 0;
   el.addEventListener('touchstart', e => { if (e.touches.length !== 1) { st = 0; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
   el.addEventListener('touchend', e => {
@@ -833,7 +805,6 @@ function lbStep(d) {
   lbRender(k);
   $(`[data-open="${CSS.escape(k)}"]`, page)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
-// keepHash: переход по ссылке из лайтбокса (например в профиль) — не откатываем историю
 function closeLightbox(keepHash = false) {
   if (!LB.open) return;
   LB.open = false;
@@ -865,7 +836,6 @@ async function loadComments(id, kind = 'content') {
 }
 function drawComments(box, rows, cid) {
   if (cid) box.dataset.cid = cid;
-  // ответы — сразу под своим комментарием
   const top = rows.filter(c => !c.parent_id || !rows.some(x => x.id === c.parent_id));
   const kids = id => rows.filter(c => c.parent_id === id);
   const ordered = []; const walk = (c, d) => { ordered.push([c, d]); kids(c.id).forEach(k => walk(k, Math.min(d + 1, 1))); };
@@ -882,7 +852,6 @@ function drawComments(box, rows, cid) {
   const ta = $('.cmt-form textarea', box); if (ta && draft) ta.value = draft;
 }
 page.addEventListener('click', e => { const b = e.target.closest('[data-login]'); if (b) login(); });
-// действия с комментариями работают и в лайтбоксе, и на странице поста
 document.addEventListener('click', async e => {
   const box = e.target.closest('#comments'); if (!box) return;
   const cid = box.dataset.cid;
@@ -953,11 +922,9 @@ function reportDialog(commentId) {
 }
 page.addEventListener('click', e => { if (e.target.closest('[data-back]')) { history.length > 1 ? history.back() : go(''); } });
 
-/* ── роли (модераторы видят «Одобрить» в предложке) ── */
 const MOD_ROLES = ['moderator', 'gl_moder', 'admin'];
 const isMod = () => !!S.me && [S.me.role, ...(S.me.extra_roles || [])].some(r => MOD_ROLES.includes(r));
 
-/* ── новости ── */
 const NEWS = { cache: new Map(), liked: new Set(), chans: new Map() };
 function newsFmt(s) {
   return s.replace(/`([^`\n]+)`/g, '<code>$1</code>')
@@ -1121,7 +1088,6 @@ page.addEventListener('click', e => {
   const sp = e.target.closest('[data-spoiler]'); if (sp) sp.classList.toggle('open');
 });
 
-/* ── предложка (видео с YouTube) ── */
 const YT_KEY = 'AIzaSyDc4J-Y8jO5FrvKZD8QuLd0x33LIKtvV_E';
 function ytDuration(iso) {
   const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || ''); if (!m) return '';
@@ -1164,7 +1130,6 @@ function renderSuggest({ rows, yt }) {
       </div></article>`;
   }).join('')}</div>` : `<div class="empty" id="sgGrid">${tl('Пока пусто — предложи первое видео.')}</div>`;
 }
-// фоновая подготовка новостей и предложки (вызывается после ленты)
 async function prefetchNewsSuggest() {
   try { if (!MEM.has('news')) cacheSet('news', await fetchNews()); } catch {}
   try { if (!MEM.has('suggest')) cacheSet('suggest', await fetchSuggest()); } catch {}
@@ -1201,7 +1166,6 @@ page.addEventListener('click', async e => {
   if (del) { if (!confirm(tl('Удалить видео из предложки?'))) return; try { await api(`suggestions?id=eq.${del.dataset.sgDel}`, { method: 'DELETE' }); MEM.delete('suggest'); viewSuggest(); } catch (er) { toast(er.message, true); } }
 });
 
-/* ── профиль ── */
 const ROLE_LABEL = { user: tl('Нормис'), moderator: tl('Модератор'), gl_moder: tl('Админ'), admin: tl('Админ'), sponsor: tl('Спонсор'), respect_plus: 'Respect+', streamer: tl('Стример') };
 function activeTempRoles(eq) {
   const list = Array.isArray(eq?.temp_roles) ? eq.temp_roles : [];
@@ -1412,7 +1376,7 @@ async function viewProfile(key) {
   </div>`;
   wireLazy(page); animateCards(page);
   $('#profCopy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/@${encodeURIComponent(p.username || p.id)}`); toast(tl('Ссылка скопирована')); } catch { toast(tl('Не удалось скопировать'), true); } };
-  if (p.id && !S.profiles.has(p.id)) S.profiles.set(p.id, p);   // для окна «Роли»
+  if (p.id && !S.profiles.has(p.id)) S.profiles.set(p.id, p);
   const pe = $('#profEdit'); if (pe) pe.onclick = () => { if (!S.me) S.me = p; editProfile(); };
   const ps = $('#profSend'); if (ps) ps.onclick = () => coinSendDialog(p);
   const pbl = $('#profBlock'); if (pbl) pbl.onclick = () => toggleBlock(p);
@@ -1433,9 +1397,8 @@ page.addEventListener('click', e => {
   if (au) { e.stopPropagation(); go('u/' + encodeURIComponent(au.dataset.user)); }
 });
 
-/* ── уведомления ── */
 const NOTIF = { list: [], loaded: false };
-const seenKey = () => S.uid ? `fh_notif_seen_${S.uid}` : null; // общий со старым сайтом
+const seenKey = () => S.uid ? `fh_notif_seen_${S.uid}` : null;
 const getSeen = () => { try { return parseInt(localStorage.getItem(seenKey()) || '0', 10) || 0; } catch { return 0; } };
 const setSeen = ts => { try { localStorage.setItem(seenKey(), String(ts)); } catch {} };
 async function loadNotifs() {
@@ -1464,7 +1427,6 @@ async function loadNotifs() {
     const or = [cIds.length && `content_id.in.(${cIds.join(',')})`, kIds.length && `collection_id.in.(${kIds.join(',')})`].filter(Boolean).join(',');
     jobs.push(api(`moderation_log?action=eq.rejected&or=(${or})&select=content_id,collection_id,comment,created_at,moderator:profiles(id,username,display_name,avatar_url)&order=created_at.desc&limit=20`).then(r => r.map(x => ({ type: 'reject', target: x.content_id ? t[x.content_id] : tc[x.collection_id], body: x.comment, actor: x.moderator, at: x.created_at }))).catch(() => []));
   }
-  // переводы пузокоинов и подарки ролей (SQL 070)
   jobs.push(api(`user_notifications?user_id=eq.${S.uid}&select=kind,actor_id,amount,title,days,note,created_at&order=created_at.desc&limit=30`).then(async r => {
     await loadProfiles(r.map(x => x.actor_id).filter(Boolean));
     return r.map(x => ({ type: { coin_transfer: 'coin', coin_grant: 'grant', role_gift: 'gift' }[x.kind] || 'coin', actor: x.actor_id ? S.profiles.get(x.actor_id) : null, amount: x.amount, title: x.title, days: x.days, body: x.note, at: x.created_at }));
@@ -1496,7 +1458,6 @@ function notifHtml(n, seen) {
     <div class="notif-main"><div><b>${esc(n.actor ? pname(n.actor) : n.type === 'grant' ? 'renah0cki' : tl('Кто-то'))}</b> ${typeof NOTIF_TEXT[n.type] === 'function' ? NOTIF_TEXT[n.type](n) : NOTIF_TEXT[n.type]}${n.target ? ` <span class="notif-target">«${esc(n.target.title || tl('без названия'))}»</span>` : ''}</div>
       ${n.body ? `<div class="notif-body">${esc(n.body)}</div>` : ''}<time>${when(n.at)}</time></div></a>`;
 }
-// выпадающий список у колокольчика (страница «Все уведомления» осталась)
 async function openNotifPop() {
   const pop = $('#notifPop'), list = $('#npList');
   if (!pop.hidden) { pop.hidden = true; return; }
@@ -1524,10 +1485,9 @@ async function viewNotifs() {
   setSeen(Date.now()); updateBell();
 }
 
-/* ── новая работа: арт / видео / фанфик → на проверку модераторам ── */
 const PRESET_TAGS = ['meowh0cki', 'renamid', 'gl1n', 'EgorTsai', 'MagicKat1', 'BaNaNcHiK1', 'Olezha27', 'gei_angel', 'meRockstar', 'unfeell'];
 const OTHER_TAG = 'Другое';
-const tagName = t => (t === OTHER_TAG ? tl(t) : t); // значение тега в базе — по-русски, показываем перевод
+const tagName = t => (t === OTHER_TAG ? tl(t) : t);
 const ALL_TAGS = [...PRESET_TAGS, OTHER_TAG];
 const UP = { type: 'art', file: null, cover: null, tags: new Set() };
 async function uploadFile(file, onPct) {
@@ -1628,7 +1588,6 @@ function viewNew(type) {
   };
 }
 
-/* ── поддержка: чат с модераторами (те же таблицы, что у основного сайта) ── */
 const SUP = { thread: null, timer: null, owner: null };
 async function viewSupport(threadArg) {
   setNav('support');
@@ -1712,14 +1671,12 @@ page.addEventListener('click', e => {
   const im = e.target.closest('[data-supimg]'); if (im) { e.preventDefault(); openViewer([im.getAttribute('href')], 0); }
 });
 
-/* ── меню, профиль, пузокоины ── */
 function setNav(k) { $$('[data-nav]').forEach(n => n.classList.toggle('active', n.dataset.nav === k)); document.querySelector('.app').classList.remove('menu-open'); }
 $('#menuBtn').onclick = () => document.querySelector('.app').classList.toggle('menu-open');
 const shade = document.createElement('div'); shade.className = 'side-shade';
 shade.addEventListener('click', () => document.querySelector('.app').classList.remove('menu-open'));
 document.querySelector('.app').append(shade);
 addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelector('.app').classList.remove('menu-open'); });
-// меню на телефоне можно смахнуть влево — оно едет за пальцем
 (() => {
   const side = $('#side'), app = document.querySelector('.app');
   let x0 = null, y0 = 0, dx = 0, drag = false;
@@ -1737,10 +1694,8 @@ addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelecto
     if (drag && dx < -60) app.classList.remove('menu-open');
   }, { passive: true });
 })();
-// свернуть боковую панель (на компьютере), запоминаем выбор
 $('#collapseBtn').onclick = () => { const a = document.querySelector('.app'); a.classList.toggle('collapsed'); const c = a.classList.contains('collapsed'); $('#collapseBtn').title = c ? tl('Развернуть меню') : tl('Свернуть меню'); try { localStorage.setItem('v2_side', c ? '1' : '0'); } catch {} };
 try { if (localStorage.getItem('v2_side') === '1') { document.querySelector('.app').classList.add('collapsed'); $('#collapseBtn').title = tl('Развернуть меню'); } } catch {}
-// спонсоры в левом меню: список (видно 5), листается, порядок случайный
 let SPONS_ROWS = [], TOPDON_ROWS = [];
 function sponsAvaHtml(p) {
   const fr = eqOf(p)?.frame;
@@ -1772,9 +1727,7 @@ function loadSponsors() {
   }).catch(() => {});
 }
 loadSponsors();
-// затухание снизу у списка спонсоров — пока есть что листать
 $('#sponsList').addEventListener('scroll', e => { const l = e.currentTarget; l.classList.toggle('end', l.scrollTop + l.clientHeight >= l.scrollHeight - 2); }, { passive: true });
-// топ 3 донатера по сумме пополнений через DonationAlerts (главный админ не учитывается)
 function drawTopDonors() {
   const box = $('#topDonList'); if (!box) return;
   if (!TOPDON_ROWS.length) { $('#topDon').hidden = true; return; }
@@ -1797,7 +1750,6 @@ async function loadTopDonors() {
 loadTopDonors();
 setInterval(() => { if (!document.hidden) { loadTopDonors(); loadSponsors(); } }, 60e3);
 $('#meBtn').onclick = e => { e.stopPropagation(); $('#meMenu').hidden = !$('#meMenu').hidden; };
-/* ── согласие с правилами и пользовательским соглашением (один раз) ── */
 const TERMS_KEY = 'rn_terms_v1';
 const termsLocal = () => { try { return !!localStorage.getItem(TERMS_KEY); } catch { return false; } };
 function termsGate() {
@@ -1829,7 +1781,6 @@ function termsGate() {
 }
 if (!S.uid && !termsLocal()) setTimeout(termsGate, 400);
 
-/* ── блокировка пользователей для себя (public.user_blocks): их работы, комментарии и отзывы скрываются ── */
 S.blocked = new Set();
 async function loadBlocks() {
   if (!S.uid) return;
@@ -1853,7 +1804,6 @@ async function toggleBlock(p) {
   } catch (er) { toast(er.message, true); }
 }
 
-/* ── жалоба на работу, отзыв, пользователя (public.content_reports) ── */
 const TARGET_LBL = { content: tl('работу'), review: tl('отзыв'), user: tl('пользователя'), collection: tl('сборник'), news: tl('новость'), suggestion: tl('видео в предложке') };
 function reportTarget(type, id) {
   if (!S.uid) return login();
@@ -1894,20 +1844,18 @@ async function loadMe() {
     $('#meAva').src = avatarUrl(me);
     $('#meProfile').href = userPath(me);
     $('#meMod').hidden = !isMod();
-    $('#navAwards').hidden = !isMod(); // OvosheAwards — только модераторам и глав модеру
-    $('#meOld').hidden = !(hasRole(me, 'admin') || hasRole(me, 'gl_moder') || me?.id === OWNER_ID); // старый дизайн — только админу
+    $('#navAwards').hidden = !isMod();
+    $('#meOld').hidden = !(hasRole(me, 'admin') || hasRole(me, 'gl_moder') || me?.id === OWNER_ID);
     applyMeFrame();
     $('#navMod').hidden = !isMod();
     if (isMod()) modCount();
     postMenuLate();
     updateStreak();
-    setTimeout(() => { if (!NOTIF.loaded) loadNotifs(); }, 1200); // счётчик на колокольчике
+    setTimeout(() => { if (!NOTIF.loaded) loadNotifs(); }, 1200);
   } catch {}
   try { const v = await rpc('coin_balance'); $('#coinVal').textContent = fmt(v || 0); } catch { $('#coinVal').textContent = '0'; }
 }
 
-/* ── вход / выход (Twitch, как на основном сайте) ── */
-// Вход завершает основной сайт (он принимает ответ Twitch и создаёт профиль), потом возвращает сюда.
 function login() {
   try { localStorage.setItem('fh_after_login', location.pathname + location.search); } catch {}
   location.href = `${SB_URL}/auth/v1/authorize?provider=twitch&redirect_to=${encodeURIComponent(location.origin + '/')}`;
@@ -1924,7 +1872,6 @@ $('#meLogout').onclick = logout;
 $('#meEdit').onclick = () => { $('#meMenu').hidden = true; editProfile(); };
 if (!S.uid) { document.querySelector('.app').classList.add('guest'); $('#loginBtn').hidden = false; }
 
-/* ── редактирование своего профиля ── */
 function editProfile() {
   const me = S.me; if (!me) return;
   let ava = me.avatar_url || '', file = null;
@@ -1979,7 +1926,6 @@ function editProfile() {
       if (f.cdon) await rpc('coin_donate_toggle', { p_enabled: !!f.cdon.checked }).catch(() => {});
       Object.assign(me, patch); S.profiles.set(me.id, { ...(S.profiles.get(me.id) || {}), ...patch });
       drawSponsors(); drawTopDonors(); loadSponsors();
-      // старый сайт держит профиль в сессии — обновим и там
       try { const s = readSession(); if (s?.user) { Object.assign(s.user, patch); localStorage.setItem(LS_SESSION, JSON.stringify(s)); } } catch {}
       $('#meAva').src = avatarUrl(me);
       close(); toast(tl('Профиль сохранён'));
@@ -1994,7 +1940,6 @@ function editProfile() {
   }
 }
 
-/* ── модерация: работы на проверке и жалобы на комментарии ── */
 const MOD = { tab: 'queue' };
 async function modCount() {
   const cnt = async q => { const t = await getToken(); const r = await fetch(`${SB_URL}/rest/v1/${q}`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), Prefer: 'count=exact', Range: '0-0' } }); return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; };
@@ -2019,8 +1964,6 @@ function viewMod(tab) {
   modCount();
   ({ queue: modQueue, reports: modReports, users: modUsers, bans: modBans })[MOD.tab]();
 }
-/* пользователи, баны, роли */
-// роль «Админ» назначает только владелец (проверка ещё и в базе — profiles_guard, SQL 073)
 const ROLE_LIST = ['respect_plus', 'sponsor', 'streamer', 'moderator', 'admin'];
 const roleListFor = () => S.uid === OWNER_ID ? ROLE_LIST : ROLE_LIST.filter(r => r !== 'admin');
 const canRoles = () => hasRole(S.me, 'gl_moder') || hasRole(S.me, 'admin');
@@ -2285,11 +2228,9 @@ page.addEventListener('click', async e => {
   }
 });
 
-/* ── голосовые сообщения (модераторы, стримеры, спонсоры) ── */
 const VOICE_ROLES = ['gl_moder', 'admin', 'moderator', 'streamer', 'sponsor'];
 const canVoice = () => !!S.me && VOICE_ROLES.some(r => hasRole(S.me, r)) && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
 const VOICE_MAX = 120;
-// запись: панель с таймером поверх формы; «Отправить» загружает файл и вызывает onSend(url)
 async function recordVoice(form, onSend) {
   if ($('.vrec', form)) return;
   let stream;
@@ -2321,7 +2262,6 @@ async function recordVoice(form, onSend) {
   rec.start();
 }
 
-/* ── цвет ника и краски 7TV (модераторы, стримеры, спонсоры) ── */
 const NAME_COLORS = ['#ff4444', '#ff7043', '#ff9800', '#ffca28', '#66bb6a', '#26c6da', '#42a5f5', '#5c6bc0', '#ab47bc', '#ec407a', '#ff80ab', '#80deea', '#a5d6a7', '#fff176', '#ef9a9a', '#b0bec5', '#ffffff'];
 const NAME_PAINTS = [
   ['#ff9966', '#ff66a3', 'Pastelween'], ['#9b30ff', '#ff1d6b', 'Impish Blush'], ['#ff7b29', '#ff2d2d', 'Hellfire'], ['#ffffff', '#16d2ff', 'Cyber Optics'],
@@ -2335,7 +2275,6 @@ const NAME_PAINTS = [
 const hasRole = (p, r) => !!p && (p.role === r || (p.extra_roles || []).includes(r));
 const canColor = p => !!p && (MOD_ROLES.some(r => hasRole(p, r)) || hasRole(p, 'streamer') || hasRole(p, 'sponsor'));
 const okColor = c => /^#[0-9a-f]{3,8}$/i.test(c || '') || /^linear-gradient\([#0-9a-zA-Z,.%\s()-]{1,240}\)$/.test(c || '');
-// атрибуты для имени: эффект из магазина, цвет или переливающийся градиент
 function nameAttr(c, fx) {
   if (fx && /^fx_[a-z0-9_]+$/i.test(fx)) return ` class="cfx cfx-${esc(fx)}"`;
   if (!okColor(c)) return '';
@@ -2344,7 +2283,6 @@ function nameAttr(c, fx) {
   return ` class="nm-paint${anim ? ' anim' : ''}" style="background-image:${c}"`;
 }
 
-/* ── пазл-спойлер: размытый арт собирается из плиток (можно выключить в настройках) ── */
 const PZ_GRID = { easy: 4, x2: 6, x3: 7, x4: 8 };
 const PZ_NAMES = { easy: tl('Лёгкий'), x2: '×2', x3: '×3', x4: '×4' };
 const puzzleOn = () => { try { return localStorage.getItem('v2_puzzle') !== '0'; } catch { return true; } };
@@ -2401,17 +2339,14 @@ function wirePostMenu(root, it) {
     if (ev.target.closest('[data-pdel]')) deletePost(it);
   };
 }
-// роли загрузились после поста — добавить меню модератора
 function postMenuLate() {
   const c = S.curPost; if (!c || !c.root.isConnected || c.root.querySelector('#postMenuBtn')) return;
   const acts = c.root.querySelector('.post-actions'); if (!acts) return;
   acts.insertAdjacentHTML('beforeend', postMenuHtml(c.it)); wirePostMenu(c.root, c.it);
 }
-/* ── редактирование и удаление работ: автор — свои, модераторы — любые ── */
 document.addEventListener('click', e => { if (!e.target.closest('.pmenu-wrap')) $$('.pmenu').forEach(m => { m.hidden = true; }); });
 function dropFeedCache() { [...MEM.keys()].filter(k => k.startsWith('feed:')).forEach(k => MEM.delete(k)); try { Object.keys(localStorage).filter(k => k.startsWith(LSC + 'feed:')).forEach(k => localStorage.removeItem(k)); } catch {} }
 async function editPost(it) {
-  // в ленте у поста не все поля — для правки берём полную запись
   try { const [full] = await api(`content?id=eq.${it.id}&select=*`); if (full) Object.assign(it, full); } catch (er) { return toast(er.message, true); }
   const T = it.content_type;
   const ov = document.createElement('div');
@@ -2462,9 +2397,7 @@ async function deletePost(it) {
   } catch (er) { toast(er.message, true); }
 }
 
-/* ── настройки: пазлы, уведомления, Telegram ── */
 const NOTIF_OPTS = [['notify_likes', tl('Лайки на моих работах')], ['notify_comments', tl('Комментарии к моим работам')], ['notify_new_followers', tl('Новые подписчики')]];
-/* выбор языка: Ua / Ru / Eng (см. v2/i18n.js) */
 const langCard = () => window.I18N ? `<section class="rules-card sets-card" id="setLang"><h2>${tl('Язык сайта')}</h2>
       <div class="chips">${Object.entries(I18N.short).map(([k, n]) => `<button type="button" class="chip${I18N.lang() === k ? ' on' : ''}" data-setlang="${k}" title="${esc(I18N.langs[k])}">${esc(n)}</button>`).join('')}</div></section>` : '';
 function viewSettings() {
@@ -2581,7 +2514,6 @@ function viewSettings() {
   const ad = page.querySelector('[data-accdel]'); if (ad) ad.onclick = accountDeleteDialog;
   if (window.PWA) PWA.bind(page, tl, 'renah0cki');
 }
-/* удаление аккаунта: ввести свой ник, поставить галочку и подождать 10 секунд */
 function accountDeleteDialog() {
   const nick = S.me?.username || '';
   if (!nick) return toast(tl('Сначала задайте ник в профиле'), true);
@@ -2624,7 +2556,6 @@ function accountDeleteDialog() {
   });
   inp.focus();
 }
-// ссылка привязки из бота: /v2/?tglink=ТОКЕН
 (async () => {
   const t = new URLSearchParams(location.search).get('tglink');
   if (!t || !/^[0-9a-f]{32}$/.test(t)) return;
@@ -2634,7 +2565,6 @@ function accountDeleteDialog() {
   catch (er) { toast(er.message, true); }
 })();
 
-/* ── сборники: смотрят все, создают модераторы и выше (сразу публикуются) ── */
 const COLL_SEL = `id,title,description,short_code,cover_url,cover_type,item_count,views,likes,comments_count,published_at,created_at,submitted_by,author:profiles!collections_submitted_by_fkey(id,username,display_name,avatar_url,name_color,role,extra_roles)`;
 const COLL = new Map();
 function collCard(c) {
@@ -2769,7 +2699,6 @@ function viewNewCollection() {
   };
 }
 
-/* ── редактор новостей (модераторы) ── */
 const NE_TOOLS = [
   ['b', tl('Жирный'), '**', '**'], ['i', tl('Курсив'), '*', '*'], ['u', tl('Подчёркнутый'), '__', '__'], ['s', tl('Зачёркнутый'), '~~', '~~'],
   ['sp', tl('Спойлер'), '||', '||'], ['h', tl('Заголовок'), '## ', ''], ['q', tl('Цитата'), '> ', ''], ['li', tl('Список'), '- ', ''], ['ln', tl('Ссылка'), '[', '](https://)'], ['hr', tl('Линия'), '\n---\n', ''],
@@ -2836,7 +2765,6 @@ async function viewNewsEditor(id) {
   };
 }
 
-/* ── мини-игра «Угадай художника» (как на старом сайте: те же рейтинг и gg_report) ── */
 const GG = { pool: null, authors: [], queue: [], i: 0, cur: null, answered: false, score: 0, streak: 0, best: 0, played: 0, guessed: {}, reported: 0, el: null };
 const ggShuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 function ggQueue(arts) {
@@ -2951,7 +2879,6 @@ addEventListener('keydown', e => {
 }, true);
 $('#ggBtn').onclick = ggOpen;
 
-/* ── отзывы о сайте: вкладка в ленте, публикуются после модерации ── */
 const REV = { liked: new Set() };
 async function drawReviews() {
   const g = $('#grid'); if (!g) return;
@@ -3011,7 +2938,6 @@ page.addEventListener('click', async e => {
   if (dl) { if (!confirm(tl('Удалить отзыв?'))) return; try { await api(`reviews?id=eq.${dl.dataset.rdel2}`, { method: 'DELETE' }); dl.closest('.rev').remove(); toast(tl('Отзыв удалён')); } catch (er) { toast(er.message, true); } }
 });
 
-/* ── стрик: дни подряд на сайте (общий со старым сайтом) ── */
 async function updateStreak() {
   if (!S.uid) return;
   try {
@@ -3035,7 +2961,6 @@ async function viewStreak() {
   box.innerHTML = rows.length ? rows.map((p, i) => `<a class="st-row${p.id === S.uid ? ' me' : ''}" href="${userPath(p)}"><i>${['🥇', '🥈', '🥉'][i] || i + 1}</i>${cosAva(p)}<span>${cosName(p)}</span><b>🔥 ${fmt(p.streak_count)}</b></a>`).join('') : `<div class="empty">${tl('Пока пусто.')}</div>`;
 }
 
-/* ── кошелёк пузокоинов ── */
 const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const TX = {
   purchase: [tl('Пополнение'), 'plus'], reward: [tl('Награда'), 'gift'], spend: [tl('Покупка'), 'bag'], admin: [tl('От администрации'), 'gift'],
@@ -3090,7 +3015,6 @@ async function viewWallet(tab) {
       $('#walCode').textContent = prof?.username || '—';
       if (info.url) $('#walGo').href = info.url.replace(/^https:\/\/www\.donationalerts\.com\/r\//, 'https://dalink.to/');
       else { $('#walGo').classList.add('disabled'); $('#walGo').textContent = tl('Пополнение временно недоступно'); }
-      // две кнопки: DonationAlerts — российские карты, Donatello — украинские
       if (info.dn_url) {
         const dn = $('#walDn'); dn.href = info.dn_url; dn.hidden = false;
         if (info.url) $('#walGo').textContent = tl('Ру карта');
@@ -3098,7 +3022,6 @@ async function viewWallet(tab) {
       if (S.uid === OWNER_ID) {
         const a = $('#walAdmin'); a.hidden = false;
         a.innerHTML = `<span>${tl('Админ: DonationAlerts')} ${info.connected ? `<b class="ok">${tl('подключён')}</b>` : `<b class="bad">${tl('не подключён')}</b>`}${tl('. Переподключать, только если донаты перестали начисляться.')}</span><button class="btn" type="button" id="walDa">${info.connected ? tl('Переподключить') : tl('Подключить')}</button>`;
-        // донаты за год — для налоговой декларации (суммы в валюте доната; в гривнах считать по выписке банка)
         const yr = new Date().getFullYear();
         rpc('donation_income', { p_year: yr }).then(rows => {
           if (!Array.isArray(rows) || !$('#walAdmin')) return;
@@ -3171,7 +3094,6 @@ function coinSendDialog(p) {
   document.body.append(ov);
 }
 
-/* ── магазин косметики ── */
 const SHOP_CATS = [
   ['all', tl('Все')],
   ['bundle', tl('Наборы')],
@@ -3585,8 +3507,6 @@ async function viewShop(tab) {
   draw();
 }
 
-/* ── правила ── */
-/* правила — отдельные тексты на трёх языках (ru — основной) */
 const RULES_TXT = {
   ru: sup => `
     <div class="page-head"><h1>Правила</h1></div>
@@ -3823,7 +3743,6 @@ function viewRules() {
   page.innerHTML = `<article class="rules">${(RULES_TXT[L] || RULES_TXT.ru)(routeUrl('support'))}</article>`;
 }
 
-/* ── потянуть вниз для обновления (телефон) ── */
 (() => {
   if (!('ontouchstart' in window)) return;
   const ind = document.createElement('div');
@@ -3847,7 +3766,6 @@ function viewRules() {
   }, { passive: true });
 })();
 
-/* ── перехват кликов по внутренним ссылкам SPA (чистые адреса без перезагрузки) ── */
 document.addEventListener('click', e => {
   if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const a = e.target.closest('a[href]');
@@ -3862,15 +3780,14 @@ document.addEventListener('click', e => {
   if (rel === '' || SPA_TOP.has(first)) { e.preventDefault(); go(rel); }
 });
 
-/* ── роутер ── */
 function route() {
   const cur = curRoute();
   const parts = cur.split('/').filter(Boolean).map(decodeURIComponent);
-  if (LB.skip) { LB.skip = false; return; }       // закрыли лайтбокс сами — лента остаётся как была
+  if (LB.skip) { LB.skip = false; return; }
   if (LB.open) {
     if (parts[0] === 'p' && parts[1]) { if (parts[1] !== LB.key) lbRender(parts[1]); return; }
     LB.open = false; closeLightboxUi();
-    if (lbBaseRoute === cur) return;               // вернулись туда, откуда открыли — ленту не перерисовываем
+    if (lbBaseRoute === cur) return;
   }
   if (parts[0] !== 'p') lbBaseRoute = cur;
   scrollTo(0, 0);
@@ -3901,6 +3818,6 @@ addEventListener('hashchange', () => {
   if (location.hash.startsWith('#/')) go(location.hash.slice(2), { replace: true });
 });
 loadAllMyLikes();
-loadMe().then(() => { if (/^(suggest|news|u\/|mod|collections|new\/collection|shop)/.test(curRoute())) route(); }); // роли нужны для кнопок модератора
+loadMe().then(() => { if (/^(suggest|news|u\/|mod|collections|new\/collection|shop)/.test(curRoute())) route(); });
 resolveLegacy().then(ok => { if (ok) route(); });
 })();

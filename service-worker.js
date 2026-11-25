@@ -1,10 +1,3 @@
-// Минимальный service worker — нужен в первую очередь для того, чтобы браузер
-// считал сайт "устанавливаемым" (иконка на главный экран телефона). Сознательно
-// НЕ кэширует ничего динамического (запросы к Supabase/B2, сам index.html) —
-// сайт живой, с частым обновлением контента (лента, комментарии, лайки), и
-// подсовывать устаревшую версию из кэша было бы хуже, чем отсутствие офлайн-режима.
-// Кэшируются только полностью статичные файлы (иконки) — как запасной вариант
-// на случай отсутствия соединения.
 const CACHE_NAME = 'renah0cki-static-v1';
 const STATIC_ASSETS = [
   '/icon-192.png',
@@ -29,9 +22,6 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Сеть в приоритете всегда; кэш — только запасной вариант, и только для тех
-// самых статичных иконок из списка выше. Всё остальное (сам сайт, API-запросы)
-// этот service worker не трогает вообще.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
@@ -42,10 +32,6 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ─── Web Push: уведомления модераторам о новых работах на проверку ─────────
-// Пришедший push — это просто JSON { title, body, url } (см. воркер,
-// notify-moderators). Показываем системное уведомление; иконку/бейдж берём
-// из уже существующих статичных файлов сайта.
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -65,8 +51,6 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Клик по уведомлению — открываем сайт (уже открытую вкладку фокусируем,
-// вместо того чтобы плодить новые).
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || '/';

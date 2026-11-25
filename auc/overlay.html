@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Аукцион — оверлей</title>
-<!-- OBS: источник «Браузер», 600×800. Параметры: ?top=8 (сколько лотов), ?scale=1.2 (размер), ?bg=1 (тёмная подложка) -->
 <style>
   :root { --text: #eaf2ff; --muted: #a9bad4; --accent: #6cc4ff; --ok: #5fd3a0; --danger: #ff6b7d; --panel: rgba(11, 18, 32, .78); }
   html, body { margin: 0; background: transparent; color: var(--text); overflow: hidden; }
@@ -47,7 +46,7 @@
   <div class="last" id="last"></div>
   <div class="wheel"><div class="wb"><svg class="ptr" viewBox="0 0 40 46" aria-hidden="true"><path d="M20 44 4 14A16 16 0 1 1 36 14z"/></svg><canvas id="wc"></canvas><img class="wb-img" id="wci" alt=""></div><div class="wres" id="wr"></div></div>
 </div>
-<script src="wheel.js?v=20261121s"></script>
+<script src="wheel.js?v=20261125cl"></script>
 <script>
 (() => {
   const QS = new URLSearchParams(location.search);
@@ -82,7 +81,6 @@
   const es = new EventSource(API + '/auc/events');
   es.onmessage = e => { try { D = JSON.parse(e.data); off = Date.parse(D.now) - Date.now(); draw(); tick(); } catch {} };
   setInterval(tick, 250);
-  // колесо: показывается, когда стример его крутит, и прячется через 12 с после остановки
   let lastSpin = null, hideT = null, stopSpin = null, img = null;
   const LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
   es.addEventListener('spin', e => {

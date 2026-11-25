@@ -1,14 +1,13 @@
-/* RP-подсайт renah0cki.xyz/rp/ — vanilla JS, данные в схеме rp (self-hosted Supabase). */
 (() => {
 'use strict';
-const tl = (s, v) => (window.I18N ? window.I18N.t(s, v) : s); // перевод, см. /v2/i18n.js и /rp/i18n-rp.js
+const tl = (s, v) => (window.I18N ? window.I18N.t(s, v) : s);
 const LANG = () => (window.I18N ? window.I18N.lang() : 'ru');
-const coinW = n => (window.I18N?.coin ? window.I18N.coin(n) : 'пузокоинов'); // 1 пузокоин / 2 пузокоина / 5 пузокоинов
+const coinW = n => (window.I18N?.coin ? window.I18N.coin(n) : 'пузокоинов');
 
 const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
 const CDN = 'https://cdn.renah0cki.xyz';
-const LS_SESSION = 'fh_session';            // сессия основного сайта
+const LS_SESSION = 'fh_session';
 const LS_ROOM = 'rp_last_room';
 const MAX_LEN = 1000, MAX_IMG = 4, MAX_BYTES = 5 * 1024 * 1024;
 const ROLE_RANK = { user: 0, goy: 1, vip: 2, mod: 3, admin: 4 };
@@ -18,7 +17,6 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const main = $('#main'), right = $('#right');
 
-/* ── иконки ─────────────────────────────────────────────── */
 const I = {
   back: '<svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
   close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -51,7 +49,6 @@ const I = {
   verify: `<svg class="vip-check" viewBox="0 0 22 22" aria-label="${tl('VIP статус')}"><path fill="#1d9bf0" stroke="none" d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816z"/><path fill="#fff" stroke="none" d="M9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>`,
 };
 
-/* ── утилиты ────────────────────────────────────────────── */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtN = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.0', '') + tl(' млн') : n >= 1e4 ? Math.floor(n / 1e3) + tl(' тыс.') : n > 0 ? String(n) : '';
 const MONTHS = [tl('янв.'), tl('февр.'), tl('мар.'), tl('апр.'), tl('мая'), tl('июн.'), tl('июл.'), tl('авг.'), tl('сент.'), tl('окт.'), tl('нояб.'), tl('дек.')];
@@ -92,7 +89,6 @@ function errText(e) {
   return m.length > 140 ? tl('Ошибка') : m;
 }
 
-/* ── сессия основного сайта ─────────────────────────────── */
 function readSession() { try { return JSON.parse(localStorage.getItem(LS_SESSION)); } catch { return null; } }
 function jwtExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch { return 0; } }
 let refreshing = null;
@@ -108,7 +104,7 @@ async function getToken() {
           method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: s.refreshToken }),
         });
         if (!r.ok) {
-          const f = readSession(); // могла обновить другая вкладка
+          const f = readSession();
           return f?.token && jwtExp(f.token) - Date.now() > 60e3 ? f.token : null;
         }
         const d = await r.json();
@@ -121,7 +117,6 @@ async function getToken() {
   return refreshing;
 }
 
-/* ── REST ───────────────────────────────────────────────── */
 async function api(path, { method = 'GET', body, prefer, schema = 'rp' } = {}) {
   const t = await getToken();
   const h = { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), 'Accept-Profile': schema };
@@ -135,7 +130,6 @@ async function api(path, { method = 'GET', body, prefer, schema = 'rp' } = {}) {
 }
 const rpc = (fn, args = {}) => api('rpc/' + fn, { method: 'POST', body: args });
 
-/* ── Пузокоины: баланс в своём профиле — для всех вошедших ── */
 const OWNER_ID = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const COIN_LOGO = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
 const coinsVisible = () => !!S.uid;
@@ -158,7 +152,6 @@ async function fillUserCoinBalance(root, userId) {
   } catch { $$('[data-admin-coin-wrap]', root).forEach(el => el.remove()); }
 }
 
-/* ── короткие ссылки ────────────────────────────────────── */
 const isUuid = x => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x || '');
 const keyFilter = k => isUuid(k) ? `id=eq.${k}` : `short_code=eq.${encodeURIComponent(k)}`;
 const roomPath = (rm, sub = '') => `#/r/${rm.short_code || rm.id}${sub}`;
@@ -166,13 +159,11 @@ const postPath = pp => `#/p/${pp.short_code || pp.id}`;
 const charPath = c => `#/c/${c.short_code || c.id}`;
 const userPath = u => `#/u/${encodeURIComponent(u.username || u.user_id)}`;
 async function copyLink(hash, msg = tl('Ссылка скопирована')) {
-  // короткая ссылка: #/p/КОД → /y/КОД, #/r/КОД → /y/r/КОД и т.д.
   const h = hash.replace(/^#\//, '');
   const url = `${location.origin}/y/${h.startsWith('p/') ? h.slice(2) : h}`;
   try { await navigator.clipboard.writeText(url); toast(msg); } catch { prompt(tl('Ссылка'), url); }
 }
 
-/* ── блокировка пользователей (общая с сайтом) ── */
 const isBlockedUser = id => !!id && !!S.blocked?.has(id);
 async function loadBlocks() {
   if (!S.uid) return;
@@ -206,17 +197,15 @@ function reportUserDialog(uid, name) {
   });
 }
 
-/* ── состояние ──────────────────────────────────────────── */
 const S = {
-  uid: null, me: null,            // rp.profiles
+  uid: null, me: null,
   room: null, slots: [], slotMap: new Map(),
-  actSlot: null,                  // от чьего имени пишем
-  liked: new Set(), reposted: new Map(), // post_id → id репоста
-  posts: new Map(),               // кэш постов по id
+  actSlot: null,
+  liked: new Set(), reposted: new Map(),
+  posts: new Map(),
   view: null, viewArg: null,
   mySlots: [], userReposted: new Set(), userLiked: new Set(), dmAs: null, mineScope: '',
 };
-// действующая роль: старшая из выданной (rp_role) и купленной (paid_role, пока не истекла)
 const paidActive = p => !!(p?.paid_role && p.paid_until && new Date(p.paid_until).getTime() > Date.now());
 const effRole = p => (paidActive(p) && (ROLE_RANK[p.paid_role] ?? 0) > (ROLE_RANK[p?.rp_role] ?? 0)) ? p.paid_role : (p?.rp_role || 'user');
 const rank = () => ROLE_RANK[effRole(S.me)] ?? 0;
@@ -263,7 +252,6 @@ const P_SEL = `${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),${AU_SEL},parent:repl
   + `quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL}),${AU_SEL}),`
   + `orig:repost_of(${P_FIELDS},slot:slots!slot_id(${SLOT_SEL}),${AU_SEL},parent:reply_to(id,slot:slots!slot_id(handle),author:author_user(username)),quoted:quote_of(id,short_code,body,images,is_deleted,created_at,slot:slots!slot_id(${SLOT_SEL}),${AU_SEL}))`;
 const P_SEL_ROOM = `${P_SEL},room:room_id(id,title,short_code,image_url)`;
-// ответ «от себя» (без персонажа): подставляем имя/аватар пользователя как «слот»
 function normAuthor(x) {
   if (!x) return;
   if (!x.slot && x.author) x.slot = { char_name: yName(x.author) || x.author.username || tl('Пользователь'), handle: x.author.username || '', avatar_url: yAvatar(x.author), user: x.author };
@@ -279,7 +267,6 @@ function cache(p) {
   return p;
 }
 
-/* ── загрузка комнаты ───────────────────────────────────── */
 async function loadRoom(key) {
   if (S.room && (S.room.id === key || S.room.short_code === key)) return S.room;
   const rows = await api(`rooms?${keyFilter(key)}&select=*`);
@@ -308,7 +295,6 @@ async function loadMine() {
   likes.forEach(l => S.liked.add(l.post_id));
   rts.forEach(r => S.reposted.set(r.repost_of, r.id));
 }
-// все мои персонажи во всех комнатах (для главной и профиля)
 async function loadMySlots() {
   if (!S.uid) return;
   S.mySlots = await api(`slots?player_id=eq.${S.uid}&select=id,room_id,char_name,handle,avatar_url,character_id,room:room_id(id,title,short_code,image_url,status)`) || [];
@@ -337,7 +323,6 @@ async function loadMineAll() {
   rts.forEach(x => S.reposted.set(x.repost_of, x.id));
 }
 
-/* ── realtime ───────────────────────────────────────────── */
 let rt = null, chan = null, chanRoom = null;
 function rtClient() {
   if (!rt && window.supabase?.createClient) {
@@ -383,7 +368,7 @@ async function onPostInsert(row) {
   if (!p) return;
   if (p.repost_of && (p.slot_id === actingSlot()?.id || S.mySlots.some(x => x.id === p.slot_id))) { S.reposted.set(p.repost_of, p.id); refreshRtState(p.repost_of); }
   if (box) {
-    if (box.classList.contains('inline-thread') && !box.dataset.loaded) return; // ветка ещё грузится
+    if (box.classList.contains('inline-thread') && !box.dataset.loaded) return;
     box.append(renderReplyNode(p, []));
     const tw = box.closest('.thread-wrap'); if (tw) tw.hidden = false;
   } else if (onHome) {
@@ -435,7 +420,6 @@ function showNewPill() {
   pill.classList.remove('hidden');
 }
 
-/* ── пост: разметка ─────────────────────────────────────── */
 const voiceHtml = u => u && /^https:\/\/cdn\.renah0cki\.xyz\/file\//.test(u) ? `<audio class="voice" src="${esc(u)}" controls preload="none" onclick="event.stopPropagation()"></audio>` : '';
 function mediaHtml(imgs) {
   if (!imgs?.length) return '';
@@ -518,7 +502,7 @@ function renderPost(p, { line = false, showRoom = false, threads = false } = {})
   return el;
 }
 function bigStats(p) {
-  const parts = [], one = (n, en1, key) => (LANG() === 'en' && n === 1 ? en1 : tl(key)); // en: 1 like / 2 likes
+  const parts = [], one = (n, en1, key) => (LANG() === 'en' && n === 1 ? en1 : tl(key));
   if (p.repost_count) parts.push(`<span><b>${p.repost_count}</b> ${one(p.repost_count, 'repost', 'репост.')}</span>`);
   if (p.like_count) parts.push(`<span><b>${p.like_count}</b> ${one(p.like_count, 'like', 'отметок «Нравится»')}</span>`);
   if (p.reply_count) parts.push(`<span><b>${p.reply_count}</b> ${one(p.reply_count, 'reply', 'ответ.')}</span>`);
@@ -538,7 +522,6 @@ function renderBigPost(p) {
   return el;
 }
 
-/* ── клики по постам ────────────────────────────────────── */
 main.addEventListener('click', async e => {
   const zoom = e.target.closest('[data-zoom]');
   if (zoom) { e.stopPropagation(); return lightbox(zoom.src); }
@@ -571,7 +554,6 @@ function needSlot() {
 }
 
 const inRoomCtx = p => !!S.room && S.room.id === p.room_id && (S.view === 'feed' || S.view === 'thread');
-// от какого персонажа действовать с этим постом: в комнате — текущий, вне её — мой персонаж в той комнате
 function slotFor(p) {
   if (inRoomCtx(p)) return canWrite() ? actingSlot() : null;
   return S.mySlots.find(x => x.room_id === p.room_id && x.room?.status !== 'archived') || null;
@@ -580,7 +562,6 @@ async function postAction(act, p, btn) {
   if (act === 'share') return copyLink(postPath(p), tl('Ссылка на пост скопирована'));
   if (act === 'more') return postMenu(p, btn);
   if (act === 'rt') return repostMenu(p, btn);
-  // в ленте кнопка комментария сворачивает/разворачивает ветку (если ответы есть)
   const tw = btn.closest('.post-main')?.querySelector(`:scope > .thread-wrap[data-tw="${p.id}"]`);
   if (act === 'reply' && tw && p.reply_count) {
     if (!tw.hidden) { tw.hidden = true; return; }
@@ -726,10 +707,8 @@ function lightbox(src) {
   document.body.append(lb);
 }
 
-/* ── GIF (ГОЙ и выше; пока только meRockstar) ──────────────── */
-const featDev = () => !!S.uid; // GIF и чтение чужих ЛС открыты всем (по роли)
+const featDev = () => !!S.uid;
 const gifOk = () => featDev() && rank() >= 1;
-// голосовые — ГОЙ и выше (проверка и в базе)
 const voiceOk = () => rank() >= 1 && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
 async function recordVoice(host, onSend) {
   if ($('.vrec', host)) return;
@@ -762,7 +741,7 @@ async function recordVoice(host, onSend) {
   bar.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('[data-vx]')) stop(false); if (e.target.closest('[data-vok]')) stop(true); });
   rec.start();
 }
-const peekOk = () => featDev() && rank() >= 3;   // чужие ЛС читают только модераторы и админы Y
+const peekOk = () => featDev() && rank() >= 3;
 const isGiphy = u => /^https:\/\/media\.giphy\.com\/media\/[A-Za-z0-9]{4,40}\/giphy\.gif$/.test(u || '');
 const isGifUrl = u => isGiphy(u) || /^https:\/\/cdn\.renah0cki\.xyz\/file\/rp\/[0-9a-f-]{36}\/[A-Za-z0-9_.-]+\.gif$/i.test(u || '');
 async function saveGif(url, btn) {
@@ -774,7 +753,6 @@ async function saveGif(url, btn) {
   }
   if (btn) { btn.disabled = true; btn.textContent = tl('В «Мои GIF»'); }
 }
-// окно выбора GIF: поиск GIPHY, «Мои», загрузка своего .gif. onPick(url)
 function gifPicker(onPick) {
   const ov = document.createElement('div');
   ov.className = 'overlay';
@@ -812,7 +790,7 @@ function gifPicker(onPick) {
     try {
       const rows = await api(`saved_gifs?select=url&order=created_at.desc&limit=300`);
       if (my !== seq) return;
-      if (!rows.length && opening) { opening = false; return setTab('search'); } // «Мои» пусто — сразу поиск
+      if (!rows.length && opening) { opening = false; return setTab('search'); }
       opening = false;
       grid.innerHTML = rows.length ? rows.map(x => cell(x.url, x.url, true)).join('')
         : `<div class="empty">${tl('Пока пусто. Откройте GIF в посте или сообщении и нажмите «Сохранить в мои GIF».')}</div>`;
@@ -849,7 +827,6 @@ function gifPicker(onPick) {
   setTab('mine');
 }
 
-/* ── загрузка картинок ──────────────────────────────────── */
 const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 async function shrink(file) {
   const bmp = await createImageBitmap(file);
@@ -876,11 +853,10 @@ async function uploadImage(file) {
   return d.url;
 }
 
-/* ── композер ───────────────────────────────────────────── */
 function composerEl({ replyTo = null, quoteOf = null, autofocus = false, onDone, slot: fixedSlot = null, asUser = false } = {}) {
   const box = document.createElement('div');
   box.className = 'composer';
-  const imgs = []; // {url|null, preview, loading}
+  const imgs = [];
   const slotSel = false
     ? `<select class="as-select" aria-label="${tl('От имени')}">${S.slots.map(s => `<option value="${s.id}"${s.id === actingSlot()?.id ? ' selected' : ''}>${esc(s.char_name)} @${esc(s.handle)}${s.player_id && s.player_id !== S.uid ? tl(' (игрок)') : ''}</option>`).join('')}</select>`
     : '';
@@ -1013,7 +989,6 @@ function openComposer(opts = {}) {
 $('#sidePost').onclick = () => openComposer();
 $('#fab').onclick = () => openComposer();
 
-/* ── виды ───────────────────────────────────────────────── */
 function head(title, { back = false, sub = '', extra = '' } = {}) {
   return `<div class="head"><div class="head-row">
     ${back ? `<button class="icon-btn" data-back aria-label="${tl('Назад')}">${I.back}</button>` : ''}
@@ -1027,7 +1002,6 @@ function errorView(msg) {
 }
 function updateNav() {
   $('#navChars').href = '#/chars'; $('#bottomChars').href = '#/chars';
-  // кто может читать чужие ЛС — всегда в общий список «Сообщения» (ЛС комнаты — через иконку в шапке комнаты)
   const dmHref = S.room && !peekOk() ? roomPath(S.room, '/dm') : '#/dm';
   $('#navDm').href = dmHref; $('#bottomDm').href = dmHref;
   const meHref = S.me ? userPath(S.me) : '/';
@@ -1061,7 +1035,6 @@ function renderMe() {
     : `${avatar(userAv(S.me))}<div class="me-text"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(yName(S.me))}${isVip(S.me) ? vipBadge() : ''}</div><div style="color:var(--muted);font-size:14px">${S.me?.username ? '@' + esc(S.me.username) : ''}</div></div>`;
 }
 
-/* главная: лента комнаты */
 async function viewFeed(roomKey) {
   S.view = 'feed'; main.innerHTML = head(tl('Комната')) + loader(); updateNav();
   try { await loadRoom(roomKey); await ensureRoomMine(); } catch (e) { return errorView(errText(e)); }
@@ -1095,7 +1068,6 @@ async function loadFeedPage(before) {
   if (btn) btn.onclick = () => { btn.disabled = true; loadFeedPage(rows[rows.length - 1].created_at); };
 }
 
-/* тред */
 async function viewThread(postKey) {
   S.view = 'thread'; main.innerHTML = head(tl('Пост'), { back: true }) + loader(); updateNav();
   let p;
@@ -1104,7 +1076,6 @@ async function viewThread(postKey) {
   if (p.repost_of && p.orig) { location.replace(postPath(p.orig)); return; }
   try { await loadRoom(p.room_id); await ensureRoomMine(); } catch (e) { return errorView(errText(e)); }
   cache(p); updateNav(); renderRight();
-  // предки
   const chain = []; let cur = p;
   for (let i = 0; i < 12 && cur.reply_to; i++) {
     const par = S.posts.get(cur.reply_to)?.slot ? S.posts.get(cur.reply_to) : cache((await api(`posts?id=eq.${cur.reply_to}&select=${P_SEL}`))[0]);
@@ -1123,8 +1094,6 @@ async function viewThread(postKey) {
   main.append(box);
   scrollTo({ top: chain.length ? $('.post-big', main).offsetTop - 60 : 0 });
 }
-// ответы деревом (до 8 уровней)
-// вся ветка любой глубины для нескольких постов — одним запросом
 async function loadReplyTrees(ids) {
   const children = new Map();
   if (!ids.length) return children;
@@ -1133,7 +1102,6 @@ async function loadReplyTrees(ids) {
   return children;
 }
 const loadReplyTree = rootId => loadReplyTrees([rootId]);
-// заранее (в фоне) подгружаем ветки всех постов ленты — по нажатию они открываются сразу
 async function prefetchThreads(rows) {
   const ids = rows.filter(x => x.reply_count > 0 && !x.is_deleted).map(x => x.id)
     .filter(id => $$(`.inline-thread[data-inline="${id}"]`).some(b => !b.dataset.loaded));
@@ -1145,7 +1113,6 @@ async function prefetchThreads(rows) {
     box.dataset.loaded = '1';
   }));
 }
-// ветки ответов сразу для всех постов страницы (несколько запросов на всю ленту)
 async function fillThreads(rows) {
   const ids = rows.map(x => x.orig || x).filter(x => x.reply_count > 0 && !x.is_deleted).map(x => x.id);
   if (!ids.length) return;
@@ -1164,7 +1131,6 @@ async function fillThreads(rows) {
     box.dataset.loaded = '1';
   }));
 }
-// раскрыть/скрыть ветку ответов прямо в ленте
 async function toggleThread(p, btn) {
   const box = btn.closest('.post-main')?.querySelector(`.inline-thread[data-inline="${p.id}"]`); if (!box) return;
   if (box.dataset.loaded && !box.hidden) { box.hidden = true; btn.dataset.open = ''; btn.innerHTML = threadLabel(p); return; }
@@ -1192,7 +1158,6 @@ function renderReplyNode(p, children) {
   return node;
 }
 
-/* ── обрезка картинок (аватар 1:1, шапка 3:1) ───────────── */
 function cropImage(file, { aspect = 1, outW = 400, round = true, title = tl('аватар') } = {}) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -1267,7 +1232,6 @@ function cropImage(file, { aspect = 1, outW = 400, round = true, title = tl('а�
   });
 }
 
-/* ── @ник из имени ──────────────────────────────────────── */
 const TR = { а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya' };
 function toHandle(name) {
   return [...name.toLowerCase()].map(c => TR[c] ?? c).join('').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
@@ -1278,7 +1242,6 @@ function autoHandle(nameInp, handleInp) {
   handleInp.addEventListener('input', () => { handleInp.dataset.auto = handleInp.value ? '' : '1'; });
 }
 
-/* ── модалка-форма ──────────────────────────────────────── */
 function modal(title, html, { onSubmit, submitLabel = tl('Сохранить') } = {}) {
   const ov = document.createElement('div');
   ov.className = 'overlay';
@@ -1298,7 +1261,6 @@ function modal(title, html, { onSubmit, submitLabel = tl('Сохранить') }
   return form;
 }
 
-/* ── редактор персонажа (библиотека) ────────────────────── */
 const canEditChar = c => !!S.uid && (c.owner_id === S.uid || isStaff());
 function characterEditor(c, onSaved) {
   const canBanner = rank() >= 2;
@@ -1361,7 +1323,6 @@ function characterEditor(c, onSaved) {
   };
 }
 
-/* ── вкладка «Персонажи»: библиотека ───────────────────── */
 let libQ = '';
 function charRow(c, extra = '') {
   const n = c.slots ? new Set(c.slots.map(s => s.room_id)).size : null;
@@ -1391,7 +1352,6 @@ async function loadLibrary() {
     : `<div class="empty"><h2>${libQ ? tl('Ничего не найдено') : tl('Персонажей пока нет')}</h2><p>${libQ ? tl('Попробуйте другой запрос.') : tl('Создайте первого — потом его можно добавить в комнаты.')}</p>${!libQ && S.uid && rank() >= 1 ? `<button class="btn blue" data-new-char style="margin-top:16px">${I.plus} ${tl('Создать персонажа')}</button>` : ''}</div>`;
 }
 
-/* ── страница персонажа ─────────────────────────────────── */
 async function viewCharacter(key) {
   S.view = 'char'; updateNav(); renderRight();
   main.innerHTML = head(tl('Персонаж'), { back: true }) + loader();
@@ -1423,7 +1383,6 @@ async function viewCharacter(key) {
   if (ed) ed.onclick = () => characterEditor(c, () => viewCharacter(key));
 }
 
-/* ── выбор персонажей из библиотеки ─────────────────────── */
 function charPicker({ exclude = [] } = {}) {
   const box = document.createElement('div');
   box.className = 'picker';
@@ -1458,7 +1417,6 @@ function charPicker({ exclude = [] } = {}) {
   return box;
 }
 
-/* ── персонажи комнаты (слоты) ──────────────────────────── */
 async function viewChars(roomId) {
   S.view = 'chars'; main.innerHTML = head(tl('Персонажи комнаты'), { back: true }) + loader(); updateNav();
   try { await loadRoom(roomId); await loadSlots(); } catch (e) { return errorView(errText(e)); }
@@ -1500,7 +1458,6 @@ function addToRoom() {
   });
   $('[data-picker]', form).replaceWith(picker);
 }
-// выход из роли из шапки ленты комнаты
 main.addEventListener('click', async e => {
   const b = e.target.closest('[data-leave-room]'); if (!b || !S.room) return;
   const s = mySlot(); if (!s) return;
@@ -1625,7 +1582,6 @@ function roomSettings() {
   };
 }
 
-/* каталог комнат */
 let roomsQ = '';
 async function viewRooms() {
   S.view = 'rooms'; updateNav();
@@ -1654,7 +1610,6 @@ async function loadRooms() {
   }).join('');
 }
 
-/* создание комнаты */
 function viewCreate() {
   S.view = 'create'; updateNav();
   if (!S.uid) { main.innerHTML = head(tl('Новая комната'), { back: true }) + `<div class="empty"><h2>${tl('Нужно войти')}</h2><p>${tl('Войдите на renah0cki, чтобы создать комнату.')}</p><a class="btn blue" href="/" style="margin-top:16px">${tl('Войти')}</a></div>`; return; }
@@ -1693,7 +1648,6 @@ function viewCreate() {
   };
 }
 
-/* ── главная: последние посты из всех комнат ────────────── */
 let homeTab = 'all', homeRooms = null;
 try { if (localStorage.getItem('rp_home_tab') === 'mine') homeTab = 'mine'; } catch {}
 async function viewHome() {
@@ -1712,7 +1666,6 @@ async function viewHome() {
     $('#homeList').innerHTML = loader(); $('#homeMore').innerHTML = '';
     loadHomePage();
   });
-  // сразу показываем прошлую ленту из кэша, свежую подгружаем параллельно с лайками
   const cached = readHomeCache();
   if (cached) { const list = $('#homeList'); list.innerHTML = ''; cached.forEach(p => { cache(p); list.append(renderPost(p, { showRoom: true, threads: true })); }); }
   await Promise.all([loadMineAll().catch(() => {}), loadHomePage()]);
@@ -1723,7 +1676,6 @@ async function viewHome() {
 const HOME_CACHE = () => `rp_home_cache_${homeTab}`;
 function readHomeCache() { try { const c = (JSON.parse(localStorage.getItem(HOME_CACHE()) || 'null') || []).filter(x => !x.repost_of && !x.reply_to); return c.length ? c : null; } catch { return null; } }
 function writeHomeCache(rows) { try { localStorage.setItem(HOME_CACHE(), JSON.stringify(rows.slice(0, 30))); } catch {} }
-// после подгрузки лайков/репостов — обновить подсветку кнопок на уже нарисованных постах
 function refreshActionStates() {
   $$('[data-cnt]').forEach(box => {
     const id = box.dataset.cnt;
@@ -1731,7 +1683,6 @@ function refreshActionStates() {
     $('.act.rt', box)?.classList.toggle('on', S.reposted.has(id) || S.userReposted.has(id));
   });
 }
-// комнаты, где я играю или которые мои
 async function myRoomIds() {
   if (!S.uid) return [];
   const own = await api(`rooms?owner_id=eq.${S.uid}&select=id`).catch(() => []);
@@ -1760,12 +1711,10 @@ async function loadHomePage(before) {
   if (btn) btn.onclick = () => { btn.disabled = true; loadHomePage(rows[rows.length - 1].created_at); };
 }
 
-/* ── страница пользователя (профиль Y, отдельный от renah0cki) ── */
 const MONTHS_FULL = [tl('январь'), tl('февраль'), tl('март'), tl('апрель'), tl('май'), tl('июнь'), tl('июль'), tl('август'), tl('сентябрь'), tl('октябрь'), tl('ноябрь'), tl('декабрь')];
 const MONTHS_GEN = [tl('января'), tl('февраля'), tl('марта'), tl('апреля'), tl('мая'), tl('июня'), tl('июля'), tl('августа'), tl('сентября'), tl('октября'), tl('ноября'), tl('декабря')];
 const safeColor = c => /^#[0-9a-f]{3,8}$/i.test(c || '') ? c : '';
 const safeGrad = c => /^linear-gradient\([#0-9a-zA-Z,.%\s()-]{1,200}\)$/.test(c || '') ? c : '';
-// имя/аватар в Y: свои, если заданы, иначе с renah0cki
 const yName = u => u?.y_name || u?.nick || '';
 const yAvatar = u => u?.y_avatar_url || u?.avatar_url || null;
 const userAv = u => ({ char_name: yName(u), handle: u?.username || yName(u), avatar_url: yAvatar(u) });
@@ -1788,7 +1737,6 @@ async function viewUser(key) {
   main.innerHTML = head(tl('Профиль'), { back: true }) + loader();
   let u, reposts, roles, followers, following;
   try {
-    // свой профиль — всегда по id (не зависит от ника)
     if (!isUuid(key) && S.uid && S.me?.username && S.me.username.toLowerCase() === String(key).toLowerCase()) key = S.uid;
     [u] = await api(`profiles?${isUuid(key) ? `user_id=eq.${key}` : `username=ilike.${encodeURIComponent(key.replace(/[%*]/g, '').replace(/[\\_]/g, '\\$&'))}`}&select=${U_SEL}`);
     if (!u && !isUuid(key)) [u] = await api(`profiles?username=eq.${encodeURIComponent(key)}&select=${U_SEL}`);
@@ -1871,7 +1819,6 @@ async function viewUser(key) {
   drawRt();
 }
 
-/* ── редактирование профиля Y (как в X; на renah0cki не влияет) ── */
 function profileEditor(u, onSaved) {
   const canAvatar = rank() >= 1, canBanner = rank() >= 2;
   const form = modal(tl('Изменить профиль'), `
@@ -1927,7 +1874,6 @@ function profileEditor(u, onSaved) {
   });
 }
 
-/* ── уведомления ────────────────────────────────────────── */
 let unread = 0;
 function setBadge(n) {
   unread = Math.max(0, n);
@@ -1985,8 +1931,6 @@ function onNotifInsert() {
   setBadge(unread + 1);
 }
 
-/* ── настройки ──────────────────────────────────────────── */
-/* ── связь с модераторами (техподдержка renah0cki) ───────── */
 const sup = { thread: null, msgs: [], timer: null };
 async function viewSupport() {
   S.view = 'support'; updateNav(); renderRight();
@@ -2034,8 +1978,6 @@ async function loadSupport(jump = false) {
   if (jump || nearBottom) setTimeout(() => scrollTo({ top: document.body.scrollHeight }), 0);
 }
 
-/* ── правила и пользовательское соглашение ───────────────── */
-/* правила Y — отдельные тексты на трёх языках (ru — основной) */
 const RULES_TXT = {
   ru: () => `
     <p class="rules-lead">Y (переписки) — ролевая игра на renah0cki: пользователи пишут посты, ответы и сообщения от лица персонажей. В Y бывают нецензурная лексика, грубый юмор и ролевые конфликты. Здесь действуют эти правила и <a href="/rules" target="_blank" rel="noopener">общие правила renah0cki</a>. Пользуясь Y, вы соглашаетесь с ними.</p>
@@ -2255,8 +2197,6 @@ function viewSettings() {
   });
 }
 
-/* ── вид переписок: как в X или как в Telegram; фон чата — с роли ГОЙ ── */
-// узорные фоны: тёмная основа + рисунок из символов, окрашенный градиентом (как в Telegram)
 const DOODLES = {
   space: ['★', '✦', '☾', '✧', '✶', '☄', '⊙', '✷', '✺'],
   math: ['π', '∑', '√', '∞', '∫', 'x²', '≠', '÷', 'Δ', 'θ', '%', '∂', 'λ'],
@@ -2277,7 +2217,6 @@ function doodleSvg(kind) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${W}" font-family="Segoe UI Symbol,Apple Symbols,Noto Sans Symbols 2,DejaVu Sans,sans-serif" fill="#000">${out}</svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
-// [id, название, фон (css) | узор, градиент рисунка]
 const CHAT_WALLS = [
   ['none', tl('Без фона'), ''],
   ['d-space', tl('Космос'), { d: 'space', base: '#0b0b16', grad: 'linear-gradient(160deg,#6a5cff,#2ad4ff 60%,#8c52ff)' }],
@@ -2292,7 +2231,6 @@ const CHAT_WALLS = [
   ['sunset', tl('Закат'), 'linear-gradient(160deg,#ff9a8b,#ff6a88 45%,#ff99ac)'],
   ['lilac', tl('Сирень'), 'linear-gradient(160deg,#c3a6ff,#8ec5fc)'],
 ];
-// превью в настройках — та же картинка, что и в чате
 const wallPreview = w => !w ? '' : typeof w === 'string' ? `background:${w}` : `background:${w.base}; --pv-grad:${w.grad}; --pv-mask:${doodleSvg(w.d)}`;
 const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
@@ -2355,8 +2293,7 @@ function bindChatLook(root) {
   if (ts) ts.onclick = e => { e.preventDefault(); $('.shop-grid', root)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
 }
 
-/* ── подписка Y за пузокоины (пока только meRockstar) ── */
-const shopVisible = () => !!S.uid; // подписки ГОЙ/VIP — всем вошедшим
+const shopVisible = () => !!S.uid;
 const SHOP_ROLES = [
   { id: 'goy', price: 67, perks: [tl('Создавать своих персонажей'), tl('Своя аватарка в Y'), tl('Свой фон чата в переписках'), tl('GIF в постах и сообщениях: поиск, свои .gif и «Мои GIF»'), tl('Звонки 1 на 1 в личных сообщениях')] },
   { id: 'vip', price: 141, perks: [tl('Всё, что даёт ГОЙ'), tl('Синяя галочка VIP ✓ у имени и персонажей (как в X)'), tl('Свой баннер (шапка) в профиле Y и у персонажей')] },
@@ -2395,7 +2332,6 @@ function bindShop(root) {
   });
 }
 
-/* ── тема ───────────────────────────────────────────────── */
 const curTheme = () => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 const themeLabel = () => curTheme() === 'light' ? tl('Тёмная тема') : tl('Светлая тема');
 function setTheme(t) {
@@ -2407,12 +2343,10 @@ function setTheme(t) {
 document.addEventListener('click', e => { if (e.target.closest('[data-theme-toggle]')) setTheme(curTheme() === 'light' ? 'dark' : 'light'); });
 $$('[data-theme-label]').forEach(el => { el.textContent = themeLabel(); });
 
-/* ── ЛС ─────────────────────────────────────────────────── */
-// от кого писать: свой слот; владелец/staff — ещё и свободные (NPC) слоты
 function dmOptions() { if (!S.room || !S.uid) return []; return S.slots.filter(x => x.player_id === S.uid); }
 function dmSlot() { return dmOptions()[0] || null; }
 function dmAsSelect() {
-  return ''; // писать в ЛС можно только за своего персонажа
+  return '';
   const o = dmOptions(); if (o.length < 2) return '';
   return `<select class="as-select" data-dm-as aria-label="${tl('Писать от имени')}">${o.map(x => `<option value="${x.id}"${x.id === dmSlot()?.id ? ' selected' : ''}>${esc(x.char_name)}${x.player_id ? '' : ' (NPC)'}</option>`).join('')}</select>`;
 }
@@ -2446,14 +2380,11 @@ async function viewDmHub() {
     + (peek ? `<div id="peekAll">${loader()}</div>` : '');
   if (peek) fillPeekAll(new Set(S.mySlots.map(x => x.id)));
 }
-// чужие переписки из всех комнат, которые видны по роли — без захода в комнату
 async function fillPeekAll(mySlotIds) {
-  // сначала — прошлый список из памяти (мгновенно), потом свежий
   const ck = 'rp_peek_' + (S.uid || '');
   try { const c = JSON.parse(localStorage.getItem(ck) || 'null'); if (c) drawPeekAll(c); } catch {}
   let pairs;
   try {
-    // быстрый путь: база сама собирает по одной строке на переписку
     const r = await rpc('dm_pairs');
     pairs = r.map(x => ({ room: x.room_id, a: x.a, b: x.b, at: x.created_at, n: +x.cnt, m: { body: x.body, voice_url: x.has_voice ? 1 : null, images: x.n_imgs ? [1] : [] } }));
   } catch {
@@ -2502,7 +2433,6 @@ async function viewDmList(roomKey) {
   if (S.view !== 'dms') return;
   const last = new Map();
   rows.forEach(m => { const peer = m.from_slot === me.id ? m.to_slot : m.from_slot; if (!last.has(peer)) last.set(peer, m); });
-  // сначала те, с кем есть переписка (по свежести), потом все остальные персонажи комнаты
   const withMsgs = [...last.entries()].filter(([pid]) => S.slotMap.has(pid));
   const rest = S.slots.filter(x => x.id !== me.id && !last.has(x.id)).map(x => [x.id, null]);
   const items = [...withMsgs, ...rest];
@@ -2516,7 +2446,6 @@ async function viewDmList(roomKey) {
     + (peekOk() ? '<div id="peekList"></div>' : '');
   if (peekOk()) fillPeekList(me.id);
 }
-// переписки других персонажей, которые видны по роли (выше обоих участников)
 async function fillPeekList(myId) {
   const box = $('#peekList'); if (!box) return;
   let rows;
@@ -2539,7 +2468,6 @@ async function fillPeekList(myId) {
       <div class="dm-last">${esc(txt)} <span class="dm-none">· ${n} ${plural(n, tl('сообщение'), tl('сообщения'), tl('сообщений'))}</span></div></div></a>`;
   }).join('');
 }
-// чтение чужой переписки (только просмотр)
 async function viewDmPeek(roomKey, aId, bId) {
   S.view = 'dmpeek'; document.body.classList.add('chat-mode');
   main.innerHTML = head(tl('Переписка'), { back: true }) + loader(); updateNav();
@@ -2609,7 +2537,6 @@ async function viewDmChat(roomKey, peerId) {
   markDmRead();
   callDraw();
 }
-// текст записи о звонке в ЛС (short — для списка переписок)
 function callEventText(m, short = false) {
   const e = m.call_event || {};
   const dur = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
@@ -2703,7 +2630,6 @@ function addChatMsg(m) {
   chat.ids.add(m.id); chat.msgs.push(m); drawChat();
   if (m.from_slot === chat.peer) markDmRead();
 }
-// собеседник прочитал: открыт свой чат и вкладка видна
 let readT;
 function markDmRead() {
   clearTimeout(readT);
@@ -2724,7 +2650,6 @@ function onDmInsert(row) {
   else if (S.view === 'dms') { clearTimeout(dmListT); dmListT = setTimeout(() => { if (S.view === 'dms') viewDmList(S.room.short_code || S.room.id); }, 300); }
 }
 
-/* правая колонка */
 function renderRight() {
   if (!matchMedia('(min-width: 1024px)').matches) { right.innerHTML = ''; return; }
   if (!S.room || ['home', 'rooms', 'create', 'lib', 'char', 'user', 'dmhub', 'settings', 'notifs', 'rules', 'support', 'voice', 'calls', 'callinvite'].includes(S.view)) {
@@ -2745,20 +2670,16 @@ function renderRight() {
 }
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderRight, 200); });
 
-/* ── голосовые звонки (WebRTC, до 10 человек) ───────────────
-   Звук идёт только через наш TURN-сервер (relay): собеседники не видят IP друг друга.
-   Главный админ может войти в любой звонок, но всегда ВИДИМО (is_admin в rp.call_members).
-   Звонки не записываются. Права, лимит 10 и согласие проверяет база (060_rp_calls.sql). */
 I.phone = '<svg viewBox="0 0 24 24"><path d="M5.2 3.5h3.1l1.6 4.2-2.1 1.5a11.5 11.5 0 0 0 7 7l1.5-2.1 4.2 1.6v3.1a1.9 1.9 0 0 1-2 1.9C10.3 20.2 3.8 13.7 3.3 5.5a1.9 1.9 0 0 1 1.9-2z"/></svg>';
 I.hang = '<svg viewBox="0 0 24 24"><path d="M3 14.2c5-4.6 13-4.6 18 0l-1.8 2.9-3.7-1.2-.5-2.7a10.4 10.4 0 0 0-6 0l-.5 2.7-3.7 1.2z"/></svg>';
 I.micOff = '<svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/></svg>';
 I.shield = '<svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/></svg>';
 
 const CALL_VER = 3, CALL_MAX = 10;
-const callsOk = () => !!S.uid && !!S.callsOk;            // все вошедшие (rp.calls_dev_allowed)
-const callGoy = () => !!S.callGoy;                       // ГОЙ+ / тестер / владелец (rp.call_goy)
+const callsOk = () => !!S.uid && !!S.callsOk;
+const callGoy = () => !!S.callGoy;
 const callLink = (id, code) => code ? `${location.origin}/y/v/${code}` : `${location.origin}/rp/#/call/${id}`;
-const glMod = () => !!S.isGlMod;                         // главный модер / админ сайта / владелец (rp.is_gl_mod)
+const glMod = () => !!S.isGlMod;
 const callMaxOf = () => CALL.info?.max || CALL_MAX;
 const mainAdmin = () => !!S.uid && S.uid === OWNER_ID;
 const CALL = { id: null, info: null, stream: null, pcs: new Map(), audios: new Map(), members: [], muted: false,
@@ -2833,7 +2754,6 @@ async function callIceConfig() {
   return { iceServers: [] };
 }
 
-/* изменение голоса: у каждого участника голос случайно выше или ниже (делается у себя в браузере до отправки) */
 const VOICE_WORKLET = `class RnPitch extends AudioWorkletProcessor {
   constructor(o) { super(); this.r = o.processorOptions.ratio; this.W = Math.floor(sampleRate * 0.05); this.N = this.W * 2 + 8;
     this.buf = new Float32Array(this.N); this.w = 0; this.ph = 0; }
@@ -2854,7 +2774,7 @@ const VOICE_WORKLET = `class RnPitch extends AudioWorkletProcessor {
 registerProcessor('rn-pitch', RnPitch);`;
 const voiceFxOn = () => { try { return localStorage.getItem('rp_voice_fx') !== '0'; } catch { return true; } };
 function callPickVoice() {
-  const up = Math.random() < 0.7;   // чаще выше; сдвиг небольшой
+  const up = Math.random() < 0.7;
   return up ? { up, ratio: 1.08 + Math.random() * 0.07 } : { up, ratio: 0.91 + Math.random() * 0.04 };
 }
 async function callVoiceChain(mic) {
@@ -2869,7 +2789,7 @@ async function callVoiceChain(mic) {
     const src = ctx.createMediaStreamSource(mic);
     const node = new AudioWorkletNode(ctx, 'rn-pitch', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { ratio: v.ratio } });
     const dst = ctx.createMediaStreamDestination();
-    const gain = ctx.createGain(); gain.gain.value = 1.3;   // обработка чуть приглушает — возвращаем громкость
+    const gain = ctx.createGain(); gain.gain.value = 1.3;
     src.connect(node).connect(gain).connect(dst);
     if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
     return { ...v, ctx, out: dst.stream, ok: true };
@@ -2879,7 +2799,6 @@ async function callVoiceChain(mic) {
   }
 }
 
-// микрофон не дали: в Telegram — предложить открыть эту же страницу в обычном браузере
 function callMicError(e) {
   const n = e?.name || '';
   if (TG.initData) {
@@ -2959,7 +2878,7 @@ async function callRefresh() {
   try { rows = await api(base + ',prof:profiles!call_members_profile_fk(nick,y_name,avatar_url,y_avatar_url,username)'); }
   catch { try { rows = await api(base); } catch { return; } }
   if (CALL.id !== id) return;
-  if (!rows.some(r => r.user_id === S.uid) && !CALL.kickChecking) {   // меня нет в звонке — может, выгнали
+  if (!rows.some(r => r.user_id === S.uid) && !CALL.kickChecking) {
     CALL.kickChecking = true;
     const kicked = await rpc('call_kicked', { p_call: id }).catch(() => false);
     CALL.kickChecking = false;
@@ -2970,7 +2889,6 @@ async function callRefresh() {
   for (const uid of [...CALL.pcs.keys()]) if (!live.some(m => m.user_id === uid)) callDropPeer(uid);
   const me = live.find(m => m.user_id === S.uid);
   if (me) for (const m of callOthers()) {
-    // соединение начинает тот, кто вошёл позже
     const later = new Date(me.joined_at) > new Date(m.joined_at) || (me.joined_at === m.joined_at && S.uid > m.user_id);
     if (later && !CALL.pcs.has(m.user_id)) callOffer(m.user_id).catch(e => console.warn('offer', e));
   }
@@ -3023,7 +2941,7 @@ async function onCallSignal(s) {
   if (!CALL.id || s.call_id !== CALL.id || CALL.seen.has(s.id)) return;
   CALL.seen.add(s.id); CALL.lastSig = Math.max(CALL.lastSig, s.id);
   if (!CALL.members.some(m => m.user_id === s.from_user)) await callRefresh();
-  if (!CALL.members.some(m => m.user_id === s.from_user)) return;   // не участник — игнор
+  if (!CALL.members.some(m => m.user_id === s.from_user)) return;
   try {
     if (s.kind === 'offer') {
       if (CALL.pcs.get(s.from_user)?.signalingState === 'have-local-offer') callDropPeer(s.from_user);
@@ -3043,7 +2961,6 @@ function callDropPeer(uid) {
   const a = CALL.audios.get(uid); if (a) { a.srcObject = null; a.remove(); CALL.audios.delete(uid); }
   callUnwatchLevel(uid);
 }
-// подстраховка, если realtime что-то пропустил
 async function callTick() {
   if (!CALL.id) return;
   const pending = callOthers().some(m => CALL.pcs.get(m.user_id)?.connectionState !== 'connected');
@@ -3093,8 +3010,6 @@ function callToggleMute() {
   callDraw();
 }
 
-/* панель текущего звонка */
-// кто говорит: громкость каждого голоса (свой — с микрофона, чужие — из пришедшего звука)
 function callWatchLevel(uid, stream) {
   if (!stream || CALL.levels.has(uid)) return;
   try {
@@ -3134,7 +3049,6 @@ function callInlineHost() {
   if (![chat.me, chat.peer].every(x => x === i.slot_a || x === i.slot_b)) return null;
   return $('.chat-head', main);
 }
-// «дом» звонка: страница войсов / приглашения, лента его комнаты; в остальных местах окно маленькое
 function callAtHome() {
   const i = CALL.info, h = location.hash; if (!i) return false;
   if (h.startsWith('#/call/' + i.id) || (i.code && h === '#/v/' + i.code)) return true;
@@ -3146,7 +3060,6 @@ addEventListener('hashchange', () => setTimeout(() => { if (CALL.id) CALL.min = 
 addEventListener('resize', () => { const b = $('#callBar'); if (b) callApplyPos(b); });
 const callMinKey = 'rp_call_min';
 const callIsMin = () => { try { return localStorage.getItem(callMinKey) === '1'; } catch { return false; } };
-// выгонять: владелец и главные модеры — в звонках комнат и войсах, создатель войса — в своём войсе (SQL 078)
 const callCanKick = () => !!CALL.info && CALL.info.kind !== 'dm'
   && (mainAdmin() || glMod() || (CALL.info.kind === 'voice' && CALL.info.owner === S.uid));
 function callReportDialog() {
@@ -3196,7 +3109,6 @@ function callDraw() {
   let bar = $('#callBar');
   if (!CALL.id) { bar?.remove(); document.body.classList.remove('in-call'); return; }
   if (!bar) { bar = document.createElement('div'); bar.id = 'callBar'; bar.className = 'call-bar'; bindCallBar(bar); }
-  // звонок в ЛС, открыта эта переписка — панель внутри окна диалога (в липкой шапке чата)
   const host = callInlineHost();
   if (host) { if (bar.parentElement !== host) host.append(bar); }
   else if (bar.parentElement !== document.body) document.body.append(bar);
@@ -3238,7 +3150,6 @@ function callDraw() {
   callLevelTick();
   callApplyPos(bar);
 }
-// перетаскивание окна звонка (мышью и пальцем); позиция запоминается на этом устройстве
 const callPosKey = 'rp_call_pos';
 function callApplyPos(bar) {
   if (bar.classList.contains('inline')) { bar.style.left = bar.style.top = bar.style.right = bar.style.bottom = ''; return; }
@@ -3270,7 +3181,6 @@ function bindCallDrag(bar) {
     };
     bar.addEventListener('pointermove', move); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
   });
-  // двойной клик по шапке — вернуть окно на место
   bar.addEventListener('dblclick', e => {
     if (!e.target.closest('.cb-head, .cb-mini') || e.target.closest('button, a, select, input')) return;
     try { localStorage.removeItem(callPosKey); } catch {}
@@ -3306,7 +3216,6 @@ function bindCallBar(bar) {
   });
 }
 
-/* звонок комнаты: плашка под шапкой и кнопка в шапке */
 async function callRoomPill() {
   const box = $('#callPill'); if (!box || !S.room || !callsOk()) return;
   const r = S.room;
@@ -3364,7 +3273,6 @@ document.addEventListener('click', async e => {
   }
 });
 
-/* входящий звонок в ЛС */
 let callRingEl = null, callRingPoll = null, callRingTone = null;
 async function onCallInsert(row) {
   if (!callsOk() || row.kind !== 'dm' || row.created_by === S.uid || row.ended_at) return;
@@ -3405,14 +3313,12 @@ function callShowRing(row, from) {
   }, 3000);
 }
 
-/* приглашение по ссылке: #/call/<id> */
 async function viewCallInvite(id) {
   S.view = 'callinvite'; updateNav(); renderRight();
   const shell = inner => head(tl('Приглашение в звонок'), { back: true }) + `<div class="call-invite">${inner}</div>`;
   if (!S.uid) { main.innerHTML = shell(`<div class="ci-ic">${I.phone}</div><h2>${tl('Вас зовут в звонок')}</h2><p>${tl('Войдите в аккаунт renah0cki, чтобы присоединиться.')}</p><a class="btn blue" href="/">${tl('Войти')}</a>`); return; }
   main.innerHTML = shell(loader());
   let c;
-  // короткий код → id звонка
   if (!/^[0-9a-f-]{36}$/i.test(id)) { try { id = await rpc('call_by_code', { p_code: id }); } catch { id = null; } }
   if (!id) { main.innerHTML = shell(`<div class="ci-ic off">${I.phone}</div><h2>${tl('Звонок не найден')}</h2><p>${tl('Ссылка неверная или звонок давно закончился.')}</p><a class="btn ghost" href="#/">${tl('На главную Y')}</a>`); return; }
   try { c = await rpc('call_peek', { p_call: id }); } catch (e) { main.innerHTML = shell(`<h2>${tl('Не получилось')}</h2><p>${esc(errText(e))}</p>`); return; }
@@ -3428,7 +3334,6 @@ async function viewCallInvite(id) {
     <p class="ci-note">${tl('Звонки не записываются. Перед первым звонком нужно принять правила.')}</p>`);
 }
 
-/* голосовые каналы (войсы): видят все вошедшие, создают главные модеры */
 async function viewVoice() {
   S.view = 'voice'; updateNav(); renderRight();
   const H = head(tl('Голосовые каналы'), { back: true, sub: tl('Заходите своим аккаунтом, без персонажа') });
@@ -3480,7 +3385,6 @@ async function viewVoice() {
   });
 }
 
-/* главный админ: все идущие звонки */
 async function viewCallsAdmin() {
   S.view = 'calls'; updateNav(); renderRight();
   if (!mainAdmin() && !glMod()) { main.innerHTML = head(tl('Звонки'), { back: true }) + `<div class="empty"><h2>${tl('Нет доступа')}</h2></div>`; return; }
@@ -3501,7 +3405,6 @@ async function viewCallsAdmin() {
     + `<div class="call-adm">${items || `<div class="empty"><h2>${tl('Сейчас звонков нет')}</h2></div>`}</div>`;
 }
 
-/* ── роутер ─────────────────────────────────────────────── */
 function route() {
   closeMenu();
   $$('.overlay, .lightbox').forEach(o => o.remove()); document.body.style.overflow = '';
@@ -3539,7 +3442,6 @@ document.addEventListener('click', e => {
   if (c) { e.preventDefault(); copyLink(c.dataset.copy); }
 });
 
-/* ── потянуть вниз — обновить (как в X) ─────────────────── */
 (function pullToRefresh() {
   if (!('ontouchstart' in window)) return;
   const ind = document.createElement('div');
@@ -3563,15 +3465,12 @@ document.addEventListener('click', e => {
     if (y0 === null) return;
     y0 = null;
     if (dist < TRIGGER) { reset(); return; }
-    busy = true; reset(); // одна крутилка — у самой страницы
+    busy = true; reset();
     try { await route(); } catch {}
     busy = false;
   });
 })();
 
-/* ── Telegram Mini App ──────────────────────────────────── */
-// Telegram открывает страницу с #tgWebAppData=... — по этим подписанным данным
-// сервер узнаёт привязанный в боте аккаунт renah0cki и выдаёт сессию.
 const TG = { initData: null, status: '' };
 (function detectTelegram() {
   try {
@@ -3584,8 +3483,6 @@ const TG = { initData: null, status: '' };
   } catch {}
   if (!TG.initData) return;
   document.documentElement.classList.add('in-tg');
-  // в Telegram — только Y: ссылки на основной сайт не открываем (вход — через Twitch прямо здесь),
-  // внешние сайты открываем браузером Telegram
   document.addEventListener('click', e => {
     const a = e.target.closest('a[href]'); if (!a) return;
     const u = new URL(a.getAttribute('href'), location.href);
@@ -3595,7 +3492,6 @@ const TG = { initData: null, status: '' };
     if (u.origin !== location.origin || u.pathname === '/rules' || u.pathname.startsWith('/y/')) { window.Telegram?.WebApp?.openLink ? window.Telegram.WebApp.openLink(u.href) : open(u.href, '_blank'); return; }
     if (!S.uid) startTwitchLogin();
   }, true);
-  // SDK грузим только внутри Telegram (на сайте telegram.org не нужен)
   const sc = document.createElement('script');
   sc.src = 'https://telegram.org/js/telegram-web-app.js';
   sc.onload = () => {
@@ -3623,7 +3519,6 @@ async function tgLogin() {
   return false;
 }
 
-// вход через Twitch прямо в Y (нужен в Telegram, где бот не может прислать ссылку)
 function startTwitchLogin() {
   try { sessionStorage.setItem('rp_tg_link', '1'); } catch {}
   location.href = `${SB_URL}/auth/v1/authorize?provider=twitch&redirect_to=${encodeURIComponent(location.origin + '/rp/')}`;
@@ -3640,7 +3535,6 @@ async function handleOAuthReturn() {
     if (r.ok) localStorage.setItem(LS_SESSION, JSON.stringify({ user: await r.json(), token: at, refreshToken: rtk }));
   } catch {}
 }
-// привязать Telegram к вошедшему аккаунту (один раз за запуск)
 async function tgLinkIfNeeded() {
   if (!TG.initData) return;
   let explicit = false, done = false;
@@ -3654,8 +3548,6 @@ async function tgLinkIfNeeded() {
   } catch {}
 }
 
-/* ── старт ──────────────────────────────────────────────── */
-// первый вход в Y: согласие с правилами и (по желанию) подтверждение 18+
 function yRulesGate() {
   const ov = document.createElement('div');
   ov.className = 'gate-ov';
@@ -3686,7 +3578,6 @@ function yRulesGate() {
   };
   document.body.append(ov); document.body.style.overflow = 'hidden';
 }
-// показать полные правила прямо в окне входа (окно не закрывается, пока не согласишься)
 function showRulesInGate(ov) {
   const box = document.createElement('div');
   box.className = 'gate-rules';

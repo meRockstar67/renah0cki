@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Последние события — виджет OBS</title>
-<!-- OBS: источник «Браузер», 440×520 (список) или 1200×90 (бегущая строка). Настройки: renah0cki.xyz/donate-settings/feed.html -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=Montserrat:wght@600;700;800&family=Russo+One&family=Spectral:wght@600;700&family=Unbounded:wght@600;700&display=swap">
@@ -56,7 +55,6 @@
   .msg { font-size: .92em; line-height: 1.38; opacity: .92; overflow-wrap: anywhere;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-  /* цвета по типам (без color-mix — работает во всех версиях OBS) */
   .ev[data-t="coin"]      { --c: #5cc8ff; --ib: rgba(92, 200, 255, .18); --bd: rgba(92, 200, 255, .44); }
   .ev[data-t="da"]        { --c: #ff8a24; --ib: rgba(255, 138, 36, .18); --bd: rgba(255, 138, 36, .42); }
   .ev[data-t="dn"]        { --c: #ffc21a; --ib: rgba(255, 194, 26, .18); --bd: rgba(255, 194, 26, .42); }
@@ -92,7 +90,7 @@
   <div class="list" id="list"></div>
 </div>
 <script>
-const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; }; // 1 пузокоин / 2 пузокоина / 5 пузокоинов
+const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; };
 (() => {
   const API = 'https://cdn.renah0cki.xyz';
   const COIN_IMG = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
@@ -195,7 +193,6 @@ const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').repla
     }).join('');
   }
 
-  // быстрая первичная загрузка + живой поток SSE
   fetch(API + '/auc/feed/state').then(r => r.json()).then(d => {
     if (Array.isArray(d.events) && !events.length) events = d.events;
     if (d.cfg) cfg = { ...cfg, ...d.cfg };

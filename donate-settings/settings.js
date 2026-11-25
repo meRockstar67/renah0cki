@@ -1,7 +1,6 @@
-/* renah0cki — страница настроек донатов, ссылок OBS и живого конструктора алертов */
 (() => {
 'use strict';
-const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; }; // 1 пузокоин / 2 пузокоина / 5 пузокоинов
+const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; };
 
 const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
@@ -94,7 +93,6 @@ function hexToRgba(hex, a) {
   return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})`;
 }
 
-/* ── звук (1 в 1 с /auc/alert.html) ── */
 let ac = null, prevSnd = null;
 function playPreviewSound() {
   const volRaw = Math.max(0, Math.min(1, (Number(S.alert.volume ?? 75)) / 100));
@@ -157,7 +155,6 @@ async function playPreviewTts() {
   }
 }
 
-/* ── синхронизация формы ↔ живого превью ── */
 function applyPreview() {
   const a = S.alert;
   const r = document.documentElement.style;
@@ -328,7 +325,6 @@ async function init() {
   }
 }
 
-/* ── события ── */
 document.addEventListener('click', async e => {
   const c = e.target.closest('[data-copy]');
   if (c) {

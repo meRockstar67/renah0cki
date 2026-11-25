@@ -1,6 +1,3 @@
-/* PWA renah0cki: регистрирует /service-worker.js и даёт кнопку «Установить приложение».
-   Общий для сайта (v2) и Y (/rp/). В настройках: PWA.card(t, 'renah0cki') → html, затем PWA.bind(корень).
-   Chrome/Edge/Android — системное окно установки; iPhone/iPad (Safari) — подсказка «Поделиться → На экран „Домой“». */
 (function () {
   let deferred = null;
   const listeners = new Set();
@@ -24,7 +21,6 @@
   }
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  // карточка для страницы настроек; t — функция перевода
   function card(t, app, cls = 'rules-card sets-card') {
     return `<section class="${cls} pwa-card" data-pwa-card><h2>${esc(t('Приложение'))}</h2><div data-pwa-body>${body(t, app)}</div></section>`;
   }

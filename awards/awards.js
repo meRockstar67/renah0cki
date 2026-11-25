@@ -1,4 +1,3 @@
-/* OvosheAwards 2026 — голосование зрителей в стиле SLAY Award. Та же база и тот же вход, что у renah0cki. */
 (() => {
 'use strict';
 const SB_URL = 'https://api.renah0cki.xyz';
@@ -6,15 +5,14 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI
 const CDN = 'https://cdn.renah0cki.xyz';
 const OWNER = '23c6cb47-27b0-45ac-8fd9-c43b84d57aba';
 const STAFF_ROLES = ['moderator', 'gl_moder', 'admin'];
-const JURY_ROLES = ['moderator', 'gl_moder', 'admin']; // стримеров в премии нет (SQL 074)
-let EVENT_AT = Date.parse('2026-12-10T17:00:00Z'); // дата итогов: public.aw_settings (SQL 079), по умолчанию 10.12.2026 20:00 МСК
+const JURY_ROLES = ['moderator', 'gl_moder', 'admin'];
+let EVENT_AT = Date.parse('2026-12-10T17:00:00Z');
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const page = $('#page');
 let toastT;
 const toast = (m, err) => { const t = $('#toast'); t.textContent = m; t.classList.toggle('err', !!err); t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800); };
 
-/* ── сессия основного сайта ── */
 const readSession = () => { try { return JSON.parse(localStorage.getItem('fh_session')); } catch { return null; } };
 const jwtExp = t => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch { return 0; } };
 let refreshing = null;
@@ -70,7 +68,6 @@ async function delServerMedia(payload) {
   const token = await getToken(); if (!token) return;
   await fetch(CDN + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) }).catch(() => {});
 }
-/* ── состояние ── */
 const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), custom: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0, homeScroll: 0, view: '', lastVoted: null, justDragged: false };
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
 const thumb = (u, w = 720) => { const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+\.(?:jpe?g|png|webp))$/i); return m ? `${CDN}/thumb/${w}/${m[1]}` : u; };
@@ -78,7 +75,6 @@ const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return
 const neesOf = id => S.nees.filter(x => x.nomination_id === id).sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
 const partsOf = x => Array.isArray(x?.participants) ? x.participants : [];
 
-/* ── официальные 3D-иконки номинаций SLAY 2026 ── */
 let svgUid = 0;
 const SLAY_ICONS = [
   ['i:king',  'king.png',    'Король'],
@@ -174,7 +170,6 @@ async function loadMe() {
   } catch { location.replace('/'); return false; }
 }
 
-/* ── карточка номинации в стиле SLAY ── */
 function slayCardHtml(n, idx) {
   const list = neesOf(n.id), mine = S.votes.get(n.id), pick = list.find(x => x.id === mine);
   const sub = pick ? `✓ Ваш голос: ${pick.title}` : (!n.is_open ? 'Голосование закрыто' : 'Сделай выбор');
@@ -224,7 +219,6 @@ function renderCarousel(more, dir = 1) {
   if (items.length !== more.length) return mountCarousel(more);
   const len = more.length;
   S.carIdx = ((S.carIdx % len) + len) % len;
-  // если невидимая карточка (-2 или 2) должна въехать с противоположного края, переносим её без анимации до старта перехода
   const pre = [];
   items.forEach((el, i) => {
     const oldP = Number(el.dataset.pos), newP = carOffset(i, S.carIdx, len, dir);
@@ -242,7 +236,6 @@ function renderCarousel(more, dir = 1) {
   const curEl = $('#slayCarCur'); if (curEl) curEl.textContent = String(S.carIdx + 1).padStart(2, '0');
 }
 
-/* ── обратный отсчёт ── */
 let cdT = null;
 function tickCountdown() {
   const dEl = $('#cdD'), hEl = $('#cdH'), mEl = $('#cdM');
@@ -290,7 +283,6 @@ function initReveal(instantAbove = false) {
   els.forEach(el => { if (!el.classList.contains('in')) revealObs.observe(el); });
 }
 
-/* ── главная: все секции SLAY ── */
 function viewHome(restoreScroll = false) {
   S.view = 'home';
   const total = S.noms.length, voted = S.noms.filter(n => S.votes.has(n.id) || S.custom.has(n.id)).length;
@@ -367,7 +359,6 @@ function viewHome(restoreScroll = false) {
   }
 }
 
-/* ── номинация (#/n/<id>) ── */
 function mediaHtml(x, canOpenParts = false) {
   const u = x.media_url || '';
   const openAttr = canOpenParts
@@ -486,7 +477,6 @@ function viewNom(id) {
   if (S.admin) initNeeDrag(id);
 }
 
-/* ── перетаскивание номинантов для смены порядка (модераторы) ── */
 function initNeeDrag(nomId) {
   const grid = page.querySelector(`.aw-nees[data-nom-grid="${nomId}"]`);
   if (!grid) return;
@@ -544,7 +534,6 @@ function initNeeDrag(nomId) {
   });
 }
 
-/* ── модалка участников внутри номинанта (без голосования за них) ── */
 async function saveNomineeParts(nomineeId, nextParts) {
   await api(`aw_nominees?id=eq.${nomineeId}`, { method: 'PATCH', prefer: 'return=minimal', body: { participants: nextParts } });
   const x = S.nees.find(y => y.id === nomineeId);
@@ -761,7 +750,6 @@ function openPartsModal(nomineeId) {
   document.body.append(ov);
 }
 
-/* ── голос ── */
 async function vote(id) {
   if (!S.uid) return toast('Войдите на renah0cki, чтобы голосовать', true);
   const x = S.nees.find(y => y.id === id); if (!x) return;
@@ -783,7 +771,6 @@ async function voteCustom(nomId, text) {
 }
 const fmtDay = t => { const d = new Date(t); return [d.getDate(), d.getMonth() + 1].map(x => String(x).padStart(2, '0')).join('.') + '.' + String(d.getFullYear()).slice(2); };
 
-/* ── статистика голосов (модераторы) ── */
 async function viewStats() {
   S.view = 'stats';
   clearInterval(cdT); revealObs?.disconnect();
@@ -831,7 +818,6 @@ function dateDialog() {
   });
 }
 
-/* ── админка ── */
 function modal(html, onSubmit) {
   const ov = document.createElement('div'); ov.className = 'aw-ov';
   ov.innerHTML = `<form class="aw-modal">${html}<p class="aw-hint"></p><div class="aw-modal-acts"><button type="button" class="aw-btn" data-x>Отмена</button><button class="aw-btn gold" type="submit">Сохранить</button></div></form>`;
@@ -865,7 +851,7 @@ function nomDialog(n) {
 }
 function neeDialog(nomId, x) {
   let file = null;
-  const nsOk = 'no_shade' in (x || S.nees[0] || {});   // колонка есть только после SQL 065
+  const nsOk = 'no_shade' in (x || S.nees[0] || {});
   const oldUrl = x?.media_url || '';
   const parsed = splitDescLink(x?.description);
   const f = modal(`<h2>${x ? 'Изменить номинанта' : 'Новый номинант'}</h2>
@@ -953,7 +939,6 @@ function jumpTo(id) {
 document.addEventListener('click', e => {
   const j = e.target.closest('[data-jump]');
   if (j) { e.preventDefault(); jumpTo(j.dataset.jump); return; }
-  // запоминаем позицию скролла на главной перед переходом в номинацию
   const nomLink = e.target.closest('a[href^="#/n/"]');
   if (nomLink && S.view === 'home') S.homeScroll = window.scrollY;
 });
@@ -1037,7 +1022,6 @@ page.addEventListener('change', e => {
   if (e.target.matches('[data-flat-grid]')) { S.flatGrid = e.target.checked; route(); }
 });
 
-/* ── свайп карусели на телефоне ── */
 let touchX = null, touchY = null;
 page.addEventListener('touchstart', e => {
   if (!e.target.closest('#slayCarBox') || e.touches.length !== 1) return;
@@ -1053,7 +1037,6 @@ page.addEventListener('touchend', e => {
   }
 }, { passive: true });
 
-/* ── лёгкий параллакс фонового кристалла на скролле ── */
 if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
   let praf = 0;
   addEventListener('scroll', () => {
@@ -1066,7 +1049,6 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
   }, { passive: true });
 }
 
-/* ── роутер ── */
 function route(fromNav = false) {
   const p = location.hash.replace(/^#\/?/, '').split('/');
   if (p[0] === 'stats') { viewStats(); if (fromNav) window.scrollTo({ top: 0, behavior: 'instant' }); return; }

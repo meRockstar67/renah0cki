@@ -1,14 +1,3 @@
-/* Локализация renah0cki: русский (основной), украинский, английский.
-   Ключ перевода — сам русский текст (как в gettext): непереведённое остаётся по-русски.
-
-   Как переводить:
-   • статичная разметка (index.html): добавить атрибут data-i18n к элементу с русским текстом,
-     для атрибутов — data-i18n-attr="placeholder,title,aria-label"; i18nApply() сделает остальное;
-   • текст в JS: tl('Русский текст') или tl('Привет, {name}', { name }) — подставит перевод;
-   • добавить строки в словари uk и en ниже (ключ — точный русский текст).
-   Выбор языка — localStorage 'rn_lang' (ru | uk | en). Пока ничего не выбрано — язык определяется сам:
-   по часовому поясу (Украина → uk, Россия/Беларусь → ru) и языку браузера (uk → uk, ru/be/kk → ru, иначе en).
-   Переключатель Ua / Ru / Eng — в «Настройках» и в меню аватарки (кнопки с data-setlang). */
 (function () {
   const LANGS = { ru: 'Русский', uk: 'Українська', en: 'English' };
   const SHORT = { uk: 'Ua', ru: 'Ru', en: 'Eng' };
@@ -1388,7 +1377,6 @@
     if (/^Europe\/(Kyiv|Kiev|Uzhgorod|Zaporozhye)$/.test(tz)) return 'uk';
     if (['ru', 'be', 'kk'].includes(first)) return 'ru';
     if (/^Europe\/(Moscow|Minsk|Samara|Volgograd|Kaliningrad|Kirov|Astrakhan|Saratov|Ulyanovsk)$|^Asia\/(Yekaterinburg|Omsk|Novosibirsk|Barnaul|Tomsk|Novokuznetsk|Krasnoyarsk|Irkutsk|Chita|Yakutsk|Khandyga|Vladivostok|Ust-Nera|Magadan|Sakhalin|Srednekolymsk|Kamchatka|Anadyr)$/.test(tz)) return 'ru';
-    // язык браузера не первый в списке — тоже учитываем
     for (const l of nav) { const c = l.split('-')[0]; if (c === 'uk') return 'uk'; if (['ru', 'be', 'kk'].includes(c)) return 'ru'; }
     return 'en';
   }
@@ -1423,16 +1411,13 @@
     if (v === lang) return;
     location.reload();
   }
-  // любые кнопки data-setlang="uk|ru|en" (настройки, меню аватарки)
   document.addEventListener('click', e => {
     const b = e.target.closest && e.target.closest('[data-setlang]');
     if (b) { e.preventDefault(); setLang(b.dataset.setlang); }
   });
 
   document.documentElement.lang = lang;
-  // дополнительные словари подсайтов (например /rp/i18n-rp.js): I18N.add({ uk: {...}, en: {...} })
   function add(d) { for (const k in d) if (DICT[k]) Object.assign(DICT[k], d[k]); }
-  // название валюты по числу: 1 пузокоин, 2 пузокоина, 5 пузокоинов / 1 Puzocoin, 2 Puzocoins
   function coin(n) {
     const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0));
     if (lang === 'en') return x === 1 ? 'Puzocoin' : 'Puzocoins';
@@ -1445,7 +1430,6 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => i18nApply());
   else i18nApply();
 })();
-/* удаление аккаунта (078) */
 window.I18N && window.I18N.add({
   uk: {
     'Удаление аккаунта': 'Видалення акаунта',
@@ -1484,7 +1468,6 @@ window.I18N && window.I18N.add({
     'Все ваши данные удалены. Спасибо, что были с нами.': 'All your data has been deleted. Thank you for being with us.',
   },
 });
-/* приложение (PWA) */
 window.I18N && window.I18N.add({
   uk: {
     'Приложение': 'Застосунок',

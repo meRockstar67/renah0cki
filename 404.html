@@ -6,17 +6,6 @@
 </head>
 <body>
 <script>
-  // SPA-фоллбэк для коротких ссылок вида renah0cki.xyz/AbC123.
-  //
-  // Большинство статических хостингов (GitHub Pages, Netlify, Vercel,
-  // Cloudflare Pages и т.д.) при заходе на несуществующий путь автоматически
-  // отдают этот файл (404.html), если он лежит рядом с index.html в корне
-  // сайта — специально настраивать ничего не нужно, достаточно загрузить
-  // файл на хостинг.
-  //
-  // Дальше просто перекладываем путь в query-параметр ?redirect= и уходим
-  // на главную страницу — там index.html сам разберёт короткий код через
-  // resolveShortLinkFromPath() и откроет нужный пост/сборник/профиль.
   var path = location.pathname.replace(/^\/+/, '');
   var q = location.search ? '&' + location.search.slice(1) : '';
   if (path.indexOf('v2/') === 0) {

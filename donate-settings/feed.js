@@ -1,7 +1,6 @@
-/* renah0cki — контроллер компактной панели последних событий (OBS док + браузер) */
 (() => {
 'use strict';
-const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; }; // 1 пузокоин / 2 пузокоина / 5 пузокоинов
+const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; };
 
 const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
@@ -18,7 +17,6 @@ function toast(msg, err = false) {
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-// подхватываем ?key=<dockToken> из ссылки для мгновенного входа в OBS
 (() => {
   const qs = new URLSearchParams(location.search);
   const k = (qs.get('key') || '').trim();
@@ -269,7 +267,6 @@ function connectSse() {
   es.addEventListener('feed_sync', e => { try { const d = JSON.parse(e.data); if (Array.isArray(d.events)) S.events = d.events; renderList(); } catch {} });
 }
 
-/* ── вход из OBS через обычный браузер ── */
 let pollT = null;
 $('#browserLoginBtn').addEventListener('click', async () => {
   clearInterval(pollT);
@@ -305,7 +302,6 @@ $('#browserLoginBtn').addEventListener('click', async () => {
   }
 });
 
-/* ── события ── */
 document.addEventListener('click', async e => {
   if (!e.target.closest('.test-wrap')) $('#testMenu').hidden = true;
 

@@ -1,5 +1,3 @@
-/* Словари Y (/rp/) для украинского и английского. Ядро — /v2/i18n.js (язык общий с сайтом: localStorage rn_lang).
-   Ключ — точный русский текст из rp.js (tl('...')). */
 window.I18N && window.I18N.add({
   uk: {
     "Игрок": "Гравець",
@@ -1314,7 +1312,6 @@ window.I18N && window.I18N.add({
   },
 });
 if (window.I18N) document.title = window.I18N.t(document.title);
-/* жалоба на звонок и «выгнать» (078) */
 window.I18N && window.I18N.add({
   uk: {
     'Выгнать из звонка': 'Вигнати з дзвінка',

@@ -1,8 +1,6 @@
-/* renah0cki — личная ссылка для донатов пузокоинами (/donate/<username>).
-   Каждый аккаунт может включать и отключать приём донатов. */
 (() => {
 'use strict';
-const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; }; // 1 пузокоин / 2 пузокоина / 5 пузокоинов
+const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; };
 
 const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
@@ -73,7 +71,6 @@ function syncAmountUi() {
   if (!btn.disabled) btn.textContent = v > 0 ? `Отправить ${fmt(v)} ${ruCoin(v)}` : 'Отправить';
 }
 
-/* ── отрисовка ── */
 function render() {
   const d = S.pub;
   const t = S.target || (d?.streamer && !TARGET_U ? { id: d.streamer.id, username: d.streamer.name, display_name: d.streamer.name, avatar_url: d.streamer.avatar, coin_donate_enabled: d.config?.site_enabled !== false, is_streamer: true, site_enabled: d.config?.site_enabled !== false } : null);
@@ -158,7 +155,6 @@ async function loadMe() {
   }
 }
 
-/* ── события ── */
 $('#amount').addEventListener('input', syncAmountUi);
 $('#msg').addEventListener('input', e => { $('#cnt').textContent = e.target.value.length; });
 document.addEventListener('click', e => {
@@ -195,7 +191,6 @@ $('#dForm').addEventListener('submit', async e => {
 });
 $('#again').addEventListener('click', () => { $('#done').hidden = true; $('#dForm').hidden = false; $('#dForm').reset(); $('#cnt').textContent = '0'; render(); $('#amount').focus(); });
 
-/* ── старт ── */
 loadTarget();
 loadMe();
 fetch(API + '/auc/state').then(r => r.json()).then(d => { if (d) { S.pub = d; render(); } }).catch(() => {});

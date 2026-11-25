@@ -1,5 +1,3 @@
-/* renah0cki — аукцион. Тёмная тема с фиолетовым акцентом, плотная раскладка:
-   сверху вкладки и таймер, слева аукцион и правила, по центру лоты, справа донаты. */
 :root {
   --bg: #0c0c14;
   --panel: #12121c;
@@ -60,7 +58,6 @@
   --accent: #fbbf24; --accent-2: #d97706; --accent-soft: rgba(251, 191, 36, .15); --accent-ring: rgba(251, 191, 36, .5);
   --bar-a: rgba(251, 191, 36, .22); --bar-b: rgba(251, 191, 36, .06); --bar-bg: rgba(15, 14, 11, .92);
 }
-/* ── стиль 1 в 1 PointAuc (ru.pointauc.com — Mantine Dark) ── */
 [data-theme="pointauc"] {
   --bg: #1b1b1b; --panel: #212121; --panel-2: #282828; --panel-3: #303030; --border: #383838;
   --text: #eeeeee; --muted: #a0a0a0; --dim: #727272;
@@ -82,7 +79,6 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .muted { color: var(--muted); }
 .num { font-variant-numeric: tabular-nums; }
 
-/* ── верхняя полоса ── */
 .bar { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 12px; padding-top: max(8px, env(safe-area-inset-top)); flex: none;
   background: var(--bar-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 900; font-size: 20px; letter-spacing: -.3px; min-height: 44px; }
@@ -115,14 +111,12 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .clock-btns .ghost { background: none; color: var(--muted); }
 @media (hover: hover) { .clock-btns button:hover { filter: brightness(1.25); } }
 
-/* ── раскладка ── */
 .app { display: flex; flex-direction: column; gap: 10px; padding: 10px 10px calc(16px + env(safe-area-inset-bottom)); }
 .left, .mid, .right { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
 .mid { order: 1; display: flex; flex-direction: column; min-height: 60dvh; }
 .right { order: 2; display: flex; flex-direction: column; min-height: 360px; }
 .left { order: 3; display: flex; flex-direction: column; padding: 12px; gap: 10px; }
 
-/* левая колонка */
 .auc-pick { display: flex; gap: 6px; }
 .pick-btn { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: var(--r); border: 0; background: var(--panel-2); font-weight: 700; cursor: pointer; text-align: left; }
 .pick-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -148,7 +142,6 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .lf-btns button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 8px; border: 0; background: none; color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; border-radius: 8px; }
 @media (hover: hover) { .lf-btns button:hover, .rules-edit:hover, .sq:hover, .pick-btn:hover { background: var(--panel-3); } }
 
-/* центр: таблица лотов */
 .lots-top { display: contents; }
 .thead { order: 0; display: grid; grid-template-columns: 44px 44px auto minmax(0, 1fr) 120px; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--muted); font-weight: 700; }
 .thead .c, .lrow .c { text-align: center; }
@@ -192,7 +185,6 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .add-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 18px; border-radius: 10px; border: 0; background: var(--accent-2); color: #fff; font-weight: 800; cursor: pointer; }
 .add-btn:hover { filter: brightness(1.12); }
 
-/* правая колонка: донаты */
 .seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 10px; padding: 3px; border-radius: 10px; background: var(--panel-2); }
 .seg2 button { min-height: 36px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
 .seg2 button.on { background: var(--accent-soft); color: var(--accent); }
@@ -240,7 +232,6 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .tg input:checked + i::after { transform: translateX(14px); }
 .tg input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ── общие элементы ── */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: var(--r); border: 1px solid var(--border);
   background: var(--panel-2); font-weight: 700; cursor: pointer; transition: transform .15s var(--ease), border-color .15s; white-space: nowrap; color: var(--text); }
 .btn:active { transform: scale(.97); }
@@ -269,7 +260,6 @@ textarea.in { min-height: 120px; resize: vertical; line-height: 1.5; }
 .box { border-radius: 12px; background: var(--panel-2); padding: 14px; }
 code, .code { font-family: var(--mono); font-size: 12.5px; background: var(--bg); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; }
 
-/* списки: ставки, история, кошельки */
 .items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .item { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg); font-size: 14px; }
 .item .main { min-width: 0; overflow-wrap: anywhere; }
@@ -295,7 +285,6 @@ code, .code { font-family: var(--mono); font-size: 12.5px; background: var(--bg)
 .dot.ok { background: var(--ok); } .dot.error { background: var(--danger); } .dot.connecting { background: var(--warn); }
 .rates { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .rates label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); font-weight: 700; }
-/* конвертация денег в баллы */
 .conv { display: grid; gap: 8px; }
 .conv-row { display: grid; grid-template-columns: 64px 14px minmax(0, 140px) auto; align-items: center; gap: 8px; font-size: 14px; }
 .conv-cur { font-weight: 800; color: var(--text); white-space: nowrap; }
@@ -308,7 +297,6 @@ code, .code { font-family: var(--mono); font-size: 12.5px; background: var(--bg)
 .conv-more summary { cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 700; padding: 6px 0; }
 .conv-more .rates { margin-top: 6px; }
 
-/* колесо */
 .wheel-pane { flex: 1; display: grid; justify-items: center; align-content: center; gap: 12px; padding: 14px; }
 .wheel-box { width: min(100%, 640px, max(280px, calc(100dvh - 260px))); aspect-ratio: 1; }
 .wheel-box canvas { width: 100%; height: 100%; display: block; }
@@ -318,14 +306,12 @@ code, .code { font-family: var(--mono); font-size: 12.5px; background: var(--bg)
 .min-in { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--r); padding: 0 10px; min-height: 40px; }
 .min-in input { width: 48px; background: none; border: 0; outline: 0; font-size: 15px; text-align: center; }
 
-/* всплывашка (список аукционов, «Вид») */
 .pop { position: fixed; z-index: 50; min-width: 220px; max-width: calc(100vw - 20px); max-height: 60dvh; overflow-y: auto; padding: 6px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); box-shadow: 0 16px 40px rgba(0, 0, 0, .5); }
 .pop button, .pop label { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--text); font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
 .pop button:hover, .pop label:hover { background: var(--panel-3); }
 .pop small { margin-left: auto; color: var(--muted); font-weight: 500; }
 .pop input { accent-color: var(--accent-2); width: 16px; height: 16px; }
 
-/* нижний лист */
 .sheet { padding: 0; border: 0; background: transparent; color: var(--text); max-width: 100%; width: 100%; max-height: 92dvh; margin: auto 0 0; }
 .sheet::backdrop { background: rgba(4, 4, 10, .7); }
 .sheet[open] { animation: up .25s var(--ease); }
@@ -346,7 +332,6 @@ code, .code { font-family: var(--mono); font-size: 12.5px; background: var(--bg)
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.err { border-color: var(--danger); color: #ffd0d6; }
 
-/* ── шире ── */
 @media (min-width: 640px) {
   .rates { grid-template-columns: repeat(4, 1fr); }
   .sheet { max-width: 520px; margin: auto; }
@@ -378,7 +363,6 @@ code, .code { font-family: var(--mono); font-size: 12.5px; background: var(--bg)
 @media (min-width: 1500px) { .app { grid-template-columns: 340px minmax(0, 1fr) 390px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
-/* ══ анимации ══ */
 .enter { animation: rowIn .38s var(--ease) both; }
 @keyframes rowIn { from { opacity: 0; transform: translateY(-8px) scale(.98); } }
 .leaving { overflow: hidden; pointer-events: none; transition: opacity .25s var(--ease), height .3s var(--ease), margin .3s var(--ease), padding .3s var(--ease); }
@@ -393,7 +377,6 @@ code, .code { font-family: var(--mono); font-size: 12.5px; background: var(--bg)
 .pop:not([hidden]) { animation: popIn .18s var(--ease) both; transform-origin: top left; }
 @keyframes popIn { from { opacity: 0; transform: scale(.96) translateY(-4px); } }
 
-/* ══ вкладка «Колесо» ══ */
 body.tab-wheel .app { display: none; }
 .wapp { display: flex; flex-direction: column; gap: 10px; padding: 10px 10px calc(16px + env(safe-area-inset-bottom)); }
 .wlist, .wset { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px; min-width: 0; }
@@ -461,7 +444,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   .wbox { width: min(100%, 660px, calc(100dvh - 240px)); }
 }
 
-/* ── полировка: центр колеса (анимированные 7TV), пикер 7TV, темы, скроллбары ── */
 .wcenter-hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 21%; height: 21%; min-width: 56px; min-height: 56px;
   border-radius: 50%; overflow: hidden; z-index: 3; background: var(--bg); border: 3px solid rgba(255, 240, 230, .9); box-shadow: 0 0 18px rgba(255, 255, 255, .15); }
 .wcenter-img { width: 100%; height: 100%; display: block; object-fit: cover; pointer-events: none; }
@@ -493,7 +475,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .dlist::-webkit-scrollbar-track, .tbody::-webkit-scrollbar-track, .rules::-webkit-scrollbar-track, .wlist::-webkit-scrollbar-track, .wset::-webkit-scrollbar-track, .pane::-webkit-scrollbar-track, .w7tv-grid::-webkit-scrollbar-track { background: transparent; }
 
 
-/* ── полноэкранный экран победителя колеса ── */
 .win-over { position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; padding: 24px; overflow: hidden;
   background: radial-gradient(circle at 50% 48%, rgba(20, 18, 36, .74) 0%, rgba(5, 6, 12, .93) 68%);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); animation: fadeIn .28s var(--ease); }
@@ -568,7 +549,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .win-out:hover { filter: brightness(1.12); }
 @media (max-width: 520px) { .win-card { padding: 24px 18px 20px; } .win-stat b { font-size: 16px; } }
 
-/* ── реролл: настройки и плашка над победителем ── */
 .ws-rr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ws-field { display: grid; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--muted); }
 .ws-field input { width: 100%; min-width: 0; height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; font-weight: 700; outline: 0; }
@@ -585,9 +565,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .win-reroll .wr-x { font-family: var(--mono); font-size: 12px; font-weight: 800; padding: 2px 7px; border-radius: 999px;
   background: var(--accent-2); color: #fff; }
 
-/* ══════════════════════════════════════════════════════════════════
-   СТИЛЬ 1 В 1 POINTAUC (ru.pointauc.com — Mantine Dark + Layout)
-   ══════════════════════════════════════════════════════════════════ */
 [data-theme="pointauc"] .pa-only { display: inline-flex !important; align-items: center; justify-content: center; }
 [data-theme="pointauc"] .pa-hide { display: none !important; }
 [data-theme="pointauc"] .pa-fill { fill: currentColor; stroke: none; }
@@ -595,7 +572,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .bar { background: #1b1b1b; border-bottom: 1px solid #303030; backdrop-filter: none; -webkit-backdrop-filter: none; }
 [data-theme="pointauc"] .tabs > button.on { color: #228be6; border-bottom-color: #228be6; }
 
-/* левая, средняя, правая колонки — БЕЗ лишних рамок, всё прямо на #1b1b1b как на ru.pointauc.com */
 [data-theme="pointauc"] .left,
 [data-theme="pointauc"] .mid,
 [data-theme="pointauc"] .right { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
@@ -606,7 +582,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .item { background: #282828; border: 1px solid #343434; border-radius: 8px; }
 [data-theme="pointauc"] .summary div { background: #282828; border-radius: 6px; }
 
-/* левая колонка: открытые правила прямо на #1b1b1b (заголовок АУК НА ВСЕ + текст правил) */
 [data-theme="pointauc"] .left { padding: 4px 10px 10px 6px; gap: 8px; }
 [data-theme="pointauc"] .auc-pick { align-items: center; gap: 4px; }
 [data-theme="pointauc"] .pick-btn { background: transparent; border: 0; border-radius: 6px; padding: 2px 4px; min-height: 40px;
@@ -627,7 +602,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .rules-edit { padding: 0 6px; min-height: 28px; font-size: 12.5px; color: #606060; opacity: .75; }
 [data-theme="pointauc"] .rules-edit:hover { background: rgba(255, 255, 255, .06); color: #eeeeee; opacity: 1; }
 
-/* верхняя строка над лотами 1 в 1 SlotsHeader: [Название нового лота] [₽] [+ Добавить лот] | [🔍 Поиск среди лотов...] */
 [data-theme="pointauc"] .lots-top { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 0 2px 20px; order: 0; }
 [data-theme="pointauc"] .addbar { order: 0; display: flex !important; flex: 1 1 360px; flex-wrap: nowrap; align-items: center; gap: 12px;
   margin: 0; padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
@@ -652,7 +626,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .thead input::placeholder { color: #727272; }
 [data-theme="pointauc"] .thead input:focus { border-color: #228be6; box-shadow: none; }
 
-/* инпуты и селекты Mantine */
 [data-theme="pointauc"] .in,
 [data-theme="pointauc"] .ws-field input,
 [data-theme="pointauc"] .w7tv-q,
@@ -661,7 +634,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .ws-field input:focus,
 [data-theme="pointauc"] .w7tv-q:focus { border-color: #228be6; box-shadow: none; }
 
-/* лоты 1 в 1 DroppableSlot: 50px, radius 8px */
 [data-theme="pointauc"] .tbody { order: 2; padding: 0 2px 12px; gap: 4px; }
 [data-theme="pointauc"] .lrow { display: grid; grid-template-columns: 24px 66px minmax(0, 1fr) auto auto; align-items: center; gap: 8px;
   min-height: 50px; height: 50px; padding: 0 6px 0 16px; border-radius: 8px; border: 2px solid transparent; background: #282828;
@@ -696,7 +668,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] body.pa-compact .tbody { gap: 0; }
 [data-theme="pointauc"] body.pa-compact .lrow { min-height: 41px; height: 41px; border-radius: 0; box-shadow: none; }
 
-/* карточки ставок / донатов 1 в 1 PointAuc BidComponent (синие ставки + коралловые донаты + [1 Новый | ∨]) */
 [data-theme="pointauc"] .dlist { padding: 4px 0 10px; gap: 10px; width: 90%; margin: 0 auto; }
 [data-theme="pointauc"] .dlist .empty { opacity: .4; font-size: 13px; padding: 16px 8px; min-height: 60px; }
 [data-theme="pointauc"] .don { padding: 12px 13px; border-radius: 6px; background: #282828; border: 1px solid #363636;
@@ -745,7 +716,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .src.twitch { background: rgba(65, 192, 169, .22); color: rgb(92, 224, 200); }
 [data-theme="pointauc"] .src.site { background: rgba(34, 139, 230, .24); color: #74c0fc; }
 
-/* правая колонка 1 в 1 PointAuc: Интеграции ∨ + 2 тумблера DA/Twitch + Подключить Сервисы + Ставки | История */
 [data-theme="pointauc"] .pa-int { order: 1; display: flex !important; flex-direction: column; gap: 10px; width: 90%; margin: 4px auto 12px; }
 [data-theme="pointauc"] .pa-int-h { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; border: 0; background: none;
   padding: 0; color: #a0a0a0; font-size: 15px; font-weight: 700; cursor: pointer; }
@@ -797,7 +767,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .flt.on { color: #dedede; border-color: #4da0e9; }
 [data-theme="pointauc"] .flt.on i { color: #3392e6; }
 
-/* общие кнопки Mantine */
 [data-theme="pointauc"] .btn { border-radius: 5px; background: #2c2c2c; border-color: #3c3c3c; color: #eeeeee; font-weight: 600; }
 [data-theme="pointauc"] .btn:hover:not(:disabled) { background: #363636; border-color: #555; }
 [data-theme="pointauc"] .btn.pri,
@@ -811,7 +780,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .sheet-in { background: #212121; border-color: #383838; border-radius: 8px; }
 [data-theme="pointauc"] .toast { background: #282828; border-color: #3c3c3c; border-radius: 6px; }
 
-/* колесо и экран победителя 1 в 1 PointAuc */
 [data-theme="pointauc"] .wlist { display: flex; flex-direction: column; gap: 10px; }
 [data-theme="pointauc"] .pa-whead { display: flex !important; align-items: center; justify-content: flex-start !important; gap: 12px; margin-bottom: 2px; flex-wrap: wrap; }
 [data-theme="pointauc"] .pa-wt { margin: 0; font-size: 32px; font-weight: 800; color: #eeeeee; line-height: 1.1; }
@@ -922,7 +890,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .win-pri:hover { background: #1c7ed6; filter: none; }
 [data-theme="pointauc"] .win-bar i { background: #228be6; box-shadow: none; }
 
-/* скроллбар 1 в 1 PointAuc */
 [data-theme="pointauc"] .dlist::-webkit-scrollbar,
 [data-theme="pointauc"] .tbody::-webkit-scrollbar,
 [data-theme="pointauc"] .rules::-webkit-scrollbar,
@@ -942,15 +909,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 [data-theme="pointauc"] .wset::-webkit-scrollbar-thumb:hover,
 [data-theme="pointauc"] .pane::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .5); border: 4px solid transparent; background-clip: padding-box; }
 
-/* таймер на мобилке */
 [data-theme="pointauc"] .clock { background: #212121; border: 1px solid #323232; border-radius: 6px; }
 [data-theme="pointauc"] .clock-big { font-family: 'Helvetica Neue', Inter, Roboto, Arial, sans-serif; font-weight: 400; letter-spacing: 0; }
 [data-theme="pointauc"] .clock-btns button { background: transparent; color: #eeeeee; border-radius: 50%; }
 [data-theme="pointauc"] .clock-btns button:hover { background: rgba(255, 255, 255, .08); filter: none; }
 
-/* десктопная раскладка 1 в 1 ru.pointauc.com — точный 1:1 масштаб */
 @media (min-width: 1100px) {
-  /* левый икон-навбар: 54px капсулы #303030 (46px кнопки, 26px иконки), активный #3392e6 */
   [data-theme="pointauc"] .bar { position: fixed; left: 0; top: 0; bottom: 0; width: 70px; z-index: 30;
     flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 0; padding: 20px 0 20px 16px;
     background: transparent; border: 0; }
@@ -976,7 +940,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   [data-theme="pointauc"] .tabs > a:hover { background: rgba(77, 160, 233, .2); color: #3392e6; }
   [data-theme="pointauc"] .tabs > button.on { background: #303030; color: #3392e6; box-shadow: inset 0 0 0 1px #3392e6; border-radius: 6px; z-index: 1; }
 
-  /* 3-колоночная сетка 1 в 1 (левая 340/380px, центр flex, правая 350px) */
   [data-theme="pointauc"] .app,
   [data-theme="pointauc"] .wapp { margin-left: 70px; padding: 24px 28px 10px 24px; gap: 16px; }
   [data-theme="pointauc"] .app { grid-template-columns: 330px minmax(0, 1fr) 350px; }
@@ -986,7 +949,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   [data-theme="pointauc"] .mid { padding-bottom: 54px; }
   [data-theme="pointauc"] .right { display: flex; flex-direction: column; }
 
-  /* нижняя плавающая панель 1 в 1 PointAuc AucActions: 36px кнопки */
   [data-theme="pointauc"] .left-foot { position: fixed; left: 70px; right: 378px; bottom: 10px; z-index: 25;
     display: flex; align-items: center; justify-content: center; background: transparent; border: 0; padding: 0; pointer-events: none; }
   [data-theme="pointauc"] .left-foot * { pointer-events: auto; }
@@ -1016,7 +978,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   [data-theme="pointauc"] .lf-btns [data-act="finish"] svg { width: 20px; height: 20px; }
   [data-theme="pointauc"] .lf-btns [data-act="finish"]:hover { background: #005ca4; }
 
-  /* огромный таймер PointAuc 80px + 5 иконок 48px (▶ ↺ ∧ ∨ ⌅) */
   [data-theme="pointauc"] body:not(.tab-wheel) .clock { position: fixed; top: 18px; right: 28px; width: 350px; z-index: 25;
     flex-direction: column; align-items: center; gap: 2px; padding: 0;
     background: transparent; border: 0; box-shadow: none; }

@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Донаты и события — виджет OBS</title>
-<!-- OBS: источник «Браузер», 800×300. Настройки внешнего вида — на renah0cki.xyz/donate-settings/ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Russo+One&family=Spectral:wght@600;700;800&family=Unbounded:wght@600;700;800&display=swap">
@@ -56,7 +55,6 @@
   .msg { font-size: var(--al-msz); font-weight: 600; line-height: 1.4; color: var(--al-text); opacity: .94;
     max-width: 680px; overflow-wrap: anywhere; text-shadow: 0 2px 8px rgba(0, 0, 0, .65); }
 
-  /* ── темы (без color-mix — 100% совместимость со всеми версиями OBS) ── */
   .al[data-theme="neon"] {
     border: 2px solid var(--al-accent);
     box-shadow: 0 0 22px var(--al-glow-hi), 0 0 56px var(--al-glow), inset 0 0 22px var(--al-glow);
@@ -80,7 +78,6 @@
     padding: 8px 16px; border-radius: 12px; background: var(--al-bg);
   }
 
-  /* ── анимации появления ── */
   .al[data-anim="pop"]    { transform: translateY(18px) scale(.92); transition: opacity .36s ease, transform .46s cubic-bezier(.2, .85, .25, 1.18); }
   .al[data-anim="slide"]  { transform: translateY(44px); transition: opacity .34s ease, transform .45s cubic-bezier(.22, 1, .36, 1); }
   .al[data-anim="zoom"]   { transform: scale(.72); transition: opacity .32s ease, transform .42s cubic-bezier(.22, 1, .36, 1); }
@@ -264,7 +261,6 @@
       } catch { resolve(); }
     });
   }
-  // текст и голос для озвучки; tts_text — уже очищенный сервером текст (ссылки/эмодзи/спам убраны)
   function ttsParams(d) {
     if (cfg.tts === false || cfg.show_message === false) return null;
     const vol = Math.max(0, Math.min(1, (Number(cfg.tts_volume ?? 85)) / 100));
@@ -276,7 +272,6 @@
     if (!text) return null;
     return { vol, voice, rate, text, url: `${API}/auc/tts?voice=${encodeURIComponent(voice)}&rate=${encodeURIComponent(rate.toFixed(2))}&text=${encodeURIComponent(text)}` };
   }
-  // качаем mp3 сразу, как донат встал в очередь — к моменту показа он уже готов
   function prefetchTts(d) {
     const p = ttsParams(d);
     if (!p) return;
