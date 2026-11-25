@@ -3621,4 +3621,17 @@ async function init() {
 }
 addEventListener('storage', e => { if (e.key === LS_SESSION && !e.newValue) location.reload(); });
 init();
+(() => {
+  let sid = '';
+  try { sid = localStorage.getItem('rn_online_sid') || ''; } catch {}
+  if (!/^[A-Za-z0-9_-]{8,40}$/.test(sid)) {
+    sid = (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^A-Za-z0-9]/g, '').slice(0, 24);
+    try { localStorage.setItem('rn_online_sid', sid); } catch {}
+  }
+  const ping = () => fetch(CDN + '/online/ping', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ sid, u: (S.uid || readSession()?.user?.id) ? 1 : 0 }), keepalive: true }).catch(() => {});
+  ping();
+  setInterval(ping, 45e3);
+  addEventListener('pageshow', e => { if (e.persisted) ping(); });
+  addEventListener('pagehide', () => { try { navigator.sendBeacon(CDN + '/online/bye', JSON.stringify({ sid })); } catch {} });
+})();
 })();

@@ -1404,3 +1404,9 @@ html.terms-lock, html.terms-lock body { overflow: hidden; }
 .rc-pop .hint { margin: 8px 10px; color: var(--muted); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .rc-pop { transition: opacity .15s; transform: none; clip-path: none; } }
 @media (max-width: 420px) { .top-timer b { font-size: 12px; letter-spacing: -.2px; } }
+.rc-chip.rc-online { --rc: #4ade80; cursor: default; color: var(--muted); font-weight: 600; }
+.rc-chip.rc-online:hover { border-color: var(--border); background: var(--panel); }
+.rc-chip.rc-online i { animation: rcPulse 2s ease-in-out infinite; }
+@keyframes rcPulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .rc-chip.rc-online i { animation: none; } }
+@media (max-width: 900px) { .top.has-extra .role-counts { flex: 0 1 auto; } .rc-chip.rc-online { order: -1; } .rc-chip.rc-online > span { display: none; } }

@@ -3823,11 +3823,46 @@ function drawRoleCounts() {
   box.innerHTML = TOP_ROLES.map(rid => {
     const r = SHOP_ROLES[rid];
     return `<button type="button" class="rc-chip" data-rc="${rid}" aria-expanded="false" style="--rc:${r.color}" title="${esc(tl('Люди с ролью'))} ${esc(r.title)}"><i></i><span>${esc(r.title)}</span><b>${roleHolders(rid).length}</b></button>`;
-  }).join('');
+  }).join('') + onlineChipHtml();
   $('#topExtra').hidden = false;
   document.querySelector('.top')?.classList.add('has-extra');
 }
 window.drawRoleCounts = drawRoleCounts;
+let ONLINE = null;
+function onlineChipHtml() {
+  if (!ONLINE) return '';
+  const tip = `${tl('Онлайн')}: ${ONLINE.total} · ${tl('с аккаунтом')}: ${ONLINE.users} · ${tl('гости')}: ${ONLINE.guests}`;
+  return `<span class="rc-chip rc-online" title="${esc(tip)}"><i></i><b>${ONLINE.total}</b><span>${tl('онлайн')}</span></span>`;
+}
+(() => {
+  let sid = '';
+  try { sid = localStorage.getItem('rn_online_sid') || ''; } catch {}
+  if (!/^[A-Za-z0-9_-]{8,40}$/.test(sid)) {
+    sid = (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^A-Za-z0-9]/g, '').slice(0, 24);
+    try { localStorage.setItem('rn_online_sid', sid); } catch {}
+  }
+  const ping = () => fetch(CDN_URL + '/online/ping', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ sid, u: S.uid ? 1 : 0 }), keepalive: true }).catch(() => {});
+  ping();
+  setInterval(ping, 45e3);
+  addEventListener('pageshow', e => { if (e.persisted) ping(); });
+  addEventListener('pagehide', () => { try { navigator.sendBeacon(CDN_URL + '/online/bye', JSON.stringify({ sid })); } catch {} });
+})();
+async function loadOnline() {
+  if (!isMod() || document.hidden) return;
+  try {
+    const t = await getToken(); if (!t) return;
+    const r = await fetch(CDN_URL + '/online/count', { method: 'POST', headers: { Authorization: 'Bearer ' + t } });
+    if (!r.ok) return;
+    ONLINE = await r.json();
+    drawRoleCounts();
+  } catch {}
+}
+function startOnline() {
+  if (!isMod()) return;
+  loadOnline();
+  setInterval(loadOnline, 30e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadOnline(); });
+}
 let rcPop = null;
 function closeRolePop() {
   if (!rcPop) return;
@@ -3896,6 +3931,6 @@ addEventListener('hashchange', () => {
   if (location.hash.startsWith('#/')) go(location.hash.slice(2), { replace: true });
 });
 loadAllMyLikes();
-loadMe().then(() => { if (/^(suggest|news|u\/|mod|collections|new\/collection|shop)/.test(curRoute())) route(); });
+loadMe().then(() => { if (/^(suggest|news|u\/|mod|collections|new\/collection|shop)/.test(curRoute())) route(); startOnline(); });
 resolveLegacy().then(ok => { if (ok) route(); });
 })();
