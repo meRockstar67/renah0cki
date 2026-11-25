@@ -3814,7 +3814,7 @@ function route() {
   return viewFeed('all');
 }
 const TOP_ROLES = ['role_oligarh', 'role_syroh0cki', 'role_hoglin'];
-const topExtraOn = () => S.uid === OWNER_ID;
+const topExtraOn = () => true;
 function roleHolders(rid) {
   return [...EQ.values()].filter(e => (e.owned_roles || []).includes(rid) && !(e.hidden_roles || []).includes(rid)).map(e => e.user_id);
 }
