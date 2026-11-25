@@ -597,7 +597,7 @@ async function viewPost(key, root = page) {
     ev.preventDefault();
     if (pmEl.classList.contains('blur')) { // спойлер: пазл (если включён) или просто открыть
       if ($('.pz-over', pmEl)) return;
-      if (puzzleOn()) startPuzzle(pmEl, z, it.puzzle_difficulty || 'easy'); else pmEl.classList.remove('blur');
+      if (puzzleOn() && it.puzzle_difficulty !== 'none') startPuzzle(pmEl, z, it.puzzle_difficulty || 'easy'); else pmEl.classList.remove('blur');
       return;
     }
     openViewer($$('[data-zoom]', pmEl).map(a => a.getAttribute('href')), +z.dataset.zoom);
@@ -1570,7 +1570,7 @@ function viewNew(type) {
         <label class="fld"><span>${tl('Обложка (необязательно)')}</span></label>${drop('upCover', 'image/png,image/jpeg,image/webp,image/gif,image/avif,.avif', tl('Обложка'), tl('необязательно'))}` : ''}
       <div class="fld"><span>${tl('Теги')}</span><div class="chips up-tags">${ALL_TAGS.map(t => `<button type="button" class="chip" data-tag="${esc(t)}">#${esc(tagName(t))}</button>`).join('')}</div></div>
       ${T === 'art' ? `<label class="sw"><input type="checkbox" name="blur"><i></i><div><b>${tl('Спойлер / пазл')}</b><span>${tl('Картинка в ленте будет размытой')}</span></div></label>
-        <label class="fld puzzle" hidden><span>${tl('Сложность пазла')}</span><select name="puzzle"><option value="easy">${tl('Лёгкий')}</option><option value="x2">${tl('Сложный (×2)')}</option><option value="x3">${tl('Сложный (×3)')}</option><option value="x4">${tl('Очень сложный (×4)')}</option><option value="choice">${tl('На выбор зрителя')}</option></select></label>` : ''}
+        <label class="fld puzzle" hidden><span>${tl('Сложность пазла')}</span><select name="puzzle"><option value="none" selected>${tl('Без пазла — просто размытие')}</option><option value="easy">${tl('Лёгкий')}</option><option value="x2">${tl('Сложный (×2)')}</option><option value="x3">${tl('Сложный (×3)')}</option><option value="x4">${tl('Очень сложный (×4)')}</option><option value="choice">${tl('На выбор зрителя')}</option></select></label>` : ''}
       ${T === 'fanfic' ? `<label class="sw"><input type="checkbox" name="r18"><i></i><div><b>18+</b><span>${tl('Иначе рейтинг PG-13')}</span></div></label>` : ''}
       <div class="up-foot"><div class="up-status" id="upStatus"></div><div class="up-bar" hidden><i id="upBar"></i></div><button class="btn accent up-send" type="submit">${tl('Отправить на проверку')}</button></div>
     </form></div>`;
@@ -2422,7 +2422,7 @@ async function editPost(it) {
     ${T === 'fanfic' ? `<label>${tl('Фэндом')}<input name="fa" maxlength="80" value="${esc(it.fandom || '')}"></label><label>${tl('Пейринг')}<input name="pa" maxlength="80" value="${esc(it.pairing || '')}"></label>` : ''}
     <div class="pe-color"><span>${tl('Теги')}</span><div class="chips" data-etags>${[...new Set([...ALL_TAGS, ...(it.tags || [])])].map(t => `<button type="button" class="chip${(it.tags || []).includes(t) ? ' on' : ''}" data-etag="${esc(t)}">#${esc(tagName(t))}</button>`).join('')}</div></div>
     ${T === 'art' ? `<label class="sw"><input type="checkbox" name="bl"${it.is_blurred ? ' checked' : ''}><i></i><div><b>${tl('Спойлер / пазл')}</b><span>${tl('Картинка в ленте будет размытой')}</span></div></label>
-      <label class="pz"${it.is_blurred ? '' : ' hidden'}>${tl('Сложность пазла')}<select name="pz">${[['easy', tl('Лёгкий')], ['x2', tl('Сложный (×2)')], ['x3', tl('Сложный (×3)')], ['x4', tl('Очень сложный (×4)')], ['choice', tl('На выбор зрителя')]].map(([v, n]) => `<option value="${v}"${(it.puzzle_difficulty || 'easy') === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+      <label class="pz"${it.is_blurred ? '' : ' hidden'}>${tl('Сложность пазла')}<select name="pz">${[['none', tl('Без пазла — просто размытие')], ['easy', tl('Лёгкий')], ['x2', tl('Сложный (×2)')], ['x3', tl('Сложный (×3)')], ['x4', tl('Очень сложный (×4)')], ['choice', tl('На выбор зрителя')]].map(([v, n]) => `<option value="${v}"${(it.puzzle_difficulty || 'easy') === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
     ${T === 'fanfic' ? `<label class="sw"><input type="checkbox" name="r18"${it.age_rating === '18+' ? ' checked' : ''}><i></i><div><b>18+</b><span>${tl('Иначе рейтинг PG-13')}</span></div></label>` : ''}
     <p class="hint"></p><div class="v2-modal-acts"><button type="button" class="btn" data-x>${tl('Отмена')}</button><button class="btn accent" type="submit">${tl('Сохранить')}</button></div></form>`;
   const f = $('form', ov);
