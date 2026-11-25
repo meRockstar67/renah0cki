@@ -2,6 +2,7 @@
    Каждый аккаунт может включать и отключать приём донатов. */
 (() => {
 'use strict';
+const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; }; // 1 пузокоин / 2 пузокоина / 5 пузокоинов
 
 const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
@@ -69,7 +70,7 @@ function syncAmountUi() {
   const v = Math.floor(Number($('#amount').value)) || 0;
   document.querySelectorAll('#chips [data-amt]').forEach(b => b.classList.toggle('on', Number(b.dataset.amt) === v));
   const btn = $('#send');
-  if (!btn.disabled) btn.textContent = v > 0 ? `Отправить ${fmt(v)} пузокоинов` : 'Отправить';
+  if (!btn.disabled) btn.textContent = v > 0 ? `Отправить ${fmt(v)} ${ruCoin(v)}` : 'Отправить';
 }
 
 /* ── отрисовка ── */
@@ -140,7 +141,7 @@ async function loadMe() {
     sb(`profiles?id=eq.${S.uid}&select=id,username,display_name,avatar_url,coin_donate_enabled`),
     sb('auc_donations?select=id,user_id,recipient_id,user_name,amount,message,kind,lot_label,created_at,bid_id&order=id.desc&limit=15'),
   ]);
-  if (bal != null) { S.balance = bal; $('#bal').hidden = false; $('#balN').textContent = fmt(bal); }
+  if (bal != null) { S.balance = bal; $('#bal').hidden = false; $('#balN').textContent = fmt(bal); $('.bal-u').textContent = ruCoin(bal); }
   if (Array.isArray(profs) && profs[0]) S.me = profs[0];
   if (Array.isArray(mine) && mine.length) {
     $('#mineBox').hidden = false;
@@ -151,7 +152,7 @@ async function loadMe() {
         : m.kind === 'bid'
           ? `<span class="src site">ставка${m.lot_label ? ': ' + esc(m.lot_label) : ''}</span>`
           : '<span class="src">донат</span>';
-      return `<li class="item"><span class="main"><b${incoming ? ' class="inc"' : ''}>${incoming ? '+' : ''}${fmt(m.amount)} Puzocoins</b> ${tag}</span>
+      return `<li class="item"><span class="main"><b${incoming ? ' class="inc"' : ''}>${incoming ? '+' : ''}${fmt(m.amount)} ${ruCoin(m.amount)}</b> ${tag}</span>
         <span class="side">${new Date(m.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>${m.message ? `<span class="meta">«${esc(m.message)}»</span>` : ''}</li>`;
     }).join('');
   }
@@ -175,7 +176,7 @@ $('#dForm').addEventListener('submit', async e => {
   e.preventDefault();
   const amount = Math.floor(Number($('#amount').value));
   const min = (S.target?.is_streamer ? S.pub?.config?.min_site_bid : 1) || 1;
-  if (!amount || amount < min) return toast(`Минимум — ${min} пузокоинов`, true);
+  if (!amount || amount < min) return toast(`Минимум — ${min} ${ruCoin(min)}`, true);
   if (S.balance != null && amount > S.balance) return toast('Не хватает пузокоинов', true);
   const btn = $('#send'); btn.disabled = true; btn.textContent = 'Отправляю…';
   try {
@@ -185,9 +186,9 @@ $('#dForm').addEventListener('submit', async e => {
       ? await aucApi('/auc/donate', { amount, message: $('#msg').value.trim(), voice: $('#voiceField').hidden ? null : S.voice, lot_id: null, lot_name: null, recipient_id: recId })
       : await sb('rpc/auc_coin_donate', { p_amount: amount, p_message: $('#msg').value.trim() || null, p_lot_id: null, p_lot_name: null, p_recipient_id: recId }, true);
     $('#dForm').hidden = true; $('#done').hidden = false;
-    $('#doneT').textContent = `${fmt(r.amount)} пузокоинов отправлено!`;
+    $('#doneT').textContent = `${fmt(r.amount)} ${ruCoin(r.amount)} отправлено!`;
     $('#doneS').textContent = `Спасибо! Донат уже у ${S.target?.display_name || S.target?.username || 'получателя'}.`;
-    S.balance = r.balance; $('#balN').textContent = fmt(r.balance);
+    S.balance = r.balance; $('#balN').textContent = fmt(r.balance); $('.bal-u').textContent = ruCoin(r.balance);
     loadMe();
   } catch (err) { toast(err.message, true); }
   finally { btn.disabled = false; syncAmountUi(); }

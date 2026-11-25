@@ -11,6 +11,7 @@ const COIN = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const tl = (s, v) => (window.I18N ? window.I18N.t(s, v) : s); // перевод, см. v2/i18n.js
+const coinW = n => (window.I18N?.coin ? window.I18N.coin(n) : 'пузокоинов'); // 1 пузокоин / 2 пузокоина / 5 пузокоинов
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = n => {
   n = Number(n) || 0;
@@ -659,7 +660,7 @@ async function renderReact(it) {
       try {
         const bal = await rpc('coin_react', { p_kind: 'content', p_id: it.id, p_emoji: 'coin', p_amount: a });
         $('#coinVal').textContent = fmt(bal);
-        toast(tl('Подарено {0} пузокоинов автору', {0: fmt(a)}));
+        toast(tl('Подарено {0} {c} автору', {c: coinW(a), 0: fmt(a)}));
         await renderReact(it);
         $('.react-btn', $('#reactWrap'))?.classList.add('pop');
       } catch (er) { st.textContent = tl('Ошибка: ') + er.message; send.disabled = false; }
@@ -1398,7 +1399,7 @@ async function viewProfile(key) {
         <h1>${cosName(p)}</h1>
         ${p.username && p.display_name ? `<div class="prof-handle">@${esc(p.username)}</div>` : ''}
         ${p.bio ? `<p class="prof-bio">${esc(p.bio)}</p>` : ''}
-        <div class="prof-stats"><span><b>${fmt(works.length)}</b> ${tl('публикаций')}</span><span><b id="subsN">${fmt(subs)}</b> ${tl('подписчиков')}</span>${adminBal != null ? `<span class="prof-coin" title="${tl('Баланс пользователя (видно только вам)')}"><img src="${COIN}" alt=""><b id="profCoinVal" data-uid="${esc(p.id)}">${fmt(adminBal)}</b> ${tl('пузокоинов')}</span>` : ''}</div>
+        <div class="prof-stats"><span><b>${fmt(works.length)}</b> ${tl('публикаций')}</span><span><b id="subsN">${fmt(subs)}</b> ${tl('подписчиков')}</span>${adminBal != null ? `<span class="prof-coin" title="${tl('Баланс пользователя (видно только вам)')}"><img src="${COIN}" alt=""><b id="profCoinVal" data-uid="${esc(p.id)}">${fmt(adminBal)}</b> ${coinW(adminBal)}</span>` : ''}</div>
       </div>
       <div class="prof-acts">
         ${own ? `<button class="btn" type="button" id="profEdit">${tl('Редактировать')}</button>`
@@ -1479,8 +1480,8 @@ function updateBell() {
   b.textContent = n > 99 ? '99+' : String(n); b.hidden = !n;
 }
 const NOTIF_TEXT = { like: tl('лайкнул(а) вашу работу'), comment: tl('прокомментировал(а)'), follow: tl('подписался(ась) на вас'), reject: tl('отклонил(а) вашу работу'),
-  coin: n => `${tl('перевёл(а) вам')} <b>${fmtNum(n.amount)}</b> ${tl('пузокоинов')}`,
-  grant: n => `${tl('начислил(а) вам')} <b>${fmtNum(n.amount)}</b> ${tl('пузокоинов')}`,
+  coin: n => `${tl('перевёл(а) вам')} <b>${fmtNum(n.amount)}</b> ${coinW(n.amount)}`,
+  grant: n => `${tl('начислил(а) вам')} <b>${fmtNum(n.amount)}</b> ${coinW(n.amount)}`,
   gift: n => `${tl('подарил(а) вам роль')} <span class="notif-target">«${esc(n.title || tl('роль'))}»</span>${n.days ? tl(' на {0} дн.', {0: n.days}) : ''}` };
 const fmtNum = n => Number(n || 0).toLocaleString('ru-RU');
 const COIN_SVG = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.5 9.5h3.8a1.7 1.7 0 010 3.4h-2.6a1.7 1.7 0 000 3.4H14.5"/></svg>';
@@ -3046,8 +3047,8 @@ const TXI = {
   swap: '<svg viewBox="0 0 24 24"><path d="M5 9h13l-3-3M19 15H6l3 3"/></svg>',
   heart: I.heart,
 };
-const DA_RATES_TXT = '1 ₽ → 1 Puzocoins · 1 ₴ = 2 · 1 $ = 80 · 1 € = 90 · 1 ₸ = 0,16 · 1 Br = 25';
-function setBalance(v) { $('#coinVal').textContent = fmt(v); const b = $('#walBal'); if (b) b.textContent = fmt(v); const sb = $('#shopBal'); if (sb) sb.textContent = fmt(v); }
+const DA_RATES_TXT = '1 ₽ → 1 ' + coinW(1) + ' · 1 ₴ = 2 · 1 $ = 80 · 1 € = 90 · 1 ₸ = 0,16 · 1 Br = 25';
+function setBalance(v) { $('#coinVal').textContent = fmt(v); $$('[data-coin-w]').forEach(el => { el.textContent = coinW(v); }); const b = $('#walBal'); if (b) b.textContent = fmt(v); const sb = $('#shopBal'); if (sb) sb.textContent = fmt(v); }
 async function viewWallet(tab) {
   setNav('');
   if (!S.uid) { page.innerHTML = `<div class="empty">${tl('Войдите, чтобы открыть кошелёк.')}<br><br><button class="btn accent" data-login>${tl('Войти')}</button></div>`; return; }
@@ -3055,7 +3056,7 @@ async function viewWallet(tab) {
   page.innerHTML = `<div class="wal">
     <section class="wal-hero">
       <div class="wal-coin"><img src="${COIN}" alt=""></div>
-      <div class="wal-sum"><span>${tl('Ваш баланс')}</span><b><i id="walBal">${esc($('#coinVal').textContent)}</i> ${tl('пузокоинов')}</b></div>
+      <div class="wal-sum"><span>${tl('Ваш баланс')}</span><b><i id="walBal">${esc($('#coinVal').textContent)}</i> <span data-coin-w>${coinW($('#coinVal').textContent)}</span></b></div>
       <div class="wal-acts">
         <a class="btn accent" href="${routeUrl('wallet/topup')}">${TXI.plus}${tl('Пополнить')}</a>
         <a class="btn" href="${routeUrl('wallet/send')}">${TXI.swap}${tl('Перевести')}</a>
@@ -3143,7 +3144,7 @@ function coinSendDialog(p) {
   ov.className = 'v2-overlay';
   ov.innerHTML = `<form class="v2-modal send">
     <h2>${tl('Перевести пузокоины')}</h2>
-    <div class="send-to">${avaHtml(p.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b><span>${tl('Ваш баланс:')} ${esc($('#coinVal').textContent)} ${tl('пузокоинов')}</span></div></div>
+    <div class="send-to">${avaHtml(p.avatar_url, pname(p))}<div><b>${esc(pname(p))}</b><span>${tl('Ваш баланс:')} ${esc($('#coinVal').textContent)} ${coinW($('#coinVal').textContent)}</span></div></div>
     <div class="send-amts">${SEND_AMTS.map((a, i) => `<button type="button" class="chip${i === 1 ? ' on' : ''}" data-samt="${a}">${a}</button>`).join('')}<input type="number" name="c" min="1" max="100000" step="1" placeholder="${tl('своя')}"></div>
     <label>${tl('Сообщение (необязательно)')}<textarea name="n" rows="2" maxlength="200"></textarea></label>
     <p class="hint">${tl('Перевод нельзя отменить.')}</p>
@@ -3162,7 +3163,7 @@ function coinSendDialog(p) {
     btn.disabled = true; hint.textContent = '…';
     try {
       const bal = await rpc('coin_transfer', { p_to: p.id, p_amount: a, p_note: f.n.value.trim() || null });
-      setBalance(bal); ov.remove(); toast(tl('Переведено {0} пузокоинов → {1}', {0: fmt(a), 1: pname(p)}));
+      setBalance(bal); ov.remove(); toast(tl('Переведено {0} {c} → {1}', {c: coinW(a), 0: fmt(a), 1: pname(p)}));
       const pc = $('#profCoinVal'); if (pc && pc.dataset.uid === p.id) rpc('coin_admin_balance', { p_user: p.id }).then(v => { if (v != null) pc.textContent = fmt(v); }).catch(() => {});
     } catch (er) { hint.textContent = tl('Ошибка: ') + er.message; btn.disabled = false; }
   };
@@ -3384,7 +3385,7 @@ async function viewShop(tab) {
     page.innerHTML = `<div class="shop">
       <div class="shop-head">
         <h1>${tl('Магазин косметики')}</h1>
-        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> ${tl('пузокоинов')}<a href="${routeUrl('wallet/topup')}">${tl('Пополнить')}</a></div>` : `<button type="button" class="btn accent" data-login>${tl('Войти, чтобы покупать')}</button>`}
+        ${S.uid ? `<div class="shop-bal"><img src="${COIN}" alt=""><b id="shopBal">${esc($('#coinVal').textContent)}</b> <span data-coin-w>${coinW($('#coinVal').textContent)}</span><a href="${routeUrl('wallet/topup')}">${tl('Пополнить')}</a></div>` : `<button type="button" class="btn accent" data-login>${tl('Войти, чтобы покупать')}</button>`}
       </div>
       ${renderPreview()}
       <div class="tabs shop-tabs">${SHOP_CATS.map(([k, l]) => `<a class="tab${T === k ? ' on' : ''}" href="${routeUrl(k === 'all' ? 'shop' : 'shop/' + k)}">${l}${k === 'mine' ? ` (${owned.size + activeTemp.length})` : ''}</a>`).join('')}</div>
@@ -3456,7 +3457,7 @@ async function viewShop(tab) {
       if (bs) {
         if (!S.uid) return login();
         const it = SHOP_ITEMS.get(bs.dataset.shbuyself); if (!it) return;
-        if (!confirm(tl('Купить роль «{0}» себе на 2 недели за {1} пузокоинов?', {0: it.title, 1: fmt(it.price)}))) return;
+        if (!confirm(tl('Купить роль «{0}» себе на 2 недели за {1} {c}?', {c: coinW(it.price), 0: it.title, 1: fmt(it.price)}))) return;
         bs.disabled = true;
         try {
           const res = await rpc('shop_gift_role', { p_item_id: it.id, p_target_user: S.uid, p_days: 14 });
@@ -3546,7 +3547,7 @@ async function viewShop(tab) {
         const it = SHOP_ITEMS.get(buyBtn.dataset.shbuy); if (!it) return;
         const isPackBuy = it.category === 'bundle';
         const payNow = isPackBuy ? Number(buyBtn.dataset.shpay ?? it.price) : it.price;
-        if (!confirm(isPackBuy ? tl('Купить набор «{0}» за {1} пузокоинов? Всё из набора останется у вас навсегда и сразу наденется.', {0: it.title, 1: fmt(payNow)}) : tl('Купить «{0}» за {1} пузокоинов? Предмет останется у вас навсегда.', {0: it.title, 1: fmt(it.price)}))) return;
+        if (!confirm(isPackBuy ? tl('Купить набор «{0}» за {1} {c}? Всё из набора останется у вас навсегда и сразу наденется.', {0: it.title, 1: fmt(payNow), c: coinW(payNow)}) : tl('Купить «{0}» за {1} {c}? Предмет останется у вас навсегда.', {0: it.title, 1: fmt(it.price)}))) return;
         buyBtn.disabled = true;
         try {
           const bal = await rpc('shop_buy', { p_item_id: it.id });

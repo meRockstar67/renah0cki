@@ -3,6 +3,7 @@
 'use strict';
 const tl = (s, v) => (window.I18N ? window.I18N.t(s, v) : s); // перевод, см. /v2/i18n.js и /rp/i18n-rp.js
 const LANG = () => (window.I18N ? window.I18N.lang() : 'ru');
+const coinW = n => (window.I18N?.coin ? window.I18N.coin(n) : 'пузокоинов'); // 1 пузокоин / 2 пузокоина / 5 пузокоинов
 
 const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
@@ -144,6 +145,7 @@ async function fillCoinBalance(root) {
   try {
     const v = await api('rpc/coin_balance', { method: 'POST', body: {}, schema: 'public' });
     $$('[data-coin-bal]', root).forEach(el => { el.textContent = Number(v || 0).toLocaleString('ru-RU'); });
+    $$('[data-coin-w="bal"]', root).forEach(el => { el.textContent = coinW(v); });
   } catch {}
 }
 async function fillUserCoinBalance(root, userId) {
@@ -152,6 +154,7 @@ async function fillUserCoinBalance(root, userId) {
     const v = await api('rpc/coin_admin_balance', { method: 'POST', body: { p_user: userId }, schema: 'public' });
     if (v == null) { $$('[data-admin-coin-wrap]', root).forEach(el => el.remove()); return; }
     $$('[data-admin-coin-bal]', root).forEach(el => { el.textContent = Number(v || 0).toLocaleString('ru-RU'); });
+    $$('[data-coin-w="adm"]', root).forEach(el => { el.textContent = coinW(v); });
   } catch { $$('[data-admin-coin-wrap]', root).forEach(el => el.remove()); }
 }
 
@@ -1818,7 +1821,7 @@ async function viewUser(key) {
       ${(u.about || u.bio) ? `<div class="cp-bio">${richText(u.about || u.bio)}</div>` : ''}
       <div class="cp-meta-row">${meta.join('')}</div>
       <div class="cp-stats"><span><b data-fcount>${followers.length}</b> <span data-fword>${plural(followers.length, tl('подписчик'), tl('подписчика'), tl('подписчиков'))}</span></span><span><b>${following.length}</b> ${plural(following.length, tl('подписка'), tl('подписки'), tl('подписок'))}</span></div>
-      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, tl('роль'), tl('роли'), tl('ролей'))}</span><span><b>${reposts.length}</b> ${plural(reposts.length, tl('репост'), tl('репоста'), tl('репостов'))}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> ${tl('пузокоинов')}</span>` : (!isMe && S.uid === OWNER_ID ? `<span class="cp-coin" data-admin-coin-wrap title="${tl('Баланс пользователя (видно только вам)')}">${coinIco()} <b data-admin-coin-bal>…</b> ${tl('пузокоинов')}</span>` : '')}</div>
+      <div class="cp-stats"><span><b>${roles.length}</b> ${plural(roles.length, tl('роль'), tl('роли'), tl('ролей'))}</span><span><b>${reposts.length}</b> ${plural(reposts.length, tl('репост'), tl('репоста'), tl('репостов'))}</span>${isMe && coinsVisible() ? `<span class="cp-coin">${coinIco()} <b data-coin-bal>…</b> <span data-coin-w="bal">${coinW(0)}</span></span>` : (!isMe && S.uid === OWNER_ID ? `<span class="cp-coin" data-admin-coin-wrap title="${tl('Баланс пользователя (видно только вам)')}">${coinIco()} <b data-admin-coin-bal>…</b> <span data-coin-w="adm">${coinW(0)}</span></span>` : '')}</div>
       ${isMe ? `<button class="btn ghost cp-edit only-m" data-edit-profile>${tl('Редактировать профиль')}</button>` : ''}</div>
     <div class="tabs" role="tablist" style="border-bottom:1px solid var(--border)"><button type="button" class="active" data-utab="rt">${tl('Репосты')}</button><button type="button" data-utab="roles">${tl('Роли')}</button></div>
     <div id="uList"></div>`;
@@ -2365,7 +2368,7 @@ function shopHtml() {
   const status = active
     ? `${tl('Активна роль')} <b>${ROLE_NAME[me.paid_role]}</b> ${tl('до')} ${until.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`
     : (ROLE_RANK[me.rp_role] ?? 0) >= 1 ? `${tl('Ваша роль:')} <b>${ROLE_NAME[me.rp_role]}</b>` : tl('Подписки нет');
-  return `<div class="set-sec"><h2>${tl('Подписка')}</h2><p>${status} ${tl('· Баланс:')} ${coinIco()} <b data-coin-bal>…</b> ${tl('пузокоинов')}</p>
+  return `<div class="set-sec"><h2>${tl('Подписка')}</h2><p>${status} ${tl('· Баланс:')} ${coinIco()} <b data-coin-bal>…</b> <span data-coin-w="bal">${coinW(0)}</span></p>
     <div class="shop-grid">${SHOP_ROLES.map(r => {
       const base = (ROLE_RANK[me.rp_role] ?? 0) >= ROLE_RANK[r.id];
       const higher = active && ROLE_RANK[me.paid_role] > ROLE_RANK[r.id];
@@ -2381,7 +2384,7 @@ function shopHtml() {
 function bindShop(root) {
   $$('[data-buy-role]', root).forEach(b => b.onclick = async () => {
     const r = SHOP_ROLES.find(x => x.id === b.dataset.buyRole);
-    if (!r || !confirm(tl('Купить роль {0} на 30 дней за {1} пузокоинов?', {0: ROLE_NAME[r.id], 1: r.price}))) return;
+    if (!r || !confirm(tl('Купить роль {0} на 30 дней за {1} {c}?', {c: coinW(r.price), 0: ROLE_NAME[r.id], 1: r.price}))) return;
     b.disabled = true;
     try {
       const res = await api('rpc/buy_role', { method: 'POST', body: { p_role: r.id, p_months: 1 } });

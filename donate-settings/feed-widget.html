@@ -92,6 +92,7 @@
   <div class="list" id="list"></div>
 </div>
 <script>
+const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; }; // 1 пузокоин / 2 пузокоина / 5 пузокоинов
 (() => {
   const API = 'https://cdn.renah0cki.xyz';
   const COIN_IMG = 'https://cdn.renah0cki.xyz/file/static/Resurs-134x-8.png';
@@ -137,7 +138,7 @@
     return '✨';
   }
   function rightLabel(ev) {
-    if (ev.type === 'coin') return `${fmt(ev.amount)} пузокоинов`;
+    if (ev.type === 'coin') return `${fmt(ev.amount)} ${ruCoin(ev.amount)}`;
     if (ev.type === 'da') return `${fmt(ev.amount)} ${ev.unit || 'RUB'}`;
     if (ev.type === 'dn') return `${fmt(ev.amount)} ${ev.unit || 'UAH'}`;
     if (ev.type === 'tw_follow') return 'Фолловер';

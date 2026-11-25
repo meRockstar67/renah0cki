@@ -1,6 +1,7 @@
 /* renah0cki — контроллер компактной панели последних событий (OBS док + браузер) */
 (() => {
 'use strict';
+const ruCoin = n => { const x = Math.abs(Math.trunc(Number(String(n ?? '').replace(/[^\d.-]/g, '')) || 0)), a = x % 10, b = x % 100; return a === 1 && b !== 11 ? 'пузокоин' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'пузокоина' : 'пузокоинов'; }; // 1 пузокоин / 2 пузокоина / 5 пузокоинов
 
 const SB_URL = 'https://api.renah0cki.xyz';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0NjgyNjI0LCJleHAiOjE5NTIzNjI2MjR9.KOLZWhB7uFppGB8SoJ-hT7Ilz4lAb2yPuxrzZN-ynZA';
@@ -83,7 +84,7 @@ function iconHtml(ev) {
   return '✨';
 }
 function amountLabel(ev) {
-  if (ev.type === 'coin') return `${fmt(ev.amount)} пузокоинов`;
+  if (ev.type === 'coin') return `${fmt(ev.amount)} ${ruCoin(ev.amount)}`;
   if (ev.type === 'da') return `${fmt(ev.amount)} ${ev.unit || 'RUB'}`;
   if (ev.type === 'dn') return `${fmt(ev.amount)} ${ev.unit || 'UAH'}`;
   if (ev.type === 'tw_follow') return 'Фолловер';
