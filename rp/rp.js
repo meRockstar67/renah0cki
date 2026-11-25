@@ -1980,7 +1980,7 @@ async function loadSupport(jump = false) {
 
 const RULES_TXT = {
   ru: () => `
-    <p class="rules-lead">Y (переписки) — ролевая игра на renah0cki: пользователи пишут посты, ответы и сообщения от лица персонажей. В Y бывают нецензурная лексика, грубый юмор и ролевые конфликты. Здесь действуют эти правила и <a href="/rules" target="_blank" rel="noopener">общие правила renah0cki</a>. Пользуясь Y, вы соглашаетесь с ними.</p>
+    <p class="rules-lead">Y (переписки) — ролевая игра на renah0cki: пользователи пишут посты, ответы и сообщения от лица персонажей. В Y бывают нецензурная лексика, грубый юмор и ролевые конфликты. Здесь действуют эти правила, <a href="/rules" target="_blank" rel="noopener">Пользовательское соглашение renah0cki</a> и <a href="/privacy" target="_blank" rel="noopener">Политика конфиденциальности</a>. Пользуясь Y, вы соглашаетесь с ними.</p>
 
     <h2>1. Персонажи вымышлены</h2>
     <p>Все персонажи в Y — вымышленные образы, созданные пользователями для ролевой игры, и <b>не связаны с реальными людьми</b>, даже если имя, ник, внешность или характер кого-то напоминают. Совпадения случайны или носят дружеский, шуточный характер и не несут злого умысла.</p>
@@ -2016,7 +2016,7 @@ const RULES_TXT = {
     <p>Фото и голосовые из ЛС хранятся на сервере renah0cki по длинной случайной ссылке: другие игроки не могут их найти, но открыть файл может любой, кому эту ссылку переслали.</p>
 
     <h2>6. Подписки, синяя галочка и пузокоины</h2>
-    <p>Роли ГОЙ и VIP оплачиваются пузокоинами на 30 дней и сами не продлеваются. Пузокоины — бонусная валюта сайта: их нельзя вывести или обменять на деньги (подробнее — в <a href="/rules" target="_blank" rel="noopener">общих правилах</a>). При блокировке за нарушения подписка не возвращается.</p>
+    <p>Роли ГОЙ и VIP оплачиваются пузокоинами на 30 дней и сами не продлеваются. Пузокоины — бонусная валюта сайта: их нельзя вывести или обменять на деньги (подробнее — в <a href="/rules" target="_blank" rel="noopener">Пользовательском соглашении</a>). При блокировке за нарушения подписка не возвращается.</p>
     <p><b>Синяя галочка (✓)</b> у имени профиля или персонажа означает только то, что у пользователя есть <b>VIP</b>. Она <b>не означает</b> официальный аккаунт и не подтверждает, что за профилем или персонажем стоит реальный человек, на которого он похож.</p>
 
     <h2>7. Если вас или ваш образ используют</h2>
@@ -2027,7 +2027,7 @@ const RULES_TXT = {
     <h2>${callsOk() ? 9 : 8}. Общие условия</h2>
     <ul>
       <li>Пользоваться Y можно бесплатно. Участие, подписки, подарки и переводы — только по вашему желанию; никто ни к чему не принуждает.</li>
-      <li>Y работает «как есть»: мы исправляем ошибки, но не гарантируем, что не будет сбоев, перерывов или потери данных. Ограничения ответственности, данные и донаты — в <a href="/rules" target="_blank" rel="noopener">общих правилах renah0cki</a>.</li>
+      <li>Y работает «как есть»: мы исправляем ошибки, но не гарантируем, что не будет сбоев, перерывов или потери данных. Ограничения ответственности и донаты — в <a href="/rules" target="_blank" rel="noopener">Пользовательском соглашении renah0cki</a>, данные — в <a href="/privacy" target="_blank" rel="noopener">Политике конфиденциальности</a>.</li>
       <li>Сайт рассчитан на пользователей от 14 лет; если вам меньше — только с разрешения родителей.</li>
       <li>Правила могут меняться, актуальная версия всегда на этой странице.</li>
     </ul>
@@ -2037,7 +2037,7 @@ const RULES_TXT = {
     <p>Вопросы, жалобы, просьбы — <a href="#/support">в техподдержку</a>. Сообщение увидят модераторы renah0cki.</p>
 `,
   uk: () => `
-    <p class="rules-lead">Y (листування) — рольова гра на renah0cki: користувачі пишуть пости, відповіді та повідомлення від імені персонажів. У Y буває нецензурна лексика, грубий гумор і рольові конфлікти. Тут діють ці правила та <a href="/rules" target="_blank" rel="noopener">загальні правила renah0cki</a>. Користуючись Y, ви погоджуєтеся з ними.</p>
+    <p class="rules-lead">Y (листування) — рольова гра на renah0cki: користувачі пишуть пости, відповіді та повідомлення від імені персонажів. У Y буває нецензурна лексика, грубий гумор і рольові конфлікти. Тут діють ці правила, <a href="/rules" target="_blank" rel="noopener">Користувацька угода renah0cki</a> та <a href="/privacy" target="_blank" rel="noopener">Політика конфіденційності</a>. Користуючись Y, ви погоджуєтеся з ними.</p>
 
     <h2>1. Персонажі вигадані</h2>
     <p>Усі персонажі в Y — вигадані образи, створені користувачами для рольової гри, і <b>не пов’язані з реальними людьми</b>, навіть якщо ім’я, нік, зовнішність чи характер когось нагадують. Збіги випадкові або мають дружній, жартівливий характер і не несуть злого наміру.</p>
@@ -2073,7 +2073,7 @@ const RULES_TXT = {
     <p>Фото й голосові з особистих зберігаються на сервері renah0cki за довгим випадковим посиланням: інші гравці не можуть їх знайти, але відкрити файл може будь-хто, кому це посилання переслали.</p>
 
     <h2>6. Підписки, синя галочка та пузокоїни</h2>
-    <p>Ролі ГОЙ і VIP оплачуються пузокоїнами на 30 днів і самі не продовжуються. Пузокоїни — бонусна валюта сайту: їх не можна вивести чи обміняти на гроші (докладніше — у <a href="/rules" target="_blank" rel="noopener">загальних правилах</a>). У разі блокування за порушення підписка не повертається.</p>
+    <p>Ролі ГОЙ і VIP оплачуються пузокоїнами на 30 днів і самі не продовжуються. Пузокоїни — бонусна валюта сайту: їх не можна вивести чи обміняти на гроші (докладніше — у <a href="/rules" target="_blank" rel="noopener">Користувацькій угоді</a>). У разі блокування за порушення підписка не повертається.</p>
     <p><b>Синя галочка (✓)</b> біля імені профілю чи персонажа означає лише те, що в користувача є <b>VIP</b>. Вона <b>не означає</b> офіційний акаунт і не підтверджує, що за профілем чи персонажем стоїть реальна людина, на яку він схожий.</p>
 
     <h2>7. Якщо використовують вас або ваш образ</h2>
@@ -2084,7 +2084,7 @@ const RULES_TXT = {
     <h2>${callsOk() ? 9 : 8}. Загальні умови</h2>
     <ul>
       <li>Користуватися Y можна безкоштовно. Участь, підписки, подарунки й перекази — лише за вашим бажанням; ніхто ні до чого не змушує.</li>
-      <li>Y працює «як є»: ми виправляємо помилки, але не гарантуємо, що не буде збоїв, перерв чи втрати даних. Обмеження відповідальності, дані й донати — у <a href="/rules" target="_blank" rel="noopener">загальних правилах renah0cki</a>.</li>
+      <li>Y працює «як є»: ми виправляємо помилки, але не гарантуємо, що не буде збоїв, перерв чи втрати даних. Обмеження відповідальності й донати — у <a href="/rules" target="_blank" rel="noopener">Користувацькій угоді renah0cki</a>, дані — у <a href="/privacy" target="_blank" rel="noopener">Політиці конфіденційності</a>.</li>
       <li>Сайт розрахований на користувачів від 14 років; якщо вам менше — лише з дозволу батьків.</li>
       <li>Правила можуть змінюватися, актуальна версія завжди на цій сторінці.</li>
     </ul>
@@ -2094,7 +2094,7 @@ const RULES_TXT = {
     <p>Питання, скарги, прохання — <a href="#/support">у техпідтримку</a>. Повідомлення побачать модератори renah0cki.</p>
 `,
   en: () => `
-    <p class="rules-lead">Y (roleplay) is a roleplaying game on renah0cki: users write posts, replies and messages as characters. Y may contain profanity, crude humor and in-character conflicts. These rules and the <a href="/rules" target="_blank" rel="noopener">general renah0cki rules</a> apply here. By using Y, you agree to them.</p>
+    <p class="rules-lead">Y (roleplay) is a roleplaying game on renah0cki: users write posts, replies and messages as characters. Y may contain profanity, crude humor and in-character conflicts. These rules, the <a href="/rules" target="_blank" rel="noopener">renah0cki User Agreement</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> apply here. By using Y, you agree to them.</p>
 
     <h2>1. Characters are fictional</h2>
     <p>All characters in Y are fictional personas created by users for roleplay and <b>are not connected to real people</b>, even if their name, nickname, appearance or personality resembles someone. Any resemblance is coincidental or friendly and playful, with no ill intent.</p>
@@ -2130,7 +2130,7 @@ const RULES_TXT = {
     <p>Photos and voice messages from DMs are stored on the renah0cki server under a long random link: other players can’t find them, but anyone the link is forwarded to can open the file.</p>
 
     <h2>6. Subscriptions, the blue check and Puzocoins</h2>
-    <p>The ГОЙ and VIP roles are paid with Puzocoins for 30 days and don’t renew automatically. Puzocoins are the site’s bonus currency: they can’t be withdrawn or exchanged for money (see the <a href="/rules" target="_blank" rel="noopener">general rules</a> for details). If you are banned for violations, the subscription is not refunded.</p>
+    <p>The ГОЙ and VIP roles are paid with Puzocoins for 30 days and don’t renew automatically. Puzocoins are the site’s bonus currency: they can’t be withdrawn or exchanged for money (see the <a href="/rules" target="_blank" rel="noopener">User Agreement</a> for details). If you are banned for violations, the subscription is not refunded.</p>
     <p>The <b>blue check (✓)</b> next to a profile or character name only means the user has <b>VIP</b>. It <b>does not mean</b> an official account and doesn’t confirm that the profile or character is run by the real person it resembles.</p>
 
     <h2>7. If you or your likeness is being used</h2>
@@ -2141,7 +2141,7 @@ const RULES_TXT = {
     <h2>${callsOk() ? 9 : 8}. General terms</h2>
     <ul>
       <li>Y is free to use. Participation, subscriptions, gifts and transfers are entirely up to you; nobody forces you into anything.</li>
-      <li>Y is provided “as is”: we fix bugs but don’t guarantee there will be no failures, interruptions or data loss. Liability limits, data and donations are covered in the <a href="/rules" target="_blank" rel="noopener">general renah0cki rules</a>.</li>
+      <li>Y is provided “as is”: we fix bugs but don’t guarantee there will be no failures, interruptions or data loss. Liability limits and donations are covered in the <a href="/rules" target="_blank" rel="noopener">renah0cki User Agreement</a>, data — in the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</li>
       <li>The site is intended for users aged 14 and over; if you are younger — only with parental permission.</li>
       <li>The rules may change; the current version is always on this page.</li>
     </ul>
@@ -3561,7 +3561,7 @@ function yRulesGate() {
       <li>${tl('Личные сообщения могут читать модераторы — не пишите в них ничего личного и настоящего.')}</li>
       <li>${tl('Политика, травля, угрозы, чужие личные данные и всё незаконное — бан. Пожаловаться можно через «⋯» у поста или профиля.')}</li>
     </ul>
-    <p><a href="#/rules" data-gate-rules>${tl('Полные правила Y')}</a> · <a href="/rules" target="_blank" rel="noopener">${tl('общие правила renah0cki')}</a></p>
+    <p><a href="#/rules" data-gate-rules>${tl('Полные правила Y')}</a> · <a href="/rules" target="_blank" rel="noopener">${tl('Пользовательское соглашение')}</a> · <a href="/privacy" target="_blank" rel="noopener">${tl('Политика конфиденциальности')}</a></p>
     <label class="gate-check"><input type="checkbox" name="ok"> <span>${tl('Я прочитал(а) правила Y и согласен(на) с ними')}</span></label>
     <label class="gate-check"><input type="checkbox" name="adult"> <span>${tl('Мне есть 18 лет (необязательно — без этого посты 18+ скрыты)')}</span></label>
     <p class="gate-err" role="alert"></p>
