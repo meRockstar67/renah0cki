@@ -3822,33 +3822,59 @@ function drawRoleCounts() {
   const box = $('#roleCounts'); if (!box || !topExtraOn()) return;
   box.innerHTML = TOP_ROLES.map(rid => {
     const r = SHOP_ROLES[rid];
-    return `<button type="button" class="rc-chip" data-rc="${rid}" style="--rc:${r.color}" title="${esc(tl('Люди с ролью'))} ${esc(r.title)}"><i></i><span>${esc(r.title)}</span><b>${roleHolders(rid).length}</b></button>`;
+    return `<button type="button" class="rc-chip" data-rc="${rid}" aria-expanded="false" style="--rc:${r.color}" title="${esc(tl('Люди с ролью'))} ${esc(r.title)}"><i></i><span>${esc(r.title)}</span><b>${roleHolders(rid).length}</b></button>`;
   }).join('');
   $('#topExtra').hidden = false;
   document.querySelector('.top')?.classList.add('has-extra');
 }
 window.drawRoleCounts = drawRoleCounts;
-async function roleListDialog(rid) {
+let rcPop = null;
+function closeRolePop() {
+  if (!rcPop) return;
+  const { el, btn } = rcPop; rcPop = null;
+  btn.classList.remove('on'); btn.setAttribute('aria-expanded', 'false');
+  el.classList.remove('open');
+  setTimeout(() => el.remove(), 200);
+}
+function placeRolePop() {
+  if (!rcPop) return;
+  const { el, btn } = rcPop, b = btn.getBoundingClientRect();
+  const w = Math.min(280, innerWidth - 16);
+  el.style.width = w + 'px';
+  el.style.top = (b.bottom + 6) + 'px';
+  el.style.left = Math.max(8, Math.min(b.left, innerWidth - w - 8)) + 'px';
+}
+async function toggleRolePop(btn) {
+  const rid = btn.dataset.rc, same = rcPop?.btn === btn;
+  closeRolePop();
+  if (same) return;
   const r = SHOP_ROLES[rid]; if (!r) return;
   const ids = roleHolders(rid);
-  const ov = document.createElement('div');
-  ov.className = 'v2-overlay';
-  ov.innerHTML = `<div class="v2-modal rc-modal"><h2><i style="--rc:${r.color}"></i>${esc(r.title)} <span>${ids.length}</span></h2><div class="rc-list">${ids.length ? `<p class="hint">${tl('Загрузка…')}</p>` : `<p class="hint">${tl('Пока никого нет')}</p>`}</div><div class="v2-modal-acts"><button type="button" class="btn" data-x>${tl('Закрыть')}</button></div></div>`;
-  const close = () => { ov.remove(); removeEventListener('keydown', onKey); };
-  const onKey = e => { if (e.key === 'Escape') close(); };
-  addEventListener('keydown', onKey);
-  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]') || e.target.closest('a')) close(); });
-  document.body.append(ov);
+  const el = document.createElement('div');
+  el.className = 'rc-pop';
+  el.style.setProperty('--rc', r.color);
+  el.innerHTML = ids.length ? `<p class="hint">${tl('Загрузка…')}</p>` : `<p class="hint">${tl('Пока никого нет')}</p>`;
+  document.body.append(el);
+  rcPop = { el, btn };
+  btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true');
+  placeRolePop();
+  requestAnimationFrame(() => el.classList.add('open'));
   if (!ids.length) return;
   await loadProfiles(ids);
+  if (rcPop?.el !== el) return;
   const list = ids.map(id => S.profiles.get(id) || { id })
     .sort((a, b) => pname(a).localeCompare(pname(b), 'ru', { sensitivity: 'base' }));
-  $('.rc-list', ov).innerHTML = list.map(p => `<a class="spons-item" href="${userPath(p)}">${sponsAvaHtml(p)}<span class="spons-nm">${cosName(p)}</span></a>`).join('');
+  el.innerHTML = list.map(p => `<a class="spons-item" href="${userPath(p)}">${sponsAvaHtml(p)}<span class="spons-nm">${cosName(p)}</span></a>`).join('');
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-rc]');
-  if (b) roleListDialog(b.dataset.rc);
+  if (b) return toggleRolePop(b);
+  if (!rcPop) return;
+  if (e.target.closest('.rc-pop a') || !e.target.closest('.rc-pop')) closeRolePop();
 });
+addEventListener('keydown', e => { if (e.key === 'Escape') closeRolePop(); });
+addEventListener('resize', placeRolePop);
+$('#roleCounts')?.addEventListener('scroll', placeRolePop, { passive: true });
 (() => {
   const END = Date.parse('2026-12-01T00:00:00+02:00');
   const el = $('#topTimer'), val = $('#topTimerVal');
