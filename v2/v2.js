@@ -254,7 +254,7 @@ const SHOP_ROLES = {
   role_ovosh:       { title: tl('Альфа'), color: '#f43f5e' },
   role_bezson:      { title: tl('Мажор'), color: '#fde047' },
   role_oligarh:     { title: 'renah0cki', color: '#6cc4ff', keepCase: true, customColor: true },
-  role_syroh0cki:   { title: tl('сырохоки'), color: '#c4844e', keepCase: true, customColor: true },
+  role_syroh0cki:   { title: tl('сырохоки'), color: '#c4844e', keepCase: true },
   role_hoglin:      { title: tl('хоглины'), color: '#4cc46a', keepCase: true, customColor: true },
   gift_role_custom: { title: tl('Кастомная роль в подарок'), color: '#f43f5e', custom: true, giftOnly: true, tempDays: 14 },
   role_nyashka:     { title: tl('Няшка'), color: '#ff85b3', tempDays: 14 },
@@ -1219,7 +1219,6 @@ function roleChipHtml(r, eq = null) {
   if (sr || ['role', 'gift_role'].includes(it?.category)) {
     const txt = it?.title || sr?.title || r;
     const savedClr = r === 'role_oligarh' ? eq?.brand_role_color
-      : r === 'role_syroh0cki' ? eq?.syro_role_color
       : r === 'role_hoglin' ? eq?.hogl_role_color
       : r === 'role_puzomafia' ? eq?.puzo_role_color : null;
     const clr = /^#[0-9a-f]{6}$/i.test(savedClr || '')
