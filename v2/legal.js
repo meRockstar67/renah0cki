@@ -381,7 +381,7 @@
           '4.4. Фото, видео и голосовые сообщения хранятся на сервере renah0cki. Файлам из личных сообщений и поддержки присваиваются длинные случайные ссылки: подобрать их невозможно, однако открыть файл может любой, кому такая ссылка была переслана.',
           '4.5. Персональные данные не продаются и не передаются третьим лицам, за исключением случаев, когда это требуется по закону, и сервисов, без которых не работают функции Сайта:',
           ['вход — Twitch;',
-           'встроенные видео и смайлы — при их просмотре браузер Пользователя обращается к YouTube и 7TV;',
+           'встроенные видео, клипы и смайлы — при их просмотре браузер Пользователя обращается к YouTube, Twitch и 7TV;',
            'поиск GIF — поисковый запрос передаётся в GIPHY;',
            'уведомления в Telegram доставляет Telegram;',
            'донаты обрабатывают DonationAlerts и Donatello;',
@@ -390,7 +390,7 @@
         ]],
         ['5. Файлы cookie и хранилище браузера', [
           '5.1. Сайт не использует рекламные cookie и сторонние системы аналитики. В хранилище браузера (localStorage) сохраняются данные для входа, язык, настройки и случайный идентификатор для подсчёта онлайна.',
-          '5.2. Встроенные видео YouTube могут устанавливать собственные cookie по правилам YouTube.',
+          '5.2. Встроенные видео YouTube и клипы Twitch могут устанавливать собственные cookie по правилам этих сервисов.',
           '5.3. Пользователь может удалить эти данные — выйти из аккаунта или очистить данные Сайта в настройках браузера.',
         ]],
         ['6. Права Пользователей', [
@@ -464,7 +464,7 @@
           '4.4. Фото, відео та голосові повідомлення зберігаються на сервері renah0cki. Файлам з особистих повідомлень і підтримки присвоюються довгі випадкові посилання: підібрати їх неможливо, проте відкрити файл може будь-хто, кому таке посилання переслали.',
           '4.5. Персональні дані не продаються і не передаються третім особам, за винятком випадків, коли цього вимагає закон, і сервісів, без яких не працюють функції Сайту:',
           ['вхід — Twitch;',
-           'вбудовані відео та смайли — під час їх перегляду браузер Користувача звертається до YouTube і 7TV;',
+           'вбудовані відео, кліпи та смайли — під час їх перегляду браузер Користувача звертається до YouTube, Twitch і 7TV;',
            'пошук GIF — пошуковий запит передається в GIPHY;',
            'сповіщення в Telegram доставляє Telegram;',
            'донати обробляють DonationAlerts і Donatello;',
@@ -473,7 +473,7 @@
         ]],
         ['5. Файли cookie та сховище браузера', [
           '5.1. Сайт не використовує рекламні cookie та сторонні системи аналітики. У сховищі браузера (localStorage) зберігаються дані для входу, мова, налаштування та випадковий ідентифікатор для підрахунку онлайну.',
-          '5.2. Вбудовані відео YouTube можуть встановлювати власні cookie за правилами YouTube.',
+          '5.2. Вбудовані відео YouTube і кліпи Twitch можуть встановлювати власні cookie за правилами цих сервісів.',
           '5.3. Користувач може видалити ці дані — вийти з акаунта або очистити дані Сайту в налаштуваннях браузера.',
         ]],
         ['6. Права Користувачів', [
@@ -547,7 +547,7 @@
           '4.4. Photos, videos and voice messages are stored on the renah0cki server. Files from direct messages and support get long random links: they cannot be guessed, but anyone who receives such a link can open the file.',
           '4.5. Personal data is not sold or transferred to third parties, except where required by law and to services without which the Site’s features do not work:',
           ['sign-in — Twitch;',
-           'embedded videos and emotes — when they are viewed, the User’s browser connects to YouTube and 7TV;',
+           'embedded videos, clips and emotes — when they are viewed, the User’s browser connects to YouTube, Twitch and 7TV;',
            'GIF search — the search query is sent to GIPHY;',
            'Telegram notifications are delivered by Telegram;',
            'donations are processed by DonationAlerts and Donatello;',
@@ -556,7 +556,7 @@
         ]],
         ['5. Cookies and browser storage', [
           '5.1. The Site does not use advertising cookies or third-party analytics. Browser storage (localStorage) keeps sign-in data, the language, settings and a random identifier for counting visitors online.',
-          '5.2. Embedded YouTube videos may set their own cookies under YouTube’s rules.',
+          '5.2. Embedded YouTube videos and Twitch clips may set their own cookies under those services’ rules.',
           '5.3. The User can delete this data by signing out or clearing the Site’s data in the browser settings.',
         ]],
         ['6. Users’ rights', [

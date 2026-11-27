@@ -3516,7 +3516,7 @@ async function viewShop(tab) {
 let legalP = null;
 const loadLegal = () => legalP || (legalP = new Promise((ok, bad) => {
   const sc = document.createElement("script");
-  sc.src = "/v2/legal.js?v=20261125lg"; sc.onload = ok; sc.onerror = () => { legalP = null; bad(new Error("legal")); };
+  sc.src = "/v2/legal.js?v=20261127tw"; sc.onload = ok; sc.onerror = () => { legalP = null; bad(new Error("legal")); };
   document.head.append(sc);
 }));
 async function viewLegal(which) {

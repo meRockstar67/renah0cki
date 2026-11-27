@@ -69,6 +69,23 @@ async function delServerMedia(payload) {
   await fetch(CDN + '/user-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) }).catch(() => {});
 }
 const S = { uid: readSession()?.user?.id || null, me: null, admin: false, jury: false, noms: [], nees: [], votes: new Map(), custom: new Map(), results: null, showRes: false, flatGrid: false, carIdx: 0, homeScroll: 0, view: '', lastVoted: null, justDragged: false };
+const twClip = u => (String(u || '').match(/(?:clips\.twitch\.tv\/(?:embed\?clip=)?|twitch\.tv\/[A-Za-z0-9_]+\/clip\/)([A-Za-z0-9_-]{6,120})/) || [])[1] || null;
+function twClipOpen(slug, url) {
+  const ov = document.createElement('div'); ov.className = 'aw-ov aw-clip-ov';
+  const src = 'https://clips.twitch.tv/embed?clip=' + encodeURIComponent(slug) + '&parent=' + encodeURIComponent(location.hostname) + '&autoplay=true';
+  ov.innerHTML = `<div class="aw-clip" role="dialog" aria-modal="true" aria-label="Клип Twitch"><button type="button" class="aw-clip-x" data-x aria-label="Закрыть">✕</button><div class="aw-clip-frame"><iframe src="${esc(src)}" allowfullscreen allow="autoplay; fullscreen"></iframe></div><a class="aw-clip-out" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Открыть на Twitch ↗</a></div>`;
+  const close = () => { ov.remove(); removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  addEventListener('keydown', onKey);
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-x]')) close(); });
+  document.body.append(ov);
+}
+document.addEventListener('click', e => {
+  const tc = e.target.closest('[data-twclip]');
+  if (!tc) return;
+  e.preventDefault(); e.stopPropagation();
+  if (!S.justDragged) twClipOpen(tc.dataset.twclip, tc.dataset.twurl);
+}, true);
 const ytId = u => (String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || null;
 const thumb = (u, w = 720) => { const m = String(u || '').match(/^https:\/\/cdn\.renah0cki\.xyz\/file\/(.+\.(?:jpe?g|png|webp))$/i); return m ? `${CDN}/thumb/${w}/${m[1]}` : u; };
 const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return n > 10 && n < 20 ? c : k > 1 && k < 5 ? b : k === 1 ? a : c; };
@@ -368,6 +385,7 @@ function mediaHtml(x, canOpenParts = false) {
   if (x.media_type === 'image') return `<div class="aw-media is-img${x.no_shade ? ' no-shade' : ''}${clickCls}"${openAttr}><img src="${esc(thumb(u, 720))}" alt="" loading="lazy" draggable="false"></div>`;
   if (x.media_type === 'video') return `<div class="aw-media is-vid"><video src="${esc(u)}" controls playsinline preload="metadata"></video></div>`;
   if (x.media_type === 'youtube' && ytId(u)) return `<div class="aw-media yt"><iframe src="https://www.youtube-nocookie.com/embed/${ytId(u)}" allowfullscreen loading="lazy"></iframe></div>`;
+  if (x.media_type === 'link' && twClip(u)) return `<button type="button" class="aw-media aw-link aw-tw" data-twclip="${esc(twClip(u))}" data-twurl="${esc(u)}" title="Смотреть клип"><span class="aw-tw-play" aria-hidden="true"></span>Клип Twitch</button>`;
   if (x.media_type === 'link') return `<a class="aw-media aw-link" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>🔗</span>${esc(u.replace(/^https?:\/\//, '').slice(0, 60))}</a>`;
   return `<div class="aw-media aw-nomedia${clickCls}"${openAttr}>${esc((x.title || '?').slice(0, 1).toUpperCase())}</div>`;
 }
