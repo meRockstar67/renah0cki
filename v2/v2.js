@@ -39,18 +39,32 @@ const I = {
 function readSession() { try { return JSON.parse(localStorage.getItem(LS_SESSION)); } catch { return null; } }
 function jwtExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch { return 0; } }
 let refreshing = null;
+function sessionDead() {
+  try { localStorage.removeItem(LS_SESSION); sessionStorage.setItem('rn_relogin', '1'); } catch {}
+  location.reload();
+}
+async function refreshWith(rt) {
+  const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) });
+  if (!r.ok) return { status: r.status };
+  const d = await r.json();
+  if (!d?.access_token) return { status: 0 };
+  localStorage.setItem(LS_SESSION, JSON.stringify({ ...(readSession() || {}), token: d.access_token, refreshToken: d.refresh_token }));
+  return { token: d.access_token };
+}
 async function getToken() {
   const s = readSession();
   if (!s?.token) return null;
   if (jwtExp(s.token) - Date.now() > 60e3) return s.token;
-  if (!s.refreshToken) return null;
+  if (!s.refreshToken) { sessionDead(); return null; }
   if (!refreshing) refreshing = (async () => {
     try {
-      const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: s.refreshToken }) });
-      if (!r.ok) { const f = readSession(); return f?.token && jwtExp(f.token) - Date.now() > 60e3 ? f.token : null; }
-      const d = await r.json();
-      localStorage.setItem(LS_SESSION, JSON.stringify({ ...(readSession() || s), token: d.access_token, refreshToken: d.refresh_token }));
-      return d.access_token;
+      let res = await refreshWith(s.refreshToken);
+      if (res.token) return res.token;
+      const f = readSession();
+      if (f?.token && jwtExp(f.token) - Date.now() > 60e3) return f.token;
+      if (f?.refreshToken && f.refreshToken !== s.refreshToken) { res = await refreshWith(f.refreshToken); if (res.token) return res.token; }
+      if ([400, 401, 403].includes(res.status)) sessionDead();
+      return null;
     } catch { return null; } finally { setTimeout(() => { refreshing = null; }, 0); }
   })();
   return refreshing;
@@ -3719,6 +3733,7 @@ addEventListener('hashchange', () => {
 });
 loadAllMyLikes();
 $('#navGame').hidden = !matchMedia('(any-pointer: fine)').matches;
+try { if (sessionStorage.getItem('rn_relogin')) { sessionStorage.removeItem('rn_relogin'); setTimeout(() => toast(tl('Вход устарел — войдите снова'), true), 700); } } catch {}
 loadMe().then(() => { if (/^(suggest|news|u\/|mod|collections|new\/collection|shop)/.test(curRoute())) route(); startOnline(); });
 resolveLegacy().then(ok => { if (ok) route(); });
 })();
