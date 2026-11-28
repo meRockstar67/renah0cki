@@ -40,7 +40,7 @@ async function getJwt() {
   if (!refreshing) refreshing = (async () => {
     try {
       const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: s.refreshToken }) });
-      if (!r.ok) return null;
+      if (!r.ok) { const f = readSession(); if (f?.token && jwtExp(f.token) - Date.now() > 60e3) return f.token; if ([400, 401, 403].includes(r.status) && f?.refreshToken === s.refreshToken) { try { localStorage.removeItem('fh_session'); sessionStorage.setItem('rn_relogin', '1'); } catch {} location.reload(); } return null; }
       const d = await r.json();
       localStorage.setItem('fh_session', JSON.stringify({ ...(readSession() || s), token: d.access_token, refreshToken: d.refresh_token }));
       return d.access_token;
